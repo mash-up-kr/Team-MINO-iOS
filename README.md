@@ -1,7 +1,49 @@
 # Team-MINO-iOS
 안녕하세요민호야잘하자iOS팀레포인데요일단임시레포를팟어요많은관심부탁드립니다
 
+--
+## App Download
+
+<a href="https://apps.apple.com/kr/app/%EC%93%B8%EB%9E%98%EB%A7%90%EB%9E%98/id6746895814" target="_blank">
+  <img src="https://github.com/user-attachments/assets/e7e0253d-26bc-4fd3-9f4d-1ff8c24f00fe" alt="App Store Download" width="150" />
+</a>
+
+<p>
+  <a href="https://apps.apple.com/kr/app/%EC%93%B8%EB%9E%98%EB%A7%90%EB%9E%98/id6746895814" target="_blank">앱스토어에서 다운로드</a>
+</p>
+
+---
+
+## Contributors
+
+<table>
+  <tr align="center">
+    <td><b>박병호</b></td>
+    <td><b>김유빈</b></td>
+    <td><b>이지훈</b></td>
+  </tr>
+  <tr align="center">
+    <td>
+      <img src="https://github.com/user-attachments/assets/fa3c4110-7119-460d-951d-05f26fed6ae8?size=100" width="100" height="100"><br>
+      <a href="https://github.com/SijongKim93"><i>SijongKim93</i></a>
+    </td>
+    <td>
+      <img src="https://github.com/user-attachments/assets/9a4627ee-b30a-474c-958b-7d3c3a942d0b" width="100" height="200"><br>
+      <a href="https://github.com/k-nh"><i>Nahee</i></a>
+    </td>
+    <td>
+      <img src="https://github.com/user-attachments/assets/dcecb35d-ea53-44c9-bf86-cbc0e4988d2f?size=100" width="100" height="100"><br>
+      <a href="https://github.com/hooni0918"><i>hooni0918</i></a>
+    </td>
+  </tr>
+</table>
+
+---
 
 
+<div align="center">
+  <a href="https://hits.sh/github.com/mash-up-kr/Team-MINO-iOS/">
+    <img src="https://hits.sh/github.com/mash-up-kr/Team-MINO-iOS.svg" alt="Hits">
+  </a>
+</div>
 
-리드미 나를 읽어줘
