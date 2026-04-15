@@ -3,10 +3,10 @@
 
 ## > *「諦めるな…！俺たちのコードは、まだ終わっていない！」*
 
-<div align="center">
+<!-- <div align="center">
     <img src="https://github.com/user-attachments/assets/d052ad90-0567-40da-8f5e-915baeb6a028" width="1200" height="800" alt="Video" />
   </a>
-</div>
+</div> -->
 
 
 
