@@ -1,6 +1,8 @@
 # Team-MINO-iOS
 안녕하세요민호야잘하자iOS팀레포인데요일단임시레포를팟어요많은관심부탁드립니다
 
+
+[![Video](https://img.youtube.com/vi/OzGVz1ClxIc/maxresdefault.jpg)](https://www.youtube.com/watch?v=OzGVz1ClxIc)
 --
 ## App Download
 
@@ -9,7 +11,7 @@
 </a>
 
 <p>
-  <a href="https://apps.apple.com/kr/app/%EC%93%B8%EB%9E%98%EB%A7%90%EB%9E%98/id6746895814" target="_blank">앱스토어에서 다운로드</a>
+  <!-- <a href="https://apps.apple.com/kr/app/%EC%93%B8%EB%9E%98%EB%A7%90%EB%9E%98/id6746895814" target="_blank">앱스토어에서 다운로드</a> -->
 </p>
 
 ---
@@ -24,15 +26,15 @@
   </tr>
   <tr align="center">
     <td>
-      <img src="https://github.com/user-attachments/assets/fa3c4110-7119-460d-951d-05f26fed6ae8?size=100" width="100" height="100"><br>
-      <a href="https://github.com/SijongKim93"><i>SijongKim93</i></a>
+      <img src="https://github.com/user-attachments/assets/fb7bdad1-d95a-450a-8da8-8c38ada83451" width="200" height="400"><br>
+      <a href="https://github.com/hoBahk"><i>hoBahk</i></a>
     </td>
     <td>
-      <img src="https://github.com/user-attachments/assets/9a4627ee-b30a-474c-958b-7d3c3a942d0b" width="100" height="200"><br>
-      <a href="https://github.com/k-nh"><i>Nahee</i></a>
+      <img src="https://github.com/user-attachments/assets/57e92d6b-356c-4acf-9bf5-38f7f2aa573c" width="200" height="400"><br>
+      <a href="https://github.com/dbqls200"><i>dbqls200</i></a>
     </td>
     <td>
-      <img src="https://github.com/user-attachments/assets/dcecb35d-ea53-44c9-bf86-cbc0e4988d2f?size=100" width="100" height="100"><br>
+      <img src="https://github.com/user-attachments/assets/65ef658f-55e4-46cc-a70b-ae1ad1c49848" width="200" height="400"><br>
       <a href="https://github.com/hooni0918"><i>hooni0918</i></a>
     </td>
   </tr>
