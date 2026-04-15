@@ -1,8 +1,21 @@
 # Team-MINO-iOS
 안녕하세요민호야잘하자iOS팀레포인데요일단임시레포를팟어요많은관심부탁드립니다
 
+## > *「諦めるな…！俺たちのコードは、まだ終わっていない！」*
+
 <div align="center">
     <img src="https://github.com/user-attachments/assets/d052ad90-0567-40da-8f5e-915baeb6a028" width="1200" height="800" alt="Video" />
+  </a>
+</div>
+
+
+
+## 🎵✨ ↓↓↓ チームMINO iOS 公式テーマソング ↓↓↓ ✨🎵
+
+> *「この曲を聴けば…力が湧いてくる気がする。不思議だろう？」* 🔥💫
+<div align="center">
+  <a href="https://www.youtube.com/watch?v=OzGVz1ClxIc">
+    <img src="https://img.youtube.com/vi/OzGVz1ClxIc/maxresdefault.jpg" width="800" height="476" alt="Video" />
   </a>
 </div>
 
@@ -29,11 +42,11 @@
   </tr>
   <tr align="center">
     <td>
-      <img src="https://github.com/user-attachments/assets/fb7bdad1-d95a-450a-8da8-8c38ada83451" width="200" height="400"><br>
+      <img src="https://github.com/user-attachments/assets/57e92d6b-356c-4acf-9bf5-38f7f2aa573c" width="200" height="400"><br>
       <a href="https://github.com/hoBahk"><i>hoBahk</i></a>
     </td>
     <td>
-      <img src="https://github.com/user-attachments/assets/57e92d6b-356c-4acf-9bf5-38f7f2aa573c" width="200" height="400"><br>
+      <img src="https://github.com/user-attachments/assets/fb7bdad1-d95a-450a-8da8-8c38ada83451" width="200" height="400"><br>
       <a href="https://github.com/dbqls200"><i>dbqls200</i></a>
     </td>
     <td>
