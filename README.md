@@ -1,8 +1,11 @@
 # Team-MINO-iOS
 안녕하세요민호야잘하자iOS팀레포인데요일단임시레포를팟어요많은관심부탁드립니다
 
+<div align="center">
+    <img src="https://github.com/user-attachments/assets/d052ad90-0567-40da-8f5e-915baeb6a028" width="1200" height="800" alt="Video" />
+  </a>
+</div>
 
-[![Video](https://img.youtube.com/vi/OzGVz1ClxIc/maxresdefault.jpg)](https://www.youtube.com/watch?v=OzGVz1ClxIc)
 --
 ## App Download
 
