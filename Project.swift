@@ -10,7 +10,19 @@ let project = Project(
             product: .app,
             bundleId: "yizihn.com.iOS-mini-fig",
             deploymentTargets: .iOS("16.0"),
-            infoPlist: .file(path: "Targets/iOS-mini-fig/Info.plist"),
+            infoPlist: .extendingDefault(with: [
+                "UIApplicationSceneManifest": .dictionary([
+                    "UIApplicationSupportsMultipleScenes": .boolean(false),
+                    "UISceneConfigurations": .dictionary([
+                        "UIWindowSceneSessionRoleApplication": .array([
+                            .dictionary([
+                                "UISceneConfigurationName": .string("Default Configuration"),
+                                "UISceneDelegateClassName": .string("$(PRODUCT_MODULE_NAME).SceneDelegate"),
+                            ]),
+                        ]),
+                    ]),
+                ]),
+            ]),
             sources: ["Targets/iOS-mini-fig/Sources/**"],
             resources: ["Targets/iOS-mini-fig/Resources/**"]
         ),

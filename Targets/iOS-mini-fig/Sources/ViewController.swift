@@ -11,10 +11,12 @@ class ViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .systemBackground
-        title = "Home"
+        view.backgroundColor = .white
+        title = "박병호 덕질할사람 여기여기 붙어라"
+
     }
 
+    
 
 }
 
