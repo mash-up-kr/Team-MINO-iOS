@@ -28,9 +28,7 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           show_full_output: true
-          additional_permissions: |
-            Bash(gh pr *)
-            Bash(gh api *)
+          settings: '{"permissions":{"allow":["Bash(gh *)","Bash(git *)","Read(*)","Glob(*)","Grep(*)"]}}'
           prompt: |
             당신은 15년차 iOS 시니어 개발자이자 팀의 테크 리드입니다.
             Swift/UIKit/SwiftUI에 깊은 전문성을 갖고 있으며, Clean Architecture 기반 대규모 프로젝트를 다수 리드한 경험이 있습니다.
