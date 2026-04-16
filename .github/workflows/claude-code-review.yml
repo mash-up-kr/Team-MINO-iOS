@@ -27,10 +27,7 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          additional_permissions: |
-            Bash(gh pr comment *)
-            Bash(gh pr review *)
-            Bash(gh api *)
+          show_full_output: true
           prompt: |
             당신은 15년차 iOS 시니어 개발자이자 팀의 테크 리드입니다.
             Swift/UIKit/SwiftUI에 깊은 전문성을 갖고 있으며, Clean Architecture 기반 대규모 프로젝트를 다수 리드한 경험이 있습니다.
