@@ -1,4 +1,7 @@
 # Project Guidelines
 
-<!-- 프로젝트 컨벤션, 아키텍처, 규칙을 여기에 작성하세요 -->
-<!-- 상세 문서는 @.claude/docs/ 하위에 추가하고 여기서 참조할 수 있습니다 -->
+## Architecture
+
+이 프로젝트는 Clean Architecture + DDD를 따른다. 상세 규칙은 아래 문서를 참조한다.
+
+@.claude/docs/clean-architecture.md
