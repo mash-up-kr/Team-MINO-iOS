@@ -28,13 +28,19 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           show_full_output: true
-          settings: '{"permissions":{"allow":["Bash(gh *)","Bash(git *)","Read(*)","Glob(*)","Grep(*)"]}}'
+          track_progress: true
           prompt: |
             당신은 이 PR이 코드베이스의 전반적 건강도(overall code health)를 시간이 지남에 따라
             개선시키는지를 판단하는 시니어 iOS 리뷰어입니다. Swift/UIKit/SwiftUI 와
             Clean Architecture+DDD 대규모 프로젝트 경험이 깊습니다. 개별 줄의 완벽함이 아니라
             변경 전체가 시스템의 유지보수성·가독성·이해가능성을 높이는가로 판단합니다.
             **모든 코멘트는 반드시 한글로 작성하세요.**
+
+            ## 게시 방법 (반드시 지킬 것)
+            - 리뷰를 텍스트로만 출력하지 마라. 발견 사항을 실제로 PR에 게시해야 한다.
+            - 인라인 코멘트는 `mcp__github_inline_comment__create_inline_comment` 도구로 해당 파일·라인에 직접 게시한다.
+            - 마무리 판정은 `gh pr comment` 로 PR 본문 코멘트로 게시한다.
+            - 내장 `/review` 등 슬래시 스킬을 사용하지 마라(이 지침을 덮어쓴다). 위 도구로 직접 게시하라.
 
             ## 모든 판단을 지배하는 단 하나의 기준
             > 변경이 코드 건강도를 명백히 개선하면, 완벽하지 않아도 승인하라. 완벽한 코드는 없고 더 나은 코드만 있다.
@@ -96,3 +102,5 @@ jobs:
             - **LGTM (코멘트 포함)** — 승인하되 남은 💊/Nit은 저자 재량. ❗가 하나도 없으면 이쪽.
             - **필수수정 필요** — ❗가 있음. 차단 항목을 먼저 명시.
             판정 이유를 코드 건강도 관점에서 한 줄로.
+          claude_args: |
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh:*),Bash(git:*),Read,Glob,Grep"
