@@ -1,0 +1,67 @@
+import SwiftUI
+
+/// Member flow 의 진입 View. NavigationStack(path) + sheet 를 Coordinator 상태에 바인딩한다.
+public struct MemberRootView: View {
+    @Environment(MemberCoordinator.self) private var coordinator
+    @State private var store: MemberStore?
+
+    public init() {}
+
+    public var body: some View {
+        @Bindable var coordinator = coordinator
+        NavigationStack(path: $coordinator.path) {
+            rootContent
+                .navigationDestination(for: MemberRoute.self) { route in
+                    switch route {
+                    case .detail(let id):
+                        MemberDetailView(id: id)
+                    }
+                }
+        }
+        .sheet(item: $coordinator.sheet) { sheet in
+            switch sheet {
+            case .edit:
+                if let child = coordinator.editChild {
+                    MemberEditView(coordinator: child)
+                        .flowRoot(child) { result in
+                            coordinator.editDidFinish(result)
+                        }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var rootContent: some View {
+        if let store {
+            MemberContentView(store: store)
+        } else {
+            ProgressView()
+                .task { store = coordinator.makeMemberStore() }
+        }
+    }
+}
+
+/// 로딩/표시 + 화면 전환 트리거. store 의 상태를 읽어 그린다.
+struct MemberContentView: View {
+    let store: MemberStore
+
+    var body: some View {
+        VStack(spacing: 16) {
+            if store.state.isLoading {
+                ProgressView()
+            } else if let member = store.state.member {
+                Text("안녕하세요, \(member.name)님")
+                    .font(.title2)
+                Button("상세 보기") { store.send(.tapDetail) }
+                Button("편집") { store.send(.tapEdit) }
+            } else if let message = store.state.errorMessage {
+                Text("불러오기 실패: \(message)")
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding()
+        .navigationTitle("Member")
+        .task { store.send(.load) }
+    }
+}
