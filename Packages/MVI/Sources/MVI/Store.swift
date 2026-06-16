@@ -16,8 +16,9 @@ public final class Store<State, Action, Nav: Sendable> {
     private let navContinuation: AsyncStream<Nav>.Continuation
 
     private let reduce: (inout State, Action) -> Effect<Action, Nav>
+    // 진행 중인 run effect 들. 완료되면 자기 자신을 제거해 누적되지 않는다.
     // 변경은 항상 @MainActor 에서만 일어나고, 읽기는 deinit(해제 시점, 경쟁 없음)에서만 한다.
-    @ObservationIgnored nonisolated(unsafe) private var tasks: [Task<Void, Never>] = []
+    @ObservationIgnored nonisolated(unsafe) private var tasks: [UUID: Task<Void, Never>] = [:]
 
     public init(
         _ initial: State,
@@ -29,7 +30,7 @@ public final class Store<State, Action, Nav: Sendable> {
     }
 
     deinit {
-        tasks.forEach { $0.cancel() }
+        tasks.values.forEach { $0.cancel() }
         navContinuation.finish()
     }
 
@@ -45,10 +46,11 @@ public final class Store<State, Action, Nav: Sendable> {
         case .navigate(let nav):
             navContinuation.yield(nav)
         case .run(let operation):
-            let task = Task { [weak self] in
+            let id = UUID()
+            tasks[id] = Task { [weak self] in
                 await operation { action in self?.send(action) }
+                self?.tasks[id] = nil   // 완료 시 자기 자신 제거
             }
-            tasks.append(task)
         }
     }
 }

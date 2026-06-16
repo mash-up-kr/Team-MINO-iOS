@@ -20,9 +20,11 @@ public final class MemberEditCoordinator: Coordinator {
     public var cover: Never? = nil
     public let finish = FlowFinish<EditResult>()
 
-    // MARK: - Dependencies / Lifecycle  (deps 주입 — 자식도 같은 번들을 받는다)
-    private let deps: MemberDeps
-    public init(deps: MemberDeps) { self.deps = deps }
+    // MARK: - Dependencies / Lifecycle
+    // 편집 자체에 아직 의존이 없어 deps 를 받지 않는다.
+    // 편집 저장 등 UseCase 가 생기면 자기 전용 프로토콜(예: MemberEditDeps)을 정의해 받고,
+    // 부모는 factory 로 주입한다. (DI = Coordinator 별 좁은 deps 프로토콜)
+    public init() {}
 
     // MARK: - Flow Control
     public func save(_ name: String) { finish(.saved(name)) }

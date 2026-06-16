@@ -50,7 +50,7 @@ struct MemberCoordinatorTests {
     @Test("자식 편집 결과를 부모가 받아 반영하고 자식을 해제한다")
     func edit_finish_reflected() {
         let coord = MemberCoordinator(deps: StubDeps(), memberID: MemberID("1"))
-        coord.editChild = MemberEditCoordinator(deps: StubDeps())
+        coord.editChild = MemberEditCoordinator()
 
         coord.editDidFinish(.saved("새이름"))
 

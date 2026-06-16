@@ -32,14 +32,15 @@ public final class MemberCoordinator: Coordinator {
     /// flowRoot onFinish 결과 반영 시범용.
     public var lastEditResult: EditResult?
 
-    @ObservationIgnored nonisolated(unsafe) private var effectTasks: [Task<Void, Never>] = []
+    // store 별 NavigationEffect 구독. store 가 해제되면 구독이 끝나며 자기 자신을 제거한다.
+    @ObservationIgnored nonisolated(unsafe) private var effectTasks: [UUID: Task<Void, Never>] = [:]
 
     public init(deps: MemberDeps, memberID: MemberID) {
         self.deps = deps
         self.memberID = memberID
     }
 
-    deinit { effectTasks.forEach { $0.cancel() } }
+    deinit { effectTasks.values.forEach { $0.cancel() } }
 
     // MARK: - Store Factories
     public func makeMemberStore() -> MemberStore {
@@ -61,11 +62,12 @@ public final class MemberCoordinator: Coordinator {
 
     // MARK: - Effect Routing (NavigationEffect → Coordinator)
     private func observe(_ store: MemberStore) {
-        let task = Task { @MainActor [weak store, weak self] in
+        let id = UUID()
+        effectTasks[id] = Task { @MainActor [weak store, weak self] in
             guard let store else { return }
             for await nav in store.navigationEffects { self?.handle(nav) }
+            self?.effectTasks[id] = nil   // 구독 종료(store 해제) 시 자기 자신 제거
         }
-        effectTasks.append(task)
     }
 
     private func handle(_ nav: MemberNav) {
@@ -73,7 +75,7 @@ public final class MemberCoordinator: Coordinator {
         case .goToDetail(let id):
             push(.detail(id))
         case .presentEdit:
-            editChild = MemberEditCoordinator(deps: deps)   // 자식에 같은 deps 전달
+            editChild = MemberEditCoordinator()   // 자식은 자기 의존이 없어 deps 불필요
             present(.edit)
         }
     }
