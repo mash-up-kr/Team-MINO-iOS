@@ -17,7 +17,8 @@ public final class Store<State, Action, Nav: Sendable> {
 
     private let reduce: (inout State, Action) -> Effect<Action, Nav>
     // 진행 중인 run effect 들. 완료되면 자기 자신을 제거해 누적되지 않는다.
-    // 변경은 항상 @MainActor 에서만 일어나고, 읽기는 deinit(해제 시점, 경쟁 없음)에서만 한다.
+    // 쓰기는 @MainActor, 읽기는 nonisolated deinit. @MainActor 객체(View @State 소유)라
+    // MainActor 에서 해제된다는 가정 위에서 race-free 이다(보장은 아님; Swift 6.1 isolated deinit 으로 정리 가능).
     @ObservationIgnored nonisolated(unsafe) private var tasks: [UUID: Task<Void, Never>] = [:]
 
     public init(
@@ -48,8 +49,8 @@ public final class Store<State, Action, Nav: Sendable> {
         case .run(let operation):
             let id = UUID()
             tasks[id] = Task { [weak self] in
+                defer { self?.tasks[id] = nil }   // 모든 종료 경로에서 정리
                 await operation { action in self?.send(action) }
-                self?.tasks[id] = nil   // 완료 시 자기 자신 제거
             }
         }
     }

@@ -18,13 +18,13 @@ public struct MemberRootView: View {
                     }
                 }
         }
-        .sheet(item: $coordinator.sheet) { sheet in
+        .sheet(item: $coordinator.sheet, onDismiss: { coordinator.editDismissed() }) { sheet in
             switch sheet {
             case .edit:
                 if let child = coordinator.editChild {
                     MemberEditView(coordinator: child)
-                        .flowRoot(child) { result in
-                            coordinator.editDidFinish(result)
+                        .flowRoot(child) { [weak coordinator] result in
+                            coordinator?.editDidFinish(result)   // [weak] 로 부모↔자식 retain cycle 차단
                         }
                 }
             }

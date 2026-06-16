@@ -7,9 +7,9 @@ public enum MemberRoute: Hashable {
     case detail(MemberID)
 }
 
-public enum MemberSheet: Identifiable {
+public enum MemberSheet: String, Identifiable {
     case edit
-    public var id: String { "edit" }
+    public var id: String { rawValue }   // 케이스마다 rawValue 가 자동으로 달라져 id 갱신 누락을 막는다
 }
 
 /// Member flow 의 부모 Coordinator.
@@ -33,6 +33,8 @@ public final class MemberCoordinator: Coordinator {
     public var lastEditResult: EditResult?
 
     // store 별 NavigationEffect 구독. store 가 해제되면 구독이 끝나며 자기 자신을 제거한다.
+    // 쓰기는 @MainActor, 읽기는 nonisolated deinit. @MainActor 객체(소유자도 @MainActor)라
+    // MainActor 에서 해제된다는 가정 위에서 race-free 이다(보장은 아님; Swift 6.1 isolated deinit 으로 정리 가능).
     @ObservationIgnored nonisolated(unsafe) private var effectTasks: [UUID: Task<Void, Never>] = [:]
 
     public init(deps: MemberDeps, memberID: MemberID) {
@@ -64,13 +66,14 @@ public final class MemberCoordinator: Coordinator {
     private func observe(_ store: MemberStore) {
         let id = UUID()
         effectTasks[id] = Task { @MainActor [weak store, weak self] in
+            defer { self?.effectTasks[id] = nil }   // 모든 종료 경로(early-return 포함)에서 정리
             guard let store else { return }
             for await nav in store.navigationEffects { self?.handle(nav) }
-            self?.effectTasks[id] = nil   // 구독 종료(store 해제) 시 자기 자신 제거
         }
     }
 
-    private func handle(_ nav: MemberNav) {
+    /// NavigationEffect 라우팅. 구독(observe)과 분리돼 있어 테스트에서 직접 호출해 결정적으로 검증한다.
+    func handle(_ nav: MemberNav) {
         switch nav {
         case .goToDetail(let id):
             push(.detail(id))
@@ -81,9 +84,15 @@ public final class MemberCoordinator: Coordinator {
     }
 
     // MARK: - Flow Control
-    /// 자식 편집 flow 가 끝났을 때 부모가 한 줄로 위임받는 자리.
+    /// 자식 편집 flow 가 끝났을 때(저장/취소) 부모가 한 줄로 위임받는 자리.
     public func editDidFinish(_ result: EditResult) {
         lastEditResult = result
         editChild = nil
+    }
+
+    /// 시트가 닫힐 때(스와이프 등 finish 미발사 포함) 호출. finish 로 이미 정리됐으면 no-op.
+    public func editDismissed() {
+        guard editChild != nil else { return }   // 저장/취소로 이미 editChild = nil 된 경우
+        editChild = nil                          // 스와이프 dismiss 를 정리(취소로 정규화)
     }
 }

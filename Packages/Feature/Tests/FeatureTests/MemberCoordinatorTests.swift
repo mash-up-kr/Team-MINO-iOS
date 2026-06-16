@@ -12,37 +12,23 @@ private struct StubDeps: MemberDeps {
     var fetchMember: FetchMemberUseCase = StubFetchMember()
 }
 
-/// AsyncStream 구독(observe Task)이 비동기로 nav 를 처리하므로 조건 충족까지 잠깐 대기한다.
-@MainActor
-private func waitUntil(_ condition: @MainActor () -> Bool) async {
-    for _ in 0..<200 {
-        if condition() { return }
-        try? await Task.sleep(nanoseconds: 1_000_000)
-    }
-}
-
 @MainActor
 struct MemberCoordinatorTests {
     @Test("goToDetail nav → path 에 detail 이 push 된다")
-    func navigate_pushes_detail() async {
+    func navigate_pushes_detail() {
         let coord = MemberCoordinator(deps: StubDeps(), memberID: MemberID("1"))
-        let store = coord.makeMemberStore()
 
-        store.send(.loaded(fixture))   // member 세팅(동기)
-        store.send(.tapDetail)         // → navigate(.goToDetail)
+        coord.handle(.goToDetail(fixture.id))   // 라우팅 직접 검증 (구독과 분리돼 결정적)
 
-        await waitUntil { !coord.path.isEmpty }
         #expect(coord.path == [.detail(fixture.id)])
     }
 
     @Test("presentEdit nav → 자식 생성 + sheet present")
-    func navigate_presents_edit_child() async {
+    func navigate_presents_edit_child() {
         let coord = MemberCoordinator(deps: StubDeps(), memberID: MemberID("1"))
-        let store = coord.makeMemberStore()
 
-        store.send(.tapEdit)           // → navigate(.presentEdit)
+        coord.handle(.presentEdit)
 
-        await waitUntil { coord.sheet != nil }
         #expect(coord.sheet == .edit)
         #expect(coord.editChild != nil)
     }
