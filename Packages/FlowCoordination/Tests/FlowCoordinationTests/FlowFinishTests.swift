@@ -57,4 +57,20 @@ struct FlowFinishTests {
 
         #expect(fired)
     }
+
+    @Test("재bind 하면 action 이 교체되고 다시 발사할 수 있다")
+    func rebind_replaces_action_and_resets_didFire() {
+        let finish = FlowFinish<Int>()
+        var first: [Int] = []
+        var second: [Int] = []
+
+        finish.bind { first.append($0) }
+        finish(1)                            // 첫 action 으로 발사 (didFire = true)
+
+        finish.bind { second.append($0) }    // 재bind → action 교체 + didFire 리셋
+        finish(2)                            // 두 번째 발사가 먹어야 함 (flowRoot onAppear 재bind 경로)
+
+        #expect(first == [1])
+        #expect(second == [2])
+    }
 }

@@ -18,7 +18,10 @@ public final class TestStore<State: Equatable, Action: Equatable, Nav: Equatable
     private var pending: [Action] = []          // effect 가 보낸, 아직 안 받은 action
     private var navs: [Nav] = []                 // 발생한, 아직 단언 안 한 navigation
 
-    /// L3 엄격성 on/off. 작성 피로가 큰 화면은 꺼서 최종만 검증한다.
+    /// L3 엄격성 on/off.
+    /// - true: 단언하지 않은 state 변화·미수신 effect/navigation 을 자동 실패시킨다.
+    /// - false: 중간 state 단언과 finish 잔여 검사를 끈다 — 최종은 `currentState` 로 직접 확인한다.
+    ///   (`receive` 의 action 매칭은 exhaustive 와 무관하게 항상 동작한다.)
     public var exhaustive = true
 
     public init(
