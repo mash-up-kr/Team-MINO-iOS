@@ -64,4 +64,26 @@ struct TestStoreTests {
         store.finish()
         #expect(store.currentState.count == 10)   // 최종만 직접 확인
     }
+
+    @Test("exhaustive=false 면 미수신 effect 가 남아도 finish 가 통과한다")
+    func non_exhaustive_allows_unhandled_effect() async {
+        let store = TestStore(CounterState(), reduce: counterReducer)
+        store.exhaustive = false
+        await store.send(.load)      // .loaded(10) 이 pending 에 쌓임
+        store.finish()               // receive 하지 않았는데도 통과해야 (finish 게이트가 꺼짐)
+        #expect(store.currentState.isLoading == true)   // 최종 state 직접 확인
+    }
+
+    // MARK: - 에러 effect 경로
+
+    @Test("실패 effect 가 loadFailed Response 로 복귀해 error 를 채운다")
+    func failure_effect_scenario() async {
+        let store = TestStore(CounterState(), reduce: counterReducer)
+        await store.send(.loadFailing) { $0.isLoading = true }
+        await store.receive(.loadFailed("실패")) {
+            $0.isLoading = false
+            $0.error = "실패"
+        }
+        store.finish()
+    }
 }
