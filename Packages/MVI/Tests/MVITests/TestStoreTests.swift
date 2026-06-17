@@ -52,14 +52,16 @@ struct TestStoreTests {
 
     // MARK: - 비-exhaustive 모드 (중간 단언 생략, 최종만 직접 확인)
 
-    @Test("exhaustive=false 면 중간 단언을 건너뛰고 최종만 확인한다")
-    func non_exhaustive_final_only() async {
+    @Test("exhaustive=false 면 틀린 중간 단언도 무시하고 최종만 확인한다")
+    func non_exhaustive_ignores_wrong_intermediate() async {
         let store = TestStore(CounterState(), reduce: counterReducer)
         store.exhaustive = false
-        await store.send(.load)                   // isLoading 안 적어도 통과
-        await store.receive(.loaded(10))          // 중간 state 단언 생략
+        // 틀린 기대(실제 isLoading 은 true) — exhaustive=true 였다면 실패해야 한다.
+        // 이 테스트가 통과한다는 것 자체가 exhaustive 게이트가 실제로 검사를 끈다는 증거.
+        await store.send(.load) { $0.isLoading = false }
+        await store.receive(.loaded(10))
         store.receiveNavigation(.finished)
-        store.finish()                            // 잔여 검사도 꺼짐
+        store.finish()
         #expect(store.currentState.count == 10)   // 최종만 직접 확인
     }
 }
