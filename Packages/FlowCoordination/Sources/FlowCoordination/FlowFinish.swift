@@ -17,10 +17,11 @@ public final class FlowFinish<Output> {
 
     public init() {}
 
-    /// 시트 루트(`flowRoot`)에서 호출. 이미 bind 된 적이 있으면 새 action 으로 교체되고 발사 상태도 초기화된다.
+    /// 시트 루트(`flowRoot`)에서 호출해 action 을 연결한다.
+    /// `onAppear` 가 여러 번 호출돼도 발사 상태(`didFire`)는 건드리지 않아 1회성 보장이 유지된다.
+    /// 동일 인스턴스를 재사용해 다시 발사하려면 명시적으로 `reset()` 을 호출한다.
     public func bind(_ action: @escaping (Output) -> Void) {
         self.action = action
-        didFire = false
     }
 
     /// flow 종료를 트리거한다. 같은 인스턴스에서 이미 발사됐다면 무시한다.
