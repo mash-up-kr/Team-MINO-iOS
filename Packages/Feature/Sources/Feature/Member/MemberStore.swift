@@ -22,7 +22,7 @@ public enum MemberAction: Equatable {
     case tapEdit
 }
 
-/// 화면 전환 의도. `Store` 가 `navigationEffects` 로 흘려 Coordinator 가 구독한다.
+/// 화면 전환 의도. `Store` 가 `observeNavigation(_:)` 으로 Coordinator 에 전달한다.
 public enum MemberNav: Equatable, Sendable {
     case goToDetail(MemberID)
     case presentEdit

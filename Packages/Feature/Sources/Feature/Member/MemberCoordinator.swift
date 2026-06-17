@@ -32,17 +32,10 @@ public final class MemberCoordinator: Coordinator {
     /// flowRoot onFinish 결과 반영 시범용.
     public var lastEditResult: EditResult?
 
-    // store 별 NavigationEffect 구독. store 가 해제되면 구독이 끝나며 자기 자신을 제거한다.
-    // 쓰기는 @MainActor, 읽기는 nonisolated deinit. @MainActor 객체(소유자도 @MainActor)라
-    // MainActor 에서 해제된다는 가정 위에서 race-free 이다(보장은 아님; Swift 6.1 isolated deinit 으로 정리 가능).
-    @ObservationIgnored nonisolated(unsafe) private var effectTasks: [UUID: Task<Void, Never>] = [:]
-
     public init(deps: MemberDeps, memberID: MemberID) {
         self.deps = deps
         self.memberID = memberID
     }
-
-    deinit { effectTasks.values.forEach { $0.cancel() } }
 
     // MARK: - Store Factories
     public func makeMemberStore() -> MemberStore {
@@ -58,19 +51,11 @@ public final class MemberCoordinator: Coordinator {
             MemberState(),
             reduce: memberReducer(useCase: deps.fetchMember, id: id)
         )
-        observe(store)
+        store.observeNavigation { [weak self] in self?.handle($0) }   // 구독·Task 관리는 Store 가 담당
         return store
     }
 
     // MARK: - Effect Routing (NavigationEffect → Coordinator)
-    private func observe(_ store: MemberStore) {
-        let id = UUID()
-        effectTasks[id] = Task { @MainActor [weak store, weak self] in
-            defer { self?.effectTasks[id] = nil }   // 모든 종료 경로(early-return 포함)에서 정리
-            guard let store else { return }
-            for await nav in store.navigationEffects { self?.handle(nav) }
-        }
-    }
 
     /// NavigationEffect 라우팅. 구독(observe)과 분리돼 있어 테스트에서 직접 호출해 결정적으로 검증한다.
     func handle(_ nav: MemberNav) {
