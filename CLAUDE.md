@@ -5,3 +5,7 @@
 이 프로젝트는 Clean Architecture + DDD를 따른다. 상세 규칙은 아래 문서를 참조한다.
 
 @.claude/docs/clean-architecture.md
+
+화면 아키텍처(MVI + Coordinator + DI)의 구조·사용법·확장 방향은 아래 문서를 참조한다.
+
+@.claude/docs/mvi-coordinator-di.md
