@@ -3,9 +3,14 @@ import Domain
 
 /// push 로 진입하는 상세 화면. 자신의 Store 를 직접 보유(화면 단위 독립 Store).
 struct MemberDetailView: View {
-    @Environment(MemberCoordinator.self) private var coordinator
+    private let coordinator: MemberCoordinator
     let id: MemberID
     @State private var store: MemberStore?
+
+    init(coordinator: MemberCoordinator, id: MemberID) {
+        self.coordinator = coordinator
+        self.id = id
+    }
 
     var body: some View {
         Group {

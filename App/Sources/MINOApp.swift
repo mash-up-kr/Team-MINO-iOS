@@ -23,7 +23,6 @@ struct RootView: View {
     let coordinator: AppCoordinator
 
     var body: some View {
-        MemberRootView()
-            .environment(coordinator.member)
+        MemberRootView(coordinator: coordinator.member)
     }
 }

@@ -2,10 +2,12 @@ import SwiftUI
 
 /// Member flow 의 진입 View. NavigationStack(path) + sheet 를 Coordinator 상태에 바인딩한다.
 public struct MemberRootView: View {
-    @Environment(MemberCoordinator.self) private var coordinator
+    private let coordinator: MemberCoordinator
     @State private var store: MemberStore?
 
-    public init() {}
+    public init(coordinator: MemberCoordinator) {
+        self.coordinator = coordinator
+    }
 
     public var body: some View {
         @Bindable var coordinator = coordinator
@@ -14,7 +16,7 @@ public struct MemberRootView: View {
                 .navigationDestination(for: MemberRoute.self) { route in
                     switch route {
                     case .detail(let id):
-                        MemberDetailView(id: id)
+                        MemberDetailView(coordinator: coordinator, id: id)
                     }
                 }
         }
