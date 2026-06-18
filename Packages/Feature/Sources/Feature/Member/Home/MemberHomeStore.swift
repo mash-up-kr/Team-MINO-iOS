@@ -1,8 +1,8 @@
 import Domain
 import MVI
 
-/// 화면 상태 — 단일 `Equatable` struct (exhaustive 테스트와 정합).
-public struct MemberState: Equatable {
+/// Home(진입) 화면 상태 — 단일 `Equatable` struct (exhaustive 테스트와 정합).
+public struct MemberHomeState: Equatable {
     public var member: Member?
     public var isLoading: Bool
     public var errorMessage: String?
@@ -14,7 +14,7 @@ public struct MemberState: Equatable {
     }
 }
 
-public enum MemberAction: Equatable {
+public enum MemberHomeAction: Equatable {
     case load
     case loaded(Member)            // Response Action (성공)
     case loadFailed(DomainError)   // Response Action (실패)
@@ -23,18 +23,18 @@ public enum MemberAction: Equatable {
 }
 
 /// 화면 전환 의도. `Store` 가 `observeNavigation(_:)` 으로 Coordinator 에 전달한다.
-public enum MemberNav: Equatable, Sendable {
+public enum MemberHomeNav: Equatable, Sendable {
     case goToDetail(MemberID)
     case presentEdit
 }
 
-public typealias MemberStore = Store<MemberState, MemberAction, MemberNav>
+public typealias MemberHomeStore = Store<MemberHomeState, MemberHomeAction, MemberHomeNav>
 
 /// 순수 reduce. 의존성(UseCase)은 `Effect.run` 안에서만 사용하고 시그니처는 순수하게 유지한다.
-public func memberReducer(
+public func memberHomeReducer(
     useCase: FetchMemberUseCase,
     id: MemberID
-) -> (inout MemberState, MemberAction) -> Effect<MemberAction, MemberNav> {
+) -> (inout MemberHomeState, MemberHomeAction) -> Effect<MemberHomeAction, MemberHomeNav> {
     { state, action in
         switch action {
         case .load:

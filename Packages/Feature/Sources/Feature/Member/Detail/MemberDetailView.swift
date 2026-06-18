@@ -5,7 +5,7 @@ import Domain
 struct MemberDetailView: View {
     private let coordinator: MemberCoordinator
     let id: MemberID
-    @State private var store: MemberStore?
+    @State private var store: MemberDetailStore?
 
     init(coordinator: MemberCoordinator, id: MemberID) {
         self.coordinator = coordinator

@@ -38,27 +38,27 @@ public final class MemberCoordinator: Coordinator {
     }
 
     // MARK: - Store Factories
-    public func makeMemberStore() -> MemberStore {
-        makeStore(for: memberID)
-    }
-
-    public func makeDetailStore(id: MemberID) -> MemberStore {
-        makeStore(for: id)
-    }
-
-    private func makeStore(for id: MemberID) -> MemberStore {
-        let store = MemberStore(
-            MemberState(),
-            reduce: memberReducer(useCase: deps.fetchMember, id: id)
+    public func makeHomeStore() -> MemberHomeStore {
+        let store = MemberHomeStore(
+            MemberHomeState(),
+            reduce: memberHomeReducer(useCase: deps.fetchMember, id: memberID)
         )
         store.observeNavigation { [weak self] in self?.handle($0) }   // 구독·Task 관리는 Store 가 담당
         return store
     }
 
+    public func makeDetailStore(id: MemberID) -> MemberDetailStore {
+        // 상세는 전환 의도가 없어(MemberDetailNav 빈 enum) observeNavigation 을 연결하지 않는다.
+        MemberDetailStore(
+            MemberDetailState(),
+            reduce: memberDetailReducer(useCase: deps.fetchMember, id: id)
+        )
+    }
+
     // MARK: - Effect Routing (NavigationEffect → Coordinator)
 
     /// NavigationEffect 라우팅. 구독(observe)과 분리돼 있어 테스트에서 직접 호출해 결정적으로 검증한다.
-    func handle(_ nav: MemberNav) {
+    func handle(_ nav: MemberHomeNav) {
         switch nav {
         case .goToDetail(let id):
             push(.detail(id))

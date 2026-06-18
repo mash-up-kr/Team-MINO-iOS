@@ -1,6 +1,6 @@
 # MVI + Coordinator + DI 아키텍처
 
-화면 아키텍처는 세 축으로 구성된다: **Coordinator**(화면 전환) + **경량 A(MVI)**(화면 내 상태) + **DI**(의존성 주입). 셋은 `Store` 하나로 수렴한다.
+화면 아키텍처는 세 축으로 구성된다: **Coordinator**(화면 전환) + **MVI**(화면 내 상태) + **DI**(의존성 주입). 셋은 `Store` 하나로 수렴한다.
 
 ---
 
@@ -25,7 +25,7 @@ App ──▶ Feature ──▶ Domain ──▶ Core
 
 ---
 
-## 2. MVI — 경량 A
+## 2. MVI
 
 순수 reduce + 최소 Effect/Store. 비동기 결과는 Response Action으로 복귀, 화면 전환은 NavigationEffect로 분리한다.
 
@@ -57,8 +57,8 @@ public final class Store<State, Action, Nav: Sendable> {
 ### 순수 reduce + Response Action
 
 ```swift
-func memberReducer(useCase: FetchMemberUseCase, id: MemberID)
-    -> (inout MemberState, MemberAction) -> Effect<MemberAction, MemberNav> {
+func memberHomeReducer(useCase: FetchMemberUseCase, id: MemberID)
+    -> (inout MemberHomeState, MemberHomeAction) -> Effect<MemberHomeAction, MemberHomeNav> {
     { state, action in
         switch action {
         case .load:
@@ -176,7 +176,7 @@ struct AppDependencies: MemberDeps {
 ### View는 생성자 주입
 
 ```swift
-public struct MemberRootView: View {
+public struct MemberHomeView: View {
     private let coordinator: MemberCoordinator
     public init(coordinator: MemberCoordinator) { self.coordinator = coordinator }
     public var body: some View {
@@ -191,36 +191,49 @@ public struct MemberRootView: View {
 ### Store factory + 구독
 
 ```swift
-func makeMemberStore() -> MemberStore {
-    let store = MemberStore(MemberState(), reduce: memberReducer(useCase: deps.fetchMember, id: memberID))
-    store.observeNavigation { [weak self] in self?.handle($0) }   // ← 반드시 호출 (누락 시 navigation 조용히 죽음)
+func makeHomeStore() -> MemberHomeStore {
+    let store = MemberHomeStore(MemberHomeState(), reduce: memberHomeReducer(useCase: deps.fetchMember, id: memberID))
+    store.observeNavigation { [weak self] in self?.handle($0) }   // ← 반드시 호출 (누락 시 navigation 동작 안 함)
     return store
 }
 ```
 
 ---
 
-## 5. 초기 설계안에서 변형한 결정
-
-이 아키텍처는 일반적인 Coordinator+MVI+DI 설계안에서 출발했고, 이 프로젝트의 Clean Architecture/모듈 분리/Swift 6에 맞춰 아래를 변형했다.
-
-| 항목 | 일반 설계안 | 이 프로젝트 |
-|---|---|---|
-| reduce 의존 | `repo:` (Repository 직접) | **`useCase:`** (Clean Architecture — Feature는 UseCase 경유) |
-| DI | 구체 `AppDependencies` 번들 통째 전달 | **Coordinator별 좁은 deps 프로토콜**(모듈 경계 위해) |
-| navigation 구독 | Coordinator가 `for await store.navigationEffects` | **`store.observeNavigation`** (Store가 구독 관리, 보일러플레이트 제거) |
-| Coordinator 주입 | `@Environment(Coordinator.self)` | **생성자 주입**(컴파일 안전·명시) |
-| 플랫폼 | UIKit→SwiftUI 전제 | **SwiftUI** (Swift 6 strict concurrency) |
-
-이유: 모두 모듈 분리 + "테스트/안전 우선" + Swift 6 정합을 위한 변형. 보일러플레이트 증가분은 AI가 흡수한다는 전제(경량 A를 고른 논리와 동일).
-
----
-
-## 6. 새 Coordinator / 화면 작성법
+## 5. 새 Coordinator / 화면 작성법
 
 새 피쳐를 추가할 때 따르는 절차와 체크리스트.
 
+### 파일 배치
+
+피쳐는 `Feature` 패키지 안에서 **flow 폴더 하나**로 묶는다(타입 종류별로 흩지 않는다). flow 폴더 안에서는 **화면마다 폴더**(`Store` + `View` 한 쌍)를 두고, flow 공통(Coordinator·Deps)은 루트에 둔다.
+
+```
+Packages/Feature/Sources/Feature/Member/    # 예: Member flow
+  MemberCoordinator.swift          # flow Coordinator (Route/Sheet enum 포함)
+  MemberDeps.swift                 # deps 프로토콜
+  Home/                            # 진입 화면
+    MemberHomeStore.swift            # State / Action / Nav / reducer (화면 단위)
+    MemberHomeView.swift
+  Detail/                          # 그 외 화면
+    MemberDetailStore.swift
+    MemberDetailView.swift
+  Edit/                            # 자식 flow — 부모와 같은 재귀 패턴(미니 flow)
+    MemberEditCoordinator.swift      # 자식 flow Coordinator (루트에)
+    Form/                            # 자식 flow의 진입 화면
+      MemberEditFormView.swift         # (자식 의존/Store 가 생기면 MemberEditDeps·MemberEditFormStore 추가)
+```
+- **화면 = Store 1개 = 폴더 1개**. 화면이 하나여도 폴더로 둔다 → 화면이 늘 때 새 폴더만 추가(additive), 기존 파일 이동 없음.
+- 폴더명 = **화면 성격**(`Home`·`Detail`·`Form`…), 파일명도 폴더와 일치(`Home/MemberHomeView`). "어디가 진입 화면인지"는 Coordinator 코드로 드러난다(폴더명에 `Root` 같은 위치어를 쓰지 않는다).
+- 자식 flow도 동일 규칙 — flow 폴더(`Edit/`)에 Coordinator를 루트에 두고, 그 안에서 화면마다 성격 폴더(`Form/`…).
+- UseCase·Repository·Entity 등 **도메인 타입은 여기 두지 않는다** → 공유 `Domain` 패키지(타입별 폴더). Feature는 Domain까지만 import.
+- (피쳐가 늘어 독립 빌드/경계 강제가 필요해지면 `FeatureXxx` 별도 패키지로 승격 — 트리거 시 결정)
+
 ```swift
+// 0) 선행: 이 화면이 쓸 UseCase·Repository·Entity 를 공유 Domain(+ Data 구현)에 먼저 만든다.
+//    reduce 는 UseCase 를 받으므로, FetchXxxUseCase 가 없으면 1) 부터 시작해도 막힌다.
+//    레이어 규칙(Entity 의 Codable 금지, toDomain 매핑, Repository protocol 위치 등)은 → .claude/docs/clean-architecture.md
+
 // 1) State / Action / Nav (모두 Equatable, Nav 는 Sendable)
 struct XxxState: Equatable { ... }
 enum XxxAction: Equatable { case load, loaded(...), tapYyy }
@@ -239,7 +252,7 @@ final class XxxCoordinator: Coordinator {
     var sheet: Never? = nil
     var cover: Never? = nil
     let finish = FlowFinish<Void>()
-    init(deps: XxxDeps) { ... }
+    init(deps: XxxDeps) { ... }   // 화면 식별자 등 추가 입력이 있으면 init(deps:, xxxID:) 처럼 함께 받는다
     func makeStore() -> XxxStore {
         let store = XxxStore(XxxState(), reduce: xxxReducer(useCase: deps.fetchXxx))
         store.observeNavigation { [weak self] in self?.handle($0) }   // 필수
@@ -248,22 +261,46 @@ final class XxxCoordinator: Coordinator {
     func handle(_ nav: XxxNav) { switch nav { ... } }   // 라우팅(테스트가 직접 호출)
 }
 
-// 5) View (생성자 주입)
-struct XxxRootView: View {
+// 5) View (생성자 주입) — 진입 화면. 파일명·폴더명은 화면 성격으로(예: Home/MemberHomeView)
+struct XxxHomeView: View {
     let coordinator: XxxCoordinator
     @State private var store: XxxStore?
     // .task 에서 store 1회 생성
 }
-
-// 6) App — AppDependencies 가 XxxDeps 준수 + AppCoordinator 가 자식 보유
 ```
 
-### 체크리스트 (빠뜨리면 조용히 깨지는 함정)
+마지막으로 App(Composition Root)에 끼운다 — 화면을 다 만든 뒤 빠뜨리기 쉬운 단계다.
+
+```swift
+// 6-a) AppDependencies 가 XxxDeps 를 준수 (의존 1개면 프로퍼티 추가, 여러 피쳐면 extension 으로 분리 가능)
+struct AppDependencies: MemberDeps, XxxDeps {
+    let fetchMember: FetchMemberUseCase
+    let fetchXxx: FetchXxxUseCase          // ← XxxDeps 요구 추가
+    init() {
+        self.fetchMember = ...
+        self.fetchXxx = DefaultFetchXxxUseCase(repository: XxxRepositoryImpl(client: client))
+    }
+}
+
+// 6-b) AppCoordinator 가 자식 Coordinator 를 strong 보유
+@Observable @MainActor
+final class AppCoordinator {
+    let xxx: XxxCoordinator
+    init(deps: AppDependencies) {
+        self.xxx = XxxCoordinator(deps: deps)   // deps 는 AppDependencies 가 XxxDeps 로서 전달
+    }
+}
+
+// 6-c) 앱 루트 View(또는 탭/디스패처)가 자식 flow 진입 View 를 연결
+XxxHomeView(coordinator: appCoordinator.xxx)
+```
+
+### 체크리스트
 
 - [ ] `makeStore` 안에서 **`store.observeNavigation { handle }` 호출** — 누락 시 navigation이 크래시·로그 없이 안 됨
-- [ ] reduce는 Repository가 아니라 **UseCase**를 받는다
-- [ ] deps 프로토콜은 **자기 의존만** (다른 피쳐 UseCase 끌어쓰지 않기)
-- [ ] View는 **생성자 주입**(@Environment 금지)
+- [ ] reduce는 Repository가 아니라 **UseCase**를 받는다 (Repository 직접 주입하면 비즈니스 로직이 Feature로 샘)
+- [ ] deps 프로토콜은 **자기 의존만** (번들 통째 주입은 `Feature→App` 역의존을 만들고, 다른 피쳐 UseCase까지 보임)
+- [ ] View는 **생성자 주입**(@Environment·전역 컨테이너 금지 — 주입 누락을 런타임 크래시가 아니라 컴파일 에러로 차단)
 - [ ] 자식 flow는 `finish`로 결과 보고, 부모는 `flowRoot`에서 **한 줄 위임**(`[weak]` 캡처)
 - [ ] sheet/cover 자식 Coordinator는 부모가 strong 보유하고, **`onDismiss`로 정리**(스와이프 dismiss 포함)
 - [ ] State/Action/Nav는 `Equatable`, Nav는 `Sendable`
@@ -271,12 +308,12 @@ struct XxxRootView: View {
 
 ---
 
-## 7. 확장성 — 방향은 확정, 구현은 트리거 때
+## 6. 확장성 — 방향은 확정, 구현은 트리거 때
 
 아직 사례가 없어 미리 만들지 않지만(YAGNI), **생길 때 따를 방향은 정해져 있다.**
 
 ### makeStore 공통화 (P3 / framework 추출) — 두 번째 Coordinator 때
-`makeStore`의 "Store 생성 + observeNavigation 구독" 패턴이 Coordinator마다 반복된다. 두 번째 Coordinator가 생기면 이 패턴을 인프라 헬퍼로 추출하거나, **문서 체크리스트(6절)로 누락을 방지**한다. (구독을 store 생성에 묶으면 누락이 구조적으로 불가능해지나, 모듈 의존을 엮어야 해 사례 2개를 보고 결정)
+`makeStore`의 "Store 생성 + observeNavigation 구독" 패턴이 Coordinator마다 반복된다. 두 번째 Coordinator가 생기면 이 패턴을 인프라 헬퍼로 추출하거나, **문서 체크리스트(5절)로 누락을 방지**한다. (구독을 store 생성에 묶으면 누락이 구조적으로 불가능해지나, 모듈 의존을 엮어야 해 사례 2개를 보고 결정)
 
 ### deps factory — 자식이 자기 UseCase를 가질 때
 자식 Coordinator가 부모와 **다른 의존**을 가지면, **데이터(deps)와 생성(factory)을 별도 프로토콜로 분리**한다.
@@ -305,7 +342,7 @@ enum MemberSheet: Identifiable {
 
 ---
 
-## 8. 테스트 전략
+## 7. 테스트 전략
 
 | 레벨 | 대상 | 도구 |
 |---|---|---|
@@ -317,3 +354,20 @@ enum MemberSheet: Identifiable {
 - 대부분의 로직은 **reducer 테스트**가 mock·대기 없이 결정적으로 검증한다(테스트 강력함 1순위)
 - View 자체는 단위 테스트하지 않는다(생성자 주입이라 도입 시 mock 주입은 단순)
 - 비동기 대기는 폴링 상한을 넉넉히 두거나(유한 종료) 콜백 기반으로 — 무한 hang 금지
+
+### 실행 (검증 명령)
+
+인프라·reducer 로직은 패키지 단위로 빠르게(호스트 빌드), 앱 통합은 시뮬레이터로 검증한다.
+
+```bash
+# 패키지 단위 (UI 비의존, 빠름)
+swift test --package-path Packages/MVI               # Store 실행 엔진 + TestStore + reducer L1~L3
+swift test --package-path Packages/FlowCoordination  # FlowFinish 1회성·재bind·취소
+swift test --package-path Packages/Feature           # reducer 시나리오 + Coordinator.handle 라우팅
+
+# 앱 통합 (전 레이어 빌드 + 테스트, 시뮬레이터)
+xcodebuild -project App/App.xcodeproj -scheme App \
+  -destination 'platform=iOS Simulator,name=iPhone 16' build test
+```
+- 로직만 바꿨으면 해당 패키지 `swift test` 로 충분(초 단위). 앱 진입/조립을 건드렸을 때만 `xcodebuild` 통합 실행
+- 시뮬레이터 이름(`iPhone 16` 등)은 `xcrun simctl list devices` 로 설치된 것 확인 후 맞춘다

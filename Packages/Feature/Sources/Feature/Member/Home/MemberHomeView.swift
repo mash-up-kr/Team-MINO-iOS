@@ -1,9 +1,9 @@
 import SwiftUI
 
 /// Member flow 의 진입 View. NavigationStack(path) + sheet 를 Coordinator 상태에 바인딩한다.
-public struct MemberRootView: View {
+public struct MemberHomeView: View {
     private let coordinator: MemberCoordinator
-    @State private var store: MemberStore?
+    @State private var store: MemberHomeStore?
 
     public init(coordinator: MemberCoordinator) {
         self.coordinator = coordinator
@@ -12,7 +12,7 @@ public struct MemberRootView: View {
     public var body: some View {
         @Bindable var coordinator = coordinator
         NavigationStack(path: $coordinator.path) {
-            rootContent
+            homeContent
                 .navigationDestination(for: MemberRoute.self) { route in
                     switch route {
                     case .detail(let id):
@@ -24,7 +24,7 @@ public struct MemberRootView: View {
             switch sheet {
             case .edit:
                 if let child = coordinator.editChild {
-                    MemberEditView(coordinator: child)
+                    MemberEditFormView(coordinator: child)
                         .flowRoot(child) { [weak coordinator] result in
                             coordinator?.editDidFinish(result)   // [weak] 로 부모↔자식 retain cycle 차단
                         }
@@ -34,19 +34,19 @@ public struct MemberRootView: View {
     }
 
     @ViewBuilder
-    private var rootContent: some View {
+    private var homeContent: some View {
         if let store {
-            MemberContentView(store: store)
+            MemberHomeContentView(store: store)
         } else {
             ProgressView()
-                .task { store = coordinator.makeMemberStore() }
+                .task { store = coordinator.makeHomeStore() }
         }
     }
 }
 
 /// 로딩/표시 + 화면 전환 트리거. store 의 상태를 읽어 그린다.
-struct MemberContentView: View {
-    let store: MemberStore
+struct MemberHomeContentView: View {
+    let store: MemberHomeStore
 
     var body: some View {
         VStack(spacing: 16) {

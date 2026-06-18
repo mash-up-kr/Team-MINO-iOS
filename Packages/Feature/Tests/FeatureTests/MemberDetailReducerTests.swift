@@ -16,12 +16,11 @@ private struct StubFetchMember: FetchMemberUseCase {
 }
 
 @MainActor
-struct MemberReducerTests {
+struct MemberDetailReducerTests {
     private func makeStore(
-        _ useCase: FetchMemberUseCase = StubFetchMember(),
-        state: MemberState = MemberState()
-    ) -> TestStore<MemberState, MemberAction, MemberNav> {
-        TestStore(state, reduce: memberReducer(useCase: useCase, id: MemberID("1")))
+        _ useCase: FetchMemberUseCase = StubFetchMember()
+    ) -> TestStore<MemberDetailState, MemberDetailAction, MemberDetailNav> {
+        TestStore(MemberDetailState(), reduce: memberDetailReducer(useCase: useCase, id: MemberID("1")))
     }
 
     @Test("L2 — load 하면 로딩 후 member 를 반영한다")
@@ -49,29 +48,6 @@ struct MemberReducerTests {
             $0.isLoading = false
             $0.errorMessage = "memberNotFound"
         }
-        store.finish()
-    }
-
-    @Test("tapDetail 은 member 가 있을 때 goToDetail 로 navigate 한다")
-    func tapDetail_navigates() async {
-        let store = makeStore(state: MemberState(member: fixture))
-        await store.send(.tapDetail)
-        store.receiveNavigation(.goToDetail(fixture.id))
-        store.finish()
-    }
-
-    @Test("tapDetail 은 member 가 없으면 아무 일도 하지 않는다")
-    func tapDetail_noop_without_member() async {
-        let store = makeStore()
-        await store.send(.tapDetail)
-        store.finish()   // 미처리 navigation 이 남으면 실패
-    }
-
-    @Test("tapEdit 은 presentEdit 로 navigate 한다")
-    func tapEdit_navigates() async {
-        let store = makeStore()
-        await store.send(.tapEdit)
-        store.receiveNavigation(.presentEdit)
         store.finish()
     }
 }
