@@ -262,7 +262,7 @@ final class XxxCoordinator: Coordinator {
 struct XxxHomeView: View {
     let coordinator: XxxCoordinator
     @State private var store: XxxStore?
-    // .task 에서 store 1회 생성
+    // .task 에서 store 1회 생성 (makeStore가 @MainActor라 View.init 직접 호출 불가 + 재렌더마다 재생성 방지)
 }
 ```
 
