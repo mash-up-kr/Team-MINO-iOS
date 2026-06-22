@@ -56,7 +56,7 @@ App ──▶ Feature ──▶ Domain ──▶ Core
 - **reduce는 Repository가 아니라 UseCase만 받는다** (Clean Architecture 경계 준수)
 - **DTO는 Data 내부에 internal로 닫혀** Domain에 노출되지 않는다 (`toDomain()` 매핑)
 - **DI = Coordinator별 deps 프로토콜.** `AppDependencies`가 각 Coordinator의 deps 프로토콜(`MemberDeps` 등)을 준수 → 전역 0
-- 화면 아키텍처 결정 배경은 `CoordinatorPlayground/Documentation` 6개 문서 참조
+- 화면 아키텍처(MVI + Coordinator + DI) 결정 배경은 `.claude/docs/mvi-coordinator-di.md` 참조
 
 ### 빌드 / 테스트
 
