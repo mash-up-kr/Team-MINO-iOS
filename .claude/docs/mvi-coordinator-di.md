@@ -118,7 +118,7 @@ public protocol Coordinator: AnyObject {
 // extension: push/pop/popToRoot/present/dismiss 기본 구현
 ```
 - `@Observable @MainActor final class`로 채택
-- 루트/탭 Coordinator는 `finish`를 미사용(빈 `FlowFinish<Void>()` — 단일 프로토콜의 수용된 대가)
+- 종료되지 않는 Coordinator(루트/탭)는 `Output = Never`(`FlowFinish<Never>`)로 선언 → `callAsFunction(Never)`도 `finish()`(Void 오버로드)도 사라져 **발사가 컴파일 단계에서 불가능**. "죽은 finish"를 런타임 무시가 아니라 타입으로 차단한다. (자식에게 결과를 보고하는 flow는 `Output`을 결과 타입(enum)으로 둔다)
 
 ### FlowFinish — 자식→부모 1회성 결과 채널
 
@@ -251,7 +251,7 @@ final class XxxCoordinator: Coordinator {
     var path: [XxxRoute] = []
     var sheet: Never? = nil
     var cover: Never? = nil
-    let finish = FlowFinish<Void>()
+    let finish = FlowFinish<Never>()   // 종료 없는 flow → Never 로 발사를 컴파일 차단. 자식에 결과 보고 시 FlowFinish<XxxResult> 처럼 결과 타입(enum)으로
     init(deps: XxxDeps) { ... }   // 화면 식별자 등 추가 입력이 있으면 init(deps:, xxxID:) 처럼 함께 받는다
     func makeStore() -> XxxStore {
         let store = XxxStore(XxxState(), reduce: xxxReducer(useCase: deps.fetchXxx))

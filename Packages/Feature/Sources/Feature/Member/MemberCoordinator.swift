@@ -21,7 +21,7 @@ public final class MemberCoordinator: Coordinator {
     public var path: [MemberRoute] = []
     public var sheet: MemberSheet? = nil
     public var cover: Never? = nil
-    public let finish = FlowFinish<Void>()       // 루트라 미사용(죽은 프로퍼티)
+    public let finish = FlowFinish<Never>()       // 루트라 종료 없음 — Output=Never 로 발사 자체를 컴파일 차단
 
     // MARK: - Dependencies / Lifecycle  (deps 주입)
     private let deps: MemberDeps
