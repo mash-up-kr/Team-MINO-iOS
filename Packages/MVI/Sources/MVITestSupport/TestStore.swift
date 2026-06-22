@@ -54,6 +54,7 @@ public final class TestStore<State: Equatable, Action: Equatable, Nav: Equatable
         expect: (inout State) -> Void = { _ in },
         sourceLocation: SourceLocation = #_sourceLocation
     ) async {
+        // 경량 매칭(순서 무관): 절제 규칙상 pending 다중 적재가 없어 firstIndex 로 충분. 상세 → 문서 2절 "절제 규칙"
         guard let index = pending.firstIndex(of: action) else {
             Issue.record("기대한 effect action 없음: \(action)", sourceLocation: sourceLocation)
             return
