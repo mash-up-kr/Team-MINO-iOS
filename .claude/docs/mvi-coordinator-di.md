@@ -171,7 +171,6 @@ struct AppDependencies: MemberDeps {
 ```
 - **사용처(Coordinator)는 좁은 창**만 본다 → 다른 피쳐 UseCase 안 보임
 - **조립처(AppDependencies)는 전부 안다** → Composition Root의 정상 역할(피쳐별 extension으로 분리 가능)
-- 보일러플레이트(프로토콜 정의)는 AI가 흡수 → "테스트/안전 우선" 가치를 택함
 
 ### View는 생성자 주입
 
@@ -201,8 +200,6 @@ func makeHomeStore() -> MemberHomeStore {
 ---
 
 ## 5. 새 Coordinator / 화면 작성법
-
-새 피쳐를 추가할 때 따르는 절차와 체크리스트.
 
 ### 파일 배치
 
