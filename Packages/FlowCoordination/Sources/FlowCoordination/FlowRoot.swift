@@ -26,7 +26,10 @@ private struct FlowRootModifier<C: Coordinator>: ViewModifier {
     let onFinish: (C.Output) -> Void
 
     func body(content: Content) -> some View {
-        // .onAppear 는 .task 보다 동기적으로 더 빨리 실행되어 bind 누락 위험을 줄인다.
+        // bind 는 사용자 인터랙션(finish 발사: 저장/취소 버튼 탭)보다 항상 먼저다 —
+        // 화면이 떠야(onAppear) 사용자가 누를 수 있으므로 race 가 없다(.task 와의 선후가 아니라 이게 안전 근거).
+        // 시트가 여러 번 present/dismiss 되면 onAppear 가 반복돼 bind 가 재실행되지만,
+        // FlowFinish.didFire 가 1회성을 유지한다 (FlowFinishTests.rebind_replaces_action_but_keeps_one_shot).
         content.onAppear {
             coordinator.finish.bind { output in
                 onFinish(output)
