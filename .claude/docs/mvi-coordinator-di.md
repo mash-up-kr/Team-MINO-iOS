@@ -327,6 +327,12 @@ extension AppDependencies: MemberChildFactory { func makeEditCoordinator() -> ..
 ```
 - 자식이 **없는** Coordinator는 `factory` 없이 `init(deps:)`만 (자식 유무가 시그니처에 드러남)
 
+**전환 절차** — 지금은 자식(예: `MemberEditCoordinator`) 의존이 0개라 factory가 빈 껍데기가 되므로 미적용. **자식이 첫 UseCase를 갖는 PR에서** 아래를 함께 한다(부모 레이어가 자식 의존을 모르게 차단):
+1. 자식에 좁은 deps 프로토콜 정의(예: `MemberEditDeps`) → 자식이 `init(deps:)`로 받게
+2. 부모 `handle`의 직접 `new` 줄 교체: `editChild = MemberEditCoordinator()` → `editChild = factory.makeEditCoordinator()`
+3. 부모 init 확장: `init(deps:, memberID:)` → `init(deps:, factory:, memberID:)`
+4. 조립부: `AppDependencies`가 `MemberChildFactory` 채택(자식 deps를 알고 생성) + `AppCoordinator`가 부모 생성 시 `factory: deps` 전달
+
 ### 다중 sheet — 두 번째 sheet 종류가 생길 때
 sheet enum의 **연관값에 자식 Coordinator를 직접 담아** "sheet 종류 ↔ child" 수동 동기화를 없앤다.
 ```swift
