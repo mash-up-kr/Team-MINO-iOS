@@ -302,6 +302,7 @@ XxxHomeView(coordinator: appCoordinator.xxx)
 - [ ] sheet/cover 자식 Coordinator는 부모가 strong 보유하고, **`onDismiss`로 정리**(스와이프 dismiss 포함)
 - [ ] State/Action/Nav는 `Equatable`, Nav는 `Sendable`
 - [ ] 로직 변경에는 같은 PR에 reduce 테스트(L1~L3)
+- [ ] reduce 테스트(exhaustive)는 끝에 **`store.finish()` 호출** — 미처리 effect/nav가 검증 없이 통과하는 걸 막음 (deinit 자동화는 MainActor 격리·호출 타이밍 보장이 약해 미적용)
 
 ---
 
