@@ -68,13 +68,15 @@ func memberHomeReducer(useCase: FetchMemberUseCase, id: MemberID)
                 catch { send(.loadFailed(error as? DomainError ?? .unknown)) }
             }
         case .loaded(let member): state.member = member; state.isLoading = false; return .none
+        case .loadFailed(let error): state.error = error; state.isLoading = false; return .none   // 실패도 Response Action 으로 받아 state 갱신
         case .tapDetail: return .navigate(.goToDetail(id))    // 화면 전환도 Effect 로 (reduce 순수 유지)
         }
     }
 }
 ```
 - State는 단일 `Equatable` struct
-- 비동기는 `.run`이 결과를 **Response Action**(`loaded`/`loadFailed`)으로 되돌려 state 갱신
+- 비동기는 `.run`이 결과를 **Response Action**(`loaded`/`loadFailed`)으로 되돌려 state 갱신 — 성공·실패 **양쪽 다 case 로 받아** 처리한다(실패를 흘리지 않음)
+- **에러를 State에 담는 모양**(평탄 `error: DomainError?` vs `enum LoadState`)은 화면마다 결정 — 위 `error` 필드는 예시일 뿐 강제 규칙 아님
 - 의존성은 `Effect.run` 안에서만 사용 — reduce 시그니처는 순수 유지
 
 ### TestStore (L1~L3, MVITestSupport)
@@ -189,13 +191,7 @@ public struct MemberHomeView: View {
 
 ### Store factory + 구독
 
-```swift
-func makeHomeStore() -> MemberHomeStore {
-    let store = MemberHomeStore(MemberHomeState(), reduce: memberHomeReducer(useCase: deps.fetchMember, id: memberID))
-    store.observeNavigation { [weak self] in self?.handle($0) }   // ← 반드시 호출 (누락 시 navigation 동작 안 함)
-    return store
-}
-```
+Coordinator의 `make<화면>Store`가 **DI 이음매**다: 주입받은 `deps.fetchXxx`(UseCase)를 reducer에 묶어 Store를 만들고, 직후 **`observeNavigation`을 반드시 호출**한다(누락 시 navigation이 크래시·로그 없이 안 됨). 전체 형태는 5절 작성법 4)의 `makeHomeStore` 참조.
 
 ---
 
@@ -250,7 +246,7 @@ final class XxxCoordinator: Coordinator {
     var cover: Never? = nil
     let finish = FlowFinish<Never>()   // 종료 없는 flow → Never 로 발사를 컴파일 차단. 자식에 결과 보고 시 FlowFinish<XxxResult> 처럼 결과 타입(enum)으로
     init(deps: XxxDeps) { ... }   // 화면 식별자 등 추가 입력이 있으면 init(deps:, xxxID:) 처럼 함께 받는다
-    func makeStore() -> XxxStore {
+    func makeHomeStore() -> XxxStore {                                // make<화면>Store — 화면(Store)마다 하나
         let store = XxxStore(XxxState(), reduce: xxxReducer(useCase: deps.fetchXxx))
         store.observeNavigation { [weak self] in self?.handle($0) }   // 필수
         return store
@@ -260,9 +256,24 @@ final class XxxCoordinator: Coordinator {
 
 // 5) View (생성자 주입) — 진입 화면. 파일명·폴더명은 화면 성격으로(예: Home/MemberHomeView)
 struct XxxHomeView: View {
-    let coordinator: XxxCoordinator
-    @State private var store: XxxStore?
-    // .task 에서 store 1회 생성 (makeStore가 @MainActor라 View.init 직접 호출 불가 + 재렌더마다 재생성 방지)
+    let coordinator: XxxCoordinator           // 생성자 주입
+    @State private var store: XxxStore?        // .task 에서 1회 lazy 생성
+
+    var body: some View {
+        @Bindable var coordinator = coordinator
+        NavigationStack(path: $coordinator.path) { content }   // + 라우트 생기면 .navigationDestination, 시트는 .sheet(item:) 부착
+    }
+
+    @ViewBuilder private var content: some View {
+        if let store {
+            XxxHomeContentView(store: store)                   // store.state 를 읽어 그림. 진입 로드가 필요하면 이 뷰의 .task 에서 store.send(.load) (store 생성과 분리)
+        } else {
+            ProgressView()
+                .task { store = coordinator.makeHomeStore() }  // store 없을 때만 실행 → 1회 생성 보장
+        }
+    }
+    // .task 로 미루는 이유: makeHomeStore 가 @MainActor 라 non-isolated View.init 에서 직접 호출 불가
+    //   + State(initialValue:)는 body 재평가마다 store 를 재생성·폐기해 @Observable 1회 생성 이점을 잃음
 }
 ```
 
@@ -294,7 +305,7 @@ XxxHomeView(coordinator: appCoordinator.xxx)
 
 ### 체크리스트
 
-- [ ] `makeStore` 안에서 **`store.observeNavigation { handle }` 호출** — 누락 시 navigation이 크래시·로그 없이 안 됨
+- [ ] `make<화면>Store` 안에서 **`store.observeNavigation { handle }` 호출** — 누락 시 navigation이 크래시·로그 없이 안 됨
 - [ ] reduce는 Repository가 아니라 **UseCase**를 받는다 (Repository 직접 주입하면 비즈니스 로직이 Feature로 샘)
 - [ ] deps 프로토콜은 **자기 의존만** (번들 통째 주입은 `Feature→App` 역의존을 만들고, 다른 피쳐 UseCase까지 보임)
 - [ ] View는 **생성자 주입**(@Environment·전역 컨테이너 금지 — 주입 누락을 런타임 크래시가 아니라 컴파일 에러로 차단)
@@ -308,41 +319,16 @@ XxxHomeView(coordinator: appCoordinator.xxx)
 
 ## 6. 확장성 — 방향은 확정, 구현은 트리거 때
 
-아직 사례가 없어 미리 만들지 않지만(YAGNI), **생길 때 따를 방향은 정해져 있다.**
+아직 사례가 없어 미리 만들지 않지만(YAGNI), **생길 때 따를 방향은 정해져 있다.** 트리거별 적용 절차는 별도 문서로 분리했다 — **해당 트리거가 실제로 생기는 PR에서만** 펼쳐 본다(평소 자동 로드 비용 절감).
 
-### makeStore 공통화 (P3 / framework 추출) — 두 번째 Coordinator 때
-`makeStore`의 "Store 생성 + observeNavigation 구독" 패턴이 Coordinator마다 반복된다. 두 번째 Coordinator가 생기면 이 패턴을 인프라 헬퍼로 추출하거나, **문서 체크리스트(5절)로 누락을 방지**한다. (구독을 store 생성에 묶으면 누락이 구조적으로 불가능해지나, 모듈 의존을 엮어야 해 사례 2개를 보고 결정)
+→ `.claude/docs/mvi-coordinator-di-extensions.md`
 
-### deps factory — 자식이 자기 UseCase를 가질 때
-자식 Coordinator가 부모와 **다른 의존**을 가지면, **데이터(deps)와 생성(factory)을 별도 프로토콜로 분리**한다.
-```swift
-protocol MemberDeps { var fetchMember: FetchMemberUseCase { get } }       // 데이터(순수)
-protocol MemberChildFactory { func makeEditCoordinator() -> MemberEditCoordinator }  // 생성 책임
-final class MemberCoordinator {
-    init(deps: MemberDeps, factory: MemberChildFactory)   // 자식 늘어도 init 인자 2개 고정
-}
-extension AppDependencies: MemberChildFactory { func makeEditCoordinator() -> ... { .init(deps: self) } }
-```
-- 자식이 **없는** Coordinator는 `factory` 없이 `init(deps:)`만 (자식 유무가 시그니처에 드러남)
-
-**전환 절차** — 지금은 자식(예: `MemberEditCoordinator`) 의존이 0개라 factory가 빈 껍데기가 되므로 미적용. **자식이 첫 UseCase를 갖는 PR에서** 아래를 함께 한다(부모 레이어가 자식 의존을 모르게 차단):
-1. 자식에 좁은 deps 프로토콜 정의(예: `MemberEditDeps`) → 자식이 `init(deps:)`로 받게
-2. 부모 `handle`의 직접 `new` 줄 교체: `editChild = MemberEditCoordinator()` → `editChild = factory.makeEditCoordinator()`
-3. 부모 init 확장: `init(deps:, memberID:)` → `init(deps:, factory:, memberID:)`
-4. 조립부: `AppDependencies`가 `MemberChildFactory` 채택(자식 deps를 알고 생성) + `AppCoordinator`가 부모 생성 시 `factory: deps` 전달
-
-### 다중 sheet — 두 번째 sheet 종류가 생길 때
-sheet enum의 **연관값에 자식 Coordinator를 직접 담아** "sheet 종류 ↔ child" 수동 동기화를 없앤다.
-```swift
-enum MemberSheet: Identifiable {
-    case edit(MemberEditCoordinator)
-    case share(ShareCoordinator)
-    var id: String { switch self { case .edit: "edit"; case .share: "share" } }
-}
-```
-
-### 2단 중첩 (자식의 자식 flow) — 2단이 생길 때
-**재귀 패턴**: 자식 flow도 부모와 똑같이 자체 `NavigationStack(path: $coordinator.path)` + 손자에 다시 `flowRoot`. 트리 어느 깊이든 동일 패턴이 반복된다.
+| 트리거 | 방향 |
+|---|---|
+| 두 번째 Coordinator | `makeStore` 공통화(인프라 헬퍼 추출 vs 체크리스트 유지) |
+| 자식이 자기 UseCase를 가짐 | deps/factory 프로토콜 분리 + 4단계 전환 절차 |
+| 두 번째 sheet 종류 | sheet enum 연관값에 자식 Coordinator 직접 담기 |
+| 2단 중첩(자식의 자식 flow) | 재귀 패턴(자체 NavigationStack + 손자에 flowRoot) |
 
 ---
 
