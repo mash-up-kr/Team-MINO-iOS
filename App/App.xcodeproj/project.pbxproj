@@ -14,6 +14,8 @@
 		95C38BB4FB56187972591E16 /* Data in Frameworks */ = {isa = PBXBuildFile; productRef = 30221BF92B4CCDE0D6CEA9E9 /* Data */; };
 		964C752F52C50D0DA03BAA47 /* Networking in Frameworks */ = {isa = PBXBuildFile; productRef = D106E25C257C7E7E8BC43D51 /* Networking */; };
 		D3595F6B764F0A8C5C5B394C /* DesignSystem in Frameworks */ = {isa = PBXBuildFile; productRef = 069920554A729CBEA8A1355E /* DesignSystem */; };
+		A1A2A3A4A5A6A7A8A9A0A1A3 /* MINOApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1A2A3A4A5A6A7A8A9A0A1A2 /* MINOApp.swift */; };
+		B1B2B3B4B5B6B7B8B9B0B1B3 /* AppCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1B2B3B4B5B6B7B8B9B0B1B2 /* AppCoordinator.swift */; };
 		EF181DA0B0BF234230F6166A /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7D5B97B3011ED2B8B8D6A82 /* SceneDelegate.swift */; };
 		F020EE47FD9AFF29CB232A2C /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3698F892C87398A1AB1FF12E /* AppDelegate.swift */; };
 		F12A80D53AF08C9E442B7395 /* AppDependencies.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6E10081ACCCE1687F63903A /* AppDependencies.swift */; };
@@ -22,6 +24,9 @@
 /* Begin PBXFileReference section */
 		35D426C5753A372F270C6E9D /* Networking */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Networking; path = ../Packages/Networking; sourceTree = SOURCE_ROOT; };
 		3698F892C87398A1AB1FF12E /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		F7D5B97B3011ED2B8B8D6A82 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
+		A1A2A3A4A5A6A7A8A9A0A1A2 /* MINOApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MINOApp.swift; sourceTree = "<group>"; };
+		B1B2B3B4B5B6B7B8B9B0B1B2 /* AppCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCoordinator.swift; sourceTree = "<group>"; };
 		49D88A349FD70A9153DD2C03 /* App.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = App.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		4B8003BACE60BD969B4B0C47 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		7855DC05D6AAAB6FF9B75F8C /* Data */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Data; path = ../Packages/Data; sourceTree = SOURCE_ROOT; };
@@ -29,7 +34,6 @@
 		A6E10081ACCCE1687F63903A /* AppDependencies.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDependencies.swift; sourceTree = "<group>"; };
 		AE14BBEBA89FD412C42C94EB /* Feature */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Feature; path = ../Packages/Feature; sourceTree = SOURCE_ROOT; };
 		E65F524E24BD1439574B9AFF /* DesignSystem */ = {isa = PBXFileReference; lastKnownFileType = folder; name = DesignSystem; path = ../Packages/DesignSystem; sourceTree = SOURCE_ROOT; };
-		F7D5B97B3011ED2B8B8D6A82 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		F817D4621F1B8AEE150CC10A /* Core */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Core; path = ../Packages/Core; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
@@ -63,8 +67,10 @@
 		7F78907537685DA9B94ECD46 /* Sources */ = {
 			isa = PBXGroup;
 			children = (
-				3698F892C87398A1AB1FF12E /* AppDelegate.swift */,
+				A1A2A3A4A5A6A7A8A9A0A1A2 /* MINOApp.swift */,
+				B1B2B3B4B5B6B7B8B9B0B1B2 /* AppCoordinator.swift */,
 				A6E10081ACCCE1687F63903A /* AppDependencies.swift */,
+				3698F892C87398A1AB1FF12E /* AppDelegate.swift */,
 				F7D5B97B3011ED2B8B8D6A82 /* SceneDelegate.swift */,
 			);
 			path = Sources;
@@ -170,8 +176,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				F020EE47FD9AFF29CB232A2C /* AppDelegate.swift in Sources */,
+				A1A2A3A4A5A6A7A8A9A0A1A3 /* MINOApp.swift in Sources */,
+				B1B2B3B4B5B6B7B8B9B0B1B3 /* AppCoordinator.swift in Sources */,
 				F12A80D53AF08C9E442B7395 /* AppDependencies.swift in Sources */,
+				F020EE47FD9AFF29CB232A2C /* AppDelegate.swift in Sources */,
 				EF181DA0B0BF234230F6166A /* SceneDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
