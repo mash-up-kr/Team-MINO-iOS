@@ -20,3 +20,7 @@ Package.resolved
 
 ### macOS
 .DS_Store
+
+### Claude (개인 설정/훅 — 공용 추적 안 함)
+.claude/settings.local.json
+.claude/hooks/xcode-autobuild.sh
