@@ -8,8 +8,10 @@ import Feature
 @MainActor
 final class AppCoordinator {
     let member: MemberCoordinator
+    let map: MapCoordinator
 
     init(deps: AppDependencies) {
         self.member = MemberCoordinator(deps: deps, memberID: MemberID("1"))
+        self.map = MapCoordinator()   // 지도 flow — 아직 deps 없음
     }
 }

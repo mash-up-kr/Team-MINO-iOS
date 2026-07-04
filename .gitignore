@@ -18,6 +18,9 @@ xcuserdata/
 .swiftpm/
 Package.resolved
 
+### Secrets (실제 키는 커밋 금지 — Secrets.example.xcconfig 만 추적)
+App/Config/Secrets.xcconfig
+
 ### macOS
 .DS_Store
 

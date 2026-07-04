@@ -23,6 +23,7 @@ struct RootView: View {
     let coordinator: AppCoordinator
 
     var body: some View {
-        MemberHomeView(coordinator: coordinator.member)
+        // 지도 flow 검증용 임시 루트. Member flow 복귀는 탭/디스패처 도입 시.
+        MapHomeView(coordinator: coordinator.map)
     }
 }

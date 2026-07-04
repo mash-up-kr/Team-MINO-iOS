@@ -1,0 +1,10 @@
+// 앱 타깃 빌드 설정 (Debug/Release 공통 base configuration).
+// 커밋되는 파일 — 여기에는 실제 시크릿을 넣지 않는다.
+
+// GoogleMaps API 키 기본값(빈 값). 실제 키는 아래 Secrets.xcconfig 에서 덮어쓴다.
+// 값이 비면 지도는 회색으로 뜨지만 앱은 정상 실행된다(configure no-op).
+GOOGLE_MAPS_API_KEY =
+
+// 로컬 시크릿(.gitignore 됨)을 선택적으로 포함한다. 파일이 없어도 빌드는 깨지지 않는다(#include?).
+// 키를 쓰려면: App/Config/Secrets.xcconfig 를 만들고 `GOOGLE_MAPS_API_KEY = <발급키>` 한 줄을 넣는다.
+#include? "Secrets.xcconfig"

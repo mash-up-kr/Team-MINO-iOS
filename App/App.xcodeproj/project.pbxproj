@@ -15,6 +15,7 @@
 		964C752F52C50D0DA03BAA47 /* Networking in Frameworks */ = {isa = PBXBuildFile; productRef = D106E25C257C7E7E8BC43D51 /* Networking */; };
 		A1A2A3A4A5A6A7A8A9A0A1A3 /* MINOApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1A2A3A4A5A6A7A8A9A0A1A2 /* MINOApp.swift */; };
 		B1B2B3B4B5B6B7B8B9B0B1B3 /* AppCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1B2B3B4B5B6B7B8B9B0B1B2 /* AppCoordinator.swift */; };
+		C1FC13CEA3D22595155A1124 /* MapUI in Frameworks */ = {isa = PBXBuildFile; productRef = F730C8F297FB63DFEC493D49 /* MapUI */; };
 		D3595F6B764F0A8C5C5B394C /* DesignSystem in Frameworks */ = {isa = PBXBuildFile; productRef = 069920554A729CBEA8A1355E /* DesignSystem */; };
 		EF181DA0B0BF234230F6166A /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7D5B97B3011ED2B8B8D6A82 /* SceneDelegate.swift */; };
 		F020EE47FD9AFF29CB232A2C /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3698F892C87398A1AB1FF12E /* AppDelegate.swift */; };
@@ -24,9 +25,11 @@
 /* Begin PBXFileReference section */
 		35D426C5753A372F270C6E9D /* Networking */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Networking; path = ../Packages/Networking; sourceTree = SOURCE_ROOT; };
 		3698F892C87398A1AB1FF12E /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
-		49D88A349FD70A9153DD2C03 /* App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = App.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		49D88A349FD70A9153DD2C03 /* Mino-iOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Mino-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		4B8003BACE60BD969B4B0C47 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		7855DC05D6AAAB6FF9B75F8C /* Data */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Data; path = ../Packages/Data; sourceTree = SOURCE_ROOT; };
+		916D6CCEC33EF5352C847851 /* MapUI */ = {isa = PBXFileReference; lastKnownFileType = folder; name = MapUI; path = ../Packages/MapUI; sourceTree = SOURCE_ROOT; };
+		A89119729EA979908ADC6799 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Config.xcconfig; path = Config/Config.xcconfig; sourceTree = SOURCE_ROOT; };
 		9385F6DBBC00D51067BF0767 /* Domain */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Domain; path = ../Packages/Domain; sourceTree = SOURCE_ROOT; };
 		A1A2A3A4A5A6A7A8A9A0A1A2 /* MINOApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MINOApp.swift; sourceTree = "<group>"; };
 		A6E10081ACCCE1687F63903A /* AppDependencies.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDependencies.swift; sourceTree = "<group>"; };
@@ -42,6 +45,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C1FC13CEA3D22595155A1124 /* MapUI in Frameworks */,
 				1CA998C627766237F2232BEB /* Feature in Frameworks */,
 				95C38BB4FB56187972591E16 /* Data in Frameworks */,
 				1C2828AB6F056A7680FC41D9 /* Domain in Frameworks */,
@@ -84,6 +88,7 @@
 				E65F524E24BD1439574B9AFF /* DesignSystem */,
 				9385F6DBBC00D51067BF0767 /* Domain */,
 				AE14BBEBA89FD412C42C94EB /* Feature */,
+				916D6CCEC33EF5352C847851 /* MapUI */,
 				35D426C5753A372F270C6E9D /* Networking */,
 			);
 			name = Packages;
@@ -92,7 +97,7 @@
 		E9C3DB3EC6D7655028A9C0D3 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				49D88A349FD70A9153DD2C03 /* App.app */,
+				49D88A349FD70A9153DD2C03 /* Mino-iOS.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -122,6 +127,7 @@
 			);
 			name = App;
 			packageProductDependencies = (
+				F730C8F297FB63DFEC493D49 /* MapUI */,
 				C0D4F0FC8286D9C61BB32BF4 /* Feature */,
 				30221BF92B4CCDE0D6CEA9E9 /* Data */,
 				E0F40E08DDD41C8DB3E42732 /* Domain */,
@@ -130,7 +136,7 @@
 				2FEFAD4646D1EBA99E6E7E08 /* Core */,
 			);
 			productName = App;
-			productReference = 49D88A349FD70A9153DD2C03 /* App.app */;
+			productReference = 49D88A349FD70A9153DD2C03 /* Mino-iOS.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -187,16 +193,17 @@
 /* Begin XCBuildConfiguration section */
 		4A0C935808978B5A7673E412 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = A89119729EA979908ADC6799 /* Config.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = D2DRA3F792;
+				DEVELOPMENT_TEAM = "";
 				INFOPLIST_FILE = Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "yizihn.com.iOS-mini-fig";
+				PRODUCT_BUNDLE_IDENTIFIER = com.mashup.teamMino;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -263,16 +270,17 @@
 		};
 		EB1CC3A930E09FEBECF9195D /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = A89119729EA979908ADC6799 /* Config.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = D2DRA3F792;
+				DEVELOPMENT_TEAM = "";
 				INFOPLIST_FILE = Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "yizihn.com.iOS-mini-fig";
+				PRODUCT_BUNDLE_IDENTIFIER = com.mashup.teamMino;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -391,6 +399,10 @@
 		E0F40E08DDD41C8DB3E42732 /* Domain */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = Domain;
+		};
+		F730C8F297FB63DFEC493D49 /* MapUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = MapUI;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

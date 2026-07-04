@@ -18,6 +18,8 @@
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>1.0</string>
+	<key>GMSApiKey</key>
+	<string>$(GOOGLE_MAPS_API_KEY)</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
