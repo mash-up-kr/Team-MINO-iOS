@@ -11,9 +11,10 @@ let package = Package(
         .package(path: "../Domain"),
         .package(path: "../FlowCoordination"),
         .package(path: "../MVI"),
+        .package(path: "../MapUI"),
     ],
     targets: [
-        .target(name: "Feature", dependencies: ["Domain", "FlowCoordination", "MVI"]),
+        .target(name: "Feature", dependencies: ["Domain", "FlowCoordination", "MVI", "MapUI"]),
         .testTarget(
             name: "FeatureTests",
             dependencies: [
