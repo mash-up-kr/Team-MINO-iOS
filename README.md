@@ -22,7 +22,15 @@ Mash-Up MINO 팀의 iOS 앱입니다. SwiftUI 위에 **Clean Architecture** 구�
 | `Data` | Repository 구현 · DTO (`toDomain()` 매핑, DTO는 내부에 닫힘) | Domain · Networking |
 | `Networking` | `HTTPClient` · `Endpoint` | — |
 | `DesignSystem` | 디자인 토큰 · 컴포넌트 (UIKit) | — |
-| `Core` | 공용 유틸 — Foundation-only (CI가 검사) | — |
+| `Core` | 공용 유틸 | — |
+
+### 앞으로의 구조
+
+모듈이 다 채워졌을 때 지향하는 모습입니다. 프레임워크가 필요한 공용 유틸이 처음 생기면 `CorePlatform`을 신설하고, 백엔드가 붙으면 App이 실제 구현을 조립합니다. DesignSystem은 SwiftUI 토큰으로 개편해서 Feature가 씁니다.
+
+<div align="center">
+  <img src="docs/images/target-architecture.svg" alt="궁극 지향 레이어 — 모듈이 다 채워졌을 때" width="900" />
+</div>
 
 ## 화면 아키텍처
 

@@ -42,10 +42,8 @@
 - 여러 Repository를 조합하여 비즈니스 흐름 구현
 - UI 관심사(화면 상태, 네비게이션)를 포함하면 안 됨
 
-## Core / CorePlatform 배치 기준
+## Core 배치 기준
 
-- **Core는 Foundation-only.** Foundation 외 import(UIKit·SwiftUI·서드파티)는 금지 — CI(layer-guard)가 검사한다.
-- 프레임워크가 하나라도 필요한 공용 유틸이 처음 생기면, **그 PR에서 `CorePlatform` 패키지를 신설**해 거기에 둔다. Core에 넣지 않는다.
-- **Domain은 의존 패키지 0을 유지한다** (Core도 보지 않는다 — CI가 검사). Domain에 필요한 순수 공용 타입은 Domain 안에 둔다.
-- Domain·Networking은 CorePlatform을 의존할 수 없다 — 프레임워크 의존이 안쪽 레이어로 새는 경로가 되기 때문이다.
+- **Domain은 의존 패키지 0을 유지한다** (Core도 보지 않는다 — CI(layer-guard)가 검사). Domain에 필요한 순수 공용 타입은 Domain 안에 둔다.
 - Core를 쓰고 싶은 패키지는 그때 자기 `Package.swift`에 의존을 추가한다. 쓰지 않는 의존을 미리 선언해 두지 않는다.
+- Core에 프레임워크(UIKit·SwiftUI 등) 의존 유틸이 섞이면 Core를 의존하는 패키지가 그 의존을 상속받는다. 지금은 강제하지 않고, 필요해지면 Foundation-only 규칙과 `CorePlatform` 분리를 다시 검토한다.

@@ -101,7 +101,7 @@
   <rect x="130" y="570" width="160" height="54" rx="6" fill="#0f172a"/>
   <rect x="130" y="570" width="160" height="54" rx="6" fill="rgba(30, 41, 59, 0.5)" stroke="#94a3b8" stroke-width="1.5"/>
   <text x="210" y="592" fill="white" font-size="12" font-weight="600" text-anchor="middle">Core</text>
-  <text x="210" y="608" fill="#94a3b8" font-size="9" text-anchor="middle">공용 유틸 — Foundation-only</text>
+  <text x="210" y="608" fill="#94a3b8" font-size="9" text-anchor="middle">공용 유틸</text>
 
   <!-- ============ DesignSystem ============ -->
   <rect x="340" y="570" width="190" height="54" rx="6" fill="#0f172a"/>
@@ -111,5 +111,5 @@
 
   <!-- Note -->
   <text x="90" y="668" fill="#64748b" font-size="8">→  의존 방향 (바깥 → 안쪽으로만 · Data 가 Domain 프로토콜에 의존 = 의존성 역전)      ┈┈  실 API 연결 시 활성화 (현재는 App 이 Stub UseCase 주입)</text>
-  <text x="90" y="682" fill="#64748b" font-size="8">Domain 은 의존 0 · Core 는 Foundation-only 로 동결 (layer-guard CI) — Core 를 쓰는 패키지가 생길 때 그 PR 에서 의존을 추가한다</text>
+  <text x="90" y="682" fill="#64748b" font-size="8">Domain 은 의존 0 (layer-guard CI 가 검사) — Core 를 쓰는 패키지가 생길 때 그 PR 에서 의존을 추가한다</text>
 </svg>
