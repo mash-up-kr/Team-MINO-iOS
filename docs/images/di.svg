@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 410" style="font-family: 'JetBrains Mono', SFMono-Regular, Menlo, Consolas, monospace;">
+  <defs>
+    <marker id="arrowhead-di" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#64748b" />
+    </marker>
+    <pattern id="grid-di" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/>
+    </pattern>
+  </defs>
+
+  <rect width="100%" height="100%" fill="#020617"/>
+  <rect width="100%" height="100%" fill="url(#grid-di)"/>
+
+  <text x="60" y="32" fill="white" font-size="13" font-weight="700">DI — 컴포지션 루트 + Coordinator 별 좁은 deps 프로토콜</text>
+
+  <!-- ============ Arrows ============ -->
+  <!-- AppDependencies -준수-> MemberDeps -->
+  <path d="M 280 135 L 338 135" fill="none" stroke="#fb7185" stroke-width="1.5" marker-end="url(#arrowhead-di)"/>
+  <text x="309" y="127" fill="#94a3b8" font-size="8" text-anchor="middle">준수</text>
+  <!-- MemberDeps -init 주입-> Coordinator -->
+  <path d="M 540 135 L 598 135" fill="none" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arrowhead-di)"/>
+  <text x="569" y="127" fill="#94a3b8" font-size="8" text-anchor="middle">init 주입</text>
+  <!-- Coordinator -makeHomeStore()-> Store -->
+  <path d="M 700 180 L 700 248" fill="none" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arrowhead-di)"/>
+  <text x="712" y="218" fill="#94a3b8" font-size="8">makeHomeStore()</text>
+  <!-- Coordinator -생성자 주입-> View -->
+  <path d="M 620 180 L 620 215 L 440 215 L 440 248" fill="none" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arrowhead-di)"/>
+  <text x="530" y="207" fill="#94a3b8" font-size="8" text-anchor="middle">생성자 주입</text>
+  <!-- View → Store (lazy 생성·구독) -->
+  <path d="M 540 290 L 598 290" fill="none" stroke="#22d3ee" stroke-width="1.5" stroke-dasharray="4,4" marker-end="url(#arrowhead-di)"/>
+  <text x="569" y="282" fill="#94a3b8" font-size="7" text-anchor="middle">.task 1회 생성</text>
+
+  <!-- ============ AppDependencies (구체 타입 조립) ============ -->
+  <rect x="60" y="80" width="220" height="110" rx="6" fill="#0f172a"/>
+  <rect x="60" y="80" width="220" height="110" rx="6" fill="rgba(136, 19, 55, 0.4)" stroke="#fb7185" stroke-width="1.5"/>
+  <text x="170" y="103" fill="white" font-size="12" font-weight="600" text-anchor="middle">AppDependencies</text>
+  <text x="170" y="120" fill="#94a3b8" font-size="9" text-anchor="middle">구체 타입 조립 (App 타깃)</text>
+  <text x="170" y="140" fill="#94a3b8" font-size="8" text-anchor="middle">• 현재: StubFetchMemberUseCase</text>
+  <text x="170" y="154" fill="#94a3b8" font-size="8" text-anchor="middle">• 실 API: RepositoryImpl + HTTPClient</text>
+  <text x="170" y="176" fill="#fb7185" font-size="7" text-anchor="middle">모든 deps 프로토콜을 이 한 타입이 준수</text>
+
+  <!-- ============ MemberDeps (프로토콜 = 점선 테두리) ============ -->
+  <rect x="340" y="90" width="200" height="90" rx="6" fill="#0f172a"/>
+  <rect x="340" y="90" width="200" height="90" rx="6" fill="rgba(76, 29, 149, 0.4)" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="4,4"/>
+  <text x="440" y="113" fill="white" font-size="12" font-weight="600" text-anchor="middle">protocol MemberDeps</text>
+  <text x="440" y="131" fill="#94a3b8" font-size="8" text-anchor="middle">fetchMember: FetchMemberUseCase</text>
+  <text x="440" y="152" fill="#a78bfa" font-size="7" text-anchor="middle">자기 의존만 담은 좁은 창 (ISP)</text>
+  <text x="440" y="166" fill="#a78bfa" font-size="7" text-anchor="middle">다른 피쳐 UseCase 는 안 보임</text>
+
+  <!-- ============ MemberCoordinator ============ -->
+  <rect x="600" y="90" width="200" height="90" rx="6" fill="#0f172a"/>
+  <rect x="600" y="90" width="200" height="90" rx="6" fill="rgba(8, 51, 68, 0.4)" stroke="#22d3ee" stroke-width="1.5"/>
+  <text x="700" y="113" fill="white" font-size="12" font-weight="600" text-anchor="middle">MemberCoordinator</text>
+  <text x="700" y="131" fill="#94a3b8" font-size="9" text-anchor="middle">init(deps: MemberDeps)</text>
+  <text x="700" y="152" fill="#22d3ee" font-size="7" text-anchor="middle">Store factory 가 DI 이음매</text>
+  <text x="700" y="166" fill="#22d3ee" font-size="7" text-anchor="middle">observeNavigation 필수 호출</text>
+
+  <!-- ============ View ============ -->
+  <rect x="340" y="250" width="200" height="80" rx="6" fill="#0f172a"/>
+  <rect x="340" y="250" width="200" height="80" rx="6" fill="rgba(8, 51, 68, 0.4)" stroke="#22d3ee" stroke-width="1.5"/>
+  <text x="440" y="273" fill="white" font-size="12" font-weight="600" text-anchor="middle">MemberHomeView</text>
+  <text x="440" y="291" fill="#94a3b8" font-size="9" text-anchor="middle">init(coordinator:)</text>
+  <text x="440" y="312" fill="#22d3ee" font-size="7" text-anchor="middle">주입 누락 = 컴파일 에러 (@Environment 금지)</text>
+
+  <!-- ============ Store ============ -->
+  <rect x="600" y="250" width="200" height="80" rx="6" fill="#0f172a"/>
+  <rect x="600" y="250" width="200" height="80" rx="6" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
+  <text x="700" y="273" fill="white" font-size="12" font-weight="600" text-anchor="middle">Store</text>
+  <text x="700" y="291" fill="#94a3b8" font-size="8" text-anchor="middle">reducer(useCase: deps.fetchMember)</text>
+  <text x="700" y="312" fill="#34d399" font-size="7" text-anchor="middle">reduce 는 Repository 가 아니라 UseCase 를 받는다</text>
+
+  <!-- Note -->
+  <text x="60" y="384" fill="#64748b" font-size="8">전역 컨테이너 0 — 조립처(App)만 전부 알고, 사용처(Coordinator)는 자기 창만 본다. 새 피쳐 = deps 프로토콜 추가 + AppDependencies 준수 한 줄.</text>
+</svg>

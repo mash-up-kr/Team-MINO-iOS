@@ -201,7 +201,7 @@
 
     <!-- Main Diagram -->
     <div class="diagram-container">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 630" style="font-family: 'JetBrains Mono', SFMono-Regular, Menlo, Consolas, monospace;">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 690" style="font-family: 'JetBrains Mono', SFMono-Regular, Menlo, Consolas, monospace;">
   <defs>
     <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
       <polygon points="0 0, 10 3.5, 0 7" fill="#64748b" />
@@ -216,116 +216,110 @@
   <rect width="100%" height="100%" fill="url(#grid)"/>
 
   <!-- Title -->
-  <text x="120" y="32" fill="white" font-size="13" font-weight="700">Team-MINO-iOS — 모듈 의존 그래프</text>
+  <text x="90" y="32" fill="white" font-size="13" font-weight="700">Team-MINO-iOS — 모듈 의존 그래프 (바깥 레이어가 위, 안쪽이 아래)</text>
 
-  <!-- ============ Arrows (드로잉 순서상 상자 뒤에 깔림) ============ -->
+  <!-- ============ Arrows (상자 뒤에 깔림) ============ -->
   <!-- App → Feature -->
-  <path d="M 420 114 L 420 146 L 260 146 L 260 178" fill="none" stroke="#fb7185" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+  <path d="M 450 124 L 450 152 L 260 152 L 260 188" fill="none" stroke="#fb7185" stroke-width="1.5" marker-end="url(#arrowhead)"/>
   <!-- App → Data (실 API 연결 시) -->
-  <path d="M 660 82 L 940 82 L 940 362 L 662 362" fill="none" stroke="#fb7185" stroke-width="1.5" stroke-dasharray="5,5" marker-end="url(#arrowhead)"/>
-  <text x="800" y="74" fill="#fb7185" font-size="8" text-anchor="middle">실 API 연결 시</text>
-  <!-- Feature → Domain -->
-  <path d="M 260 256 L 260 328" fill="none" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+  <path d="M 670 96 L 962 96 L 962 296 L 565 296 L 565 320" fill="none" stroke="#fb7185" stroke-width="1.5" stroke-dasharray="5,5" marker-end="url(#arrowhead)"/>
+  <text x="962" y="220" fill="#fb7185" font-size="8" text-anchor="middle" transform="rotate(90 962 220)">실 API 연결 시</text>
   <!-- Feature → MVI -->
-  <path d="M 400 202 L 468 202" fill="none" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+  <path d="M 390 210 L 468 210" fill="none" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arrowhead)"/>
   <!-- Feature → FlowCoordination -->
-  <path d="M 400 234 L 442 234 L 442 272 L 805 272 L 805 246" fill="none" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-  <!-- Data → Domain -->
-  <path d="M 468 362 L 402 362" fill="none" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+  <path d="M 390 236 L 430 236 L 430 284 L 810 284 L 810 256" fill="none" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+  <!-- Feature → Domain (데이터 레이어를 건너뛰고 안쪽으로) -->
+  <path d="M 260 254 L 260 446" fill="none" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+  <!-- Data → Domain (구현이 안쪽 프로토콜에 의존 — 의존성 역전) -->
+  <path d="M 565 382 L 565 478 L 392 478" fill="none" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#arrowhead)"/>
   <!-- Data → Networking -->
-  <path d="M 565 394 L 565 468" fill="none" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+  <path d="M 660 352 L 698 352" fill="none" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#arrowhead)"/>
   <!-- Domain → Core -->
-  <path d="M 185 406 L 185 468" fill="none" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+  <path d="M 210 508 L 210 568" fill="none" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrowhead)"/>
   <!-- Networking → Core -->
-  <path d="M 565 526 L 565 552 L 185 552 L 185 528" fill="none" stroke="#fb923c" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+  <path d="M 810 382 L 810 540 L 250 540 L 250 568" fill="none" stroke="#fb923c" stroke-width="1.5" marker-end="url(#arrowhead)"/>
   <!-- DesignSystem → Core -->
-  <path d="M 278 498 L 252 498" fill="none" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+  <path d="M 338 597 L 292 597" fill="none" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowhead)"/>
 
-  <!-- ============ App (컴포지션 루트) ============ -->
-  <rect x="340" y="50" width="320" height="64" rx="6" fill="#0f172a"/>
-  <rect x="340" y="50" width="320" height="64" rx="6" fill="rgba(136, 19, 55, 0.4)" stroke="#fb7185" stroke-width="1.5"/>
-  <text x="500" y="72" fill="white" font-size="12" font-weight="600" text-anchor="middle">App</text>
-  <text x="500" y="89" fill="#94a3b8" font-size="9" text-anchor="middle">MINOApp · AppCoordinator · AppDependencies</text>
-  <text x="500" y="104" fill="#fb7185" font-size="8" text-anchor="middle">컴포지션 루트 — 구체 타입 조립은 여기서만 (xcodeproj)</text>
+  <!-- ============ 레이어 밴드 ============ -->
+  <!-- 조립 -->
+  <rect x="90" y="50" width="860" height="90" rx="12" fill="transparent" stroke="#475569" stroke-width="1" stroke-dasharray="8,4"/>
+  <text x="102" y="66" fill="#64748b" font-size="9" font-weight="600">조립 — 컴포지션 루트</text>
+  <!-- 화면 -->
+  <rect x="90" y="170" width="860" height="104" rx="12" fill="transparent" stroke="#475569" stroke-width="1" stroke-dasharray="8,4"/>
+  <text x="102" y="186" fill="#64748b" font-size="9" font-weight="600">화면 — UI · 화면 인프라</text>
+  <!-- 데이터 구현 -->
+  <rect x="90" y="304" width="860" height="96" rx="12" fill="transparent" stroke="#475569" stroke-width="1" stroke-dasharray="8,4"/>
+  <text x="102" y="320" fill="#64748b" font-size="9" font-weight="600">데이터 — Repository 구현 · HTTP</text>
+  <!-- 도메인 -->
+  <rect x="90" y="430" width="860" height="92" rx="12" fill="transparent" stroke="#34d399" stroke-width="1" stroke-dasharray="8,4"/>
+  <text x="102" y="446" fill="#34d399" font-size="9" font-weight="600">도메인 — 순수 비즈니스 (가장 안쪽)</text>
+  <!-- 기반 -->
+  <rect x="90" y="552" width="860" height="88" rx="12" fill="transparent" stroke="#475569" stroke-width="1" stroke-dasharray="8,4"/>
+  <text x="102" y="568" fill="#64748b" font-size="9" font-weight="600">기반 — 공용</text>
+
+  <!-- ============ App ============ -->
+  <rect x="370" y="68" width="300" height="56" rx="6" fill="#0f172a"/>
+  <rect x="370" y="68" width="300" height="56" rx="6" fill="rgba(136, 19, 55, 0.4)" stroke="#fb7185" stroke-width="1.5"/>
+  <text x="520" y="89" fill="white" font-size="12" font-weight="600" text-anchor="middle">App</text>
+  <text x="520" y="105" fill="#94a3b8" font-size="9" text-anchor="middle">MINOApp · AppCoordinator · AppDependencies</text>
+  <text x="520" y="118" fill="#fb7185" font-size="7" text-anchor="middle">구체 타입 조립은 여기서만 (xcodeproj)</text>
 
   <!-- ============ Feature ============ -->
-  <rect x="120" y="180" width="280" height="76" rx="6" fill="#0f172a"/>
-  <rect x="120" y="180" width="280" height="76" rx="6" fill="rgba(8, 51, 68, 0.4)" stroke="#22d3ee" stroke-width="1.5"/>
-  <text x="260" y="205" fill="white" font-size="12" font-weight="600" text-anchor="middle">Feature</text>
-  <text x="260" y="223" fill="#94a3b8" font-size="9" text-anchor="middle">SwiftUI View · Store · Coordinator</text>
-  <text x="260" y="240" fill="#22d3ee" font-size="8" text-anchor="middle">Member flow (Home · Detail · Edit)</text>
+  <rect x="130" y="190" width="260" height="64" rx="6" fill="#0f172a"/>
+  <rect x="130" y="190" width="260" height="64" rx="6" fill="rgba(8, 51, 68, 0.4)" stroke="#22d3ee" stroke-width="1.5"/>
+  <text x="260" y="212" fill="white" font-size="12" font-weight="600" text-anchor="middle">Feature</text>
+  <text x="260" y="229" fill="#94a3b8" font-size="9" text-anchor="middle">SwiftUI View · Store · Coordinator</text>
+  <text x="260" y="243" fill="#22d3ee" font-size="7" text-anchor="middle">Member flow (Home · Detail · Edit)</text>
 
   <!-- ============ MVI ============ -->
-  <rect x="470" y="180" width="190" height="64" rx="6" fill="#0f172a"/>
-  <rect x="470" y="180" width="190" height="64" rx="6" fill="rgba(76, 29, 149, 0.4)" stroke="#a78bfa" stroke-width="1.5"/>
-  <text x="565" y="204" fill="white" font-size="12" font-weight="600" text-anchor="middle">MVI</text>
-  <text x="565" y="221" fill="#94a3b8" font-size="9" text-anchor="middle">Effect · Store · TestStore</text>
-  <text x="565" y="235" fill="#a78bfa" font-size="7" text-anchor="middle">Observation 만 의존 (SwiftUI 비의존)</text>
+  <rect x="470" y="190" width="190" height="64" rx="6" fill="#0f172a"/>
+  <rect x="470" y="190" width="190" height="64" rx="6" fill="rgba(76, 29, 149, 0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+  <text x="565" y="212" fill="white" font-size="12" font-weight="600" text-anchor="middle">MVI</text>
+  <text x="565" y="229" fill="#94a3b8" font-size="9" text-anchor="middle">Effect · Store · TestStore</text>
+  <text x="565" y="243" fill="#a78bfa" font-size="7" text-anchor="middle">Observation 만 의존 (SwiftUI 비의존)</text>
 
   <!-- ============ FlowCoordination ============ -->
-  <rect x="700" y="180" width="210" height="64" rx="6" fill="#0f172a"/>
-  <rect x="700" y="180" width="210" height="64" rx="6" fill="rgba(76, 29, 149, 0.4)" stroke="#a78bfa" stroke-width="1.5"/>
-  <text x="805" y="204" fill="white" font-size="12" font-weight="600" text-anchor="middle">FlowCoordination</text>
-  <text x="805" y="221" fill="#94a3b8" font-size="9" text-anchor="middle">Coordinator · FlowFinish · flowRoot</text>
-  <text x="805" y="235" fill="#a78bfa" font-size="7" text-anchor="middle">화면 전환 인프라 (SwiftUI)</text>
-
-  <!-- ============ Domain ============ -->
-  <rect x="120" y="330" width="280" height="76" rx="6" fill="#0f172a"/>
-  <rect x="120" y="330" width="280" height="76" rx="6" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
-  <text x="260" y="355" fill="white" font-size="12" font-weight="600" text-anchor="middle">Domain</text>
-  <text x="260" y="373" fill="#94a3b8" font-size="9" text-anchor="middle">Entity · UseCase · Repository 프로토콜</text>
-  <text x="260" y="390" fill="#34d399" font-size="8" text-anchor="middle">비즈니스 규칙 — 바깥 레이어를 모른다</text>
+  <rect x="700" y="190" width="220" height="64" rx="6" fill="#0f172a"/>
+  <rect x="700" y="190" width="220" height="64" rx="6" fill="rgba(76, 29, 149, 0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+  <text x="810" y="212" fill="white" font-size="12" font-weight="600" text-anchor="middle">FlowCoordination</text>
+  <text x="810" y="229" fill="#94a3b8" font-size="9" text-anchor="middle">Coordinator · FlowFinish · flowRoot</text>
+  <text x="810" y="243" fill="#a78bfa" font-size="7" text-anchor="middle">화면 전환 인프라 (SwiftUI)</text>
 
   <!-- ============ Data ============ -->
-  <rect x="470" y="330" width="190" height="64" rx="6" fill="#0f172a"/>
-  <rect x="470" y="330" width="190" height="64" rx="6" fill="rgba(120, 53, 15, 0.3)" stroke="#fbbf24" stroke-width="1.5"/>
-  <text x="565" y="354" fill="white" font-size="12" font-weight="600" text-anchor="middle">Data</text>
-  <text x="565" y="371" fill="#94a3b8" font-size="9" text-anchor="middle">RepositoryImpl · DTO</text>
-  <text x="565" y="385" fill="#fbbf24" font-size="7" text-anchor="middle">toDomain() 매핑 — DTO 는 내부에 닫힘</text>
-
-  <!-- ============ Core ============ -->
-  <rect x="120" y="470" width="130" height="56" rx="6" fill="#0f172a"/>
-  <rect x="120" y="470" width="130" height="56" rx="6" fill="rgba(30, 41, 59, 0.5)" stroke="#94a3b8" stroke-width="1.5"/>
-  <text x="185" y="494" fill="white" font-size="12" font-weight="600" text-anchor="middle">Core</text>
-  <text x="185" y="511" fill="#94a3b8" font-size="9" text-anchor="middle">공용 유틸</text>
-
-  <!-- ============ DesignSystem ============ -->
-  <rect x="280" y="470" width="160" height="56" rx="6" fill="#0f172a"/>
-  <rect x="280" y="470" width="160" height="56" rx="6" fill="rgba(30, 41, 59, 0.5)" stroke="#94a3b8" stroke-width="1.5"/>
-  <text x="360" y="494" fill="white" font-size="12" font-weight="600" text-anchor="middle">DesignSystem</text>
-  <text x="360" y="511" fill="#94a3b8" font-size="9" text-anchor="middle">토큰 · 컴포넌트 (UIKit)</text>
+  <rect x="470" y="322" width="190" height="60" rx="6" fill="#0f172a"/>
+  <rect x="470" y="322" width="190" height="60" rx="6" fill="rgba(120, 53, 15, 0.3)" stroke="#fbbf24" stroke-width="1.5"/>
+  <text x="565" y="344" fill="white" font-size="12" font-weight="600" text-anchor="middle">Data</text>
+  <text x="565" y="360" fill="#94a3b8" font-size="9" text-anchor="middle">RepositoryImpl · DTO</text>
+  <text x="565" y="374" fill="#fbbf24" font-size="7" text-anchor="middle">toDomain() 매핑 — DTO 는 내부에 닫힘</text>
 
   <!-- ============ Networking ============ -->
-  <rect x="470" y="470" width="190" height="56" rx="6" fill="#0f172a"/>
-  <rect x="470" y="470" width="190" height="56" rx="6" fill="rgba(251, 146, 60, 0.3)" stroke="#fb923c" stroke-width="1.5"/>
-  <text x="565" y="494" fill="white" font-size="12" font-weight="600" text-anchor="middle">Networking</text>
-  <text x="565" y="511" fill="#94a3b8" font-size="9" text-anchor="middle">HTTPClient · Endpoint</text>
+  <rect x="700" y="322" width="220" height="60" rx="6" fill="#0f172a"/>
+  <rect x="700" y="322" width="220" height="60" rx="6" fill="rgba(251, 146, 60, 0.3)" stroke="#fb923c" stroke-width="1.5"/>
+  <text x="810" y="344" fill="white" font-size="12" font-weight="600" text-anchor="middle">Networking</text>
+  <text x="810" y="360" fill="#94a3b8" font-size="9" text-anchor="middle">HTTPClient · Endpoint</text>
 
-  <!-- ============ Legend (모든 상자 바깥, 하단) ============ -->
-  <text x="120" y="583" fill="white" font-size="10" font-weight="600">Legend</text>
+  <!-- ============ Domain ============ -->
+  <rect x="130" y="448" width="260" height="60" rx="6" fill="#0f172a"/>
+  <rect x="130" y="448" width="260" height="60" rx="6" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
+  <text x="260" y="470" fill="white" font-size="12" font-weight="600" text-anchor="middle">Domain</text>
+  <text x="260" y="486" fill="#94a3b8" font-size="9" text-anchor="middle">Entity · UseCase · Repository 프로토콜</text>
+  <text x="260" y="500" fill="#34d399" font-size="7" text-anchor="middle">바깥 레이어를 모른다 — Core 만 허용</text>
 
-  <rect x="185" y="574" width="16" height="10" rx="2" fill="rgba(8, 51, 68, 0.4)" stroke="#22d3ee" stroke-width="1"/>
-  <text x="207" y="583" fill="#94a3b8" font-size="8">화면</text>
+  <!-- ============ Core ============ -->
+  <rect x="130" y="570" width="160" height="54" rx="6" fill="#0f172a"/>
+  <rect x="130" y="570" width="160" height="54" rx="6" fill="rgba(30, 41, 59, 0.5)" stroke="#94a3b8" stroke-width="1.5"/>
+  <text x="210" y="592" fill="white" font-size="12" font-weight="600" text-anchor="middle">Core</text>
+  <text x="210" y="608" fill="#94a3b8" font-size="9" text-anchor="middle">공용 유틸</text>
 
-  <rect x="255" y="574" width="16" height="10" rx="2" fill="rgba(76, 29, 149, 0.4)" stroke="#a78bfa" stroke-width="1"/>
-  <text x="277" y="583" fill="#94a3b8" font-size="8">화면 인프라</text>
+  <!-- ============ DesignSystem ============ -->
+  <rect x="340" y="570" width="190" height="54" rx="6" fill="#0f172a"/>
+  <rect x="340" y="570" width="190" height="54" rx="6" fill="rgba(30, 41, 59, 0.5)" stroke="#94a3b8" stroke-width="1.5"/>
+  <text x="435" y="592" fill="white" font-size="12" font-weight="600" text-anchor="middle">DesignSystem</text>
+  <text x="435" y="608" fill="#94a3b8" font-size="9" text-anchor="middle">토큰 · 컴포넌트 (UIKit)</text>
 
-  <rect x="360" y="574" width="16" height="10" rx="2" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1"/>
-  <text x="382" y="583" fill="#94a3b8" font-size="8">도메인</text>
-
-  <rect x="445" y="574" width="16" height="10" rx="2" fill="rgba(120, 53, 15, 0.3)" stroke="#fbbf24" stroke-width="1"/>
-  <text x="467" y="583" fill="#94a3b8" font-size="8">데이터</text>
-
-  <rect x="530" y="574" width="16" height="10" rx="2" fill="rgba(251, 146, 60, 0.3)" stroke="#fb923c" stroke-width="1"/>
-  <text x="552" y="583" fill="#94a3b8" font-size="8">네트워크</text>
-
-  <rect x="630" y="574" width="16" height="10" rx="2" fill="rgba(30, 41, 59, 0.5)" stroke="#94a3b8" stroke-width="1"/>
-  <text x="652" y="583" fill="#94a3b8" font-size="8">공용</text>
-
-  <rect x="705" y="574" width="16" height="10" rx="2" fill="rgba(136, 19, 55, 0.4)" stroke="#fb7185" stroke-width="1"/>
-  <text x="727" y="583" fill="#94a3b8" font-size="8">컴포지션 루트</text>
-
-  <text x="120" y="608" fill="#64748b" font-size="8">→  의존 방향 (바깥 → 안쪽으로만)      ┈┈  실 API 연결 시 활성화 (현재는 Stub UseCase 주입)</text>
+  <!-- Note -->
+  <text x="90" y="668" fill="#64748b" font-size="8">→  의존 방향 (바깥 → 안쪽으로만 · Data 가 Domain 프로토콜에 의존 = 의존성 역전)      ┈┈  실 API 연결 시 활성화 (현재는 App 이 Stub UseCase 주입)</text>
 </svg>
     </div>
 

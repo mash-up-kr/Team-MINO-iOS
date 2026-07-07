@@ -2,17 +2,15 @@
 
 Mash-Up MINO 팀의 iOS 앱. SwiftUI 위에 **Clean Architecture + DDD**를 깔고, 화면 아키텍처는 **MVI + Coordinator + DI** 3축으로 구성한다. 모듈은 레이어 단위 로컬 SPM 패키지로 나뉜다.
 
-## 아키텍처
+## 아키텍처 — 모듈 의존 그래프
+
+의존성은 **바깥에서 안쪽으로만** 향한다 (`Feature → Domain ← Data`). 가장 안쪽의 Domain은 바깥을 모르고, Data는 Domain의 프로토콜에 의존한다(의존성 역전).
 
 <div align="center">
-  <img src="docs/images/architecture.svg" alt="모듈 의존 그래프 — 의존은 바깥에서 안쪽으로만 향한다" width="900" />
+  <img src="docs/images/architecture.svg" alt="모듈 의존 그래프 — 바깥 레이어가 위, 안쪽이 아래" width="900" />
 </div>
 
 > 인터랙티브 버전(PNG/PDF 내보내기): [docs/architecture.html](docs/architecture.html)
-
-의존성은 **바깥에서 안쪽으로만** 향한다 (`Feature → Domain ← Data`). 안쪽 레이어는 바깥을 모른다.
-
-### 모듈
 
 | 모듈 | 역할 | 의존 |
 |---|---|---|
@@ -26,13 +24,32 @@ Mash-Up MINO 팀의 iOS 앱. SwiftUI 위에 **Clean Architecture + DDD**를 깔�
 | `DesignSystem` | 디자인 토큰 · 컴포넌트 (UIKit) | Core |
 | `Core` | 공용 유틸 | — |
 
-### 화면 아키텍처 — MVI + Coordinator + DI
+## 화면 아키텍처
 
-- **MVI**: 화면 상태는 순수 `reduce` + `Store`. 부수효과는 `Effect` 값으로 반환하고 실행은 Store가 맡는다. 비동기 결과는 Response Action(`loaded`/`loadFailed`)으로 복귀
-- **Coordinator**: 화면 전환은 flow별 Coordinator가 전담 (`Effect.navigate` → `observeNavigation`). 자식 flow 종료는 `FlowFinish`로 결과를 1회 보고
-- **DI**: Coordinator별 좁은 deps 프로토콜 + 생성자 주입. `AppDependencies`가 모든 deps 프로토콜을 준수한다 — 전역 컨테이너 0, 주입 누락은 컴파일 에러
+### MVI — 단방향 데이터 흐름
+
+상태는 순수 `reduce` 함수가 만들고, 부수효과는 `Effect` 값으로 반환해 `Store`가 실행한다. 비동기 결과는 Response Action(`loaded`/`loadFailed`)으로 루프에 복귀하고, 화면 전환은 `.navigate`로 Coordinator에 위임된다.
+
+<div align="center">
+  <img src="docs/images/mvi.svg" alt="MVI 단방향 데이터 흐름" width="900" />
+</div>
+
+### DI — 컴포지션 루트
+
+전역 컨테이너 없이 생성자 주입만 쓴다. 각 Coordinator는 자기 의존만 담은 좁은 deps 프로토콜을 받고, `AppDependencies` 한 타입이 모든 deps 프로토콜을 준수한다 — 주입 누락은 런타임 크래시가 아니라 컴파일 에러로 잡힌다.
+
+<div align="center">
+  <img src="docs/images/di.svg" alt="DI — 컴포지션 루트와 좁은 deps 프로토콜" width="900" />
+</div>
 
 상세 규칙과 새 화면 작성법: [.claude/docs/mvi-coordinator-di.md](.claude/docs/mvi-coordinator-di.md) · 레이어 경계 규칙: [.claude/docs/clean-architecture.md](.claude/docs/clean-architecture.md)
+
+## AI — 에이전틱 코딩
+
+극한의 에이전틱 코딩을 위해 AI를 적극 활용한다.
+
+- **QA 하네스** — [Mino-harness](https://github.com/hooni0918/Mino-harness): Figma URL 하나로 분류 → 기존 화면 수정 → 접근성 식별자 부여 → 테스트 작성 → 빌드 → 시뮬레이터 QA까지 무인으로 도는 파이프라인. 사람 리뷰 대신 기계 게이트(Figma 원본 대조·컴파일·식별자)가 각 단계를 검증하고, 신규 화면 구현은 대화형 워크플로우로 분리한다. 실험 기록은 [PR #29](https://github.com/mash-up-kr/Team-MINO-iOS/pull/29).
+- **팀 문서 · 공통 규칙** — [mino-qa](https://github.com/hooni0918/mino-qa) 문서화 레포의 배포 사이트 **[mino-qa.vercel.app](https://mino-qa.vercel.app)** 에 RAG 챗봇이 있다. 문서화와 공통 내용은 여기를 참조한다.
 
 ## 빌드 / 테스트
 
