@@ -47,7 +47,7 @@ Mash-Up MINO 팀의 iOS 앱입니다. SwiftUI 위에 **Clean Architecture** 구�
 극한의 에이전틱 코딩을 위해 AI를 적극 활용합니다.
 
 - **Figma → PR 워크플로우** — 피그마 URL 하나만 넣으면 화면 구현부터 테스트, QA까지 이어서 돌아가는 [Mino-harness](https://github.com/hooni0918/Mino-harness) 워크플로우를 씁니다. 사람이 하나씩 보는 대신, 피그마 원본과 다시 비교하고 빌드가 되는지 확인하는 식으로 자동 검증합니다.
-- **팀 문서 · 공통 규칙** — [mino-qa](https://github.com/hooni0918/mino-qa) 사이트에 RAG 챗봇이 있어서, 문서와 팀 공통 규칙을 바로 물어볼 수 있습니다.
+- **팀 문서 · 공통 규칙** — [mino-Wiki](https://mino-qa.vercel.app/) 사이트에 RAG 챗봇이 있어서, 문서와 팀 공통 규칙을 바로 물어볼 수 있습니다.
 
 ## Contributors
 
