@@ -18,11 +18,11 @@ Mash-Up MINO 팀의 iOS 앱입니다. SwiftUI 위에 **Clean Architecture** 구�
 | `Feature` | 화면 flow — SwiftUI View · Store · Coordinator | Domain · MVI · FlowCoordination |
 | `MVI` | 화면 상태 인프라 — `Effect` · `Store` + `TestStore` (Observation만 의존) | — |
 | `FlowCoordination` | 화면 전환 인프라 — `Coordinator` · `FlowFinish` · `flowRoot` | — |
-| `Domain` | Entity · UseCase · Repository 프로토콜 — 비즈니스 규칙 | Core |
+| `Domain` | Entity · UseCase · Repository 프로토콜 — 비즈니스 규칙 | **—** (의존 0) |
 | `Data` | Repository 구현 · DTO (`toDomain()` 매핑, DTO는 내부에 닫힘) | Domain · Networking |
-| `Networking` | `HTTPClient` · `Endpoint` | Core |
-| `DesignSystem` | 디자인 토큰 · 컴포넌트 (UIKit) | Core |
-| `Core` | 공용 유틸 | — |
+| `Networking` | `HTTPClient` · `Endpoint` | — |
+| `DesignSystem` | 디자인 토큰 · 컴포넌트 (UIKit) | — |
+| `Core` | 공용 유틸 — Foundation-only (CI가 검사) | — |
 
 ## 화면 아키텍처
 

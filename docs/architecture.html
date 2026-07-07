@@ -234,12 +234,6 @@
   <path d="M 565 382 L 565 478 L 392 478" fill="none" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#arrowhead)"/>
   <!-- Data → Networking -->
   <path d="M 660 352 L 698 352" fill="none" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-  <!-- Domain → Core -->
-  <path d="M 210 508 L 210 568" fill="none" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-  <!-- Networking → Core -->
-  <path d="M 810 382 L 810 540 L 250 540 L 250 568" fill="none" stroke="#fb923c" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-  <!-- DesignSystem → Core -->
-  <path d="M 338 597 L 292 597" fill="none" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowhead)"/>
 
   <!-- ============ 레이어 밴드 ============ -->
   <!-- 조립 -->
@@ -304,13 +298,13 @@
   <rect x="130" y="448" width="260" height="60" rx="6" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
   <text x="260" y="470" fill="white" font-size="12" font-weight="600" text-anchor="middle">Domain</text>
   <text x="260" y="486" fill="#94a3b8" font-size="9" text-anchor="middle">Entity · UseCase · Repository 프로토콜</text>
-  <text x="260" y="500" fill="#34d399" font-size="7" text-anchor="middle">바깥 레이어를 모른다 — Core 만 허용</text>
+  <text x="260" y="500" fill="#34d399" font-size="7" text-anchor="middle">바깥 레이어를 모른다 — 의존 패키지 0</text>
 
   <!-- ============ Core ============ -->
   <rect x="130" y="570" width="160" height="54" rx="6" fill="#0f172a"/>
   <rect x="130" y="570" width="160" height="54" rx="6" fill="rgba(30, 41, 59, 0.5)" stroke="#94a3b8" stroke-width="1.5"/>
   <text x="210" y="592" fill="white" font-size="12" font-weight="600" text-anchor="middle">Core</text>
-  <text x="210" y="608" fill="#94a3b8" font-size="9" text-anchor="middle">공용 유틸</text>
+  <text x="210" y="608" fill="#94a3b8" font-size="9" text-anchor="middle">공용 유틸 — Foundation-only</text>
 
   <!-- ============ DesignSystem ============ -->
   <rect x="340" y="570" width="190" height="54" rx="6" fill="#0f172a"/>
@@ -320,6 +314,7 @@
 
   <!-- Note -->
   <text x="90" y="668" fill="#64748b" font-size="8">→  의존 방향 (바깥 → 안쪽으로만 · Data 가 Domain 프로토콜에 의존 = 의존성 역전)      ┈┈  실 API 연결 시 활성화 (현재는 App 이 Stub UseCase 주입)</text>
+  <text x="90" y="682" fill="#64748b" font-size="8">Domain 은 의존 0 · Core 는 Foundation-only 로 동결 (layer-guard CI) — Core 를 쓰는 패키지가 생길 때 그 PR 에서 의존을 추가한다</text>
 </svg>
     </div>
 
