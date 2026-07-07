@@ -354,13 +354,13 @@
       <div class="card">
         <div class="card-header">
           <div class="card-dot emerald"></div>
-          <h3>빌드 · 테스트</h3>
+          <h3>라이브러리</h3>
         </div>
         <ul>
-          <li>• 화면 로직은 TestStore 로 reducer L1~L3 검증</li>
-          <li>• 패키지 단위 swift test — 호스트에서 초 단위 실행</li>
-          <li>• 앱 통합은 xcodebuild App 스킴 (iOS 시뮬레이터)</li>
-          <li>• App.xcodeproj 는 xcodegen 1회 부트스트랩 산출물</li>
+          <li>• 외부 라이브러리 없이 애플 프레임워크만 사용 (No 서드파티)</li>
+          <li>• Combine 대신 async/await 기반 스트림 사용</li>
+          <li>• Store는 Observation만 의존 (SwiftUI 비의존)</li>
+          <li>• App.xcodeproj는 xcodegen 1회 부트스트랩 산출물</li>
         </ul>
       </div>
     </div>

@@ -1,10 +1,10 @@
 # Team-MINO-iOS
 
-Mash-Up MINO 팀의 iOS 앱. SwiftUI 위에 **Clean Architecture + DDD**를 깔고, 화면 아키텍처는 **MVI + Coordinator + DI** 3축으로 구성한다. 모듈은 레이어 단위 로컬 SPM 패키지로 나뉜다.
+Mash-Up MINO 팀의 iOS 앱입니다. SwiftUI 위에 **Clean Architecture** 구조로 만들고, 화면 아키텍처는 **MVI**를 씁니다. 모듈은 레이어 단위로 SPM 패키지를 나눠서 구성합니다. 외부 라이브러리 없이 애플 프레임워크만 쓰는 걸 기본 방향으로 합니다.
 
 ## 아키텍처 — 모듈 의존 그래프
 
-의존성은 **바깥에서 안쪽으로만** 향한다 (`Feature → Domain ← Data`). 가장 안쪽의 Domain은 바깥을 모르고, Data는 Domain의 프로토콜에 의존한다(의존성 역전).
+의존성은 **바깥에서 안쪽으로만** 향합니다 (`Feature → Domain ← Data`). 가장 안쪽에 있는 Domain은 바깥을 모르고, Data가 거꾸로 Domain의 프로토콜에 의존합니다(의존성 역전).
 
 <div align="center">
   <img src="docs/images/architecture.svg" alt="모듈 의존 그래프 — 바깥 레이어가 위, 안쪽이 아래" width="900" />
@@ -28,7 +28,7 @@ Mash-Up MINO 팀의 iOS 앱. SwiftUI 위에 **Clean Architecture + DDD**를 깔�
 
 ### MVI — 단방향 데이터 흐름
 
-상태는 순수 `reduce` 함수가 만들고, 부수효과는 `Effect` 값으로 반환해 `Store`가 실행한다. 비동기 결과는 Response Action(`loaded`/`loadFailed`)으로 루프에 복귀하고, 화면 전환은 `.navigate`로 Coordinator에 위임된다.
+상태는 순수 `reduce` 함수가 만들고, 부수효과는 `Effect` 값으로 반환해서 `Store`가 실행합니다. 비동기 결과는 Response Action(`loaded`/`loadFailed`)으로 다시 돌아오고, 화면 전환은 `.navigate`로 Coordinator에 넘깁니다. `Store`는 Observation만 쓰고, Combine 대신 async/await 기반 스트림으로 비동기를 처리합니다.
 
 <div align="center">
   <img src="docs/images/mvi.svg" alt="MVI 단방향 데이터 흐름" width="900" />
@@ -36,42 +36,18 @@ Mash-Up MINO 팀의 iOS 앱. SwiftUI 위에 **Clean Architecture + DDD**를 깔�
 
 ### DI — 컴포지션 루트
 
-전역 컨테이너 없이 생성자 주입만 쓴다. 각 Coordinator는 자기 의존만 담은 좁은 deps 프로토콜을 받고, `AppDependencies` 한 타입이 모든 deps 프로토콜을 준수한다 — 주입 누락은 런타임 크래시가 아니라 컴파일 에러로 잡힌다.
+전역 컨테이너 없이 생성자 주입만 씁니다. 각 Coordinator는 자기 의존만 담은 좁은 deps 프로토콜을 받고, `AppDependencies` 한 타입이 모든 deps 프로토콜을 준수합니다 — 주입을 빠뜨리면 런타임 크래시가 아니라 컴파일 에러로 바로 드러납니다.
 
 <div align="center">
   <img src="docs/images/di.svg" alt="DI — 컴포지션 루트와 좁은 deps 프로토콜" width="900" />
 </div>
 
-상세 규칙과 새 화면 작성법: [.claude/docs/mvi-coordinator-di.md](.claude/docs/mvi-coordinator-di.md) · 레이어 경계 규칙: [.claude/docs/clean-architecture.md](.claude/docs/clean-architecture.md)
+## AI 활용
 
-## AI — 에이전틱 코딩
+극한의 에이전틱 코딩을 위해 AI를 적극 활용합니다.
 
-극한의 에이전틱 코딩을 위해 AI를 적극 활용한다.
-
-- **QA 하네스** — [Mino-harness](https://github.com/hooni0918/Mino-harness): Figma URL 하나로 분류 → 기존 화면 수정 → 접근성 식별자 부여 → 테스트 작성 → 빌드 → 시뮬레이터 QA까지 무인으로 도는 파이프라인. 사람 리뷰 대신 기계 게이트(Figma 원본 대조·컴파일·식별자)가 각 단계를 검증하고, 신규 화면 구현은 대화형 워크플로우로 분리한다. 실험 기록은 [PR #29](https://github.com/mash-up-kr/Team-MINO-iOS/pull/29).
-- **팀 문서 · 공통 규칙** — [mino-qa](https://github.com/hooni0918/mino-qa) 문서화 레포의 배포 사이트 **[mino-qa.vercel.app](https://mino-qa.vercel.app)** 에 RAG 챗봇이 있다. 문서화와 공통 내용은 여기를 참조한다.
-
-## 빌드 / 테스트
-
-```bash
-# 앱 (전 레이어 통합 빌드)
-open App/App.xcodeproj          # Xcode에서 App 스킴 실행
-# 또는 CLI:
-xcodebuild -project App/App.xcodeproj -scheme App \
-  -destination 'platform=iOS Simulator,name=iPhone 16 Pro' build
-
-# 패키지 단위 테스트 (호스트에서 실행 — macOS 타깃 포함 패키지)
-cd Packages/Core             && swift test
-cd Packages/Domain           && swift test
-cd Packages/FlowCoordination && swift test   # FlowFinish
-cd Packages/MVI              && swift test   # TestStore(L1~L3)
-cd Packages/Feature          && swift test   # reducer L1~L3 + Coordinator
-
-# UIKit/네트워킹 의존 패키지(Networking/Data/DesignSystem)는
-# iOS 시뮬레이터에서 빌드/테스트한다 (macOS 호스트의 swift build 미지원)
-```
-
-> `App.xcodeproj`는 xcodegen으로 1회 부트스트랩 생성한 산출물이며, 이후 앱 타깃 설정은 Xcode에서 직접 관리한다.
+- **Figma → PR 워크플로우** — 피그마 URL 하나만 넣으면 화면 구현부터 테스트, QA까지 이어서 돌아가는 [Mino-harness](https://github.com/hooni0918/Mino-harness) 워크플로우를 씁니다. 사람이 하나씩 보는 대신, 피그마 원본과 다시 비교하고 빌드가 되는지 확인하는 식으로 자동 검증합니다.
+- **팀 문서 · 공통 규칙** — [mino-qa](https://github.com/hooni0918/mino-qa) 사이트에 RAG 챗봇이 있어서, 문서와 팀 공통 규칙을 바로 물어볼 수 있습니다.
 
 ## Contributors
 
