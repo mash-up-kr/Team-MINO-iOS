@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Team-MINO-iOS Architecture</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" integrity="sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js" integrity="sha384-en/ztfPSRkGfME4KIm05joYXynqzUgbsG5nMrj/xEFAHXkeZfO3yMK8QQ+mP7p1/" crossorigin="anonymous"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'JetBrains Mono', monospace;
+      background: #020617;
+      min-height: 100vh;
+      padding: 2rem;
+      color: white;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .header {
+      margin-bottom: 2rem;
+    }
+    
+    .header-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    .pulse-dot {
+      width: 12px;
+      height: 12px;
+      background: #22d3ee;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+    }
+    
+    .subtitle {
+      color: #94a3b8;
+      font-size: 0.875rem;
+      margin-left: 1.75rem;
+    }
+    
+    .diagram-container {
+      background: rgba(15, 23, 42, 0.5);
+      border-radius: 1rem;
+      border: 1px solid #1e293b;
+      padding: 1.5rem;
+      overflow-x: auto;
+    }
+    
+    svg {
+      width: 100%;
+      min-width: 900px;
+      display: block;
+    }
+    
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+      margin-top: 2rem;
+    }
+    
+    .card {
+      background: rgba(15, 23, 42, 0.5);
+      border-radius: 0.75rem;
+      border: 1px solid #1e293b;
+      padding: 1.25rem;
+    }
+    
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+    
+    .card-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+    
+    .card-dot.cyan { background: #22d3ee; }
+    .card-dot.emerald { background: #34d399; }
+    .card-dot.violet { background: #a78bfa; }
+    .card-dot.amber { background: #fbbf24; }
+    .card-dot.rose { background: #fb7185; }
+    
+    .card h3 {
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+    
+    .card ul {
+      list-style: none;
+      color: #94a3b8;
+      font-size: 0.75rem;
+    }
+    
+    .card li {
+      margin-bottom: 0.375rem;
+    }
+    
+    .footer {
+      text-align: center;
+      margin-top: 1.5rem;
+      color: #475569;
+      font-size: 0.75rem;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 0.5rem;
+      margin-left: auto;
+      flex-shrink: 0;
+      align-items: center;
+    }
+    .toolbar-toggle {
+      background: transparent;
+      border: none;
+      color: #475569;
+      cursor: pointer;
+      font-size: 1.25rem;
+      line-height: 1;
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.375rem;
+      transition: color 0.2s, background 0.2s;
+    }
+    .toolbar-toggle:hover { color: #94a3b8; background: rgba(30, 41, 59, 0.5); }
+    .toolbar-actions {
+      display: none;
+      gap: 0.5rem;
+    }
+    .toolbar.expanded .toolbar-actions { display: flex; }
+    .toolbar-actions button {
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid #334155;
+      color: #94a3b8;
+      padding: 0.375rem 0.75rem;
+      border-radius: 0.375rem;
+      font-family: inherit;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .toolbar-actions button:hover {
+      background: rgba(51, 65, 85, 0.8);
+      color: white;
+      border-color: #475569;
+    }
+
+    @media print {
+      body { background: #020617; padding: 1rem; }
+      .toolbar { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="report-container">
+    <!-- Header -->
+    <div class="header">
+      <div class="header-row">
+        <div class="pulse-dot"></div>
+        <h1>Team-MINO-iOS Architecture</h1>
+        <div class="toolbar">
+          <div class="toolbar-actions">
+            <button onclick="copyAsImage(this)">📋 Copy</button>
+            <button onclick="downloadPNG(this)">🖼️ PNG</button>
+            <button onclick="downloadPDF(this)">📄 PDF</button>
+          </div>
+          <button class="toolbar-toggle" onclick="this.parentElement.classList.toggle('expanded')" title="Export options" aria-label="Export options">⋯</button>
+        </div>
+      </div>
+      <p class="subtitle">Clean Architecture + DDD · MVI + Coordinator + DI · 레이어 단위 로컬 SPM 패키지</p>
+    </div>
+
+    <!-- Main Diagram -->
+    <div class="diagram-container">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 690" style="font-family: 'JetBrains Mono', SFMono-Regular, Menlo, Consolas, monospace;">
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#64748b" />
+    </marker>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/>
+    </pattern>
+  </defs>
+
+  <!-- Background -->
+  <rect width="100%" height="100%" fill="#020617"/>
+  <rect width="100%" height="100%" fill="url(#grid)"/>
+
+  <!-- Title -->
+  <text x="90" y="32" fill="white" font-size="13" font-weight="700">Team-MINO-iOS — 모듈 의존 그래프 (바깥 레이어가 위, 안쪽이 아래)</text>
+
+  <!-- ============ Arrows (상자 뒤에 깔림) ============ -->
+  <!-- App → Feature -->
+  <path d="M 450 124 L 450 152 L 260 152 L 260 188" fill="none" stroke="#fb7185" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+  <!-- App → Data (실 API 연결 시) -->
+  <path d="M 670 96 L 962 96 L 962 296 L 565 296 L 565 320" fill="none" stroke="#fb7185" stroke-width="1.5" stroke-dasharray="5,5" marker-end="url(#arrowhead)"/>
+  <text x="962" y="220" fill="#fb7185" font-size="8" text-anchor="middle" transform="rotate(90 962 220)">실 API 연결 시</text>
+  <!-- Feature → MVI -->
+  <path d="M 390 210 L 468 210" fill="none" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+  <!-- Feature → FlowCoordination -->
+  <path d="M 390 236 L 430 236 L 430 284 L 810 284 L 810 256" fill="none" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+  <!-- Feature → Domain (데이터 레이어를 건너뛰고 안쪽으로) -->
+  <path d="M 260 254 L 260 446" fill="none" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+  <!-- Data → Domain (구현이 안쪽 프로토콜에 의존 — 의존성 역전) -->
+  <path d="M 565 382 L 565 478 L 392 478" fill="none" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+  <!-- Data → Networking -->
+  <path d="M 660 352 L 698 352" fill="none" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+  <!-- Domain → Core -->
+  <path d="M 210 508 L 210 568" fill="none" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+  <!-- Networking → Core -->
+  <path d="M 810 382 L 810 540 L 250 540 L 250 568" fill="none" stroke="#fb923c" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+  <!-- DesignSystem → Core -->
+  <path d="M 338 597 L 292 597" fill="none" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+  <!-- ============ 레이어 밴드 ============ -->
+  <!-- 조립 -->
+  <rect x="90" y="50" width="860" height="90" rx="12" fill="transparent" stroke="#475569" stroke-width="1" stroke-dasharray="8,4"/>
+  <text x="102" y="66" fill="#64748b" font-size="9" font-weight="600">조립 — 컴포지션 루트</text>
+  <!-- 화면 -->
+  <rect x="90" y="170" width="860" height="104" rx="12" fill="transparent" stroke="#475569" stroke-width="1" stroke-dasharray="8,4"/>
+  <text x="102" y="186" fill="#64748b" font-size="9" font-weight="600">화면 — UI · 화면 인프라</text>
+  <!-- 데이터 구현 -->
+  <rect x="90" y="304" width="860" height="96" rx="12" fill="transparent" stroke="#475569" stroke-width="1" stroke-dasharray="8,4"/>
+  <text x="102" y="320" fill="#64748b" font-size="9" font-weight="600">데이터 — Repository 구현 · HTTP</text>
+  <!-- 도메인 -->
+  <rect x="90" y="430" width="860" height="92" rx="12" fill="transparent" stroke="#34d399" stroke-width="1" stroke-dasharray="8,4"/>
+  <text x="102" y="446" fill="#34d399" font-size="9" font-weight="600">도메인 — 순수 비즈니스 (가장 안쪽)</text>
+  <!-- 기반 -->
+  <rect x="90" y="552" width="860" height="88" rx="12" fill="transparent" stroke="#475569" stroke-width="1" stroke-dasharray="8,4"/>
+  <text x="102" y="568" fill="#64748b" font-size="9" font-weight="600">기반 — 공용</text>
+
+  <!-- ============ App ============ -->
+  <rect x="370" y="68" width="300" height="56" rx="6" fill="#0f172a"/>
+  <rect x="370" y="68" width="300" height="56" rx="6" fill="rgba(136, 19, 55, 0.4)" stroke="#fb7185" stroke-width="1.5"/>
+  <text x="520" y="89" fill="white" font-size="12" font-weight="600" text-anchor="middle">App</text>
+  <text x="520" y="105" fill="#94a3b8" font-size="9" text-anchor="middle">MINOApp · AppCoordinator · AppDependencies</text>
+  <text x="520" y="118" fill="#fb7185" font-size="7" text-anchor="middle">구체 타입 조립은 여기서만 (xcodeproj)</text>
+
+  <!-- ============ Feature ============ -->
+  <rect x="130" y="190" width="260" height="64" rx="6" fill="#0f172a"/>
+  <rect x="130" y="190" width="260" height="64" rx="6" fill="rgba(8, 51, 68, 0.4)" stroke="#22d3ee" stroke-width="1.5"/>
+  <text x="260" y="212" fill="white" font-size="12" font-weight="600" text-anchor="middle">Feature</text>
+  <text x="260" y="229" fill="#94a3b8" font-size="9" text-anchor="middle">SwiftUI View · Store · Coordinator</text>
+  <text x="260" y="243" fill="#22d3ee" font-size="7" text-anchor="middle">Member flow (Home · Detail · Edit)</text>
+
+  <!-- ============ MVI ============ -->
+  <rect x="470" y="190" width="190" height="64" rx="6" fill="#0f172a"/>
+  <rect x="470" y="190" width="190" height="64" rx="6" fill="rgba(76, 29, 149, 0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+  <text x="565" y="212" fill="white" font-size="12" font-weight="600" text-anchor="middle">MVI</text>
+  <text x="565" y="229" fill="#94a3b8" font-size="9" text-anchor="middle">Effect · Store · TestStore</text>
+  <text x="565" y="243" fill="#a78bfa" font-size="7" text-anchor="middle">Observation 만 의존 (SwiftUI 비의존)</text>
+
+  <!-- ============ FlowCoordination ============ -->
+  <rect x="700" y="190" width="220" height="64" rx="6" fill="#0f172a"/>
+  <rect x="700" y="190" width="220" height="64" rx="6" fill="rgba(76, 29, 149, 0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+  <text x="810" y="212" fill="white" font-size="12" font-weight="600" text-anchor="middle">FlowCoordination</text>
+  <text x="810" y="229" fill="#94a3b8" font-size="9" text-anchor="middle">Coordinator · FlowFinish · flowRoot</text>
+  <text x="810" y="243" fill="#a78bfa" font-size="7" text-anchor="middle">화면 전환 인프라 (SwiftUI)</text>
+
+  <!-- ============ Data ============ -->
+  <rect x="470" y="322" width="190" height="60" rx="6" fill="#0f172a"/>
+  <rect x="470" y="322" width="190" height="60" rx="6" fill="rgba(120, 53, 15, 0.3)" stroke="#fbbf24" stroke-width="1.5"/>
+  <text x="565" y="344" fill="white" font-size="12" font-weight="600" text-anchor="middle">Data</text>
+  <text x="565" y="360" fill="#94a3b8" font-size="9" text-anchor="middle">RepositoryImpl · DTO</text>
+  <text x="565" y="374" fill="#fbbf24" font-size="7" text-anchor="middle">toDomain() 매핑 — DTO 는 내부에 닫힘</text>
+
+  <!-- ============ Networking ============ -->
+  <rect x="700" y="322" width="220" height="60" rx="6" fill="#0f172a"/>
+  <rect x="700" y="322" width="220" height="60" rx="6" fill="rgba(251, 146, 60, 0.3)" stroke="#fb923c" stroke-width="1.5"/>
+  <text x="810" y="344" fill="white" font-size="12" font-weight="600" text-anchor="middle">Networking</text>
+  <text x="810" y="360" fill="#94a3b8" font-size="9" text-anchor="middle">HTTPClient · Endpoint</text>
+
+  <!-- ============ Domain ============ -->
+  <rect x="130" y="448" width="260" height="60" rx="6" fill="#0f172a"/>
+  <rect x="130" y="448" width="260" height="60" rx="6" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
+  <text x="260" y="470" fill="white" font-size="12" font-weight="600" text-anchor="middle">Domain</text>
+  <text x="260" y="486" fill="#94a3b8" font-size="9" text-anchor="middle">Entity · UseCase · Repository 프로토콜</text>
+  <text x="260" y="500" fill="#34d399" font-size="7" text-anchor="middle">바깥 레이어를 모른다 — Core 만 허용</text>
+
+  <!-- ============ Core ============ -->
+  <rect x="130" y="570" width="160" height="54" rx="6" fill="#0f172a"/>
+  <rect x="130" y="570" width="160" height="54" rx="6" fill="rgba(30, 41, 59, 0.5)" stroke="#94a3b8" stroke-width="1.5"/>
+  <text x="210" y="592" fill="white" font-size="12" font-weight="600" text-anchor="middle">Core</text>
+  <text x="210" y="608" fill="#94a3b8" font-size="9" text-anchor="middle">공용 유틸</text>
+
+  <!-- ============ DesignSystem ============ -->
+  <rect x="340" y="570" width="190" height="54" rx="6" fill="#0f172a"/>
+  <rect x="340" y="570" width="190" height="54" rx="6" fill="rgba(30, 41, 59, 0.5)" stroke="#94a3b8" stroke-width="1.5"/>
+  <text x="435" y="592" fill="white" font-size="12" font-weight="600" text-anchor="middle">DesignSystem</text>
+  <text x="435" y="608" fill="#94a3b8" font-size="9" text-anchor="middle">토큰 · 컴포넌트 (UIKit)</text>
+
+  <!-- Note -->
+  <text x="90" y="668" fill="#64748b" font-size="8">→  의존 방향 (바깥 → 안쪽으로만 · Data 가 Domain 프로토콜에 의존 = 의존성 역전)      ┈┈  실 API 연결 시 활성화 (현재는 App 이 Stub UseCase 주입)</text>
+</svg>
+    </div>
+
+    <!-- Info Cards -->
+    <div class="cards">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot rose"></div>
+          <h3>레이어 규칙</h3>
+        </div>
+        <ul>
+          <li>• 의존은 바깥 → 안쪽으로만. Domain 은 바깥 레이어를 모른다</li>
+          <li>• DTO 는 Data 내부에 닫히고 toDomain() 으로만 경계를 넘는다</li>
+          <li>• Entity 는 Codable 직접 채택 금지 (API 스키마 결합 방지)</li>
+          <li>• reduce 는 Repository 가 아니라 UseCase 를 받는다</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot violet"></div>
+          <h3>화면 아키텍처 — MVI + Coordinator + DI</h3>
+        </div>
+        <ul>
+          <li>• 순수 reduce 가 부수효과를 Effect 값으로 반환, 실행은 Store 가</li>
+          <li>• 화면 전환은 Effect.navigate → Coordinator 가 전담</li>
+          <li>• 자식 flow 종료는 FlowFinish 로 결과를 1회 보고</li>
+          <li>• Coordinator 별 좁은 deps 프로토콜 + 생성자 주입 (전역 컨테이너 0)</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot emerald"></div>
+          <h3>라이브러리</h3>
+        </div>
+        <ul>
+          <li>• 외부 라이브러리 없이 애플 프레임워크만 사용 (No 서드파티)</li>
+          <li>• Combine 대신 async/await 기반 스트림 사용</li>
+          <li>• Store는 Observation만 의존 (SwiftUI 비의존)</li>
+          <li>• App.xcodeproj는 xcodegen 1회 부트스트랩 산출물</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <p class="footer">
+      Team-MINO-iOS • Mash-Up MINO • docs/images/architecture.svg 와 동일한 다이어그램의 인터랙티브 버전
+    </p>
+  </div>
+
+  <script>
+    async function copyAsImage(btn) {
+      const orig = btn.textContent;
+      try {
+        const el = document.getElementById('report-container');
+        const r = el.getBoundingClientRect();
+        const pad = 32;
+        const canvas = await html2canvas(document.body, { backgroundColor: '#020617', scale: 2, useCORS: true, ignoreElements: (e) => e.classList && e.classList.contains('toolbar'), x: r.left + window.scrollX - pad, y: r.top + window.scrollY - pad, width: r.width + pad * 2, height: r.height + pad * 2 });
+        const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+        btn.textContent = '✓ Copied!';
+      } catch (e) {
+        btn.textContent = '✗ Failed';
+      }
+      setTimeout(() => btn.textContent = orig, 2000);
+    }
+
+    async function downloadPNG(btn) {
+      const orig = btn.textContent;
+      btn.textContent = '⏳ ...';
+      try {
+        const el = document.getElementById('report-container');
+        const r = el.getBoundingClientRect();
+        const pad = 32;
+        const canvas = await html2canvas(document.body, { backgroundColor: '#020617', scale: 2, useCORS: true, ignoreElements: (e) => e.classList && e.classList.contains('toolbar'), x: r.left + window.scrollX - pad, y: r.top + window.scrollY - pad, width: r.width + pad * 2, height: r.height + pad * 2 });
+        const link = document.createElement('a');
+        link.download = 'diagram.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        btn.textContent = '✓ Done!';
+      } catch (e) {
+        btn.textContent = '✗ Failed';
+      }
+      setTimeout(() => btn.textContent = orig, 2000);
+    }
+
+    async function downloadPDF(btn) {
+      const orig = btn.textContent;
+      btn.textContent = '⏳ ...';
+      try {
+        const el = document.getElementById('report-container');
+        const r = el.getBoundingClientRect();
+        const pad = 32;
+        const canvas = await html2canvas(document.body, { backgroundColor: '#020617', scale: 2, useCORS: true, ignoreElements: (e) => e.classList && e.classList.contains('toolbar'), x: r.left + window.scrollX - pad, y: r.top + window.scrollY - pad, width: r.width + pad * 2, height: r.height + pad * 2 });
+        const imgData = canvas.toDataURL('image/png');
+        const { jsPDF } = window.jspdf;
+        const orientation = canvas.width > canvas.height ? 'landscape' : 'portrait';
+        const pdf = new jsPDF({ orientation, unit: 'px', format: [canvas.width, canvas.height], hotfixes: ['px_scaling'] });
+        pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+        pdf.save('diagram.pdf');
+        btn.textContent = '✓ Done!';
+      } catch (e) {
+        btn.textContent = '✗ Failed';
+      }
+      setTimeout(() => btn.textContent = orig, 2000);
+    }
+  </script>
+</body>
+</html>

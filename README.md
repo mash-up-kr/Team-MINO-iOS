@@ -1,97 +1,53 @@
 # Team-MINO-iOS
-안녕하세요민호야잘하자iOS팀레포인데요일단임시레포를팟어요많은관심부탁드립니다
 
-## > *「諦めるな…！俺たちのコードは、まだ終わっていない！」*
+Mash-Up MINO 팀의 iOS 앱입니다. SwiftUI 위에 **Clean Architecture** 구조로 만들고, 화면 아키텍처는 **MVI**를 씁니다. 모듈은 레이어 단위로 SPM 패키지를 나눠서 구성합니다. 외부 라이브러리 없이 애플 프레임워크만 쓰는 걸 기본 방향으로 합니다.
+
+## 아키텍처 — 모듈 의존 그래프
+
+의존성은 **바깥에서 안쪽으로만** 향합니다 (`Feature → Domain ← Data`). 가장 안쪽에 있는 Domain은 바깥을 모르고, Data가 거꾸로 Domain의 프로토콜에 의존합니다(의존성 역전).
 
 <div align="center">
-    <img src="https://github.com/user-attachments/assets/d052ad90-0567-40da-8f5e-915baeb6a028" width="1200" height="800" alt="Video" />
-  </a>
-</div> 
-
-
-
-## 🎵✨ ↓↓↓ チームMINO iOS 公式テーマソング ↓↓↓ ✨🎵
-
-> *「この曲を聴けば…力が湧いてくる気がする。不思議だろう？」* 🔥💫
-<div align="center">
-  <a href="https://www.youtube.com/watch?v=OzGVz1ClxIc">
-    <img src="https://img.youtube.com/vi/OzGVz1ClxIc/maxresdefault.jpg" width="800" height="476" alt="Video" />
-  </a>
+  <img src="docs/images/architecture.svg" alt="모듈 의존 그래프 — 바깥 레이어가 위, 안쪽이 아래" width="900" />
 </div>
 
---
-## 🏗️ 모듈 구조 (Clean Architecture + DDD, SPM)
+> 인터랙티브 버전(PNG/PDF 내보내기): [docs/architecture.html](docs/architecture.html)
 
-Tuist를 걷어내고 레이어 단위 로컬 SPM 패키지로 구성한다. 의존성은 바깥에서 안쪽으로만 향한다 (`Feature → Domain ← Data`).
-화면 아키텍처는 **Coordinator + 경량 A(MVI) + 번들 DI** 3축을 SwiftUI(`@Observable`/`NavigationStack`) 위에 얹는다.
+| 모듈 | 역할 | 의존 |
+|---|---|---|
+| `App` | 컴포지션 루트 — 구체 타입 조립은 여기서만 (`AppDependencies`, xcodeproj 타깃) | Feature · Data(실 API 연결 시) |
+| `Feature` | 화면 flow — SwiftUI View · Store · Coordinator | Domain · MVI · FlowCoordination |
+| `MVI` | 화면 상태 인프라 — `Effect` · `Store` + `TestStore` (Observation만 의존) | — |
+| `FlowCoordination` | 화면 전환 인프라 — `Coordinator` · `FlowFinish` · `flowRoot` | — |
+| `Domain` | Entity · UseCase · Repository 프로토콜 — 비즈니스 규칙 | Core |
+| `Data` | Repository 구현 · DTO (`toDomain()` 매핑, DTO는 내부에 닫힘) | Domain · Networking |
+| `Networking` | `HTTPClient` · `Endpoint` | Core |
+| `DesignSystem` | 디자인 토큰 · 컴포넌트 (UIKit) | Core |
+| `Core` | 공용 유틸 | — |
 
-```
-Team-MINO-iOS/
-├── App/                      # 컴포지션 루트 (얇은 .xcodeproj). 구체 타입은 여기서만 조립
-│   ├── App.xcodeproj
-│   └── Sources/              # MINOApp(SwiftUI App), AppCoordinator, AppDependencies
-└── Packages/                 # 레이어 단위 로컬 SPM 패키지
-    ├── Core/                 # 공용 유틸 (의존성 없음)
-    ├── Networking/           # HTTPClient, Endpoint, NetworkError  → Core
-    ├── Domain/               # Entity, ValueObject, UseCase, Repository protocol  → Core
-    ├── Data/                 # Repository 구현, DTO, Mapper  → Domain, Networking
-    ├── DesignSystem/         # UIKit 컴포넌트·토큰  → Core
-    ├── FlowCoordination/     # Coordinator 프로토콜·FlowFinish·flowRoot  (SwiftUI)
-    ├── MVI/                  # Effect·Store + MVITestSupport(TestStore)  (Observation)
-    └── Feature/              # 화면(SwiftUI View)·Store·Coordinator  → Domain, FlowCoordination, MVI
-```
+## 화면 아키텍처
 
-의존성 그래프:
+### MVI — 단방향 데이터 흐름
 
-```
-App ──▶ Feature ──▶ Domain ──▶ Core
-   │       ├──────▶ FlowCoordination
-   │       └──────▶ MVI
-   └──▶ Data ──▶ Domain
-            └──▶ Networking ──▶ Core
-```
+상태는 순수 `reduce` 함수가 만들고, 부수효과는 `Effect` 값으로 반환해서 `Store`가 실행합니다. 비동기 결과는 Response Action(`loaded`/`loadFailed`)으로 다시 돌아오고, 화면 전환은 `.navigate`로 Coordinator에 넘깁니다. `Store`는 Observation만 쓰고, Combine 대신 async/await 기반 스트림으로 비동기를 처리합니다.
 
-- **Domain은 어떤 인프라도 모른다** (Data/Networking/UIKit import 금지)
-- **Feature는 Data를 모른다.** UseCase 구현은 `App/AppDependencies`에서 조립해 Coordinator로 주입
-- **reduce는 Repository가 아니라 UseCase만 받는다** (Clean Architecture 경계 준수)
-- **DTO는 Data 내부에 internal로 닫혀** Domain에 노출되지 않는다 (`toDomain()` 매핑)
-- **DI = Coordinator별 deps 프로토콜.** `AppDependencies`가 각 Coordinator의 deps 프로토콜(`MemberDeps` 등)을 준수 → 전역 0
-- 화면 아키텍처(MVI + Coordinator + DI) 결정 배경은 `.claude/docs/mvi-coordinator-di.md` 참조
+<div align="center">
+  <img src="docs/images/mvi.svg" alt="MVI 단방향 데이터 흐름" width="900" />
+</div>
 
-### 빌드 / 테스트
+### DI — 컴포지션 루트
 
-```bash
-# 앱 (전 레이어 통합 빌드)
-open App/App.xcodeproj          # Xcode에서 App 스킴 실행
-# 또는 CLI:
-xcodebuild -project App/App.xcodeproj -scheme App \
-  -destination 'platform=iOS Simulator,name=iPhone 16 Pro' build
+전역 컨테이너 없이 생성자 주입만 씁니다. 각 Coordinator는 자기 의존만 담은 좁은 deps 프로토콜을 받고, `AppDependencies` 한 타입이 모든 deps 프로토콜을 준수합니다 — 주입을 빠뜨리면 런타임 크래시가 아니라 컴파일 에러로 바로 드러납니다.
 
-# 패키지 단위 테스트 (호스트에서 실행 — macOS 타깃 포함 패키지)
-cd Packages/Core             && swift test
-cd Packages/Domain           && swift test
-cd Packages/FlowCoordination && swift test   # FlowFinish
-cd Packages/MVI              && swift test   # TestStore(L1~L3)
-cd Packages/Feature          && swift test   # reducer L1~L3 + Coordinator
+<div align="center">
+  <img src="docs/images/di.svg" alt="DI — 컴포지션 루트와 좁은 deps 프로토콜" width="900" />
+</div>
 
-# UIKit/네트워킹 의존 패키지(Networking/Data/DesignSystem)는
-# iOS 시뮬레이터에서 빌드/테스트한다 (macOS 호스트의 swift build 미지원)
-```
+## AI 활용
 
-> `App.xcodeproj`는 xcodegen으로 1회 부트스트랩 생성한 산출물이며, 이후 앱 타깃 설정은 Xcode에서 직접 관리한다.
+극한의 에이전틱 코딩을 위해 AI를 적극 활용합니다.
 
---
-## App Download
-
-<a href="" target="_blank">
-  <img src="https://github.com/user-attachments/assets/e7e0253d-26bc-4fd3-9f4d-1ff8c24f00fe" alt="App Store Download" width="150" />
-</a>
-
-<p>
-  <!-- <a href="https://apps.apple.com/kr/app/%EC%93%B8%EB%9E%98%EB%A7%90%EB%9E%98/id6746895814" target="_blank">앱스토어에서 다운로드</a> -->
-</p>
-
----
+- **Figma → PR 워크플로우** — 피그마 URL 하나만 넣으면 화면 구현부터 테스트, QA까지 이어서 돌아가는 [Mino-harness](https://github.com/hooni0918/Mino-harness) 워크플로우를 씁니다. 사람이 하나씩 보는 대신, 피그마 원본과 다시 비교하고 빌드가 되는지 확인하는 식으로 자동 검증합니다.
+- **팀 문서 · 공통 규칙** — [mino-qa](https://github.com/hooni0918/mino-qa) 사이트에 RAG 챗봇이 있어서, 문서와 팀 공통 규칙을 바로 물어볼 수 있습니다.
 
 ## Contributors
 
@@ -119,10 +75,8 @@ cd Packages/Feature          && swift test   # reducer L1~L3 + Coordinator
 
 ---
 
-
 <div align="center">
   <a href="https://hits.sh/github.com/mash-up-kr/Team-MINO-iOS/">
     <img src="https://hits.sh/github.com/mash-up-kr/Team-MINO-iOS.svg" alt="Hits">
   </a>
 </div>
-
