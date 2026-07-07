@@ -10,7 +10,7 @@
 
 | 레이어 | 책임 | 금지 사항 |
 |--------|------|-----------|
-| **Domain** | 비즈니스 로직, Entity, UseCase, Repository protocol | 프레임워크 의존 금지 (UIKit, Alamofire 등). Core만 허용 |
+| **Domain** | 비즈니스 로직, Entity, UseCase, Repository protocol | 프레임워크 의존 금지 (UIKit, Alamofire 등). **의존 패키지 0** — Core도 보지 않는다 |
 | **Data** | Repository 구현, API 호출, DTO 변환, 로컬 저장소 | Domain Entity를 직접 수정 금지. DTO로 변환하여 전달 |
 | **Feature** | UI, 사용자 입력 처리, 화면 상태 관리 | 비즈니스 로직 직접 구현 금지. UseCase를 통해서만 접근 |
 
@@ -41,3 +41,11 @@
 - 하나의 비즈니스 유스케이스 = 하나의 UseCase 클래스
 - 여러 Repository를 조합하여 비즈니스 흐름 구현
 - UI 관심사(화면 상태, 네비게이션)를 포함하면 안 됨
+
+## Core / CorePlatform 배치 기준
+
+- **Core는 Foundation-only.** Foundation 외 import(UIKit·SwiftUI·서드파티)는 금지 — CI(layer-guard)가 검사한다.
+- 프레임워크가 하나라도 필요한 공용 유틸이 처음 생기면, **그 PR에서 `CorePlatform` 패키지를 신설**해 거기에 둔다. Core에 넣지 않는다.
+- **Domain은 의존 패키지 0을 유지한다** (Core도 보지 않는다 — CI가 검사). Domain에 필요한 순수 공용 타입은 Domain 안에 둔다.
+- Domain·Networking은 CorePlatform을 의존할 수 없다 — 프레임워크 의존이 안쪽 레이어로 새는 경로가 되기 때문이다.
+- Core를 쓰고 싶은 패키지는 그때 자기 `Package.swift`에 의존을 추가한다. 쓰지 않는 의존을 미리 선언해 두지 않는다.

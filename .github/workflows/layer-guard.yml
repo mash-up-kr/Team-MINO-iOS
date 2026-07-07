@@ -1,0 +1,31 @@
+name: layer-guard
+
+on:
+  pull_request:
+  push:
+    branches: [develop, main]
+
+jobs:
+  layer-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Core는 Foundation-only — 프레임워크 유틸이 섞이면 Core를 의존하는
+      # 모든 패키지가 그 프레임워크 의존을 상속받는다 (배치 기준: .claude/docs/clean-architecture.md)
+      - name: Core는 Foundation-only (프레임워크 import 금지)
+        run: |
+          bad=$(grep -rhE '^[[:space:]]*(@testable[[:space:]]+)?import[[:space:]]' Packages/Core/Sources --include='*.swift' | awk '{print $NF}' | grep -vx 'Foundation' || true)
+          if [ -n "$bad" ]; then
+            echo "::error::Core에 Foundation 외 import가 있습니다 — CorePlatform으로 옮기세요:"
+            echo "$bad"
+            exit 1
+          fi
+
+      # Domain 순수성은 규율이 아니라 구조로 보장한다 — 의존 자체가 없으면 오염 경로도 없다
+      - name: Domain은 의존 패키지 0
+        run: |
+          if grep -q '\.package(' Packages/Domain/Package.swift; then
+            echo "::error::Domain/Package.swift에 패키지 의존이 선언됐습니다 — Domain은 의존 0이어야 합니다 (.claude/docs/clean-architecture.md)"
+            exit 1
+          fi
