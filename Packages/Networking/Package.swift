@@ -7,11 +7,8 @@ let package = Package(
     products: [
         .library(name: "Networking", targets: ["Networking"]),
     ],
-    dependencies: [
-        .package(path: "../Core"),
-    ],
     targets: [
-        .target(name: "Networking", dependencies: ["Core"]),
+        .target(name: "Networking"),
         .testTarget(name: "NetworkingTests", dependencies: ["Networking"]),
     ],
     swiftLanguageModes: [.v6]

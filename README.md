@@ -2,27 +2,13 @@
 
 Mash-Up MINO 팀의 iOS 앱입니다. SwiftUI 위에 **Clean Architecture** 구조로 만들고, 화면 아키텍처는 **MVI**를 씁니다. 모듈은 레이어 단위로 SPM 패키지를 나눠서 구성합니다. 외부 라이브러리 없이 애플 프레임워크만 쓰는 걸 기본 방향으로 합니다.
 
-## 아키텍처 — 모듈 의존 그래프
+## 아키텍처 — 모듈 의존 레이어
 
-의존성은 **바깥에서 안쪽으로만** 향합니다 (`Feature → Domain ← Data`). 가장 안쪽에 있는 Domain은 바깥을 모르고, Data가 거꾸로 Domain의 프로토콜에 의존합니다(의존성 역전).
+의존성은 **바깥에서 안쪽으로만** 향합니다 (`Feature → Domain ← Data`). 가장 안쪽에 있는 Domain은 바깥을 모르고, Data가 거꾸로 Domain의 프로토콜에 의존합니다(의존성 역전). 아직 없는 조각(`CorePlatform`, 실 API 조립)은 NEW·점선으로 표시했고, 트리거가 오면 그때 만듭니다.
 
 <div align="center">
-  <img src="docs/images/architecture.svg" alt="모듈 의존 그래프 — 바깥 레이어가 위, 안쪽이 아래" width="900" />
+  <img src="docs/images/target-architecture.svg" alt="모듈 의존 레이어" width="900" />
 </div>
-
-> 인터랙티브 버전(PNG/PDF 내보내기): [docs/architecture.html](docs/architecture.html)
-
-| 모듈 | 역할 | 의존 |
-|---|---|---|
-| `App` | 컴포지션 루트 — 구체 타입 조립은 여기서만 (`AppDependencies`, xcodeproj 타깃) | Feature · Data(실 API 연결 시) |
-| `Feature` | 화면 flow — SwiftUI View · Store · Coordinator | Domain · MVI · FlowCoordination |
-| `MVI` | 화면 상태 인프라 — `Effect` · `Store` + `TestStore` (Observation만 의존) | — |
-| `FlowCoordination` | 화면 전환 인프라 — `Coordinator` · `FlowFinish` · `flowRoot` | — |
-| `Domain` | Entity · UseCase · Repository 프로토콜 — 비즈니스 규칙 | Core |
-| `Data` | Repository 구현 · DTO (`toDomain()` 매핑, DTO는 내부에 닫힘) | Domain · Networking |
-| `Networking` | `HTTPClient` · `Endpoint` | Core |
-| `DesignSystem` | 디자인 토큰 · 컴포넌트 (UIKit) | Core |
-| `Core` | 공용 유틸 | — |
 
 ## 화면 아키텍처
 

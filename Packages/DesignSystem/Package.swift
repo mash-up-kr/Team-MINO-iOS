@@ -7,11 +7,8 @@ let package = Package(
     products: [
         .library(name: "DesignSystem", targets: ["DesignSystem"]),
     ],
-    dependencies: [
-        .package(path: "../Core"),
-    ],
     targets: [
-        .target(name: "DesignSystem", dependencies: ["Core"]),
+        .target(name: "DesignSystem"),
         .testTarget(name: "DesignSystemTests", dependencies: ["DesignSystem"]),
     ],
     swiftLanguageModes: [.v6]
