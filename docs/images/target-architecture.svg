@@ -11,7 +11,7 @@
   <rect width="100%" height="100%" fill="#020617"/>
   <rect width="100%" height="100%" fill="url(#grid-t)"/>
 
-  <text x="90" y="32" fill="white" font-size="13" font-weight="700">Team-MINO-iOS — 궁극 지향 레이어 (모듈이 다 채워졌을 때)</text>
+  <text x="90" y="32" fill="white" font-size="13" font-weight="700">Team-MINO-iOS — 모듈 의존 레이어</text>
 
   <!-- ============ Arrows ============ -->
   <!-- App → Feature -->
