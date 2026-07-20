@@ -1,3 +1,4 @@
+import Logging
 import UIKit
 
 /// SwiftUI App lifecycle 에 `@UIApplicationDelegateAdaptor` 로 부속 연결되는 AppDelegate.
@@ -7,7 +8,13 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
-        true
+        // 로그 백엔드 조립(Composition Root). 개발은 전부, 릴리즈는 warning↑만 남긴다.
+        #if DEBUG
+        Log.bootstrap(OSLogger(minimumLevel: .debug))
+        #else
+        Log.bootstrap(OSLogger(minimumLevel: .warning))
+        #endif
+        return true
     }
 
     func application(
