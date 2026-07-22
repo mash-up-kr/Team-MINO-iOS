@@ -48,17 +48,17 @@ public struct OSLogger: LogHandler {
 }
 
 private extension LogLevel {
-    /// os 통합 로깅 타입으로 매핑한다.
-    /// os 에는 `warning` 이 따로 없어 `warning → .error`, `error → .fault` 로 구분한다.
-    /// 주의: `.fault` 는 Console.app 에서 "Fault" 로 강조되지만 곧 크래시를 뜻하지 않는다 —
-    /// 우리 `error` 레벨의 표시일 뿐이다.
+    /// os 통합 로깅 타입으로 매핑한다. os 레벨은 5종(.debug/.info/.default/.error/.fault)뿐이고
+    /// Apple 가이드상 `.error` 는 "실행 중 에러", `.fault` 는 "프로그램 버그"다.
+    /// - os 에 `warning` 대응이 없어 `notice`·`warning` 을 함께 `.default`("주목할 일, 에러 아님")로 둔다.
+    /// - `error → .error` 로 매핑한다. `.fault` 는 일상 에러엔 과하므로 향후 critical 레벨용으로 남겨둔다.
     var osLogType: OSLogType {
         switch self {
         case .debug: .debug
         case .info: .info
         case .notice: .default
-        case .warning: .error
-        case .error: .fault
+        case .warning: .default
+        case .error: .error
         }
     }
 }
