@@ -87,8 +87,12 @@ final class LoggingTests: XCTestCase {
         XCTAssertEqual(OSLogger.formatMetadata([:]), "")
     }
 
-    func test_formatMetadata_sortsKeysAndPrefixesSpace() {
-        XCTAssertEqual(OSLogger.formatMetadata(["b": "2", "a": "1"]), " a=1 b=2")
+    func test_formatMetadata_sortsKeysAndQuotesValues() {
+        XCTAssertEqual(OSLogger.formatMetadata(["b": "2", "a": "1"]), " a=\"1\" b=\"2\"")
+    }
+
+    func test_formatMetadata_valueWithSpace_keepsBoundaryUnambiguous() {
+        XCTAssertEqual(OSLogger.formatMetadata(["path": "a b", "n": "1"]), " n=\"1\" path=\"a b\"")
     }
 
     // MARK: - NoopLogger
