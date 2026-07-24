@@ -30,7 +30,7 @@ public struct OSLogger: LogHandler {
         guard level >= minimumLevel else { return }
 
         let meta = Self.formatMetadata(metadata)
-        let location = "(\(file):\(line))"
+        let location = "(\(file):\(line) \(function))"
 
         logger.log(
             level: level.osLogType,
