@@ -69,5 +69,6 @@ AppDependencies 한 곳으로 모아 레이어 경계를 명확히 했다.
 
 ## 참고
 
-- 상세 규칙과 워크플로(원격 동기화·작업 단위 분리 등)는 `.claude/skills/commit` 스킬에 있다.
+- 이 문서가 커밋 컨벤션의 **단일 출처(SSOT)**다. `.claude/skills/commit` 스킬도 이 문서를 참조한다.
+- 커밋 워크플로(원격 동기화·작업 단위 분리 등)는 `.claude/skills/commit` 스킬에 있다.
 - AI 어시스트(commit 스킬)로 만든 커밋에는 `Co-Authored-By: ...` 트레일러가 붙는다.
