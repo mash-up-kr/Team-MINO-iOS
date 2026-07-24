@@ -39,12 +39,21 @@ public struct OSLogger: LogHandler {
     }
 
     /// 메타데이터를 결정적 문자열로 조립한다. 키로 정렬하고, 비어 있으면 빈 문자열.
-    /// 값은 큰따옴표로 감싼다 — 값에 공백/`=` 가 있어도 항목 경계가 모호해지지 않게 한다.
+    /// 값은 큰따옴표로 감싸고 값 안의 `\`·`"` 는 이스케이프한다 — 값에 어떤 문자가 와도
+    /// 항목 경계가 모호해지지 않게 한다. 치환 순서 주의: 백슬래시를 먼저 치환해야
+    /// 따옴표 이스케이프로 생긴 `\` 가 다시 치환되지 않는다.
     /// os.Logger 출력은 관측할 수 없으므로, 조립 규칙(정렬·구분자·빈 처리)은 이 순수 함수로 테스트한다.
     static func formatMetadata(_ metadata: [String: String]) -> String {
         metadata.isEmpty
             ? ""
-            : " " + metadata.sorted { $0.key < $1.key }.map { "\($0.key)=\"\($0.value)\"" }.joined(separator: " ")
+            : " " + metadata.sorted { $0.key < $1.key }
+                .map {
+                    let value = $0.value
+                        .replacingOccurrences(of: "\\", with: "\\\\")
+                        .replacingOccurrences(of: "\"", with: "\\\"")
+                    return "\($0.key)=\"\(value)\""
+                }
+                .joined(separator: " ")
     }
 }
 

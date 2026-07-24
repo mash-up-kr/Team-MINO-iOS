@@ -95,6 +95,20 @@ final class LoggingTests: XCTestCase {
         XCTAssertEqual(OSLogger.formatMetadata(["path": "a b", "n": "1"]), " n=\"1\" path=\"a b\"")
     }
 
+    func test_formatMetadata_valueWithQuote_escapesQuote() {
+        XCTAssertEqual(OSLogger.formatMetadata(["k": #"a"b"#]), #" k="a\"b""#)
+    }
+
+    func test_formatMetadata_valueWithBackslash_escapesBackslash() {
+        // 이스케이프 안 하면 값 끝의 \ 가 닫는 따옴표를 이스케이프한 것처럼 읽힘 (k="a\")
+        XCTAssertEqual(OSLogger.formatMetadata(["k": #"a\"#]), #" k="a\\""#)
+    }
+
+    func test_formatMetadata_valueWithBackslashBeforeQuote_escapesInOrder() {
+        // 백슬래시 → 따옴표 순서로 치환해야 함. 역순이면 \" 의 \ 가 다시 \\ 로 치환돼 깨짐
+        XCTAssertEqual(OSLogger.formatMetadata(["k": #"a\"b"#]), #" k="a\\\"b""#)
+    }
+
     // MARK: - NoopLogger
 
     func test_noopLogger_doesNothing() {
