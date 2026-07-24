@@ -13,6 +13,7 @@
 		3EF75B20CDF46D5CBCADEDF8 /* Core in Frameworks */ = {isa = PBXBuildFile; productRef = 2FEFAD4646D1EBA99E6E7E08 /* Core */; };
 		95C38BB4FB56187972591E16 /* Data in Frameworks */ = {isa = PBXBuildFile; productRef = 30221BF92B4CCDE0D6CEA9E9 /* Data */; };
 		964C752F52C50D0DA03BAA47 /* Networking in Frameworks */ = {isa = PBXBuildFile; productRef = D106E25C257C7E7E8BC43D51 /* Networking */; };
+		FAB1000000000000000000B1 /* Logging in Frameworks */ = {isa = PBXBuildFile; productRef = FAB1000000000000000000D1 /* Logging */; };
 		A1A2A3A4A5A6A7A8A9A0A1A3 /* MINOApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1A2A3A4A5A6A7A8A9A0A1A2 /* MINOApp.swift */; };
 		B1B2B3B4B5B6B7B8B9B0B1B3 /* AppCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1B2B3B4B5B6B7B8B9B0B1B2 /* AppCoordinator.swift */; };
 		D3595F6B764F0A8C5C5B394C /* DesignSystem in Frameworks */ = {isa = PBXBuildFile; productRef = 069920554A729CBEA8A1355E /* DesignSystem */; };
@@ -23,6 +24,7 @@
 
 /* Begin PBXFileReference section */
 		35D426C5753A372F270C6E9D /* Networking */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Networking; path = ../Packages/Networking; sourceTree = SOURCE_ROOT; };
+		FAB1000000000000000000F1 /* Logging */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Logging; path = ../Packages/Logging; sourceTree = SOURCE_ROOT; };
 		3698F892C87398A1AB1FF12E /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		49D88A349FD70A9153DD2C03 /* App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = App.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		4B8003BACE60BD969B4B0C47 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -46,6 +48,7 @@
 				95C38BB4FB56187972591E16 /* Data in Frameworks */,
 				1C2828AB6F056A7680FC41D9 /* Domain in Frameworks */,
 				964C752F52C50D0DA03BAA47 /* Networking in Frameworks */,
+				FAB1000000000000000000B1 /* Logging in Frameworks */,
 				D3595F6B764F0A8C5C5B394C /* DesignSystem in Frameworks */,
 				3EF75B20CDF46D5CBCADEDF8 /* Core in Frameworks */,
 			);
@@ -85,6 +88,7 @@
 				9385F6DBBC00D51067BF0767 /* Domain */,
 				AE14BBEBA89FD412C42C94EB /* Feature */,
 				35D426C5753A372F270C6E9D /* Networking */,
+				FAB1000000000000000000F1 /* Logging */,
 			);
 			name = Packages;
 			sourceTree = SOURCE_ROOT;
@@ -126,6 +130,7 @@
 				30221BF92B4CCDE0D6CEA9E9 /* Data */,
 				E0F40E08DDD41C8DB3E42732 /* Domain */,
 				D106E25C257C7E7E8BC43D51 /* Networking */,
+				FAB1000000000000000000D1 /* Logging */,
 				069920554A729CBEA8A1355E /* DesignSystem */,
 				2FEFAD4646D1EBA99E6E7E08 /* Core */,
 			);
@@ -387,6 +392,10 @@
 		D106E25C257C7E7E8BC43D51 /* Networking */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = Networking;
+		};
+		FAB1000000000000000000D1 /* Logging */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Logging;
 		};
 		E0F40E08DDD41C8DB3E42732 /* Domain */ = {
 			isa = XCSwiftPackageProductDependency;
