@@ -8,7 +8,10 @@ let package = Package(
         .library(name: "DesignSystem", targets: ["DesignSystem"]),
     ],
     targets: [
-        .target(name: "DesignSystem"),
+        .target(
+            name: "DesignSystem",
+            resources: [.process("Resources/SemanticColor.xcassets")]
+        ),
         .testTarget(name: "DesignSystemTests", dependencies: ["DesignSystem"]),
     ],
     swiftLanguageModes: [.v6]
