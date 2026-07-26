@@ -24,3 +24,9 @@ Package.resolved
 ### Claude (개인 설정/훅 — 공용 추적 안 함)
 .claude/settings.local.json
 .claude/hooks/xcode-autobuild.sh
+
+### QA 실행 산출물 (매 실행마다 재생성 — 스크린샷·판정 리포트)
+qa-artifacts/
+
+### Mino-harness 배치 기록 (make sync 가 남기는 로컬 상태)
+.claude/.mino-harness-manifest

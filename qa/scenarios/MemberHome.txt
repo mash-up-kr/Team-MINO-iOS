@@ -1,0 +1,14 @@
+# MemberHome 골든 패스: 로딩 완료 후 상세 화면으로 이동하는 주 동선(핵심 사용자 동선).
+# 전제: 앱이 이미 MemberHome 화면에 있다고 가정한다 — 진입 전 화면(로그인 등)은
+#   qa/manifests/MemberHome.json 에 식별자가 없어 이 시나리오에 내비게이션 스텝으로 포함하지 않는다.
+#   build-runner 가 MemberHome 으로 직행 launch 하지 않았다면 simulator-qa 가 그 사실을 보고해야 한다.
+# 한글 입력 없음: 이 동선에 타이핑 스텝이 없어 AXe 한글 입력 제약과 무관하다.
+#
+# greetingText·state.loading·state.error 는 탭 스텝으로 넣지 않는다 — 비인터랙티브라 탭해도 상태가
+# 바뀌지 않아 검증되는 것이 없다. 존재 확인은 simulator-qa 의 describe-ui·스크린샷이 담당한다.
+#   기대: 진입 직후 state.loading → 로드 완료 후 greetingText 표시, state.error 는 나타나면 실패.
+#
+# 편집 플로우(MemberHome.editButton)는 이 배치에 체이닝하지 않는다: tapEdit 은 시트를 프레젠트하고,
+# 프레젠트 후에는 Home 콘텐츠(detailButton 포함)가 접근성 트리에서 가려져 이어서 검증할 수 없다.
+# 편집 진입 자체의 탭 성공 여부는 별도 시나리오로 분리하고, Edit 화면 자체 매니페스트 확보 후 그 안까지 이어서 작성한다.
+tap --id MemberHome.detailButton
