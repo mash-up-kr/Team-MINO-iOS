@@ -23,7 +23,7 @@ final class MHShadowTests: XCTestCase {
         XCTAssertEqual(MHSpreadShadow.medium.spec.y, 15)
     }
 
-    // CALayer가 Figma layer 값(blur/2·offset·spread path)대로 설정되는지 런타임 검증.
+    // CALayer가 Figma "iOS Value"(radius·offset)대로 설정되는지 런타임 검증.
     @MainActor
     func testCALayerConfiguredFromFigmaValues() {
         let view = MHShadowUIView()
@@ -35,10 +35,10 @@ final class MHShadowTests: XCTestCase {
         let casters = view.layer.sublayers ?? []
         XCTAssertEqual(casters.count, MHShadow.large.layers.count)
         for (caster, spec) in zip(casters, MHShadow.large.layers) {
-            XCTAssertEqual(caster.shadowRadius, spec.blur / 2, accuracy: 0.001)
+            XCTAssertEqual(caster.shadowRadius, spec.radius, accuracy: 0.001)
             XCTAssertEqual(caster.shadowOffset, CGSize(width: spec.x, height: spec.y))
             XCTAssertEqual(caster.shadowOpacity, 1)
-            XCTAssertNotNil(caster.shadowPath, "shadowPath(=spread 반영)가 설정돼야 한다")
+            XCTAssertNotNil(caster.shadowPath, "shadowPath(=표면 모양)가 설정돼야 한다")
         }
     }
 }

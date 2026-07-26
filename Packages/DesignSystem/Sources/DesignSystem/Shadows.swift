@@ -6,8 +6,9 @@ private func shadowInk(_ opacity: Double) -> Color {
     Color(red: 0x17 / 255, green: 0x17 / 255, blue: 0x17 / 255, opacity: opacity)
 }
 
-/// Figma blur → iOS shadowRadius. iOS의 blur는 CSS/Figma의 2배라 절반으로 변환한다.
-/// (CSS가 blur를 표준편차의 2배로 정의 — bjango. `.shadow`/CALayer 계열에 적용되는 확립된 값.)
+/// CSS/Figma blur → iOS shadowRadius(절반). **Spread 전용** — Figma가 Spread엔 iOS Value를 따로
+/// 주지 않아 CSS blur에서 변환한다(CSS는 blur를 표준편차의 2배로 정의 — bjango).
+/// Normal은 Figma "iOS Value" 열의 radius를 그대로 쓴다(변환 없음).
 private func shadowRadius(_ blur: CGFloat) -> CGFloat { blur / 2 }
 
 // MARK: - Spread (spread 0, 단일 layer) — 네이티브 `.shadow`
@@ -45,45 +46,45 @@ public extension View {
     }
 }
 
-// MARK: - Normal (음수 spread, 다층) — CALayer + shadowPath
+// MARK: - Normal (다층) — CALayer + shadowPath
 
-/// Elevation 그림자(`Shadow/Normal/*`, 음수 spread, 1~2 layer). CALayer의 `shadowPath`로 spread를
-/// 정확히 반영하고, layer마다 sublayer를 쌓아 다층을 그린다. 불투명 표면 뒤에 두며, 표면과 같은
-/// `cornerRadius`를 넘긴다.
+/// Elevation 그림자(`Shadow/Normal/*`, 1~2 layer). 값은 Figma "iOS Value" 열 그대로다 —
+/// `radius`가 이미 iOS shadowRadius 최종값이라 blur/2 변환을 하지 않고, iOS Value엔 spread도 없다.
+/// layer마다 sublayer를 쌓아 다층을 그리고, `shadowPath`로 표면 모양(cornerRadius)을 잡는다.
+/// 불투명 표면 뒤에 두며, 표면과 같은 `cornerRadius`를 넘긴다.
 public enum MHShadow: Sendable, CaseIterable {
     case xsmall, small, medium, large, xlarge
 
-    /// Figma DROP_SHADOW layer 하나. 값은 Figma 그대로(음수 spread는 그림자를 줄인다).
+    /// Figma "iOS Value" 열의 layer 하나. `radius`는 iOS shadowRadius 최종값(변환 불필요).
     struct Layer: Sendable {
         let color: Color
         let x: CGFloat
         let y: CGFloat
-        let blur: CGFloat
-        let spread: CGFloat
+        let radius: CGFloat
     }
 
     var layers: [Layer] {
         switch self {
         case .xsmall:
-            [Layer(color: shadowInk(0.10), x: 0, y: 1, blur: 2, spread: -1)]
+            [Layer(color: shadowInk(0.10), x: 0, y: 1, radius: 0.5)]
         case .small:
-            [Layer(color: shadowInk(0.06), x: 0, y: 4, blur: 6, spread: -1),
-             Layer(color: shadowInk(0.06), x: 0, y: 2, blur: 4, spread: -2)]
+            [Layer(color: shadowInk(0.03), x: 0, y: 2, radius: 1),
+             Layer(color: shadowInk(0.03), x: 0, y: 4, radius: 2.5)]
         case .medium:
-            [Layer(color: shadowInk(0.07), x: 0, y: 10, blur: 15, spread: -3),
-             Layer(color: shadowInk(0.07), x: 0, y: 4, blur: 6, spread: -2)]
+            [Layer(color: shadowInk(0.035), x: 0, y: 4, radius: 2),
+             Layer(color: shadowInk(0.035), x: 0, y: 10, radius: 6)]
         case .large:
-            [Layer(color: shadowInk(0.08), x: 0, y: 16, blur: 24, spread: -6),
-             Layer(color: shadowInk(0.08), x: 0, y: 6, blur: 10, spread: -4)]
+            [Layer(color: shadowInk(0.04), x: 0, y: 6, radius: 3),
+             Layer(color: shadowInk(0.04), x: 0, y: 16, radius: 9)]
         case .xlarge:
-            [Layer(color: shadowInk(0.12), x: 0, y: 24, blur: 38, spread: -10),
-             Layer(color: shadowInk(0.10), x: 0, y: 10, blur: 15, spread: -5)]
+            [Layer(color: shadowInk(0.05), x: 0, y: 10, radius: 5),
+             Layer(color: shadowInk(0.06), x: 0, y: 24, radius: 14)]
         }
     }
 }
 
-/// 각 Figma layer를 CALayer 하나로 그린다. `shadowPath`(표면을 spread만큼 넓힌 rounded rect)로
-/// spread를 반영하고, blur는 `shadowRadius = blur/2`로 넣는다.
+/// 각 Figma layer를 CALayer 하나로 그린다. `shadowPath`(표면 rounded rect)로 모양을 잡고,
+/// `radius`(iOS Value 최종값)를 그대로 `shadowRadius`에 넣는다.
 final class MHShadowUIView: UIView {
     var layerSpecs: [MHShadow.Layer] = [] { didSet { rebuild() } }
     var cornerRadius: CGFloat = 0 { didSet { setNeedsLayout() } }
@@ -97,7 +98,7 @@ final class MHShadowUIView: UIView {
             caster.shadowColor = UIColor(spec.color).cgColor  // 알파는 색에 포함
             caster.shadowOpacity = 1
             caster.shadowOffset = CGSize(width: spec.x, height: spec.y)
-            caster.shadowRadius = shadowRadius(spec.blur)
+            caster.shadowRadius = spec.radius
             layer.addSublayer(caster)
             return caster
         }
@@ -106,12 +107,10 @@ final class MHShadowUIView: UIView {
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        for (caster, spec) in zip(casters, layerSpecs) {
+        let path = UIBezierPath(roundedRect: bounds, cornerRadius: cornerRadius).cgPath
+        for caster in casters {
             caster.frame = bounds
-            // CSS spread: 그림자 상자 = border 상자를 spread만큼 확장(음수면 축소)
-            let rect = bounds.insetBy(dx: -spec.spread, dy: -spec.spread)
-            let radius = max(0, cornerRadius + spec.spread)
-            caster.shadowPath = UIBezierPath(roundedRect: rect, cornerRadius: radius).cgPath
+            caster.shadowPath = path
         }
     }
 }
