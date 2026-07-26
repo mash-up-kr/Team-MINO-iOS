@@ -1,0 +1,7 @@
+[
+  { "id": "MemberHome.state.loading", "kind": "state" },
+  { "id": "MemberHome.greetingText", "kind": "text" },
+  { "id": "MemberHome.detailButton", "kind": "button" },
+  { "id": "MemberHome.editButton", "kind": "button" },
+  { "id": "MemberHome.state.error", "kind": "state" }
+]

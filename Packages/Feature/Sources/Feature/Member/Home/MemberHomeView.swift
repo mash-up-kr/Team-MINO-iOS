@@ -52,14 +52,19 @@ struct MemberHomeContentView: View {
         VStack(spacing: 16) {
             if store.state.isLoading {
                 ProgressView()
+                    .accessibilityIdentifier("MemberHome.state.loading")
             } else if let member = store.state.member {
                 Text("안녕하세요, \(member.name)님")
                     .font(.title2)
+                    .accessibilityIdentifier("MemberHome.greetingText")
                 Button("상세 보기") { store.send(.tapDetail) }
+                    .accessibilityIdentifier("MemberHome.detailButton")
                 Button("편집") { store.send(.tapEdit) }
+                    .accessibilityIdentifier("MemberHome.editButton")
             } else if let message = store.state.errorMessage {
                 Text("불러오기 실패: \(message)")
                     .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("MemberHome.state.error")
             }
         }
         .padding()
