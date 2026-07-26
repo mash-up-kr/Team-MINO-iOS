@@ -1,5 +1,33 @@
 import SwiftUI
 
+// MARK: - 시맨틱 컬러 사용 가이드
+//
+// 화면 코드는 **오직 이 시맨틱 토큰만** 사용한다.
+// - hex(`Color(red:…)`)나 시스템 색(`.black`, `.gray`)을 직접 쓰지 않는다.
+// - Figma `Palette`(Neutral/99·Cool Neutral 등 원시 팔레트)는 시맨틱이 참조하는 "재료"일 뿐,
+//   화면에서 직접 꺼내 쓰지 않는다. (원시 팔레트의 SSOT는 Figma 문서)
+//
+// 이 토큰들은 `ShapeStyle` 확장이라 SwiftUI 어디든 바로 꽂힌다.
+// 라이트/다크는 Asset Catalog가 자동 전환하므로 분기 코드가 필요 없다.
+//
+//     Text("제목").foregroundStyle(.mhLabelNormal)
+//     VStack { … }.background(.mhBackgroundNormalNormal)
+//     Divider().overlay(.mhLineNormalNormal)
+//     Button("확인") { }.tint(.mhPrimaryNormal)
+//
+// ## 카테고리별 용도
+// - `Label/*`        : 텍스트·아이콘 (Strong→Disable 순으로 위계가 낮아짐)
+// - `Background/*`   : 화면·컨테이너 바탕 (Elevated=떠 있는 면, Transparent=반투명 위 바탕)
+// - `Fill/*`         : 요소 내부 채움(칩·토글 트랙 등)
+// - `Line/*`         : 구분선·보더 (Solid=불투명, Normal=반투명)
+// - `Status/*`       : 상태 표현 (Positive·Cautionary·Negative)
+// - `Accent/*`       : 강조·카테고리 색 (Foreground=글자/아이콘, Background=면)
+// - `Inverse/*`      : 반전 배경 위 요소 (다크 위 라이트 등)
+// - `Static/*`       : 라이트·다크 무관 **고정** 흑/백 (테마 반전 금지 대상에만)
+// - `Material/Dimmer`: 모달·시트 뒤 딤
+//
+// `Primary/*` 는 의도된 모노크롬 램프다 — 애터믹 `Neutral-0/5/10` 매핑(확정). 브랜드 강조색이 아니다.
+
 fileprivate extension Color {
     init(semantic name: String) { self.init(name, bundle: .module) }
 }
@@ -17,11 +45,11 @@ public extension ShapeStyle where Self == Color {
     static var mhLabelAssistive: Color { Color(semantic: "Label/Assistive") }
     /// Figma `Label/Disable`
     static var mhLabelDisable: Color { Color(semantic: "Label/Disable") }
-    /// Figma `Primary/Normal`
+    /// Figma `Primary/Normal` — atomic `Neutral-0` (light `#000000`)
     static var mhPrimaryNormal: Color { Color(semantic: "Primary/Normal") }
-    /// Figma `Primary/Strong`
+    /// Figma `Primary/Strong` — atomic `Neutral-5` (light `#0F0F0F`)
     static var mhPrimaryStrong: Color { Color(semantic: "Primary/Strong") }
-    /// Figma `Primary/Heavy`
+    /// Figma `Primary/Heavy` — atomic `Neutral-10` (light `#171719`)
     static var mhPrimaryHeavy: Color { Color(semantic: "Primary/Heavy") }
     /// Figma `Background/Normal/Normal`
     static var mhBackgroundNormalNormal: Color { Color(semantic: "Background/Normal/Normal") }
