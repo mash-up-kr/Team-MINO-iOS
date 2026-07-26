@@ -38,16 +38,22 @@ struct MemberHomeReducerTests {
         store.finish()
     }
 
-    @Test("L2 — load 실패 시 errorMessage 를 채우고 로딩을 끈다")
-    func load_failure() async {
-        let store = makeStore(StubFetchMember(result: .failure(.memberNotFound)))
+    @Test(
+        "L2 — load 실패 시 DomainError 종류별로 errorMessage 를 채우고 로딩을 끈다",
+        arguments: zip(
+            [DomainError.memberNotFound, .unauthorized, .unknown],
+            ["memberNotFound", "unauthorized", "unknown"]   // 독립적으로 고정한 기대값(프로덕션의 "\(error)" 보간식을 재사용하지 않음)
+        )
+    )
+    func load_failure(error: DomainError, expectedMessage: String) async {
+        let store = makeStore(StubFetchMember(result: .failure(error)))
         await store.send(.load) {
             $0.isLoading = true
             $0.errorMessage = nil
         }
-        await store.receive(.loadFailed(.memberNotFound)) {
+        await store.receive(.loadFailed(error)) {
             $0.isLoading = false
-            $0.errorMessage = "memberNotFound"
+            $0.errorMessage = expectedMessage
         }
         store.finish()
     }
