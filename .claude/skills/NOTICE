@@ -1,0 +1,41 @@
+# NOTICE — 벤더링된 서드파티 스킬
+
+이 저장소의 `.claude/skills/` 아래 네 개 스킬은 외부 저장소에서 **복사 벤더링**한 것이다.
+원작자의 저작권과 라이선스는 각 항목에 표기한 대로 유지된다. 수정 없이 그대로 포함했으며,
+업스트림 변경을 반영하려면 아래 출처에서 다시 받아 덮어쓴다.
+
+벤더링 시점: 2026-06-29
+
+## .claude/skills/swift-concurrency
+
+- 원본: https://github.com/AvdLee/Swift-Concurrency-Agent-Skill
+- 원작자: Antoine van der Lee (contact@avanderlee.com)
+- 라이선스: MIT
+- 벤더링 커밋: 0d472de
+- 원본 경로: `swift-concurrency/`
+
+## .claude/skills/swiftui-expert
+
+- 원본: https://github.com/AvdLee/SwiftUI-Agent-Skill
+- 원작자: Antoine van der Lee (contact@avanderlee.com)
+- 라이선스: MIT
+- 벤더링 커밋: f06d143
+- 원본 경로: `swiftui-expert-skill/` (디렉토리명만 `swiftui-expert`로 정리, SKILL.md의 `name: swiftui-expert-skill`은 유지)
+
+## .claude/skills/swift-testing-expert
+
+- 원본: https://github.com/AvdLee/Swift-Testing-Agent-Skill
+- 원작자: Antoine van der Lee (contact@avanderlee.com)
+- 라이선스: MIT
+- 벤더링 커밋: 798e9b1
+- 원본 경로: `swift-testing-expert/`
+
+## .claude/skills/axe
+
+- 원본: https://github.com/cameroncooke/AXe
+- 원작자: Cameron Cooke
+- 라이선스: MIT
+- 벤더링 커밋: abd9fbc
+- 원본 경로: `Skills/CLI/axe/`
+- 비고: 벤더링한 것은 **스킬 가이드 문서뿐**이다. 실제 `axe` 실행 파일은 별도 설치가 필요하다.
+  `brew install cameroncooke/axe/axe`
