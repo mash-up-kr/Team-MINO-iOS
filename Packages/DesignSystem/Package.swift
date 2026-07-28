@@ -13,6 +13,7 @@ let package = Package(
             resources: [
                 .process("Resources/SemanticColor.xcassets"),
                 .process("Resources/Icon.xcassets"),
+                .process("Resources/Fonts"),
             ]
         ),
         .testTarget(name: "DesignSystemTests", dependencies: ["DesignSystem"]),
