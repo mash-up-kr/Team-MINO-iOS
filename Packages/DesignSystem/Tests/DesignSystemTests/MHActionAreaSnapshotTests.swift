@@ -41,6 +41,30 @@ private struct Gallery: View {
             labeled("strong + divider") {
                 MHActionArea(variant: .strong, main: .init("메인 액션") {}, divider: true, safeArea: false)
             }
+            labeled("caption") {
+                MHActionArea(main: .init("메인 액션") {},
+                             caption: "필요한 경우 설명을 덧붙입니다.", safeArea: false)
+            }
+            labeled("extra: Summary") {
+                MHActionArea(main: .init("결제하기") {}, safeArea: false) {
+                    MHActionAreaSummary(label: "결제 금액", value: "12,000원")
+                }
+            }
+            labeled("extra: Information") {
+                MHActionArea(main: .init("확인") {}, safeArea: false) {
+                    MHActionAreaInformation(heading: "헤딩", description: "필요한 경우 설명을 덧붙입니다.")
+                }
+            }
+            labeled("extra: Checkbox") {
+                MHActionArea(main: .init("동의하고 계속") {}, safeArea: false) {
+                    MHActionAreaCheckbox("약관에 동의합니다", isOn: .constant(true))
+                }
+            }
+            labeled("extra: Chips") {
+                MHActionArea(main: .init("적용") {}, safeArea: false) {
+                    MHActionAreaChips(["텍스트", "텍스트", "텍스트"])
+                }
+            }
         }
         .frame(width: 400)
         .padding(.vertical, 16)

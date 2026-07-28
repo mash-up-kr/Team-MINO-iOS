@@ -1,26 +1,24 @@
 import SwiftUI
 
-// MARK: - Action Area (골격)
+// MARK: - Action Area
 //
 // Figma `Action Area`. 화면 하단에 CTA 버튼을 배치하는 영역이다.
-// 이 파일은 **골격**(variant·divider·sticky·safeArea)만 다룬다.
-// (Extra/Preset 콘텐츠·caption 은 후속 청크 C에서 추가)
+// 축: variant(strong/neutral/cancel) + divider + sticky + safeArea + caption + extra(Preset).
 //
-//     MHActionArea(main: .init("메인 액션") { })                                   // strong 기본
+//     MHActionArea(main: .init("메인 액션") { })
 //     MHActionArea(variant: .strong,
-//                  main: .init("메인 액션") { },
-//                  alternative: .init("대체 액션") { },
-//                  sub: .init("보조 액션") { })
-//     MHActionArea(variant: .neutral, main: .init("메인") { }, alternative: .init("대체") { }, sub: .init("보조") { })
-//     MHActionArea(variant: .cancel, main: .init("확인") { })
+//                  main: .init("메인 액션") { }, alternative: .init("대체 액션") { }, sub: .init("보조 액션") { },
+//                  caption: "필요한 경우 설명을 덧붙입니다.")
+//     MHActionArea(main: .init("결제") { }) { MHActionAreaSummary(label: "결제 금액", value: "12,000원") }  // extra(Preset)
 //
 // 버튼은 `MHButton` 을 그대로 조립한다.
 // - strong : 세로 풀폭 스택 — 메인(solid/primary) / 대체(outlined/primary) / 보조(텍스트 링크)
 // - neutral: 가로 행 — 보조(outlined/assistive·hug) / 대체(outlined/primary·fill) / 메인(solid/primary·fill)
 // - cancel : 단일 풀폭 outlined/assistive
 //
-// 컨테이너 여백 20/20, 액션 간격 strong 8·neutral 12. sticky 시 Background/Elevated/Normal + 상단 페이드.
-// (Figma 의 `Compact (Web Only)` 는 "앱 미대응" 명시라 iOS 에서 제외)
+// 컨테이너 여백 20/20, 콘텐츠 간격 16(extra·caption·actions), 액션 간격 strong 8·neutral 12.
+// extra(Preset)·caption 은 actions 위에 쌓인다. sticky 시 Background/Elevated/Normal + 상단 페이드.
+// (Figma 의 `Compact (Web Only)`·`compactContent` 는 "앱 미대응" 명시라 iOS 에서 제외)
 
 public enum MHActionAreaVariant: Sendable { case strong, neutral, cancel }
 
@@ -34,31 +32,37 @@ public struct MHAction {
     }
 }
 
-public struct MHActionArea: View {
+public struct MHActionArea<Extra: View>: View {
     private let variant: MHActionAreaVariant
     private let main: MHAction
     private let alternative: MHAction?
     private let sub: MHAction?
+    private let caption: String?
     private let divider: Bool
     private let sticky: Bool
     private let safeArea: Bool
+    private let extra: Extra
 
     public init(
         variant: MHActionAreaVariant = .strong,
         main: MHAction,
         alternative: MHAction? = nil,
         sub: MHAction? = nil,
+        caption: String? = nil,
         divider: Bool = false,
         sticky: Bool = false,
-        safeArea: Bool = true
+        safeArea: Bool = true,
+        @ViewBuilder extra: () -> Extra = { EmptyView() }
     ) {
         self.variant = variant
         self.main = main
         self.alternative = alternative
         self.sub = sub
+        self.caption = caption
         self.divider = divider
         self.sticky = sticky
         self.safeArea = safeArea
+        self.extra = extra()
     }
 
     @State private var bottomInset: CGFloat = 0
@@ -70,9 +74,19 @@ public struct MHActionArea: View {
                     .fill(Color.mhLineNormalNormal)   // NOTE(확인): divider 색 토큰 미제공 → Line/Normal/Normal 추정
                     .frame(height: 1)
             }
-            actions
-                .padding(.horizontal, 20)   // Figma margin/action/normal-horizontal
-                .padding(.vertical, 20)     // margin/action/normal-vertical
+            VStack(spacing: 16) {   // extra · caption · actions
+                extra
+                if let caption {
+                    Text(caption)
+                        .mhTypography(.label2Regular)                 // SUITE Regular 13
+                        .foregroundStyle(Color.mhLabelAlternative)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                }
+                actions
+            }
+            .padding(.horizontal, 20)   // Figma margin/action/normal-horizontal
+            .padding(.vertical, 20)     // margin/action/normal-vertical
             if safeArea {
                 Color.clear.frame(height: bottomInset)   // Bottom Safe Area(홈 인디케이터) — 실제 인셋
             }
