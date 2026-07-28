@@ -177,6 +177,22 @@ extension MHButtonSize {
     }
 }
 
+// MARK: - Fill width (Action Area 등에서 버튼을 가로로 늘릴 때)
+
+private struct MHButtonFillWidthKey: EnvironmentKey { static let defaultValue = false }
+extension EnvironmentValues {
+    var mhButtonFillWidth: Bool {
+        get { self[MHButtonFillWidthKey.self] }
+        set { self[MHButtonFillWidthKey.self] = newValue }
+    }
+}
+public extension View {
+    /// 하위 `MHButton` 을 가용 너비만큼 늘린다(배경·테두리 포함). 컨테이너가 폭을 정할 때 쓴다.
+    func mhButtonFillWidth(_ fill: Bool = true) -> some View {
+        environment(\.mhButtonFillWidth, fill)
+    }
+}
+
 // MARK: - ButtonStyle (배경·테두리·press 오버레이)
 
 struct MHButtonStyle: ButtonStyle {
@@ -186,20 +202,33 @@ struct MHButtonStyle: ButtonStyle {
     let isIconOnly: Bool
 
     func makeBody(configuration: Configuration) -> some View {
+        MHButtonStyleBody(spec: spec, isEnabled: isEnabled, isIconOnly: isIconOnly, configuration: configuration)
+    }
+}
+
+private struct MHButtonStyleBody: View {
+    let spec: MHButtonSpec
+    let isEnabled: Bool
+    let isIconOnly: Bool
+    let configuration: ButtonStyle.Configuration
+    @Environment(\.mhButtonFillWidth) private var fillWidth
+
+    var body: some View {
         let metric = spec.size.metric
         let bg = isEnabled ? spec.background : spec.disabledBackground
         let fg = isEnabled ? spec.foreground : spec.disabledForeground
         let stroke = isEnabled ? spec.border : spec.disabledBorder
 
-        return configuration.label
+        configuration.label
             .foregroundStyle(fg)
             .padding(.horizontal, isIconOnly ? metric.vPadding : metric.hPadding) // 아이콘 전용은 정사각
             .padding(.vertical, metric.vPadding)
+            .frame(maxWidth: fillWidth ? .infinity : nil)   // 배경까지 함께 늘어나도록 background 앞에서 적용
             .background(bg)
             .overlay {
                 // press 인터랙션 오버레이(Figma: 최상단 Interaction 레이어). 밝은 배경은 어둡게, 어두운 solid 는 밝게.
                 if configuration.isPressed {
-                    pressedOverlayColor.opacity(Self.pressedOpacity)
+                    pressedOverlayColor.opacity(MHButtonStyle.pressedOpacity)
                 }
             }
             .overlay {
@@ -215,6 +244,9 @@ struct MHButtonStyle: ButtonStyle {
     private var pressedOverlayColor: Color {
         (spec.variant == .solid && spec.color == .primary) ? .mhStaticWhite : .mhLabelNormal
     }
+}
+
+extension MHButtonStyle {
     static let pressedOpacity: Double = 0.12
 }
 
