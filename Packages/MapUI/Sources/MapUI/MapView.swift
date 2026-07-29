@@ -74,7 +74,7 @@ public struct MapView: UIViewRepresentable {
             if let id = marker.userData as? String {
                 onEvent(.didTapMarker(id: id))
             }
-            return false   // 기본 동작(info window) 유지
+            return true   // 탭 UI(바텀시트 등)는 이벤트를 받은 화면이 그린다 — 기본 info window 억제
         }
 
         public func mapView(_ mapView: GMSMapView, didTapAt coordinate: CLLocationCoordinate2D) {
