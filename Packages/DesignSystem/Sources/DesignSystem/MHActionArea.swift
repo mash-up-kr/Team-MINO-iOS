@@ -16,8 +16,9 @@ import SwiftUI
 // - neutral: 가로 행 — 보조(outlined/assistive·hug) / 대체(outlined/primary·fill) / 메인(solid/primary·fill)
 // - cancel : 단일 풀폭 outlined/assistive
 //
-// 컨테이너 여백 20/20, 콘텐츠 간격 16(extra·caption·actions), 액션 간격 strong 8·neutral 12.
-// extra(Preset)·caption 은 actions 위에 쌓인다. sticky 시 Background/Elevated/Normal + 상단 페이드.
+// 컨테이너 여백 20/20, 액션 간격 strong 8·neutral 12.
+// caption 은 actions 컨테이너 안(버튼과 간격 16), extra(Preset)는 별도 블록(상단 20·하단 4)이라 버튼과 24.
+// sticky 시 Background/Elevated/Normal + 상단 페이드.
 // (Figma 의 `Compact (Web Only)`·`compactContent` 는 "앱 미대응" 명시라 iOS 에서 제외)
 
 public enum MHActionAreaVariant: Sendable { case strong, neutral, cancel }
@@ -67,15 +68,25 @@ public struct MHActionArea<Extra: View>: View {
 
     @State private var bottomInset: CGFloat = 0
 
+    /// extra 슬롯에 실제 콘텐츠가 있는지(기본값 EmptyView 면 없음). 없으면 extra 블록을 통째로 생략한다.
+    private var hasExtra: Bool { Extra.self != EmptyView.self }
+
     public var body: some View {
         VStack(spacing: 0) {
             if divider {
                 Rectangle()
-                    .fill(Color.mhLineNormalNormal)   // NOTE(확인): divider 색 토큰 미제공 → Line/Normal/Normal 추정
+                    .fill(Color.mhLineNormalNeutral)   // Figma Divider = Line/Normal/Neutral (#70737c29)
                     .frame(height: 1)
             }
-            VStack(spacing: 16) {   // extra · caption · actions
+            // extra(Preset)는 actions 컨테이너와 분리된 블록. 상단 20·하단 4 → actions 상단 20 과 합쳐 버튼과 24.
+            if hasExtra {
                 extra
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 20)
+                    .padding(.bottom, 4)   // Figma margin/action/contents-bottom
+            }
+            VStack(spacing: 16) {   // caption · actions (caption 은 버튼과 16)
                 if let caption {
                     Text(caption)
                         .mhTypography(.label2Regular)                 // SUITE Regular 13
