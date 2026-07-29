@@ -46,14 +46,13 @@ struct MHBottomSheetLayout: Equatable {
 /// 지도를 가리지 않는 비모달(딤 없음) 시트로, 띄우는 화면의 ZStack 안에 겹쳐 놓는 컴포넌트다.
 ///
 /// - `low`·`medium` 높이는 컨테이너 높이 대비 비율로 화면마다 지정한다. `full`은 컨테이너 전체.
-/// - 상단 코너는 radius 20, `full`에서는 0으로 펴져 전체 화면이 된다(Figma `003-1-1` 시리즈).
-/// - `onCloseTap`을 넘기면 오른쪽 위에 플로팅 닫기 버튼 영역이 표시된다(X 아이콘은 추후 삽입).
+/// - 상단 코너는 radius 20, `full`에서는 0으로 펴지고 그래버도 사라져 전체 화면이 된다(Figma `003-1-1` 시리즈).
+/// - 시트 위에 얹는 버튼(닫기 등)은 화면마다 달라서 컴포넌트에 포함하지 않는다 — 각 화면이 overlay로 올린다.
 ///
 /// ```swift
 /// ZStack {
 ///     MapView()
-///     MHBottomSheet(detent: $detent, lowFraction: 0.15, mediumFraction: 0.45,
-///                   onCloseTap: { store.send(.tapClose) }) {
+///     MHBottomSheet(detent: $detent, lowFraction: 0.15, mediumFraction: 0.45) {
 ///         RoomListView()
 ///     }
 /// }
@@ -62,7 +61,6 @@ public struct MHBottomSheet<Content: View>: View {
     @Binding private var detent: MHBottomSheetDetent
     private let lowFraction: CGFloat
     private let mediumFraction: CGFloat
-    private let onCloseTap: (() -> Void)?
     private let content: Content
 
     /// 드래그 중 손가락 이동량(아래로 양수). 손가락을 따라가야 하므로 애니메이션 없이 갱신한다.
@@ -72,13 +70,11 @@ public struct MHBottomSheet<Content: View>: View {
         detent: Binding<MHBottomSheetDetent>,
         lowFraction: CGFloat,
         mediumFraction: CGFloat,
-        onCloseTap: (() -> Void)? = nil,
         @ViewBuilder content: () -> Content
     ) {
         self._detent = detent
         self.lowFraction = lowFraction
         self.mediumFraction = mediumFraction
-        self.onCloseTap = onCloseTap
         self.content = content()
     }
 
@@ -92,27 +88,27 @@ public struct MHBottomSheet<Content: View>: View {
             let height = layout.clampedHeight(layout.height(of: detent) - dragTranslation)
             let isFull = height >= layout.height(of: .full)
 
-            sheet(height: height, cornerRadius: isFull ? 0 : 20)
+            sheet(height: height, isFull: isFull)
                 .frame(maxHeight: .infinity, alignment: .bottom)
                 .gesture(dragGesture(layout: layout))
         }
     }
 
-    private func sheet(height: CGFloat, cornerRadius: CGFloat) -> some View {
+    /// `full`에서는 상단 코너가 0으로 펴지고 그래버도 사라진다(Figma `003-1-3`).
+    private func sheet(height: CGFloat, isFull: Bool) -> some View {
         VStack(spacing: 0) {
-            grabber
+            if !isFull { grabber }
             content
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .frame(height: height)
         .background(.mhBackgroundNormalNormal)
         .clipShape(UnevenRoundedRectangle(
-            topLeadingRadius: cornerRadius,
-            topTrailingRadius: cornerRadius,
+            topLeadingRadius: isFull ? 0 : 20,
+            topTrailingRadius: isFull ? 0 : 20,
             style: .continuous
         ))
         .mhShadow(spread: .small)
-        .overlay(alignment: .topTrailing) { closeButton }
         .animation(.spring(duration: 0.3), value: detent)
     }
 
@@ -123,23 +119,6 @@ public struct MHBottomSheet<Content: View>: View {
             .frame(maxWidth: .infinity)
             .frame(height: 30)
             .contentShape(Rectangle())
-    }
-
-    /// 플로팅 닫기 버튼 영역. X 아이콘은 추후 삽입 — 지금은 영역(원형)만 그린다.
-    @ViewBuilder private var closeButton: some View {
-        if let onCloseTap {
-            Button(action: onCloseTap) {
-                Circle()
-                    .strokeBorder(.mhLineNormalNeutral)
-                    .background(Circle().fill(.mhBackgroundNormalNormal))
-                    .frame(width: 40, height: 40)
-                    .mhShadow(spread: .small)
-            }
-            .accessibilityLabel("닫기")
-            .accessibilityIdentifier("mh_bottom_sheet_close_button")
-            .padding(.top, 40)
-            .padding(.trailing, 20)
-        }
     }
 
     private func dragGesture(layout: MHBottomSheetLayout) -> some Gesture {
@@ -167,8 +146,7 @@ public struct MHBottomSheet<Content: View>: View {
         var body: some View {
             ZStack {
                 Color.mhFillAlternative.ignoresSafeArea()
-                MHBottomSheet(detent: $detent, lowFraction: 0.15, mediumFraction: 0.45,
-                              onCloseTap: {}) {
+                MHBottomSheet(detent: $detent, lowFraction: 0.15, mediumFraction: 0.45) {
                     Text("방 리스트")
                         .font(.system(size: 24, weight: .bold))
                         .frame(maxWidth: .infinity, alignment: .leading)
