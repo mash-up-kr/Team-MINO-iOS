@@ -1,24 +1,28 @@
 import SwiftUI
 
 // MARK: - Button
-//
-// Figma `Button/Button`. 가장 높은 시각 위계를 갖는 CTA 버튼이다.
-// 축: variant(Solid/Outlined) × color(Primary/Assistive) × size(S/M/L) + iconOnly + disable + loading.
-//
-//     MHButton("메인 액션") { ... }                                   // 기본: solid·primary·large
-//     MHButton("보조", variant: .outlined, color: .assistive, size: .medium) { ... }
-//     MHButton("담기", leadingIcon: .plus) { ... }                    // 아이콘 + 텍스트
-//     MHButton(icon: .setting, size: .large) { ... }                  // 아이콘 전용(정사각)
-//     MHButton("전송", isLoading: vm.isSending) { ... }               // 로딩(라벨 숨기고 스피너)
-//     MHButton("확인") { ... }.disabled(true)                          // 표준 .disabled 사용
-//
-// 색·타이포는 전부 시맨틱 토큰(SemanticColors)·MHTypography 를 참조한다.
-// color 축은 사실상 **글자 굵기**(Primary=Bold, Assistive=Medium)와 Solid 의 bg/text 를 가른다.
 
+/// 배경·테두리 스타일. `solid`(채운 배경) / `outlined`(테두리만).
 public enum MHButtonVariant: Sendable { case solid, outlined }
+/// 강조 위계. `primary`(Bold·강조 배경) / `assistive`(Medium·보조 배경).
 public enum MHButtonColor: Sendable { case primary, assistive }
+/// 크기 프리셋. 패딩·radius·아이콘 크기·타이포가 함께 정해진다.
 public enum MHButtonSize: Sendable { case small, medium, large }
 
+/// 가장 높은 시각 위계를 갖는 CTA 버튼. Figma `Button/Button`.
+///
+/// ``MHButtonVariant``(Solid/Outlined) × ``MHButtonColor``(Primary/Assistive) × ``MHButtonSize``(S/M/L)
+/// 축에 iconOnly·loading·disabled 를 조합한다. 색·타이포는 시맨틱 토큰·``MHTypography`` 를 참조하며,
+/// color 축은 사실상 글자 굵기(Primary=Bold, Assistive=Medium)와 Solid 의 배경/글자색을 가른다.
+///
+/// ```swift
+/// MHButton("메인 액션") { save() }                                    // 기본: solid·primary·large
+/// MHButton("보조", variant: .outlined, color: .assistive, size: .medium) { back() }
+/// MHButton("담기", leadingIcon: .plus) { addToCart() }                // 아이콘 + 텍스트
+/// MHButton(icon: .setting, size: .large) { openSettings() }           // 아이콘 전용(정사각)
+/// MHButton("전송", isLoading: vm.isSending) { send() }                // 로딩(라벨 숨기고 스피너)
+/// MHButton("확인") { confirm() }.disabled(true)                       // 표준 .disabled 사용
+/// ```
 public struct MHButton: View {
     private let title: String?
     private let icon: MHIcon?            // 아이콘 전용(정사각)일 때

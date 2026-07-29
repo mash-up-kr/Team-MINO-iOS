@@ -2,28 +2,15 @@ import SwiftUI
 
 // MARK: - Action Area
 //
-// Figma `Action Area`. 화면 하단에 CTA 버튼을 배치하는 영역이다.
-// 축: variant(strong/neutral/cancel) + divider + sticky + safeArea + caption + extra(Preset).
-//
-//     MHActionArea(main: .init("메인 액션") { })
-//     MHActionArea(variant: .strong,
-//                  main: .init("메인 액션") { }, alternative: .init("대체 액션") { }, sub: .init("보조 액션") { },
-//                  caption: "필요한 경우 설명을 덧붙입니다.")
-//     MHActionArea(main: .init("결제") { }) { MHActionAreaSummary(label: "결제 금액", value: "12,000원") }  // extra(Preset)
-//
-// 버튼은 `MHButton` 을 그대로 조립한다.
-// - strong : 세로 풀폭 스택 — 메인(solid/primary) / 대체(outlined/primary) / 보조(텍스트 링크)
-// - neutral: 가로 행 — 보조(outlined/assistive·hug) / 대체(outlined/primary·fill) / 메인(solid/primary·fill)
-// - cancel : 단일 풀폭 outlined/assistive
-//
-// 컨테이너 여백 20/20, 액션 간격 strong 8·neutral 12.
+// 레이아웃 주석: 컨테이너 여백 20/20, 액션 간격 strong 8·neutral 12.
 // caption 은 actions 컨테이너 안(버튼과 간격 16), extra(Preset)는 별도 블록(상단 20·하단 4)이라 버튼과 24.
 // sticky 시 Background/Elevated/Normal + 상단 페이드.
 // (Figma 의 `Compact (Web Only)`·`compactContent` 는 "앱 미대응" 명시라 iOS 에서 제외)
 
+/// 액션 영역의 배치 방식. `strong`(세로 풀폭 스택)·`neutral`(가로 행)·`cancel`(단일 outlined).
 public enum MHActionAreaVariant: Sendable { case strong, neutral, cancel }
 
-/// Action Area 안의 버튼 하나(라벨 + 동작)
+/// Action Area 안의 버튼 하나(라벨 + 탭 동작).
 public struct MHAction {
     public let title: String
     public let action: () -> Void
@@ -33,6 +20,28 @@ public struct MHAction {
     }
 }
 
+/// 화면 하단에 CTA 버튼을 배치하는 영역. Figma `Action Area`.
+///
+/// 버튼은 ``MHButton`` 을 그대로 조립하며, ``MHActionAreaVariant`` 로 배치가 갈린다:
+/// - `strong`: 세로 풀폭 — 메인(solid/primary) / 대체(outlined/primary) / 보조(텍스트 링크)
+/// - `neutral`: 가로 행 — 보조(outlined/assistive·hug) / 대체(outlined/primary·fill) / 메인(solid/primary·fill)
+/// - `cancel`: 단일 풀폭 outlined/assistive
+///
+/// `divider`·`sticky`·`safeArea`·`caption` 과 `extra` 슬롯(``MHActionAreaSummary`` 등 Preset)을 조합한다.
+///
+/// ```swift
+/// MHActionArea(main: .init("메인 액션") { next() })
+///
+/// MHActionArea(variant: .strong,
+///              main: .init("메인 액션") { next() },
+///              alternative: .init("대체 액션") { back() },
+///              sub: .init("보조 액션") { skip() },
+///              caption: "필요한 경우 설명을 덧붙입니다.")
+///
+/// MHActionArea(main: .init("결제") { pay() }) {                     // extra(Preset) 슬롯
+///     MHActionAreaSummary(label: "결제 금액", value: "12,000원")
+/// }
+/// ```
 public struct MHActionArea<Extra: View>: View {
     private let variant: MHActionAreaVariant
     private let main: MHAction
