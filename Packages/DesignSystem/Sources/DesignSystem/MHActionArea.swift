@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - Action Area
 //
-// 레이아웃 주석: 컨테이너 여백 20/20, 액션 간격 strong 8·neutral 12.
+// 레이아웃: 컨테이너 여백 20/20, 액션 간격 strong 8·neutral 12.
 // caption 은 actions 컨테이너 안(버튼과 간격 16), extra(Preset)는 별도 블록(상단 20·하단 4)이라 버튼과 24.
 // sticky 시 Background/Elevated/Normal + 상단 페이드.
 // (Figma 의 `Compact (Web Only)`·`compactContent` 는 "앱 미대응" 명시라 iOS 에서 제외)
@@ -84,7 +84,7 @@ public struct MHActionArea<Extra: View>: View {
         VStack(spacing: 0) {
             if divider {
                 Rectangle()
-                    .fill(Color.mhLineNormalNeutral)   // Figma Divider = Line/Normal/Neutral (#70737c29)
+                    .fill(Color.mhLineNormalNeutral)
                     .frame(height: 1)
             }
             // extra(Preset)는 actions 컨테이너와 분리된 블록. 상단 20·하단 4 → actions 상단 20 과 합쳐 버튼과 24.
@@ -98,15 +98,15 @@ public struct MHActionArea<Extra: View>: View {
             VStack(spacing: 16) {   // caption · actions (caption 은 버튼과 16)
                 if let caption {
                     Text(caption)
-                        .mhTypography(.label2Regular)                 // SUITE Regular 13
+                        .mhTypography(.label2Regular)
                         .foregroundStyle(Color.mhLabelAlternative)
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity)
                 }
                 actions
             }
-            .padding(.horizontal, 20)   // Figma margin/action/normal-horizontal
-            .padding(.vertical, 20)     // margin/action/normal-vertical
+            .padding(.horizontal, 20)
+            .padding(.vertical, 20)
             if safeArea {
                 Color.clear.frame(height: bottomInset)   // Bottom Safe Area(홈 인디케이터) — 실제 인셋
             }
@@ -184,7 +184,7 @@ struct MHActionSubLink: View {
     var body: some View {
         Button(action: action) {
             Text(title)
-                .mhTypography(.label1NormalBold)          // SUITE Bold 14
+                .mhTypography(.label1NormalBold)
                 .foregroundStyle(Color.mhLabelAlternative)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 4)

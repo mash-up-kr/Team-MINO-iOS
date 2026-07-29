@@ -27,11 +27,11 @@ public struct MHActionAreaSummary: View {
     public var body: some View {
         HStack(spacing: 8) {
             Text(label)
-                .mhTypography(.body1NormalMedium)              // SUITE Medium 16
+                .mhTypography(.body1NormalMedium)
                 .foregroundStyle(Color.mhLabelAlternative)
             Spacer(minLength: 8)
             Text(value)
-                .mhTypography(.heading2Bold)                   // SUITE Bold 20
+                .mhTypography(.heading2Bold)
                 .foregroundStyle(Color.mhLabelStrong)
                 .multilineTextAlignment(.trailing)
         }
@@ -59,12 +59,12 @@ public struct MHActionAreaInformation: View {
                         .foregroundStyle(Color.mhLabelStrong)
                 }
                 Text(heading)
-                    .mhTypography(.headline2Bold)              // SUITE Bold 17
+                    .mhTypography(.headline2Bold)
                     .foregroundStyle(Color.mhLabelStrong)
             }
             if let description {
                 Text(description)
-                    .mhTypography(.label1NormalRegular)        // SUITE Regular 14
+                    .mhTypography(.label1NormalRegular)
                     .foregroundStyle(Color.mhLabelAlternative)
                     .multilineTextAlignment(.center)
             }
@@ -94,7 +94,7 @@ public struct MHActionAreaCheckbox: View {
                     .foregroundStyle(Color.mhLabelNormal)      // NOTE(확인): 체크 색 토큰 미명시 → Label/Normal
                     .opacity(isOn ? 1 : 0.2)
                 Text(text)
-                    .mhTypography(.body2NormalRegular)         // SUITE Regular 15
+                    .mhTypography(.body2NormalRegular)
                     .foregroundStyle(Color.mhLabelNormal)
                     .padding(.vertical, 1)
                 Spacer(minLength: 0)
@@ -120,7 +120,7 @@ public struct MHActionAreaChips: View {
             ForEach(Array(labels.enumerated()), id: \.offset) { index, label in
                 Button { onTap(index) } label: {
                     Text(label)
-                        .mhTypography(.body2NormalMedium)      // SUITE Medium 15
+                        .mhTypography(.body2NormalMedium)
                         .foregroundStyle(Color.mhLabelAlternative)
                         .padding(.horizontal, 13)              // 11 + inner wrapper 2
                         .padding(.vertical, 7)

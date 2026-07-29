@@ -121,30 +121,27 @@ struct MHButtonSpec {
     let color: MHButtonColor
     let size: MHButtonSize
 
-    /// 배경색
     var background: Color {
         switch (variant, color) {
-        case (.solid, .primary):    .mhPrimaryNormal      // Primary/Normal #000
-        case (.solid, .assistive):  .mhFillNormal         // Fill/Normal (반투명 회색)
+        case (.solid, .primary):    .mhPrimaryNormal
+        case (.solid, .assistive):  .mhFillNormal
         case (.outlined, _):        .clear
         }
     }
 
-    /// 전경(글자·아이콘)색
     var foreground: Color {
         switch (variant, color) {
-        case (.solid, .primary):    .mhStaticWhite        // Static/White
-        case (.solid, .assistive):  .mhLabelNeutral       // Label/Neutral
-        case (.outlined, _):        .mhLabelNormal        // Label/Normal
+        case (.solid, .primary):    .mhStaticWhite
+        case (.solid, .assistive):  .mhLabelNeutral
+        case (.outlined, _):        .mhLabelNormal
         }
     }
 
-    /// 테두리색(Outlined 만)
     var border: Color? {
-        variant == .outlined ? .mhLineNormalNeutral : nil // Line/Normal/Neutral
+        variant == .outlined ? .mhLineNormalNeutral : nil
     }
 
-    // 비활성(disable) — Figma: bg Interaction/Disable, text Label/Assistive
+    // 비활성(disable): Figma 스펙상 bg=Interaction/Disable, text=Label/Assistive
     var disabledBackground: Color { variant == .solid ? .mhInteractionDisable : .clear }
     var disabledForeground: Color { .mhLabelAssistive }
     var disabledBorder: Color? { variant == .outlined ? .mhLineNormalNeutral : nil }
