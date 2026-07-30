@@ -241,15 +241,16 @@ private struct MHButtonStyleBody: View {
             .clipShape(RoundedRectangle(cornerRadius: metric.cornerRadius))
     }
 
-    // NOTE(스펙 확인 필요): Figma 인터랙션 오버레이는 Label/Normal opacity 0(rest)이고 상태별 값이 미확정.
-    // 어두운 solid/primary 는 어두운 오버레이가 안 보여, 대비를 위해 밝은 오버레이로 스왑한다(디자인 노트: 색 교체 허용).
+    // Figma 인터랙션 오버레이(Label/Normal): Normal 0 → Hovered 0.08 → Focused 0.12 → Pressed 0.18(각 ×1.5).
+    // iOS 는 Pressed 만 쓰므로 0.18 을 적용한다.
+    // 어두운 solid/primary 는 어두운 오버레이가 안 보여, 대비를 위해 밝은 오버레이로 스왑한다(Figma `Interaction/Strong` 노트: 색 교체 허용).
     private var pressedOverlayColor: Color {
         (spec.variant == .solid && spec.color == .primary) ? .mhStaticWhite : .mhLabelNormal
     }
 }
 
 extension MHButtonStyle {
-    static let pressedOpacity: Double = 0.12
+    static let pressedOpacity: Double = 0.18
 }
 
 // MARK: - Spinner (loading)
