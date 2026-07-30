@@ -29,6 +29,9 @@ public struct MapView: UIViewRepresentable {
         let mapView = GMSMapView(options: options)
         mapView.delegate = context.coordinator
         context.coordinator.apply(markers: markers, to: mapView)
+        // 초기 카메라를 appliedCamera 에도 기록 — 생성 직후 첫 updateUIView 가
+        // 이미 도달한 위치로 animate(및 불필요한 didIdleAt)를 다시 일으키지 않게 한다.
+        context.coordinator.apply(camera: camera, to: mapView)
         return mapView
     }
 
@@ -56,34 +59,24 @@ public struct MapView: UIViewRepresentable {
         /// clear() 가 마커 외 오버레이(폴리라인 등)까지 지우므로 쓰지 않는다.
         func apply(markers: [MapMarker], to mapView: GMSMapView) {
             guard markers != appliedMarkers else { return }
+            let diff = MarkerDiff.between(applied: appliedMarkers, new: markers)
             appliedMarkers = markers
 
-            let newByID = Dictionary(markers.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-
-            // 제거: 새 목록에 없는 마커만 내린다
-            for (id, gmsMarker) in gmsMarkersByID where newByID[id] == nil {
-                gmsMarker.map = nil
+            for id in diff.removedIDs {
+                gmsMarkersByID[id]?.map = nil
                 gmsMarkersByID[id] = nil
             }
-
-            // 추가/갱신: 있는 마커는 바뀐 속성만 갱신, 없는 마커만 새로 올린다
-            for marker in markers {
-                if let existing = gmsMarkersByID[marker.id] {
-                    let position = marker.coordinate.clCoordinate
-                    if existing.position.latitude != position.latitude
-                        || existing.position.longitude != position.longitude {
-                        existing.position = position
-                    }
-                    if existing.title != marker.title {
-                        existing.title = marker.title
-                    }
-                } else {
-                    let gmsMarker = GMSMarker(position: marker.coordinate.clCoordinate)
-                    gmsMarker.title = marker.title
-                    gmsMarker.userData = marker.id   // 델리게이트에서 id 회수용
-                    gmsMarker.map = mapView
-                    gmsMarkersByID[marker.id] = gmsMarker
-                }
+            for marker in diff.updated {
+                guard let existing = gmsMarkersByID[marker.id] else { continue }
+                existing.position = marker.coordinate.clCoordinate
+                existing.title = marker.title
+            }
+            for marker in diff.inserted {
+                let gmsMarker = GMSMarker(position: marker.coordinate.clCoordinate)
+                gmsMarker.title = marker.title
+                gmsMarker.userData = marker.id   // 델리게이트에서 id 회수용
+                gmsMarker.map = mapView
+                gmsMarkersByID[marker.id] = gmsMarker
             }
         }
 

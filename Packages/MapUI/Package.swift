@@ -21,8 +21,10 @@ let package = Package(
                 .product(name: "GoogleMaps", package: "ios-maps-sdk", condition: .when(platforms: [.iOS])),
             ]
         ),
-        // 순수 타입은 로직이 없고 브릿지(MapView)는 UIViewRepresentable 이라 단위 테스트 대상이 아니다.
+        // 브릿지(MapView)는 UIViewRepresentable 이라 단위 테스트 대상이 아니다.
         // 지도 이벤트→화면 전환 로직은 Feature 의 MapHomeReducerTests 가 검증한다.
+        // 여기서는 GMS 적용과 분리된 순수 판단부(MarkerDiff)만 호스트에서 테스트한다.
+        .testTarget(name: "MapUITests", dependencies: ["MapUI"]),
     ],
     swiftLanguageModes: [.v6]
 )
