@@ -85,6 +85,24 @@ final class MHTextFieldTests: XCTestCase {
         XCTAssertEqual(r.uiImage?.size.height ?? 0, 48, accuracy: 0.5)
     }
 
+    // trailing 버튼(variant/disable)의 라벨 색·굵기·테두리(Figma trailingButton 실측).
+    func testTrailingButton() {
+        let normal = MHTextFieldTrailingButton("텍스트", variant: .normal) {}
+        XCTAssertEqual(normal.textColor, .mhPrimaryNormal)      // Primary/Normal(검정)
+        XCTAssertEqual(normal.typography, .body1NormalBold)     // Bold
+        XCTAssertEqual(normal.borderColor, .mhLineNormalNeutral)
+        XCTAssertEqual(normal.backgroundColor, .clear)
+
+        let assistive = MHTextFieldTrailingButton("확인", variant: .assistive) {}
+        XCTAssertEqual(assistive.textColor, .mhLabelNormal)     // Label/Normal
+        XCTAssertEqual(assistive.typography, .body1NormalMedium) // Medium
+
+        let disabled = MHTextFieldTrailingButton("텍스트", variant: .normal, isEnabled: false) {}
+        XCTAssertEqual(disabled.textColor, .mhLabelAssistive)   // 비활성 라벨
+        XCTAssertEqual(disabled.borderColor, .mhLineNormalAlternative)
+        XCTAssertEqual(disabled.backgroundColor, .mhInteractionDisable)
+    }
+
     private func spec(_ status: MHTextFieldStatus, enabled: Bool, focused: Bool) -> MHTextFieldSpec {
         MHTextFieldSpec(status: status, isEnabled: enabled, isFocused: focused)
     }

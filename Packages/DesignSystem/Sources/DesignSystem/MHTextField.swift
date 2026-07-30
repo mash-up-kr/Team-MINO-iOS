@@ -8,6 +8,49 @@ import SwiftUI
 /// `negative` 는 테두리·description 색을 에러색으로 바꾼다.
 public enum MHTextFieldStatus: Sendable { case normal, positive, negative }
 
+/// trailing 버튼 강조 위계. `normal`(Bold·Primary/Normal) / `assistive`(Medium·Label/Normal). Figma `variant` 축.
+public enum MHTextFieldButtonVariant: Sendable { case normal, assistive }
+
+/// 입력 박스 오른쪽에 분절되어 붙는 텍스트 버튼(Figma `trailingButton`). 예: "확인"·"인증".
+///
+/// 필드 본체와 별개로 자기 활성 상태(`isEnabled`)를 갖는다(입력은 되지만 버튼만 비활성 등).
+public struct MHTextFieldTrailingButton {
+    let title: String
+    let variant: MHTextFieldButtonVariant
+    let isEnabled: Bool
+    let leadingIcon: MHIcon?
+    let trailingIcon: MHIcon?
+    let action: () -> Void
+
+    public init(
+        _ title: String,
+        variant: MHTextFieldButtonVariant = .normal,
+        isEnabled: Bool = true,
+        leadingIcon: MHIcon? = nil,
+        trailingIcon: MHIcon? = nil,
+        action: @escaping () -> Void
+    ) {
+        self.title = title
+        self.variant = variant
+        self.isEnabled = isEnabled
+        self.leadingIcon = leadingIcon
+        self.trailingIcon = trailingIcon
+        self.action = action
+    }
+
+    // 라벨 색: 비활성=Label/Assistive, normal=Primary/Normal(검정), assistive=Label/Normal (Figma variant 실측).
+    var textColor: Color {
+        guard isEnabled else { return .mhLabelAssistive }
+        return variant == .normal ? .mhPrimaryNormal : .mhLabelNormal
+    }
+    // 타이포: normal=Body1 Bold, assistive=Body1 Medium (라벨이라 SUITE 사용 — 입력이 아님).
+    var typography: MHTypography { variant == .normal ? .body1NormalBold : .body1NormalMedium }
+    // 테두리: 활성=Line/Normal/Neutral, 비활성=Line/Normal/Alternative.
+    var borderColor: Color { isEnabled ? .mhLineNormalNeutral : .mhLineNormalAlternative }
+    // 비활성 배경만 Interaction/Disable(활성은 필드 배경 투과).
+    var backgroundColor: Color { isEnabled ? .clear : .mhInteractionDisable }
+}
+
 /// 한 줄 텍스트 입력 필드. Figma `Textinput/Textfield`.
 ///
 /// 세로로 **Heading(라벨) → Input 박스 → Description(도움말)** 이 쌓이며, Heading·Description·
@@ -35,6 +78,7 @@ public struct MHTextField: View {
     private let status: MHTextFieldStatus
     private let leadingIcon: MHIcon?
     private let showsClearButton: Bool
+    private let trailingButton: MHTextFieldTrailingButton?
 
     @Environment(\.isEnabled) private var isEnabled
     @FocusState private var isFocused: Bool
@@ -47,7 +91,8 @@ public struct MHTextField: View {
         description: String? = nil,
         status: MHTextFieldStatus = .normal,
         leadingIcon: MHIcon? = nil,
-        showsClearButton: Bool = true
+        showsClearButton: Bool = true,
+        trailingButton: MHTextFieldTrailingButton? = nil
     ) {
         self._text = text
         self.placeholder = placeholder
@@ -57,6 +102,7 @@ public struct MHTextField: View {
         self.status = status
         self.leadingIcon = leadingIcon
         self.showsClearButton = showsClearButton
+        self.trailingButton = trailingButton
     }
 
     public var body: some View {
@@ -90,7 +136,24 @@ public struct MHTextField: View {
 
     // MARK: Input 박스
 
+    // trailingButton 이 있으면 [입력부(좌측만 라운드) | 버튼(우측만 라운드)] 로 분절, 없으면 단일 라운드 박스.
     @ViewBuilder private func inputBox(_ spec: MHTextFieldSpec) -> some View {
+        if let trailingButton {
+            HStack(spacing: 0) {
+                inputSegment(spec, corners: .left)
+                    .frame(maxWidth: .infinity)
+                trailingButtonSegment(trailingButton)
+            }
+            .mhShadow(.xsmall, cornerRadius: MHTextFieldMetric.cornerRadius)
+        } else {
+            inputSegment(spec, corners: .all)
+                .mhShadow(.xsmall, cornerRadius: MHTextFieldMetric.cornerRadius)
+        }
+    }
+
+    // 입력부 세그먼트: leading 아이콘·텍스트·trailing(clear/상태 아이콘) + 배경·테두리.
+    @ViewBuilder private func inputSegment(_ spec: MHTextFieldSpec, corners: MHTextFieldCorners) -> some View {
+        let shape = MHTextFieldMetric.shape(corners)
         HStack(spacing: MHTextFieldMetric.contentGap) {
             if let leadingIcon {
                 Image(leadingIcon)
@@ -105,13 +168,30 @@ public struct MHTextField: View {
         .frame(minHeight: MHTextFieldMetric.contentMinHeight)
         .padding(MHTextFieldMetric.contentPadding)
         .frame(minHeight: MHTextFieldMetric.boxHeight)
-        .background(spec.backgroundColor)
-        .clipShape(RoundedRectangle(cornerRadius: MHTextFieldMetric.cornerRadius))
-        .overlay {
-            RoundedRectangle(cornerRadius: MHTextFieldMetric.cornerRadius)
-                .strokeBorder(spec.borderColor, lineWidth: spec.borderWidth)
+        .background(spec.backgroundColor, in: shape)
+        .overlay { shape.strokeBorder(spec.borderColor, lineWidth: spec.borderWidth) }
+    }
+
+    // trailing 버튼 세그먼트: 우측만 라운드, 라벨은 SUITE(입력 아님). variant/disable 로 굵기·색이 갈린다.
+    // leading/trailing 아이콘(20pt)과 pressed 오버레이는 MHTextFieldButtonStyle 이 그린다.
+    @ViewBuilder private func trailingButtonSegment(_ button: MHTextFieldTrailingButton) -> some View {
+        Button(action: button.action) {
+            HStack(spacing: MHTextFieldMetric.buttonIconGap) {
+                if let icon = button.leadingIcon { buttonIcon(icon, color: button.textColor) }
+                Text(button.title)
+                    .mhTypography(button.typography)
+                    .foregroundStyle(button.textColor)
+                if let icon = button.trailingIcon { buttonIcon(icon, color: button.textColor) }
+            }
         }
-        .mhShadow(.xsmall, cornerRadius: MHTextFieldMetric.cornerRadius)
+        .buttonStyle(MHTextFieldButtonStyle(button: button))
+        .disabled(!button.isEnabled)
+    }
+
+    private func buttonIcon(_ icon: MHIcon, color: Color) -> some View {
+        Image(icon).resizable()
+            .frame(width: MHTextFieldMetric.buttonIconSize, height: MHTextFieldMetric.buttonIconSize)
+            .foregroundStyle(color)
     }
 
     // 입력 텍스트: 시스템 폰트(SUITE 미적용). placeholder 는 빈 값일 때만 겹쳐 그린다(색 정밀 제어).
@@ -218,6 +298,9 @@ struct MHTextFieldSpec {
 /// Input trailing 슬롯에 무엇을 그릴지. clear(×) 버튼 또는 상태 아이콘(성공/에러) 또는 없음.
 enum MHTextFieldTrailing: Equatable { case none, clear, positiveIcon, negativeIcon }
 
+/// 세그먼트 라운드 위치. `all`=단독 박스, `left`=입력부(좌측만), `right`=trailing 버튼(우측만).
+enum MHTextFieldCorners { case all, left, right }
+
 // MARK: - Metric (Figma 실측 고정값)
 
 enum MHTextFieldMetric {
@@ -231,4 +314,41 @@ enum MHTextFieldMetric {
     static let cornerRadius: CGFloat = 12
     static let iconSize: CGFloat = 22          // leading·상태·clear 아이콘 정사각
     static let inputFontSize: CGFloat = 16     // 입력 텍스트(시스템 폰트)
+    static let buttonMinWidth: CGFloat = 80    // trailing 버튼 최소 폭(Figma min-w)
+    static let buttonHPadding: CGFloat = 16    // trailing 버튼 좌우 패딩(Figma px)
+    static let buttonIconGap: CGFloat = 6      // 버튼 아이콘 ↔ 텍스트 간격(Figma gap)
+    static let buttonIconSize: CGFloat = 20    // 버튼 leading/trailing 아이콘 정사각(Figma h)
+    static let buttonPressedOpacity: Double = 0.09  // pressed 오버레이(Label/Normal, Figma interaction 실측)
+
+    // 세그먼트별 라운드 모양(입력부=좌측만, 버튼=우측만, 단독=사방).
+    static func shape(_ corners: MHTextFieldCorners) -> UnevenRoundedRectangle {
+        let r = cornerRadius
+        switch corners {
+        case .all:   return UnevenRoundedRectangle(topLeadingRadius: r, bottomLeadingRadius: r, bottomTrailingRadius: r, topTrailingRadius: r)
+        case .left:  return UnevenRoundedRectangle(topLeadingRadius: r, bottomLeadingRadius: r, bottomTrailingRadius: 0, topTrailingRadius: 0)
+        case .right: return UnevenRoundedRectangle(topLeadingRadius: 0, bottomLeadingRadius: 0, bottomTrailingRadius: r, topTrailingRadius: r)
+        }
+    }
+}
+
+// MARK: - Trailing 버튼 ButtonStyle (배경·테두리·pressed 오버레이)
+
+// 우측 라운드 세그먼트로 라벨을 감싸고, pressed 시 Label/Normal 오버레이를 얹는다(Figma interaction 실측).
+struct MHTextFieldButtonStyle: ButtonStyle {
+    let button: MHTextFieldTrailingButton
+
+    func makeBody(configuration: Configuration) -> some View {
+        let shape = MHTextFieldMetric.shape(.right)
+        configuration.label
+            .padding(.horizontal, MHTextFieldMetric.buttonHPadding)
+            .frame(minWidth: MHTextFieldMetric.buttonMinWidth, minHeight: MHTextFieldMetric.boxHeight)
+            .background(button.backgroundColor, in: shape)
+            .overlay {
+                if configuration.isPressed {
+                    shape.fill(Color.mhLabelNormal.opacity(MHTextFieldMetric.buttonPressedOpacity))
+                }
+            }
+            .overlay { shape.strokeBorder(button.borderColor, lineWidth: 1) }
+            .contentShape(shape)
+    }
 }
