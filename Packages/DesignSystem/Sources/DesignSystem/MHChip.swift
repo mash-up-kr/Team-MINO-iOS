@@ -83,7 +83,8 @@ public struct MHChip: View {
         let metric = size.metric
         HStack(spacing: metric.gap) {
             if let leading { slot(leading, size: metric.iconSize) }
-            Text(text).mhTypography(metric.font)
+            // 칩은 콘텐츠를 hug 한다 — 좁은 부모에서도 텍스트가 압축·… 로 잘리지 않도록 고정.
+            Text(text).mhTypography(metric.font).fixedSize(horizontal: true, vertical: false)
             if let trailing { slot(trailing, size: metric.iconSize) }
         }
     }
