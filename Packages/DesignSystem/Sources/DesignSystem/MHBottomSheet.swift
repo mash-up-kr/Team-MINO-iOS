@@ -77,6 +77,10 @@ public struct MHBottomSheet<Content: View>: View {
     @State private var appliedMedium: CGFloat
     @State private var appliedContentID: AnyHashable?
 
+    /// 전환이 끝나는 시점에 적용할 최신 목표 값. 내려가는 도중 contentID 가 또 바뀌면
+    /// 여기만 덮어써서, 내려가기 1회 → 최신 값으로 올라오기 1회가 보장된다(연속 탭 레이스 방지).
+    @State private var pendingConfig: SheetConfig?
+
     /// 시트 그림자 스펙(`Shadow/Spread/small`). full 전환 시 색만 clear 로 바꿔 끄기 위해
     /// `mhShadow` 대신 스펙을 직접 쓴다(뷰 identity 유지 — if/else 분기면 드래그 중 재생성됨).
     private var sheetShadow: MHSpreadShadow.Spec { MHSpreadShadow.small.spec }
@@ -136,23 +140,34 @@ public struct MHBottomSheet<Content: View>: View {
                 .frame(maxHeight: .infinity, alignment: .bottom)
                 .gesture(dragGesture(layout: layout))
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("MHBottomSheet.sheet")   // QA 자동화(AXe)용 — 시트 존재·상태 검증
         .onChange(of: SheetConfig(contentID: contentID, low: lowFraction, medium: mediumFraction)) { old, new in
             if old.contentID != new.contentID, new.contentID != nil {
-                // 콘텐츠 전환: 이전 콘텐츠·이전 높이 그대로 내려간 뒤, 화면 밖에서 교체하고 올라온다
+                pendingConfig = new                          // 항상 최신 목표로 덮어씀
+                guard !isTransitioningDown else { return }   // 이미 내려가는 중이면 예약만
                 withAnimation(.spring(duration: 0.3)) {
-                    isTransitioningDown = true
+                    isTransitioningDown = true               // 이전 콘텐츠·이전 높이 그대로 내려간다
                 } completion: {
-                    appliedLow = new.low
-                    appliedMedium = new.medium
-                    appliedContentID = new.contentID
+                    // 캡처값이 아니라 완료 시점의 최신 예약값을 적용 (@State 는 저장소를 통해 현재 값을 읽음)
+                    if let pending = pendingConfig {
+                        appliedLow = pending.low
+                        appliedMedium = pending.medium
+                        appliedContentID = pending.contentID
+                        pendingConfig = nil
+                    }
                     withAnimation(.spring(duration: 0.35)) {
-                        isTransitioningDown = false
+                        isTransitioningDown = false          // 새 콘텐츠·새 높이로 올라온다
                     }
                 }
             } else if !isTransitioningDown {
                 // 전환 연출 없이 비율만 바뀐 경우는 즉시 반영
                 appliedLow = new.low
                 appliedMedium = new.medium
+            } else {
+                // 전환 중 비율만 바뀐 경우도 완료 시점에 최신으로 반영되게 예약에 합류
+                pendingConfig?.low = new.low
+                pendingConfig?.medium = new.medium
             }
         }
     }
@@ -161,8 +176,8 @@ public struct MHBottomSheet<Content: View>: View {
     /// 새 비율이 전환 전에 반영돼 번쩍일 수 있다)
     private struct SheetConfig: Equatable {
         let contentID: AnyHashable?
-        let low: CGFloat
-        let medium: CGFloat
+        var low: CGFloat
+        var medium: CGFloat
     }
 
     /// `full`에서는 상단 코너가 0으로 펴지고 그래버도 사라진다(Figma `003-1-3`).
@@ -203,6 +218,8 @@ public struct MHBottomSheet<Content: View>: View {
             .frame(maxWidth: .infinity)
             .frame(height: 30)
             .contentShape(Rectangle())
+            .accessibilityElement()
+            .accessibilityIdentifier("MHBottomSheet.grabber")   // QA 자동화(AXe)용 — 드래그 기준점
     }
 
     private func dragGesture(layout: MHBottomSheetLayout) -> some Gesture {
