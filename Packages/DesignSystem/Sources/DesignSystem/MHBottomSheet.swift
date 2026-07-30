@@ -14,9 +14,7 @@ public enum MHBottomSheetDetent: CaseIterable, Equatable, Sendable {
 /// 높이 계산·스냅 판정. 뷰와 분리해 단위 테스트 대상으로 둔다.
 struct MHBottomSheetLayout: Equatable {
     let containerHeight: CGFloat
-    /// `low` 단계 높이 = 컨테이너 높이 × lowFraction (0 < low < medium < 1)
-    let lowFraction: CGFloat
-    /// `medium` 단계 높이 = 컨테이너 높이 × mediumFraction
+    let lowFraction: CGFloat      // 0 < low < medium < 1 (init 의 assert 가 보장)
     let mediumFraction: CGFloat
 
     func height(of detent: MHBottomSheetDetent) -> CGFloat {
@@ -27,12 +25,10 @@ struct MHBottomSheetLayout: Equatable {
         }
     }
 
-    /// 드래그 중 표시 높이 — `low` 아래·`full` 위로 못 넘게 클램프
     func clampedHeight(_ height: CGFloat) -> CGFloat {
         min(max(height, self.height(of: .low)), self.height(of: .full))
     }
 
-    /// 주어진 높이(관성 반영된 예상 최종 높이)에서 가장 가까운 단계로 스냅
     func nearestDetent(to height: CGFloat) -> MHBottomSheetDetent {
         MHBottomSheetDetent.allCases.min {
             abs(self.height(of: $0) - height) < abs(self.height(of: $1) - height)
@@ -67,40 +63,30 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
     private let contentID: ID?
     private let content: (ID?) -> Content
 
-    /// 드래그 중 손가락 이동량(아래로 양수). 손가락을 따라가야 하므로 애니메이션 없이 갱신한다.
+    /// 드래그 중 손가락 이동량(아래로 양수) — 손가락을 따라가야 하므로 애니메이션 없이 갱신
     @State private var dragTranslation: CGFloat = 0
 
-    /// 제스처 진행 여부. 시스템이 제스처를 취소하면 `onEnded` 없이 이 값만 리셋되므로,
-    /// 이를 감지해 잔류 오프셋을 정리한다(시트가 어중간한 높이에 멈추는 것 방지).
+    /// 취소 감지용 — 시스템이 제스처를 취소하면 onEnded 없이 이 값만 리셋된다
     @GestureState private var isDragging = false
 
-    /// 시트 안 스크롤 콘텐츠(MHBottomSheetScrollView)의 현재 오프셋. 0 = 맨 위.
-    /// KVO → 래퍼 @State → preference 경유라 최대 1 렌더 사이클(~16ms) 늦을 수 있다 —
-    /// 사람 제스처 간격(100ms+)보다 훨씬 짧아 실질 영향 없음. 지연이 실측되면 environment
-    /// 클로저로 직접 보고하는 방식으로 교체를 검토한다.
+    /// 스크롤 콘텐츠 오프셋 (0 = 맨 위). preference 경유라 최대 1 렌더 늦을 수 있음(실질 무해)
     @State private var scrollOffset: CGFloat = 0
 
-    /// full 에서 이 제스처가 "리스트 맨 위에서 시작했는가" (nil = 아직 판정 전).
-    /// 시작 시점에만 판정한다 — 리스트 중간에서 시작한 드래그는 도중에 맨 위에 닿아도
-    /// 끝까지 스크롤 전용이라, 스크롤 관성이 시트 하강으로 이어지는 오동작이 없다.
+    /// full 에서 제스처가 맨 위에서 시작했는가 — 시작 시점에만 판정 (중간 시작 드래그는 끝까지 스크롤 전용)
     @State private var dragBeganAtTop: Bool?
 
-    /// 이 제스처가 onEnded 로 정상 종료됐는가. 취소-정리(onChange(isDragging))와
-    /// onEnded 의 실행 순서가 SwiftUI 공개 계약이 아니라서, 정상 종료를 명시해 이중 스냅을 막는다.
+    /// onEnded 정상 종료 표시 — 취소-정리 경로의 이중 스냅 방지 (onChange(isDragging) 참조)
     @State private var dragEndedNormally = false
 
-    /// 콘텐츠 전환 중 시트를 화면 아래로 내려 보내는 상태. `contentID` 가 바뀌면
-    /// 내림 → (새 콘텐츠·새 높이로) 올림 시퀀스를 탄다.
     @State private var isTransitioningDown = false
 
-    /// 화면에 실제 적용 중인 비율/콘텐츠 ID. 전환 중엔 이전 값으로 동결했다가 내려간 뒤 갱신한다 —
-    /// 부모가 contentID 와 비율·콘텐츠를 동시에 바꿔도 "새 높이·새 콘텐츠가 번쩍 보였다 내려가는" 프레임이 없다.
+    /// 화면에 실제 적용 중인 비율/콘텐츠 ID. 전환 중엔 이전 값으로 동결했다가 내려간 뒤 갱신 —
+    /// 새 값이 내려가기 전에 번쩍 보이는 프레임을 없앤다.
     @State private var appliedLow: CGFloat
     @State private var appliedMedium: CGFloat
     @State private var appliedContentID: ID?
 
-    /// 전환이 끝나는 시점에 적용할 최신 목표 값. 내려가는 도중 contentID 가 또 바뀌면
-    /// 여기만 덮어써서, 내려가기 1회 → 최신 값으로 올라오기 1회가 보장된다(연속 탭 레이스 방지).
+    /// 전환 완료 시점에 적용할 최신 목표 — 연속 변경은 여기만 덮어써서 내려가기/올라오기가 1회씩만 일어난다
     @State private var pendingConfig: SheetConfig?
 
     /// 시트 그림자 스펙(`Shadow/Spread/small`). full 전환 시 색만 clear 로 바꿔 끄기 위해
@@ -147,23 +133,21 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
         GeometryReader { geometry in
             let layout = MHBottomSheetLayout(
                 containerHeight: geometry.size.height,
-                lowFraction: appliedLow,        // 전환 중엔 이전 비율로 동결됨
+                lowFraction: appliedLow,
                 mediumFraction: appliedMedium
             )
             let height = layout.clampedHeight(layout.height(of: detent) - dragTranslation)
             let isFull = height >= layout.height(of: .full)
 
             sheet(height: height, isFull: isFull)
-                // 전환 중엔 시트 높이 + 하단 safe area 만큼 내려 화면 밖으로
                 .offset(y: isTransitioningDown ? height + geometry.safeAreaInsets.bottom : 0)
                 .frame(maxHeight: .infinity, alignment: .bottom)
-                // 스크롤 콘텐츠 위에서도 드래그를 받아야 하므로 simultaneous —
-                // full 에서 리스트 스크롤과의 구분은 onChanged 의 핸드오프 게이팅이 담당한다
+                // simultaneous 여야 스크롤 콘텐츠 위에서도 드래그를 받는다 —
+                // full 에서 리스트 스크롤과의 구분은 onChanged 의 핸드오프 게이팅이 담당
                 .simultaneousGesture(dragGesture(layout: layout))
                 .onChange(of: isDragging) { _, dragging in
                     // 시스템이 제스처를 취소하면(전화 수신 등) onEnded 없이 isDragging 만 리셋된다 —
-                    // 잔류 오프셋을 스냅으로 정리한다. 한 틱 미뤄서 판정해 onEnded 와의 실행 순서에
-                    // 의존하지 않는다 (정상 종료면 onEnded 가 dragEndedNormally 를 세워둠).
+                    // 잔류 오프셋을 스냅으로 정리. 한 틱 미뤄 onEnded 와의 실행 순서 의존을 없앤다.
                     guard !dragging else { return }
                     Task { @MainActor in
                         guard !dragEndedNormally else {
@@ -186,12 +170,12 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
         .accessibilityIdentifier("MHBottomSheet.sheet")   // QA 자동화(AXe)용 — 시트 존재·상태 검증
         .onChange(of: SheetConfig(contentID: contentID, low: lowFraction, medium: mediumFraction)) { old, new in
             if old.contentID != new.contentID, new.contentID != nil {
-                pendingConfig = new                          // 항상 최신 목표로 덮어씀
-                guard !isTransitioningDown else { return }   // 이미 내려가는 중이면 예약만
+                pendingConfig = new
+                guard !isTransitioningDown else { return }
                 withAnimation(.spring(duration: 0.3)) {
-                    isTransitioningDown = true               // 이전 콘텐츠·이전 높이 그대로 내려간다
+                    isTransitioningDown = true
                 } completion: {
-                    // 캡처값이 아니라 완료 시점의 최신 예약값을 적용 (@State 는 저장소를 통해 현재 값을 읽음)
+                    // 시작 시점 캡처값이 아니라 완료 시점의 최신 예약을 적용해야 연속 탭이 안전하다
                     if let pending = pendingConfig {
                         appliedLow = pending.low
                         appliedMedium = pending.medium
@@ -199,16 +183,14 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
                         pendingConfig = nil
                     }
                     withAnimation(.spring(duration: 0.35)) {
-                        isTransitioningDown = false          // 새 콘텐츠·새 높이로 올라온다
+                        isTransitioningDown = false
                     }
                 }
             } else if !isTransitioningDown {
-                // 전환 연출 없이 비율만 바뀐 경우는 즉시 반영
                 appliedLow = new.low
                 appliedMedium = new.medium
             } else {
-                // 전환 중 비율만 바뀐 경우도 완료 시점에 최신으로 반영되게 예약에 합류
-                pendingConfig?.low = new.low
+                pendingConfig?.low = new.low    // 전환 중 비율 변경도 예약에 합류해야 유실이 없다
                 pendingConfig?.medium = new.medium
             }
         }
@@ -222,7 +204,6 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
         var medium: CGFloat
     }
 
-    /// `full`에서는 상단 코너가 0으로 펴지고 그래버도 사라진다(Figma `003-1-3`).
     private func sheet(height: CGFloat, isFull: Bool) -> some View {
         VStack(spacing: 0) {
             if !isFull { grabber }
@@ -231,17 +212,16 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
                 .environment(\.mhSheetScrollEnabled, detent == .full)   // 스크롤은 full 에서만 (애플 지도 규칙)
         }
         .frame(height: height)
-        .clipShape(sheetShape(isFull: isFull))   // 콘텐츠를 상단 코너에 맞게 클립
+        .clipShape(sheetShape(isFull: isFull))
         .background {
-            // 시트 표면(흰 면). 콘텐츠 레이아웃과 분리해 표면만 safe area 로 확장한다 —
-            // 하단은 항상 홈 인디케이터 영역까지(탭바가 있으면 탭바가 덮어 무해),
-            // 상단은 full 에서 상태바 영역까지 → 화면과 이어진 전체 화면으로 보인다.
-            // 그림자는 확장된 표면에 걸어 글로우가 확장 영역 위에 얹히지 않게 한다.
+            // 시트 표면(흰 면)은 콘텐츠 레이아웃과 분리해 safe area 로 확장한다 — 하단은 항상,
+            // 상단은 full 에서. 그림자를 확장된 표면에 걸어야 글로우가 확장 영역 위에 얹혀
+            // 회색 띠를 만들지 않는다 (레이아웃·콘텐츠 위치는 safe area 안 그대로).
             sheetShape(isFull: isFull)
                 .fill(Color.mhBackgroundNormalNormal)
                 .ignoresSafeArea(edges: isFull ? [.top, .bottom] : .bottom)
                 .shadow(color: isFull ? .clear : sheetShadow.color, radius: sheetShadow.blur / 2,
-                        x: sheetShadow.x, y: sheetShadow.y)   // full 은 화면과 한 몸 — 그림자 없음
+                        x: sheetShadow.x, y: sheetShadow.y)
         }
         .animation(.spring(duration: 0.3), value: detent)
     }
@@ -280,7 +260,7 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
                 dragTranslation = max(0, dy)   // 위 방향(음수)은 full 에 붙임 — 방향이 되돌아와도 연속 추적
             }
             .onEnded { value in
-                dragEndedNormally = true   // 취소-정리 경로가 중복 스냅하지 않게 표시
+                dragEndedNormally = true
                 let projected: CGFloat
                 if detent == .full {
                     let engaged = dragBeganAtTop == true && dragTranslation > 0
@@ -290,7 +270,6 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
                 } else {
                     projected = value.predictedEndTranslation.height
                 }
-                // 관성 반영: 예상 최종 위치 기준으로 가장 가까운 단계에 스냅
                 let projectedHeight = layout.height(of: detent) - projected
                 withAnimation(.spring(duration: 0.3)) {
                     detent = layout.nearestDetent(to: projectedHeight)
