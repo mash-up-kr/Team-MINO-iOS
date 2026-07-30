@@ -68,6 +68,20 @@ final class MHChipTests: XCTestCase {
         }
     }
 
+    // 실제 렌더 폭이 Figma 실측과 일치(텍스트 내부 Wrapper 패딩 포함).
+    @MainActor
+    func testRenderedWidthsMatchFigma() {
+        MHFontRegistrar.registerIfNeeded()
+        func w(_ v: some View) -> CGFloat {
+            let r = ImageRenderer(content: v); r.scale = 1
+            return r.uiImage?.size.width ?? 0
+        }
+        // Figma variant 행: medium 텍스트전용 = 65 / size 행: medium lead+trail icon = 99
+        XCTAssertEqual(w(MHChip("텍스트", size: .medium) {}), 65, accuracy: 0.5)
+        XCTAssertEqual(w(MHChip("텍스트", size: .medium,
+                                leading: .icon(.close), trailing: .icon(.close)) {}), 99, accuracy: 0.5)
+    }
+
     // 실제 렌더 높이가 Figma 고정 높이(24/32/36/40)와 일치.
     @MainActor
     func testRenderedHeightsMatchFigma() {

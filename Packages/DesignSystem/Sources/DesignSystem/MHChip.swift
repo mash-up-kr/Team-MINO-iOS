@@ -83,8 +83,11 @@ public struct MHChip: View {
         let metric = size.metric
         HStack(spacing: metric.gap) {
             if let leading { slot(leading, size: metric.iconSize) }
-            // 칩은 콘텐츠를 hug 한다 — 좁은 부모에서도 텍스트가 압축·… 로 잘리지 않도록 고정.
-            Text(text).mhTypography(metric.font).fixedSize(horizontal: true, vertical: false)
+            // 텍스트는 Figma text Wrapper(px) 만큼 좌우 패딩. 칩은 콘텐츠를 hug 하므로
+            // 좁은 부모에서도 압축·… 로 잘리지 않도록 fixedSize 로 고정.
+            Text(text).mhTypography(metric.font)
+                .padding(.horizontal, metric.textHPadding)
+                .fixedSize(horizontal: true, vertical: false)
             if let trailing { slot(trailing, size: metric.iconSize) }
         }
     }
@@ -149,7 +152,8 @@ struct MHChipSpec {
 struct MHChipMetric {
     let font: MHTypography
     let height: CGFloat        // Figma 고정 칩 높이
-    let hPadding: CGFloat      // 좌우 패딩(Figma px). 세로는 height 로 고정
+    let hPadding: CGFloat      // 칩 외곽 좌우 패딩(Figma px). 세로는 height 로 고정
+    let textHPadding: CGFloat  // 텍스트 내부 Wrapper 좌우 패딩(Figma text Wrapper px). 텍스트에만 적용
     let cornerRadius: CGFloat
     let gap: CGFloat
     let iconSize: CGFloat      // leading/trailing 슬롯 정사각 크기
@@ -158,12 +162,13 @@ struct MHChipMetric {
 extension MHChipSize {
     // 폰트·높이·패딩·radius·gap·아이콘은 Figma get_design_context 실측값.
     // 높이(24/32/36/40)는 폰트 라인박스가 SUITE intrinsic 보다 커 '패딩+intrinsic' 로는 부족해 직접 고정한다(버튼과 동일 이유).
+    // textHPadding: Figma 는 텍스트를 px-[2px](XSmall 은 1px) Wrapper 로 감싸므로 텍스트 폭에 그만큼 더해진다.
     var metric: MHChipMetric {
         switch self {
-        case .xsmall: MHChipMetric(font: .caption1Medium,     height: 24, hPadding: 7,  cornerRadius: 6,  gap: 2, iconSize: 12)
-        case .small:  MHChipMetric(font: .label1NormalMedium, height: 32, hPadding: 8,  cornerRadius: 8,  gap: 2, iconSize: 14)
-        case .medium: MHChipMetric(font: .body2NormalMedium,  height: 36, hPadding: 11, cornerRadius: 10, gap: 3, iconSize: 14)
-        case .large:  MHChipMetric(font: .body2NormalMedium,  height: 40, hPadding: 12, cornerRadius: 10, gap: 3, iconSize: 16)
+        case .xsmall: MHChipMetric(font: .caption1Medium,     height: 24, hPadding: 7,  textHPadding: 1, cornerRadius: 6,  gap: 2, iconSize: 12)
+        case .small:  MHChipMetric(font: .label1NormalMedium, height: 32, hPadding: 8,  textHPadding: 2, cornerRadius: 8,  gap: 2, iconSize: 14)
+        case .medium: MHChipMetric(font: .body2NormalMedium,  height: 36, hPadding: 11, textHPadding: 2, cornerRadius: 10, gap: 3, iconSize: 14)
+        case .large:  MHChipMetric(font: .body2NormalMedium,  height: 40, hPadding: 12, textHPadding: 2, cornerRadius: 10, gap: 3, iconSize: 16)
         }
     }
 }
@@ -178,8 +183,7 @@ struct MHChipStyle: ButtonStyle {
         MHChipStyleBody(spec: spec, isEnabled: isEnabled, configuration: configuration)
     }
 
-    // NOTE(스펙 확인 필요): Chip 은 Interaction/Light(×0.75)를 쓴다. 버튼 pressed(0.18)의 base(0.12)에
-    // 0.75 를 곱한 값으로 두었다. Figma 실측 상태값이 확정되면 교정한다.
+    // Figma State=Pressed = Normal ×0.75(Interaction/Light). 실측 오버레이 opacity = 0.09.
     static let pressedOpacity: Double = 0.09
 }
 
