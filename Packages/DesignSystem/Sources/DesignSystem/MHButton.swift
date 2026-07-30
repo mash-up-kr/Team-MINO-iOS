@@ -130,6 +130,9 @@ struct MHButtonSpec {
     var background: Color {
         switch (variant, color) {
         case (.solid, .primary):    .mhPrimaryNormal
+        // Assistive Solid: Figma 는 Fill/Normal(8%) 위에 iOS Chrome 머티리얼(BACKGROUND_BLUR)을 얹지만,
+        // 이 버튼들은 불투명한 일반 화면에 쓰여 블러가 보이지 않고 per-button backdrop 블러는 비용도 크다.
+        // 그래서 의도적으로 플랫 8%(Fill/Normal)만 쓴다. (미디어 위 플로팅에 쓰게 되면 그때 .bar 머티리얼 검토)
         case (.solid, .assistive):  .mhFillNormal
         case (.outlined, _):        .clear
         }
