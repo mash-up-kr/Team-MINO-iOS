@@ -79,6 +79,7 @@ public struct MHTextField: View {
     private let leadingIcon: MHIcon?
     private let showsClearButton: Bool
     private let trailingButton: MHTextFieldTrailingButton?
+    private let trailingContent: AnyView?
 
     @Environment(\.isEnabled) private var isEnabled
     @FocusState private var isFocused: Bool
@@ -92,7 +93,8 @@ public struct MHTextField: View {
         status: MHTextFieldStatus = .normal,
         leadingIcon: MHIcon? = nil,
         showsClearButton: Bool = true,
-        trailingButton: MHTextFieldTrailingButton? = nil
+        trailingButton: MHTextFieldTrailingButton? = nil,
+        @ViewBuilder trailingContent: () -> some View = { EmptyView() }
     ) {
         self._text = text
         self.placeholder = placeholder
@@ -103,6 +105,8 @@ public struct MHTextField: View {
         self.leadingIcon = leadingIcon
         self.showsClearButton = showsClearButton
         self.trailingButton = trailingButton
+        let content = trailingContent()
+        self.trailingContent = content is EmptyView ? nil : AnyView(content)
     }
 
     public var body: some View {
@@ -164,6 +168,12 @@ public struct MHTextField: View {
             textField(spec)
                 .padding(.horizontal, MHTextFieldMetric.textHPadding)
             trailingAccessory(spec)
+            if let trailingContent {
+                // 임의 커스텀 뷰 슬롯(단위 라벨·작은 컨트롤 등). 24pt 높이·hug 폭·overflow clip (Figma Trailing Content).
+                trailingContent
+                    .frame(height: MHTextFieldMetric.trailingContentHeight)
+                    .clipped()
+            }
         }
         .frame(minHeight: MHTextFieldMetric.contentMinHeight)
         .padding(MHTextFieldMetric.contentPadding)
@@ -313,6 +323,7 @@ enum MHTextFieldMetric {
     static let boxHeight: CGFloat = 48         // Input 박스 고정 높이(24 + 12*2)
     static let cornerRadius: CGFloat = 12
     static let iconSize: CGFloat = 22          // leading·상태·clear 아이콘 정사각
+    static let trailingContentHeight: CGFloat = 24  // 커스텀 trailing content 슬롯 높이(Figma h)
     static let inputFontSize: CGFloat = 16     // 입력 텍스트(시스템 폰트)
     static let buttonMinWidth: CGFloat = 80    // trailing 버튼 최소 폭(Figma min-w)
     static let buttonHPadding: CGFloat = 16    // trailing 버튼 좌우 패딩(Figma px)
