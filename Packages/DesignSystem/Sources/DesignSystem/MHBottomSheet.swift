@@ -61,48 +61,115 @@ public struct MHBottomSheet<Content: View>: View {
     @Binding private var detent: MHBottomSheetDetent
     private let lowFraction: CGFloat
     private let mediumFraction: CGFloat
-    private let content: Content
+    private let contentID: AnyHashable?
+    private let content: (AnyHashable?) -> Content
 
     /// 드래그 중 손가락 이동량(아래로 양수). 손가락을 따라가야 하므로 애니메이션 없이 갱신한다.
     @State private var dragTranslation: CGFloat = 0
+
+    /// 콘텐츠 전환 중 시트를 화면 아래로 내려 보내는 상태. `contentID` 가 바뀌면
+    /// 내림 → (새 콘텐츠·새 높이로) 올림 시퀀스를 탄다.
+    @State private var isTransitioningDown = false
+
+    /// 화면에 실제 적용 중인 비율/콘텐츠 ID. 전환 중엔 이전 값으로 동결했다가 내려간 뒤 갱신한다 —
+    /// 부모가 contentID 와 비율·콘텐츠를 동시에 바꿔도 "새 높이·새 콘텐츠가 번쩍 보였다 내려가는" 프레임이 없다.
+    @State private var appliedLow: CGFloat
+    @State private var appliedMedium: CGFloat
+    @State private var appliedContentID: AnyHashable?
 
     /// 시트 그림자 스펙(`Shadow/Spread/small`). full 전환 시 색만 clear 로 바꿔 끄기 위해
     /// `mhShadow` 대신 스펙을 직접 쓴다(뷰 identity 유지 — if/else 분기면 드래그 중 재생성됨).
     private var sheetShadow: MHSpreadShadow.Spec { MHSpreadShadow.small.spec }
 
+    /// 콘텐츠 전환 연출(내려갔다 새 높이로 올라오기)이 필요한 화면용.
+    /// - Parameter contentID: 시트 콘텐츠의 식별자. 값이 바뀌면 시트가 **이전 콘텐츠·이전 높이 그대로**
+    ///   내려갔다가 새 콘텐츠·새 높이로 올라온다(방 상세 → 장소 상세 같은 전환).
+    /// - Parameter content: 표시할 콘텐츠. **전달받은 id 기준으로 그려야** 전환 중 이전 콘텐츠가 유지된다
+    ///   (부모 상태를 직접 읽으면 내려가기 전에 새 콘텐츠가 보인다).
     public init(
         detent: Binding<MHBottomSheetDetent>,
         lowFraction: CGFloat,
         mediumFraction: CGFloat,
-        @ViewBuilder content: () -> Content
+        contentID: AnyHashable,
+        @ViewBuilder content: @escaping (AnyHashable) -> Content
     ) {
         self._detent = detent
         self.lowFraction = lowFraction
         self.mediumFraction = mediumFraction
-        self.content = content()
+        self.contentID = contentID
+        self.content = { id in content(id ?? contentID) }
+        self._appliedLow = State(initialValue: lowFraction)
+        self._appliedMedium = State(initialValue: mediumFraction)
+        self._appliedContentID = State(initialValue: contentID)
+    }
+
+    /// 콘텐츠 전환 연출이 필요 없는 화면용.
+    public init(
+        detent: Binding<MHBottomSheetDetent>,
+        lowFraction: CGFloat,
+        mediumFraction: CGFloat,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
+        self._detent = detent
+        self.lowFraction = lowFraction
+        self.mediumFraction = mediumFraction
+        self.contentID = nil
+        self.content = { _ in content() }
+        self._appliedLow = State(initialValue: lowFraction)
+        self._appliedMedium = State(initialValue: mediumFraction)
+        self._appliedContentID = State(initialValue: nil)
     }
 
     public var body: some View {
         GeometryReader { geometry in
             let layout = MHBottomSheetLayout(
                 containerHeight: geometry.size.height,
-                lowFraction: lowFraction,
-                mediumFraction: mediumFraction
+                lowFraction: appliedLow,        // 전환 중엔 이전 비율로 동결됨
+                mediumFraction: appliedMedium
             )
             let height = layout.clampedHeight(layout.height(of: detent) - dragTranslation)
             let isFull = height >= layout.height(of: .full)
 
             sheet(height: height, isFull: isFull)
+                // 전환 중엔 시트 높이 + 하단 safe area 만큼 내려 화면 밖으로
+                .offset(y: isTransitioningDown ? height + geometry.safeAreaInsets.bottom : 0)
                 .frame(maxHeight: .infinity, alignment: .bottom)
                 .gesture(dragGesture(layout: layout))
         }
+        .onChange(of: SheetConfig(contentID: contentID, low: lowFraction, medium: mediumFraction)) { old, new in
+            if old.contentID != new.contentID, new.contentID != nil {
+                // 콘텐츠 전환: 이전 콘텐츠·이전 높이 그대로 내려간 뒤, 화면 밖에서 교체하고 올라온다
+                withAnimation(.spring(duration: 0.3)) {
+                    isTransitioningDown = true
+                } completion: {
+                    appliedLow = new.low
+                    appliedMedium = new.medium
+                    appliedContentID = new.contentID
+                    withAnimation(.spring(duration: 0.35)) {
+                        isTransitioningDown = false
+                    }
+                }
+            } else if !isTransitioningDown {
+                // 전환 연출 없이 비율만 바뀐 경우는 즉시 반영
+                appliedLow = new.low
+                appliedMedium = new.medium
+            }
+        }
+    }
+
+    /// contentID·비율 변경을 한 번에 감지하기 위한 묶음 (onChange 를 나누면 실행 순서에 따라
+    /// 새 비율이 전환 전에 반영돼 번쩍일 수 있다)
+    private struct SheetConfig: Equatable {
+        let contentID: AnyHashable?
+        let low: CGFloat
+        let medium: CGFloat
     }
 
     /// `full`에서는 상단 코너가 0으로 펴지고 그래버도 사라진다(Figma `003-1-3`).
     private func sheet(height: CGFloat, isFull: Bool) -> some View {
         VStack(spacing: 0) {
             if !isFull { grabber }
-            content
+            content(appliedContentID)   // 전환 중엔 이전 ID 로 그려 이전 콘텐츠 유지
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .frame(height: height)
