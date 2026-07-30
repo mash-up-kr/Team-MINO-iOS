@@ -141,9 +141,10 @@ struct MHButtonSpec {
         variant == .outlined ? .mhLineNormalNeutral : nil
     }
 
-    // 비활성(disable): Figma 스펙상 bg=Interaction/Disable, text=Label/Assistive
+    // 비활성(disable): Figma 스펙상 Solid=bg Interaction/Disable·text Label/Assistive,
+    //                              Outlined=bg 없음·text Label/Disable (variant 별로 글자색이 다름)
     var disabledBackground: Color { variant == .solid ? .mhInteractionDisable : .clear }
-    var disabledForeground: Color { .mhLabelAssistive }
+    var disabledForeground: Color { variant == .solid ? .mhLabelAssistive : .mhLabelDisable }
     var disabledBorder: Color? { variant == .outlined ? .mhLineNormalNeutral : nil }
 }
 
