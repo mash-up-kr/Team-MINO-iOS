@@ -104,8 +104,7 @@ public struct MHActionAreaCheckbox: View {
     }
 }
 
-/// 칩 행. Figma `Variant=Chip` (칩 배경 Fill/Alternative, r10, Body2 Medium)
-/// NOTE: 정식 `Chip/Chip` 컴포넌트를 인라인으로 렌더. 선택/삭제 등 동작은 후속.
+/// 칩 행. 정식 ``MHChip``(medium·solid) 을 가로로 나열한다. 선택/삭제 등 상태는 후속.
 public struct MHActionAreaChips: View {
     private let labels: [String]
     private let onTap: (Int) -> Void
@@ -118,16 +117,7 @@ public struct MHActionAreaChips: View {
     public var body: some View {
         HStack(spacing: 6) {
             ForEach(Array(labels.enumerated()), id: \.offset) { index, label in
-                Button { onTap(index) } label: {
-                    Text(label)
-                        .mhTypography(.body2NormalMedium)
-                        .foregroundStyle(Color.mhLabelAlternative)
-                        .padding(.horizontal, 13)              // 11 + inner wrapper 2
-                        .padding(.vertical, 7)
-                        .background(Color.mhFillAlternative)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                }
-                .buttonStyle(.plain)
+                MHChip(label, size: .medium) { onTap(index) }
             }
             Spacer(minLength: 0)
         }
