@@ -45,20 +45,45 @@ public struct MapView: UIViewRepresentable {
         /// 이미 적용한 마커/카메라 — 매 update 마다 불필요한 재적용(및 카메라 되먹임 루프)을 막는다.
         private var appliedMarkers: [MapMarker] = []
         private var appliedCamera: MapCameraPosition?
+        /// id → 화면에 올라간 GMSMarker. 증분 적용(추가/제거/갱신)용.
+        private var gmsMarkersByID: [String: GMSMarker] = [:]
 
         init(onEvent: @escaping (MapEvent) -> Void) {
             self.onEvent = onEvent
         }
 
+        /// id 기준 증분 적용 — 전체 clear+재생성은 유지되는 마커까지 깜빡이게 하고,
+        /// clear() 가 마커 외 오버레이(폴리라인 등)까지 지우므로 쓰지 않는다.
         func apply(markers: [MapMarker], to mapView: GMSMapView) {
             guard markers != appliedMarkers else { return }
             appliedMarkers = markers
-            mapView.clear()
+
+            let newByID = Dictionary(markers.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+
+            // 제거: 새 목록에 없는 마커만 내린다
+            for (id, gmsMarker) in gmsMarkersByID where newByID[id] == nil {
+                gmsMarker.map = nil
+                gmsMarkersByID[id] = nil
+            }
+
+            // 추가/갱신: 있는 마커는 바뀐 속성만 갱신, 없는 마커만 새로 올린다
             for marker in markers {
-                let gmsMarker = GMSMarker(position: marker.coordinate.clCoordinate)
-                gmsMarker.title = marker.title
-                gmsMarker.userData = marker.id   // 델리게이트에서 id 회수용
-                gmsMarker.map = mapView
+                if let existing = gmsMarkersByID[marker.id] {
+                    let position = marker.coordinate.clCoordinate
+                    if existing.position.latitude != position.latitude
+                        || existing.position.longitude != position.longitude {
+                        existing.position = position
+                    }
+                    if existing.title != marker.title {
+                        existing.title = marker.title
+                    }
+                } else {
+                    let gmsMarker = GMSMarker(position: marker.coordinate.clCoordinate)
+                    gmsMarker.title = marker.title
+                    gmsMarker.userData = marker.id   // 델리게이트에서 id 회수용
+                    gmsMarker.map = mapView
+                    gmsMarkersByID[marker.id] = gmsMarker
+                }
             }
         }
 
