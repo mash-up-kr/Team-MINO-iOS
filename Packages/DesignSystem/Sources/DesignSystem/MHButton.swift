@@ -96,18 +96,24 @@ public struct MHButton: View {
 
     @ViewBuilder private var content: some View {
         let metric = size.metric
+        let typo = size.typography(for: color)
+        // 인라인 아이콘(텍스트 옆): Figma 는 고정 크기가 아니라 텍스트 라인높이에 맞춰 '세로 Fill'
+        // 하고 상하 inlineIconInset(Figma py) 만큼 inset 한다. 라인높이 - 2*inset 이 실제 아이콘 높이.
+        let inlineIconSize = typo.lineHeight.rounded() - metric.inlineIconInset * 2
+        // 스피너는 그 버튼의 아이콘 크기를 따른다(icon-only=정사각 고정, 그 외=인라인 크기).
+        let spinnerSize = icon != nil ? metric.iconOnlySize : inlineIconSize
         ZStack {
             // 로딩 스피너: 라벨을 가리고 중앙에 표시
             if isLoading {
-                MHButtonSpinner(size: metric.iconSize)
+                MHButtonSpinner(size: spinnerSize)
             }
             HStack(spacing: metric.gap) {
-                if let icon { Image(icon).resizable().frame(width: metric.iconSize, height: metric.iconSize) }
-                if let leadingIcon { Image(leadingIcon).resizable().frame(width: metric.iconSize, height: metric.iconSize) }
+                if let icon { Image(icon).resizable().frame(width: metric.iconOnlySize, height: metric.iconOnlySize) }
+                if let leadingIcon { Image(leadingIcon).resizable().frame(width: inlineIconSize, height: inlineIconSize) }
                 if let title {
-                    Text(title).mhTypography(size.typography(for: color))
+                    Text(title).mhTypography(typo)
                 }
-                if let trailingIcon { Image(trailingIcon).resizable().frame(width: metric.iconSize, height: metric.iconSize) }
+                if let trailingIcon { Image(trailingIcon).resizable().frame(width: inlineIconSize, height: inlineIconSize) }
             }
             .opacity(isLoading ? 0 : 1)
         }
@@ -149,20 +155,23 @@ struct MHButtonSpec {
 }
 
 struct MHButtonMetric {
-    let hPadding: CGFloat
-    let vPadding: CGFloat
+    let height: CGFloat           // Figma 고정 버튼 높이(= icon-only 정사각의 한 변)
+    let hPadding: CGFloat         // 텍스트 버튼 좌우 패딩(Figma px). 세로는 height 로 고정
     let cornerRadius: CGFloat
     let gap: CGFloat
-    let iconSize: CGFloat
+    let iconOnlySize: CGFloat     // icon-only(정사각) 아이콘 크기. Figma 고정값
+    let inlineIconInset: CGFloat  // 인라인 아이콘 상하 inset(Figma py). 라인높이에서 2*inset 을 빼 '세로 Fill'
 }
 
 extension MHButtonSize {
-    // 패딩·radius·gap 은 Figma get_design_context 실측값.
+    // 높이·패딩·radius·gap·아이콘은 Figma get_design_context 실측값.
+    // height: L48/M40/S32(고정). icon-only 는 정사각 frame(=height)이라 상하좌우 패딩(12/10/7)이 아이콘 크기에서 자동으로 떨어진다.
+    // 세로 패딩을 따로 두지 않는 건 SUITE UIFont.lineHeight 가 Figma 라인박스보다 작아 '패딩+intrinsic' 로는 스펙 높이에 못 미치기 때문 — 높이를 직접 고정한다.
     var metric: MHButtonMetric {
         switch self {
-        case .large:  MHButtonMetric(hPadding: 28, vPadding: 12, cornerRadius: 12, gap: 6, iconSize: 20)
-        case .medium: MHButtonMetric(hPadding: 20, vPadding: 9,  cornerRadius: 10, gap: 5, iconSize: 18)
-        case .small:  MHButtonMetric(hPadding: 14, vPadding: 7,  cornerRadius: 8,  gap: 4, iconSize: 16)
+        case .large:  MHButtonMetric(height: 48, hPadding: 28, cornerRadius: 12, gap: 6, iconOnlySize: 24, inlineIconInset: 2)
+        case .medium: MHButtonMetric(height: 40, hPadding: 20, cornerRadius: 10, gap: 5, iconOnlySize: 20, inlineIconInset: 2)
+        case .small:  MHButtonMetric(height: 32, hPadding: 14, cornerRadius: 8,  gap: 4, iconOnlySize: 18, inlineIconInset: 1)
         }
     }
 
@@ -223,9 +232,9 @@ private struct MHButtonStyleBody: View {
 
         configuration.label
             .foregroundStyle(fg)
-            .padding(.horizontal, isIconOnly ? metric.vPadding : metric.hPadding) // 아이콘 전용은 정사각
-            .padding(.vertical, metric.vPadding)
-            .frame(maxWidth: fillWidth ? .infinity : nil)   // 배경까지 함께 늘어나도록 background 앞에서 적용
+            .padding(.horizontal, isIconOnly ? 0 : metric.hPadding)  // icon-only 는 정사각 frame 이 패딩을 만든다
+            .frame(maxWidth: (fillWidth && !isIconOnly) ? .infinity : nil)   // 배경까지 함께 늘어나도록 background 앞에서 적용
+            .frame(width: isIconOnly ? metric.height : nil, height: metric.height)  // Figma 고정 높이 / icon-only 정사각
             .background(bg)
             .overlay {
                 // press 인터랙션 오버레이(Figma: 최상단 Interaction 레이어). 밝은 배경은 어둡게, 어두운 solid 는 밝게.
