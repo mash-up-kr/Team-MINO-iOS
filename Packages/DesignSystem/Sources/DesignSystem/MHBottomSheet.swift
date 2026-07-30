@@ -66,6 +66,10 @@ public struct MHBottomSheet<Content: View>: View {
     /// 드래그 중 손가락 이동량(아래로 양수). 손가락을 따라가야 하므로 애니메이션 없이 갱신한다.
     @State private var dragTranslation: CGFloat = 0
 
+    /// 시트 그림자 스펙(`Shadow/Spread/small`). full 전환 시 색만 clear 로 바꿔 끄기 위해
+    /// `mhShadow` 대신 스펙을 직접 쓴다(뷰 identity 유지 — if/else 분기면 드래그 중 재생성됨).
+    private var sheetShadow: MHSpreadShadow.Spec { MHSpreadShadow.small.spec }
+
     public init(
         detent: Binding<MHBottomSheetDetent>,
         lowFraction: CGFloat,
@@ -108,7 +112,15 @@ public struct MHBottomSheet<Content: View>: View {
             topTrailingRadius: isFull ? 0 : 20,
             style: .continuous
         ))
-        .mhShadow(spread: .small)
+        .shadow(color: isFull ? .clear : sheetShadow.color, radius: sheetShadow.blur / 2,
+                x: sheetShadow.x, y: sheetShadow.y)   // full 은 화면과 한 몸 — 그림자가 있으면 "떠 있는 시트"로 보임
+        .background {
+            // full 에서 시트 상단이 safe area 에 닿으면 상태바 영역까지 배경을 채운다
+            // (clipShape 가 배경의 safe area 확장을 잘라서 별도 레이어로 깐다)
+            if isFull {
+                Color.mhBackgroundNormalNormal.ignoresSafeArea(edges: .top)
+            }
+        }
         .animation(.spring(duration: 0.3), value: detent)
     }
 
