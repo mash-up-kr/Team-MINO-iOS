@@ -71,6 +71,14 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
     /// 이를 감지해 잔류 오프셋을 정리한다(시트가 어중간한 높이에 멈추는 것 방지).
     @GestureState private var isDragging = false
 
+    /// 시트 안 스크롤 콘텐츠(MHBottomSheetScrollView)의 현재 오프셋. 0 = 맨 위.
+    @State private var scrollOffset: CGFloat = 0
+
+    /// full 에서 이 제스처가 "리스트 맨 위에서 시작했는가" (nil = 아직 판정 전).
+    /// 시작 시점에만 판정한다 — 리스트 중간에서 시작한 드래그는 도중에 맨 위에 닿아도
+    /// 끝까지 스크롤 전용이라, 스크롤 관성이 시트 하강으로 이어지는 오동작이 없다.
+    @State private var dragBeganAtTop: Bool?
+
     /// 콘텐츠 전환 중 시트를 화면 아래로 내려 보내는 상태. `contentID` 가 바뀌면
     /// 내림 → (새 콘텐츠·새 높이로) 올림 시퀀스를 탄다.
     @State private var isTransitioningDown = false
@@ -127,16 +135,23 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
                 // 전환 중엔 시트 높이 + 하단 safe area 만큼 내려 화면 밖으로
                 .offset(y: isTransitioningDown ? height + geometry.safeAreaInsets.bottom : 0)
                 .frame(maxHeight: .infinity, alignment: .bottom)
-                .gesture(dragGesture(layout: layout))
+                // 스크롤 콘텐츠 위에서도 드래그를 받아야 하므로 simultaneous —
+                // full 에서 리스트 스크롤과의 구분은 onChanged 의 핸드오프 게이팅이 담당한다
+                .simultaneousGesture(dragGesture(layout: layout))
                 .onChange(of: isDragging) { _, dragging in
                     // 시스템이 제스처를 취소하면(전화 수신 등) onEnded 없이 isDragging 만 리셋된다 —
                     // 잔류 오프셋을 현재 위치 기준 스냅으로 정리 (정상 종료면 onEnded 가 이미 0 으로 만듦)
-                    guard !dragging, dragTranslation != 0 else { return }
+                    guard !dragging else { return }
+                    dragBeganAtTop = nil
+                    guard dragTranslation != 0 else { return }
                     withAnimation(.spring(duration: 0.3)) {
                         detent = layout.nearestDetent(to: layout.height(of: detent) - dragTranslation)
                         dragTranslation = 0
                     }
                 }
+        }
+        .onPreferenceChange(MHSheetScrollOffsetKey.self) { [$scrollOffset] value in
+            $scrollOffset.wrappedValue = value
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("MHBottomSheet.sheet")   // QA 자동화(AXe)용 — 시트 존재·상태 검증
@@ -184,6 +199,7 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
             if !isFull { grabber }
             content(appliedContentID)   // 전환 중엔 이전 ID 로 그려 이전 콘텐츠 유지
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .environment(\.mhSheetScrollEnabled, detent == .full)   // 스크롤은 full 에서만 (애플 지도 규칙)
         }
         .frame(height: height)
         .clipShape(sheetShape(isFull: isFull))   // 콘텐츠를 상단 코너에 맞게 클립
@@ -224,11 +240,28 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
         DragGesture(minimumDistance: 4)
             .updating($isDragging) { _, state, _ in state = true }
             .onChanged { value in
-                dragTranslation = value.translation.height
+                let dy = value.translation.height
+                guard detent == .full else {
+                    dragTranslation = dy   // low/medium: 스크롤이 잠겨 있어 모든 드래그가 시트 이동
+                    return
+                }
+                // full: 맨 위에서 "시작한" 제스처의 아래 방향만 시트 드래그 (그 외는 리스트 스크롤)
+                if dragBeganAtTop == nil { dragBeganAtTop = scrollOffset <= 0.5 }
+                guard dragBeganAtTop == true, dy > 0, scrollOffset <= 0.5 else { return }
+                dragTranslation = dy
             }
             .onEnded { value in
+                let projected: CGFloat
+                if detent == .full {
+                    let engaged = dragBeganAtTop == true && dragTranslation > 0
+                    dragBeganAtTop = nil
+                    guard engaged else { return }   // 순수 스크롤 제스처 — 시트 불변
+                    projected = value.predictedEndTranslation.height
+                } else {
+                    projected = value.predictedEndTranslation.height
+                }
                 // 관성 반영: 예상 최종 위치 기준으로 가장 가까운 단계에 스냅
-                let projectedHeight = layout.height(of: detent) - value.predictedEndTranslation.height
+                let projectedHeight = layout.height(of: detent) - projected
                 withAnimation(.spring(duration: 0.3)) {
                     detent = layout.nearestDetent(to: projectedHeight)
                     dragTranslation = 0
