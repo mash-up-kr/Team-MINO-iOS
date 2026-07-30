@@ -57,15 +57,19 @@ struct MHBottomSheetLayout: Equatable {
 ///     }
 /// }
 /// ```
-public struct MHBottomSheet<Content: View>: View {
+public struct MHBottomSheet<ID: Hashable, Content: View>: View {
     @Binding private var detent: MHBottomSheetDetent
     private let lowFraction: CGFloat
     private let mediumFraction: CGFloat
-    private let contentID: AnyHashable?
-    private let content: (AnyHashable?) -> Content
+    private let contentID: ID?
+    private let content: (ID?) -> Content
 
     /// 드래그 중 손가락 이동량(아래로 양수). 손가락을 따라가야 하므로 애니메이션 없이 갱신한다.
     @State private var dragTranslation: CGFloat = 0
+
+    /// 제스처 진행 여부. 시스템이 제스처를 취소하면 `onEnded` 없이 이 값만 리셋되므로,
+    /// 이를 감지해 잔류 오프셋을 정리한다(시트가 어중간한 높이에 멈추는 것 방지).
+    @GestureState private var isDragging = false
 
     /// 콘텐츠 전환 중 시트를 화면 아래로 내려 보내는 상태. `contentID` 가 바뀌면
     /// 내림 → (새 콘텐츠·새 높이로) 올림 시퀀스를 탄다.
@@ -75,7 +79,7 @@ public struct MHBottomSheet<Content: View>: View {
     /// 부모가 contentID 와 비율·콘텐츠를 동시에 바꿔도 "새 높이·새 콘텐츠가 번쩍 보였다 내려가는" 프레임이 없다.
     @State private var appliedLow: CGFloat
     @State private var appliedMedium: CGFloat
-    @State private var appliedContentID: AnyHashable?
+    @State private var appliedContentID: ID?
 
     /// 전환이 끝나는 시점에 적용할 최신 목표 값. 내려가는 도중 contentID 가 또 바뀌면
     /// 여기만 덮어써서, 내려가기 1회 → 최신 값으로 올라오기 1회가 보장된다(연속 탭 레이스 방지).
@@ -86,17 +90,19 @@ public struct MHBottomSheet<Content: View>: View {
     private var sheetShadow: MHSpreadShadow.Spec { MHSpreadShadow.small.spec }
 
     /// 콘텐츠 전환 연출(내려갔다 새 높이로 올라오기)이 필요한 화면용.
-    /// - Parameter contentID: 시트 콘텐츠의 식별자. 값이 바뀌면 시트가 **이전 콘텐츠·이전 높이 그대로**
-    ///   내려갔다가 새 콘텐츠·새 높이로 올라온다(방 상세 → 장소 상세 같은 전환).
+    /// - Parameter contentID: 시트 콘텐츠의 식별자(화면이 정의한 Hashable — 예: SheetStage enum).
+    ///   값이 바뀌면 시트가 **이전 콘텐츠·이전 높이 그대로** 내려갔다가 새 콘텐츠·새 높이로 올라온다.
     /// - Parameter content: 표시할 콘텐츠. **전달받은 id 기준으로 그려야** 전환 중 이전 콘텐츠가 유지된다
     ///   (부모 상태를 직접 읽으면 내려가기 전에 새 콘텐츠가 보인다).
     public init(
         detent: Binding<MHBottomSheetDetent>,
         lowFraction: CGFloat,
         mediumFraction: CGFloat,
-        contentID: AnyHashable,
-        @ViewBuilder content: @escaping (AnyHashable) -> Content
+        contentID: ID,
+        @ViewBuilder content: @escaping (ID) -> Content
     ) {
+        assert(0 < lowFraction && lowFraction < mediumFraction && mediumFraction < 1,
+               "0 < lowFraction < mediumFraction < 1 이어야 한다")
         self._detent = detent
         self.lowFraction = lowFraction
         self.mediumFraction = mediumFraction
@@ -105,23 +111,6 @@ public struct MHBottomSheet<Content: View>: View {
         self._appliedLow = State(initialValue: lowFraction)
         self._appliedMedium = State(initialValue: mediumFraction)
         self._appliedContentID = State(initialValue: contentID)
-    }
-
-    /// 콘텐츠 전환 연출이 필요 없는 화면용.
-    public init(
-        detent: Binding<MHBottomSheetDetent>,
-        lowFraction: CGFloat,
-        mediumFraction: CGFloat,
-        @ViewBuilder content: @escaping () -> Content
-    ) {
-        self._detent = detent
-        self.lowFraction = lowFraction
-        self.mediumFraction = mediumFraction
-        self.contentID = nil
-        self.content = { _ in content() }
-        self._appliedLow = State(initialValue: lowFraction)
-        self._appliedMedium = State(initialValue: mediumFraction)
-        self._appliedContentID = State(initialValue: nil)
     }
 
     public var body: some View {
@@ -139,6 +128,15 @@ public struct MHBottomSheet<Content: View>: View {
                 .offset(y: isTransitioningDown ? height + geometry.safeAreaInsets.bottom : 0)
                 .frame(maxHeight: .infinity, alignment: .bottom)
                 .gesture(dragGesture(layout: layout))
+                .onChange(of: isDragging) { _, dragging in
+                    // 시스템이 제스처를 취소하면(전화 수신 등) onEnded 없이 isDragging 만 리셋된다 —
+                    // 잔류 오프셋을 현재 위치 기준 스냅으로 정리 (정상 종료면 onEnded 가 이미 0 으로 만듦)
+                    guard !dragging, dragTranslation != 0 else { return }
+                    withAnimation(.spring(duration: 0.3)) {
+                        detent = layout.nearestDetent(to: layout.height(of: detent) - dragTranslation)
+                        dragTranslation = 0
+                    }
+                }
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("MHBottomSheet.sheet")   // QA 자동화(AXe)용 — 시트 존재·상태 검증
@@ -175,7 +173,7 @@ public struct MHBottomSheet<Content: View>: View {
     /// contentID·비율 변경을 한 번에 감지하기 위한 묶음 (onChange 를 나누면 실행 순서에 따라
     /// 새 비율이 전환 전에 반영돼 번쩍일 수 있다)
     private struct SheetConfig: Equatable {
-        let contentID: AnyHashable?
+        let contentID: ID?
         var low: CGFloat
         var medium: CGFloat
     }
@@ -224,6 +222,7 @@ public struct MHBottomSheet<Content: View>: View {
 
     private func dragGesture(layout: MHBottomSheetLayout) -> some Gesture {
         DragGesture(minimumDistance: 4)
+            .updating($isDragging) { _, state, _ in state = true }
             .onChanged { value in
                 dragTranslation = value.translation.height
             }
@@ -235,6 +234,29 @@ public struct MHBottomSheet<Content: View>: View {
                     dragTranslation = 0
                 }
             }
+    }
+}
+
+// MARK: - 전환 연출이 필요 없는 화면용
+
+public extension MHBottomSheet where ID == Never {
+    /// 콘텐츠 전환 연출이 필요 없는 화면용 (콘텐츠 고정).
+    init(
+        detent: Binding<MHBottomSheetDetent>,
+        lowFraction: CGFloat,
+        mediumFraction: CGFloat,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
+        assert(0 < lowFraction && lowFraction < mediumFraction && mediumFraction < 1,
+               "0 < lowFraction < mediumFraction < 1 이어야 한다")
+        self._detent = detent
+        self.lowFraction = lowFraction
+        self.mediumFraction = mediumFraction
+        self.contentID = nil
+        self.content = { _ in content() }
+        self._appliedLow = State(initialValue: lowFraction)
+        self._appliedMedium = State(initialValue: mediumFraction)
+        self._appliedContentID = State(initialValue: nil)
     }
 }
 
