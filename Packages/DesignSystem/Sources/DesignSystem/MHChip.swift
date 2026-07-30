@@ -145,8 +145,12 @@ struct MHChipSpec {
         return (.mhLineNormalNeutral, 1)
     }
 
-    // press 오버레이 색: 어두운 활성 Solid 는 밝게, 그 외는 어둡게.
-    var pressedOverlayColor: Color { (variant == .solid && isActive) ? .mhInverseLabel : .mhLabelNormal }
+    // press 오버레이 색(Figma Interaction 레이어): Solid 활성=Inverse/Label(밝게),
+    // Outlined 활성=Primary/Normal(=activeAccent), 그 외=Label/Normal.
+    var pressedOverlayColor: Color {
+        guard isActive else { return .mhLabelNormal }
+        return variant == .solid ? .mhInverseLabel : activeAccent
+    }
 }
 
 struct MHChipMetric {
