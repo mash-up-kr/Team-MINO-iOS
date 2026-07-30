@@ -107,6 +107,26 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
     /// `mhShadow` 대신 스펙을 직접 쓴다(뷰 identity 유지 — if/else 분기면 드래그 중 재생성됨).
     private var sheetShadow: MHSpreadShadow.Spec { MHSpreadShadow.small.spec }
 
+    /// 공통 초기화 — 검증과 동결 상태 초기화의 단일 출처. public init 들은 전부 여기로 위임한다.
+    private init(
+        detent: Binding<MHBottomSheetDetent>,
+        lowFraction: CGFloat,
+        mediumFraction: CGFloat,
+        erasedContentID: ID?,
+        content: @escaping (ID?) -> Content
+    ) {
+        assert(0 < lowFraction && lowFraction < mediumFraction && mediumFraction < 1,
+               "0 < lowFraction < mediumFraction < 1 이어야 한다")
+        self._detent = detent
+        self.lowFraction = lowFraction
+        self.mediumFraction = mediumFraction
+        self.contentID = erasedContentID
+        self.content = content
+        self._appliedLow = State(initialValue: lowFraction)
+        self._appliedMedium = State(initialValue: mediumFraction)
+        self._appliedContentID = State(initialValue: erasedContentID)
+    }
+
     /// 콘텐츠 전환 연출(내려갔다 새 높이로 올라오기)이 필요한 화면용.
     /// - Parameter contentID: 시트 콘텐츠의 식별자(화면이 정의한 Hashable — 예: SheetStage enum).
     ///   값이 바뀌면 시트가 **이전 콘텐츠·이전 높이 그대로** 내려갔다가 새 콘텐츠·새 높이로 올라온다.
@@ -119,16 +139,8 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
         contentID: ID,
         @ViewBuilder content: @escaping (ID) -> Content
     ) {
-        assert(0 < lowFraction && lowFraction < mediumFraction && mediumFraction < 1,
-               "0 < lowFraction < mediumFraction < 1 이어야 한다")
-        self._detent = detent
-        self.lowFraction = lowFraction
-        self.mediumFraction = mediumFraction
-        self.contentID = contentID
-        self.content = { id in content(id ?? contentID) }
-        self._appliedLow = State(initialValue: lowFraction)
-        self._appliedMedium = State(initialValue: mediumFraction)
-        self._appliedContentID = State(initialValue: contentID)
+        self.init(detent: detent, lowFraction: lowFraction, mediumFraction: mediumFraction,
+                  erasedContentID: contentID, content: { id in content(id ?? contentID) })
     }
 
     public var body: some View {
@@ -298,16 +310,8 @@ public extension MHBottomSheet where ID == Never {
         mediumFraction: CGFloat,
         @ViewBuilder content: @escaping () -> Content
     ) {
-        assert(0 < lowFraction && lowFraction < mediumFraction && mediumFraction < 1,
-               "0 < lowFraction < mediumFraction < 1 이어야 한다")
-        self._detent = detent
-        self.lowFraction = lowFraction
-        self.mediumFraction = mediumFraction
-        self.contentID = nil
-        self.content = { _ in content() }
-        self._appliedLow = State(initialValue: lowFraction)
-        self._appliedMedium = State(initialValue: mediumFraction)
-        self._appliedContentID = State(initialValue: nil)
+        self.init(detent: detent, lowFraction: lowFraction, mediumFraction: mediumFraction,
+                  erasedContentID: nil, content: { _ in content() })
     }
 }
 
