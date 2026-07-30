@@ -8,10 +8,12 @@ struct MHSheetScrollEnabledKey: EnvironmentKey {
     static let defaultValue = true   // 시트 밖에서 쓰이면 일반 스크롤로 동작
 }
 
-/// 래퍼가 시트로 올려 보내는 스크롤 오프셋 (0 = 맨 위)
-struct MHSheetScrollOffsetKey: PreferenceKey {
-    static var defaultValue: CGFloat { 0 }
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+/// 래퍼가 시트로 올려 보내는 "스크롤이 맨 위인가". 연속 오프셋이 아니라 Bool 인 이유:
+/// 시트가 쓰는 건 맨 위 여부뿐인데 연속 값을 흘리면 스크롤 매 프레임 시트 전체가 재평가된다.
+/// 기본값 true — 래퍼 없는(스크롤 없는) 콘텐츠에서 시트 드래그가 항상 통해야 한다.
+struct MHSheetScrollAtTopKey: PreferenceKey {
+    static var defaultValue: Bool { true }
+    static func reduce(value: inout Bool, nextValue: () -> Bool) {
         value = nextValue()
     }
 }
@@ -29,14 +31,16 @@ extension EnvironmentValues {
 /// 시트-스크롤 드래그 연동(애플 지도 규칙)을 담당한다:
 /// - `low`/`medium`: 스크롤 잠김 → 리스트 위 드래그도 시트 이동
 /// - `full`: 스크롤 활성. 리스트 맨 위에서 시작한 아래 방향 드래그는 시트 하강(핸드오프)
+/// - 핸드오프를 위해 내부 스크롤의 바운스를 끄므로 **pull-to-refresh 는 지원하지 않는다.**
 ///
 /// 스크롤이 없는 고정 콘텐츠는 이 래퍼 없이 일반 뷰로 넣으면 된다(시트 드래그가 그대로 동작).
 public struct MHBottomSheetScrollView<Inner: View>: View {
     @Environment(\.mhSheetScrollEnabled) private var scrollEnabled
     private let inner: Inner
 
-    /// 현재 스크롤 오프셋 (0 = 맨 위). 시트에는 preference 로 전달된다.
-    @State private var offset: CGFloat = 0
+    /// 스크롤이 맨 위인가. 임계값(0.5pt) 교차 시점에만 갱신 — 연속 오프셋을 state 로 받으면
+    /// 스크롤 매 프레임 이 뷰와 preference 하류(시트)가 재평가된다.
+    @State private var isAtTop = true
 
     public init(@ViewBuilder content: () -> Inner) {
         self.inner = content()
@@ -45,10 +49,13 @@ public struct MHBottomSheetScrollView<Inner: View>: View {
     public var body: some View {
         ScrollView {
             inner
-                .background(ScrollViewIntrospector { offset = $0 })
+                .background(ScrollViewIntrospector { offset in
+                    let atTop = offset <= 0.5
+                    if atTop != isAtTop { isAtTop = atTop }
+                })
         }
         .scrollDisabled(!scrollEnabled)
-        .preference(key: MHSheetScrollOffsetKey.self, value: offset)
+        .preference(key: MHSheetScrollAtTopKey.self, value: isAtTop)
     }
 }
 

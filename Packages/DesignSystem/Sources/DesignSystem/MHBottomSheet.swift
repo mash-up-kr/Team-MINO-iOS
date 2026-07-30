@@ -46,7 +46,7 @@ struct MHBottomSheetLayout: Equatable {
 /// - 시트 위에 얹는 버튼(닫기 등)은 화면마다 달라서 컴포넌트에 포함하지 않는다 — 각 화면이 overlay로 올린다.
 /// - **시트 안 세로 스크롤 콘텐츠는 반드시 `MHBottomSheetScrollView` 로 감싼다.** 일반 `ScrollView` 를 쓰면
 ///   ① low/medium 에서 스크롤이 잠기지 않아 리스트 위 드래그로 시트를 못 움직이고,
-///   ② full 에서 오프셋이 항상 0 으로 보고돼 리스트 중간 드래그까지 시트 하강으로 오인된다.
+///   ② full 에서 항상 "맨 위"로 보고돼 리스트 중간 드래그까지 시트 하강으로 오인된다.
 ///
 /// ```swift
 /// ZStack {
@@ -69,8 +69,8 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
     /// 취소 감지용 — 시스템이 제스처를 취소하면 onEnded 없이 이 값만 리셋된다
     @GestureState private var isDragging = false
 
-    /// 스크롤 콘텐츠 오프셋 (0 = 맨 위). preference 경유라 최대 1 렌더 늦을 수 있음(실질 무해)
-    @State private var scrollOffset: CGFloat = 0
+    /// 스크롤 콘텐츠가 맨 위인가. preference 경유라 최대 1 렌더 늦을 수 있음(실질 무해)
+    @State private var scrollIsAtTop = true
 
     /// full 에서 제스처가 맨 위에서 시작했는가 — 시작 시점에만 판정 (중간 시작 드래그는 끝까지 스크롤 전용)
     @State private var dragBeganAtTop: Bool?
@@ -125,6 +125,7 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
         contentID: ID,
         @ViewBuilder content: @escaping (ID) -> Content
     ) {
+        // 이 경로에선 appliedContentID 가 항상 non-nil 이라 ?? 는 도달하지 않는다 — 옵셔널 시그니처 맞춤용
         self.init(detent: detent, lowFraction: lowFraction, mediumFraction: mediumFraction,
                   erasedContentID: contentID, content: { id in content(id ?? contentID) })
     }
@@ -163,8 +164,8 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
                     }
                 }
         }
-        .onPreferenceChange(MHSheetScrollOffsetKey.self) { [$scrollOffset] value in
-            $scrollOffset.wrappedValue = value
+        .onPreferenceChange(MHSheetScrollAtTopKey.self) { [$scrollIsAtTop] value in
+            $scrollIsAtTop.wrappedValue = value
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("MHBottomSheet.sheet")   // QA 자동화(AXe)용 — 시트 존재·상태 검증
@@ -255,8 +256,8 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
                     return
                 }
                 // full: 맨 위에서 "시작한" 제스처만 시트 드래그 (그 외는 리스트 스크롤)
-                if dragBeganAtTop == nil { dragBeganAtTop = scrollOffset <= 0.5 }
-                guard dragBeganAtTop == true, scrollOffset <= 0.5 else { return }
+                if dragBeganAtTop == nil { dragBeganAtTop = scrollIsAtTop }
+                guard dragBeganAtTop == true, scrollIsAtTop else { return }
                 dragTranslation = max(0, dy)   // 위 방향(음수)은 full 에 붙임 — 방향이 되돌아와도 연속 추적
             }
             .onEnded { value in
