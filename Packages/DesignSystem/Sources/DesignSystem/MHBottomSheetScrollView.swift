@@ -84,8 +84,11 @@ private final class IntrospectorView: UIView {
 
     override func didMoveToWindow() {
         super.didMoveToWindow()
-        guard window != nil, observation == nil else { return }
+        guard window != nil else { return }
 
+        // 윈도우 (재)진입마다 재탐색 — SwiftUI 가 내부 UIScrollView 를 교체해도
+        // (iOS 18 의 ScrollView 재구현 같은 내부 변경) 옛 인스턴스를 계속 관찰하지 않게 한다
+        observation = nil
         var view: UIView? = superview
         while let current = view {
             if let scrollView = current as? UIScrollView {

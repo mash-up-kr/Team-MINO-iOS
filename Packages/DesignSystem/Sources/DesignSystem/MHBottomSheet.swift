@@ -48,6 +48,9 @@ struct MHBottomSheetLayout: Equatable {
 /// - `low`·`medium` 높이는 컨테이너 높이 대비 비율로 화면마다 지정한다. `full`은 컨테이너 전체.
 /// - 상단 코너는 radius 20, `full`에서는 0으로 펴지고 그래버도 사라져 전체 화면이 된다(Figma `003-1-1` 시리즈).
 /// - 시트 위에 얹는 버튼(닫기 등)은 화면마다 달라서 컴포넌트에 포함하지 않는다 — 각 화면이 overlay로 올린다.
+/// - **시트 안 세로 스크롤 콘텐츠는 반드시 `MHBottomSheetScrollView` 로 감싼다.** 일반 `ScrollView` 를 쓰면
+///   ① low/medium 에서 스크롤이 잠기지 않아 리스트 위 드래그로 시트를 못 움직이고,
+///   ② full 에서 오프셋이 항상 0 으로 보고돼 리스트 중간 드래그까지 시트 하강으로 오인된다.
 ///
 /// ```swift
 /// ZStack {
@@ -72,12 +75,19 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
     @GestureState private var isDragging = false
 
     /// 시트 안 스크롤 콘텐츠(MHBottomSheetScrollView)의 현재 오프셋. 0 = 맨 위.
+    /// KVO → 래퍼 @State → preference 경유라 최대 1 렌더 사이클(~16ms) 늦을 수 있다 —
+    /// 사람 제스처 간격(100ms+)보다 훨씬 짧아 실질 영향 없음. 지연이 실측되면 environment
+    /// 클로저로 직접 보고하는 방식으로 교체를 검토한다.
     @State private var scrollOffset: CGFloat = 0
 
     /// full 에서 이 제스처가 "리스트 맨 위에서 시작했는가" (nil = 아직 판정 전).
     /// 시작 시점에만 판정한다 — 리스트 중간에서 시작한 드래그는 도중에 맨 위에 닿아도
     /// 끝까지 스크롤 전용이라, 스크롤 관성이 시트 하강으로 이어지는 오동작이 없다.
     @State private var dragBeganAtTop: Bool?
+
+    /// 이 제스처가 onEnded 로 정상 종료됐는가. 취소-정리(onChange(isDragging))와
+    /// onEnded 의 실행 순서가 SwiftUI 공개 계약이 아니라서, 정상 종료를 명시해 이중 스냅을 막는다.
+    @State private var dragEndedNormally = false
 
     /// 콘텐츠 전환 중 시트를 화면 아래로 내려 보내는 상태. `contentID` 가 바뀌면
     /// 내림 → (새 콘텐츠·새 높이로) 올림 시퀀스를 탄다.
@@ -140,13 +150,20 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
                 .simultaneousGesture(dragGesture(layout: layout))
                 .onChange(of: isDragging) { _, dragging in
                     // 시스템이 제스처를 취소하면(전화 수신 등) onEnded 없이 isDragging 만 리셋된다 —
-                    // 잔류 오프셋을 현재 위치 기준 스냅으로 정리 (정상 종료면 onEnded 가 이미 0 으로 만듦)
+                    // 잔류 오프셋을 스냅으로 정리한다. 한 틱 미뤄서 판정해 onEnded 와의 실행 순서에
+                    // 의존하지 않는다 (정상 종료면 onEnded 가 dragEndedNormally 를 세워둠).
                     guard !dragging else { return }
-                    dragBeganAtTop = nil
-                    guard dragTranslation != 0 else { return }
-                    withAnimation(.spring(duration: 0.3)) {
-                        detent = layout.nearestDetent(to: layout.height(of: detent) - dragTranslation)
-                        dragTranslation = 0
+                    Task { @MainActor in
+                        guard !dragEndedNormally else {
+                            dragEndedNormally = false
+                            return
+                        }
+                        dragBeganAtTop = nil
+                        guard dragTranslation != 0 else { return }
+                        withAnimation(.spring(duration: 0.3)) {
+                            detent = layout.nearestDetent(to: layout.height(of: detent) - dragTranslation)
+                            dragTranslation = 0
+                        }
                     }
                 }
         }
@@ -245,12 +262,13 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
                     dragTranslation = dy   // low/medium: 스크롤이 잠겨 있어 모든 드래그가 시트 이동
                     return
                 }
-                // full: 맨 위에서 "시작한" 제스처의 아래 방향만 시트 드래그 (그 외는 리스트 스크롤)
+                // full: 맨 위에서 "시작한" 제스처만 시트 드래그 (그 외는 리스트 스크롤)
                 if dragBeganAtTop == nil { dragBeganAtTop = scrollOffset <= 0.5 }
-                guard dragBeganAtTop == true, dy > 0, scrollOffset <= 0.5 else { return }
-                dragTranslation = dy
+                guard dragBeganAtTop == true, scrollOffset <= 0.5 else { return }
+                dragTranslation = max(0, dy)   // 위 방향(음수)은 full 에 붙임 — 방향이 되돌아와도 연속 추적
             }
             .onEnded { value in
+                dragEndedNormally = true   // 취소-정리 경로가 중복 스냅하지 않게 표시
                 let projected: CGFloat
                 if detent == .full {
                     let engaged = dragBeganAtTop == true && dragTranslation > 0
