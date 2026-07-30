@@ -65,7 +65,8 @@ public struct MapView: UIViewRepresentable {
         func apply(camera: MapCameraPosition, to mapView: GMSMapView) {
             guard camera != appliedCamera else { return }
             appliedCamera = camera
-            mapView.camera = camera.gmsCameraPosition
+            // 코드 주도 이동은 부드럽게 애니메이션 (즉시 점프가 필요해지면 MapCameraPosition 에 옵션 추가)
+            mapView.animate(to: camera.gmsCameraPosition)
         }
 
         // MARK: - GMSMapViewDelegate → MapEvent
