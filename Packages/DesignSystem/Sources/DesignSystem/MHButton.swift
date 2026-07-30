@@ -165,7 +165,7 @@ extension MHButtonSize {
         }
     }
 
-    // Primary=Bold, Assistive=Medium. (Small=Label2 는 Medium 이 없어 Regular 로 대체)
+    // Primary=Bold, Assistive=Medium. (Small/Assistive 는 Figma `Label 2/Medium`)
     func typography(for color: MHButtonColor) -> MHTypography {
         switch (self, color) {
         case (.large, .primary):    .body1NormalBold
@@ -173,7 +173,7 @@ extension MHButtonSize {
         case (.medium, .primary):   .body2NormalBold
         case (.medium, .assistive): .body2NormalMedium
         case (.small, .primary):    .label2Bold
-        case (.small, .assistive):  .label2Regular
+        case (.small, .assistive):  .label2Medium
         }
     }
 }

@@ -217,6 +217,8 @@ public extension MHTypography {
     static let label1ReadingRegular = MHTypography(weight: .regular, size: 14, lineHeightMultiple: 1.571, letterSpacingPercent: 1.45)
     /// Figma `Label 2/Bold`
     static let label2Bold = MHTypography(weight: .bold, size: 13, lineHeightMultiple: 1.385, letterSpacingPercent: 1.94)
+    /// Figma `Label 2/Medium`
+    static let label2Medium = MHTypography(weight: .medium, size: 13, lineHeightMultiple: 1.385, letterSpacingPercent: 1.94)
     /// Figma `Label 2/Regular`
     static let label2Regular = MHTypography(weight: .regular, size: 13, lineHeightMultiple: 1.385, letterSpacingPercent: 1.94)
     /// Figma `Caption 1/Bold`

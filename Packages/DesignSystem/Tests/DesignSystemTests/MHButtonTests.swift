@@ -24,8 +24,7 @@ final class MHButtonTests: XCTestCase {
         XCTAssertEqual(MHButtonSize.medium.typography(for: .primary), .body2NormalBold)
         XCTAssertEqual(MHButtonSize.medium.typography(for: .assistive), .body2NormalMedium)
         XCTAssertEqual(MHButtonSize.small.typography(for: .primary), .label2Bold)
-        // Label2 는 Medium 이 없어 Assistive Small 은 Regular 로 대체
-        XCTAssertEqual(MHButtonSize.small.typography(for: .assistive), .label2Regular)
+        XCTAssertEqual(MHButtonSize.small.typography(for: .assistive), .label2Medium)
     }
 
     // Outlined 만 테두리를 갖고, Solid 는 없다.
