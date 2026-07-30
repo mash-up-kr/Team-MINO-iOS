@@ -106,22 +106,27 @@ public struct MHBottomSheet<Content: View>: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .frame(height: height)
-        .background(.mhBackgroundNormalNormal)
-        .clipShape(UnevenRoundedRectangle(
+        .clipShape(sheetShape(isFull: isFull))   // 콘텐츠를 상단 코너에 맞게 클립
+        .background {
+            // 시트 표면(흰 면). 콘텐츠 레이아웃과 분리해 표면만 safe area 로 확장한다 —
+            // 하단은 항상 홈 인디케이터 영역까지(탭바가 있으면 탭바가 덮어 무해),
+            // 상단은 full 에서 상태바 영역까지 → 화면과 이어진 전체 화면으로 보인다.
+            // 그림자는 확장된 표면에 걸어 글로우가 확장 영역 위에 얹히지 않게 한다.
+            sheetShape(isFull: isFull)
+                .fill(Color.mhBackgroundNormalNormal)
+                .ignoresSafeArea(edges: isFull ? [.top, .bottom] : .bottom)
+                .shadow(color: isFull ? .clear : sheetShadow.color, radius: sheetShadow.blur / 2,
+                        x: sheetShadow.x, y: sheetShadow.y)   // full 은 화면과 한 몸 — 그림자 없음
+        }
+        .animation(.spring(duration: 0.3), value: detent)
+    }
+
+    private func sheetShape(isFull: Bool) -> UnevenRoundedRectangle {
+        UnevenRoundedRectangle(
             topLeadingRadius: isFull ? 0 : 20,
             topTrailingRadius: isFull ? 0 : 20,
             style: .continuous
-        ))
-        .shadow(color: isFull ? .clear : sheetShadow.color, radius: sheetShadow.blur / 2,
-                x: sheetShadow.x, y: sheetShadow.y)   // full 은 화면과 한 몸 — 그림자가 있으면 "떠 있는 시트"로 보임
-        .background {
-            // full 에서 시트 상단이 safe area 에 닿으면 상태바 영역까지 배경을 채운다
-            // (clipShape 가 배경의 safe area 확장을 잘라서 별도 레이어로 깐다)
-            if isFull {
-                Color.mhBackgroundNormalNormal.ignoresSafeArea(edges: .top)
-            }
-        }
-        .animation(.spring(duration: 0.3), value: detent)
+        )
     }
 
     private var grabber: some View {
