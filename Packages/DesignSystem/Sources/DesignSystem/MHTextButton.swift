@@ -58,7 +58,7 @@ struct MHTextButtonStyle: ButtonStyle {
         configuration.label
             .foregroundStyle(variant.foreground(isEnabled: isEnabled))
             .padding(.vertical, 4)                    // Figma py-4
-            .padding(.horizontal, 4)
+            .frame(minWidth: 42)                      // Figma Button/Text w-[42px](짧은 라벨은 42, 길면 hug)
             .background {
                 // Figma Interaction: rounded-6, 좌우 -7 확장(여기선 padding 으로 근사). pressed 시만 표시.
                 if configuration.isPressed {

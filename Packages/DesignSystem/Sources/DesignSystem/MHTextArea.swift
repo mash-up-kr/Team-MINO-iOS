@@ -10,8 +10,8 @@ public enum MHTextAreaStatus: Sendable { case normal, negative }
 /// - `limit`: `minLines`~`maxLines` 성장 후 고정(초과분 clip)
 /// - `fixed`: `lines` 고정
 public enum MHTextAreaResize: Equatable, Sendable {
-    case normal(minLines: Int = 3)
-    case limit(minLines: Int = 3, maxLines: Int)
+    case normal(minLines: Int = 1)
+    case limit(minLines: Int = 1, maxLines: Int)
     case fixed(lines: Int)
 
     var minHeight: CGFloat {
@@ -57,6 +57,7 @@ public struct MHTextArea<Leading: View, Trailing: View>: View {
 
     @Environment(\.isEnabled) private var isEnabled
     @FocusState private var isFocused: Bool
+    @State private var measuredTextHeight: CGFloat = MHTextAreaMetric.lineHeight
 
     public init(
         _ placeholder: String = "",
@@ -117,8 +118,6 @@ public struct MHTextArea<Leading: View, Trailing: View>: View {
         let shape = RoundedRectangle(cornerRadius: MHTextAreaMetric.cornerRadius)
         VStack(spacing: MHTextAreaMetric.contentGap) {
             textInput(spec)
-                .frame(minHeight: resize.minHeight, maxHeight: resize.maxHeight ?? .infinity, alignment: .topLeading)
-                .frame(maxWidth: .infinity, alignment: .leading)
             if hasBottom { bottomBar }
         }
         .padding(MHTextAreaMetric.contentPadding)
@@ -128,21 +127,36 @@ public struct MHTextArea<Leading: View, Trailing: View>: View {
         .mhShadow(.xsmall, cornerRadius: MHTextAreaMetric.cornerRadius)
     }
 
+    // 텍스트 영역 높이: 내용 높이를 min~max(resize)로 클램프. 내용이 max 를 넘으면 스크롤(넘기 전엔 성장).
+    private var clampedTextHeight: CGFloat {
+        min(max(measuredTextHeight, resize.minHeight), resize.maxHeight ?? .greatestFiniteMagnitude)
+    }
+
     // 여러 줄 입력: 시스템 폰트(SUITE 미적용). placeholder 는 빈 값일 때 겹쳐 그린다.
+    // ScrollView + 내용 높이 측정으로 normal(무한 성장)·limit(최대 후 스크롤)·fixed(고정+스크롤)를 한 코드로.
     @ViewBuilder private func textInput(_ spec: MHTextAreaSpec) -> some View {
-        ZStack(alignment: .topLeading) {
-            if text.isEmpty {
-                Text(placeholder)
-                    .foregroundStyle(spec.placeholderColor)
+        ScrollView(.vertical) {
+            ZStack(alignment: .topLeading) {
+                if text.isEmpty {
+                    Text(placeholder)
+                        .foregroundStyle(spec.placeholderColor)
+                        .padding(.horizontal, MHTextAreaMetric.textHPadding)
+                }
+                TextField("", text: $text, axis: .vertical)
+                    .focused($isFocused)
+                    .foregroundStyle(spec.valueTextColor)
                     .padding(.horizontal, MHTextAreaMetric.textHPadding)
+                    .background(GeometryReader { g in
+                        Color.clear.preference(key: MHTextAreaHeightKey.self, value: g.size.height)
+                    })
             }
-            TextField("", text: $text, axis: .vertical)
-                .focused($isFocused)
-                .foregroundStyle(spec.valueTextColor)
-                .padding(.horizontal, MHTextAreaMetric.textHPadding)
+            .font(.system(size: MHTextAreaMetric.inputFontSize))
+            .lineSpacing(MHTextAreaMetric.lineSpacing)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
         }
-        .font(.system(size: MHTextAreaMetric.inputFontSize))
-        .lineSpacing(MHTextAreaMetric.lineSpacing)
+        .frame(height: clampedTextHeight)
+        .scrollDisabled(measuredTextHeight <= clampedTextHeight)   // 내용이 안 넘치면 스크롤 잠금(바운스 방지)
+        .onPreferenceChange(MHTextAreaHeightKey.self) { measuredTextHeight = $0 }
     }
 
     // MARK: 하단 바 (leading 은 좌측 확장, trailing 은 우측 hug)
@@ -176,6 +190,12 @@ struct MHTextAreaSpec {
     var descriptionColor: Color { status == .negative ? .mhStatusNegative : .mhLabelAlternative }
     var valueTextColor: Color { isEnabled ? .mhLabelNormal : .mhLabelAlternative }
     var placeholderColor: Color { isEnabled ? .mhLabelAssistive : .mhLabelDisable }
+}
+
+// 텍스트 영역 내용 높이 측정용 PreferenceKey (성장 후 스크롤 전환).
+private struct MHTextAreaHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
 }
 
 // MARK: - Metric (Figma 실측)

@@ -21,12 +21,17 @@ public struct MHCharacterCounter: View {
     private var isOverflow: Bool { count > limit }
 
     public var body: some View {
-        // verbatim: SwiftUI Text 보간은 정수에 로케일 자릿수 구분(쉼표)을 넣어 "2,000" 이 되므로 방지("2000").
-        Text(verbatim: "\(count)/\(limit)")
-            .mhTypography(.label2Medium)
-            // 기본 Label/Alternative @ 74%, 초과 시 Status/Negative(강조).
-            .foregroundStyle(isOverflow ? Color.mhStatusNegative : Color.mhLabelAlternative.opacity(0.74))
-            .padding(.horizontal, 4)   // Figma Wrapper px-4
-            .monospacedDigit()          // 숫자 폭 흔들림 방지
+        // Figma 실측: 초과 시 '현재 수'만 Status/Negative, '/최대' 는 Label/Alternative 유지. 전체 74% 불투명.
+        // verbatim: Text 보간이 정수에 로케일 쉼표를 넣는 것("2,000") 방지.
+        HStack(spacing: 0) {
+            Text(verbatim: "\(count)")
+                .foregroundStyle(isOverflow ? Color.mhStatusNegative : Color.mhLabelAlternative)
+            Text(verbatim: "/\(limit)")
+                .foregroundStyle(Color.mhLabelAlternative)
+        }
+        .mhTypography(.label2Medium)
+        .monospacedDigit()
+        .opacity(0.74)                 // Figma Wrapper opacity/74
+        .padding(.horizontal, 4)       // Figma Wrapper px-4
     }
 }
