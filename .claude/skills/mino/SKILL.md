@@ -49,8 +49,10 @@ argument-hint: "[auto] [처음이면 figma URL 또는 기획서 경로 / 이어�
 
 무엇을 보고 그렇게 판정했는지 한 줄로 밝힌 뒤 시작한다. 사용자가 틀렸다고 하면 즉시 멈추고 다시 고른다.
 
+**판정한 세션의 권장 구동 모델을 함께 밝힌다** (ios-workflow SKILL.md 「세션」 표 (6) 칸). 세션 모델은 하네스가 자동으로 바꿀 수 없어서, 현재 모델이 권장과 다르면 **작업 시작 전에** `/model` 전환을 요청하고 답을 기다린다. 사용자가 현재 모델로 가겠다고 하면 그대로 진행한다.
+
 ```
-/plan/pr1/persistent/implementation.md 확인 → PR_1_IMPL 차례입니다 (모드: 실무).
+/plan/pr1/persistent/implementation.md 확인 → PR_1_IMPL 차례입니다 (모드: 실무, 권장 모델: Sonnet).
 아니면 알려주세요.
 ```
 
