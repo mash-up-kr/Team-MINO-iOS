@@ -1,15 +1,16 @@
+import FeatureArchive
+import FeatureHome
 import SwiftUI
-import Domain
-import Feature
 
-/// 앱 최상위 Coordinator. 자식 flow Coordinator 를 소유한다.
-/// (탭/딥링크 디스패처는 화면이 늘면 추가 — 현재는 시범 flow 하나만 보유)
+/// 앱 최상위 Coordinator. 탭별 flow Coordinator 를 소유한다.
 @Observable
 @MainActor
 final class AppCoordinator {
-    let member: MemberCoordinator
+    let home: HomeCoordinator
+    let archive: ArchiveCoordinator
 
     init(deps: AppDependencies) {
-        self.member = MemberCoordinator(deps: deps, memberID: MemberID("1"))
+        self.home = HomeCoordinator()
+        self.archive = ArchiveCoordinator()
     }
 }
