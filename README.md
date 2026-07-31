@@ -35,6 +35,25 @@ Mash-Up MINO 팀의 iOS 앱입니다. SwiftUI 위에 **Clean Architecture** 구�
 - **Figma → PR 워크플로우** — 피그마 URL 하나만 넣으면 화면 구현부터 테스트, QA까지 이어서 돌아가는 [Mino-harness](https://github.com/hooni0918/Mino-harness) 워크플로우를 씁니다. 사람이 하나씩 보는 대신, 피그마 원본과 다시 비교하고 빌드가 되는지 확인하는 식으로 자동 검증합니다.
 - **팀 문서 · 공통 규칙** — [mino-Wiki](https://mino-qa.vercel.app/) 사이트에 RAG 챗봇이 있어서, 문서와 팀 공통 규칙을 바로 물어볼 수 있습니다.
 
+### 첫 세팅 (팀원)
+
+레포를 클론하고 Claude Code에서 프로젝트 폴더를 신뢰하면, `.claude/settings.json`이 워크플로우 플러그인 설치를 안내합니다. 수락하면 `/ios-workflow`·`/code-review` 같은 스킬이 `ai-workflow:` 접두사로 들어옵니다. 안내가 안 뜨면 직접 두 줄:
+
+```
+/plugin marketplace add hooni0918/AI-Workflow
+/plugin install ai-workflow@hooni-workflow
+```
+
+이어서 로컬 도구를 맞춥니다. `axe`(시뮬레이터 UI 자동화)·시뮬레이터·빌드 도구를 점검하고 빠진 것만 설치를 제안합니다.
+
+```
+/ai-workflow:setup
+```
+
+`axe`가 없으면 QA 파이프라인 4단계(시뮬레이터 실행)가 안내만 남기고 멈추므로, QA를 돌릴 사람은 이 단계를 건너뛰지 마세요.
+
+작업 시작은 `/mino` 한 줄입니다 — 진행 상황을 읽어 지금 차례인 세션으로 들어갑니다.
+
 ## Contributors
 
 <table>
