@@ -39,11 +39,11 @@ argument-hint: "[auto] [처음이면 figma URL 또는 기획서 경로 / 이어�
 
 판정한 세션의 절차를 **직접 읽어 따른다.**
 
-1. `~/.claude/skills/ios-workflow/SKILL.md` 를 Read 한다 — 「세션」 표, 「[CRITICAL] 지킬 원칙」이 여기 있다.
-2. 그 SKILL.md 의 「작업 진행 순서」에서 자기 세션의 step 파일을 찾아 **전체를 Read** 한다.
+1. ios-workflow 스킬을 Skill tool 로 호출한다 — 스킬 목록에 `ios-workflow`(전역 설치)가 있으면 그 이름으로, `ai-workflow:ios-workflow`(플러그인 설치)만 있으면 그 이름으로. 「세션」 표, 「[CRITICAL] 지킬 원칙」이 여기서 로드된다.
+2. 로드된 SKILL.md 의 「작업 진행 순서」에서 자기 세션의 step 파일을 찾아, 스킬 디렉토리 기준 상대 경로로 **전체를 Read** 한다.
 3. step.md 도입부의 `[CRITICAL]`·필수 절차부터 실행한다. Plan mode 표기가 있는 step(step-3·step-4)은 `EnterPlanMode` 를 명시 호출한다.
 
-ios-workflow 는 `disable-model-invocation: true` 라 자동 위임에 기대지 않는다. 파일을 직접 읽어 그 절차대로 진행한다.
+두 이름 다 스킬 목록에 없으면 진행하지 말고 설치를 안내한다: `/plugin marketplace add hooni0918/AI-Workflow` → `/plugin install ai-workflow@hooni-workflow`.
 
 ### 4. 진입 보고
 
