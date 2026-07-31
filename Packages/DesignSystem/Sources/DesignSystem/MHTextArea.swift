@@ -179,8 +179,9 @@ struct MHTextAreaSpec {
     var backgroundColor: Color { isEnabled ? .mhBackgroundTransparentNormal : .mhInteractionDisable }
 
     // 비활성 > 에러 > 포커스 > 기본. 포커스는 불투명도 43%·2px(에러는 빨강 유지).
+    // (TextArea 비활성 테두리는 Line/Normal/Neutral — TextField 의 Alternative 와 다름. Figma 135822 실측)
     var borderColor: Color {
-        if !isEnabled { return .mhLineNormalAlternative }
+        if !isEnabled { return .mhLineNormalNeutral }
         if status == .negative { return .mhStatusNegative.opacity(isFocused ? 0.43 : 0.28) }
         if isFocused { return .mhPrimaryNormal.opacity(0.43) }
         return .mhLineNormalNeutral

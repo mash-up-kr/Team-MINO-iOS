@@ -13,21 +13,28 @@ public struct MHCharacterCounter: View {
     private let count: Int
     private let limit: Int
 
+    @Environment(\.isEnabled) private var isEnabled
+
     public init(count: Int, limit: Int) {
         self.count = count
         self.limit = limit
     }
 
     private var isOverflow: Bool { count > limit }
+    // 현재 수 색: 비활성=Label/Disable, 초과=Status/Negative, 그 외=Label/Alternative.
+    private var countColor: Color {
+        if !isEnabled { return .mhLabelDisable }
+        return isOverflow ? .mhStatusNegative : .mhLabelAlternative
+    }
+    // '/최대' 색: 비활성=Label/Disable, 그 외 Label/Alternative(초과여도 회색 유지).
+    private var suffixColor: Color { isEnabled ? .mhLabelAlternative : .mhLabelDisable }
 
     public var body: some View {
         // Figma 실측: 초과 시 '현재 수'만 Status/Negative, '/최대' 는 Label/Alternative 유지. 전체 74% 불투명.
-        // verbatim: Text 보간이 정수에 로케일 쉼표를 넣는 것("2,000") 방지.
+        // 비활성(부모 TextArea .disabled) 시 둘 다 Label/Disable(Figma 135822). verbatim: 로케일 쉼표 방지.
         HStack(spacing: 0) {
-            Text(verbatim: "\(count)")
-                .foregroundStyle(isOverflow ? Color.mhStatusNegative : Color.mhLabelAlternative)
-            Text(verbatim: "/\(limit)")
-                .foregroundStyle(Color.mhLabelAlternative)
+            Text(verbatim: "\(count)").foregroundStyle(countColor)
+            Text(verbatim: "/\(limit)").foregroundStyle(suffixColor)
         }
         .mhTypography(.label2Medium)
         .monospacedDigit()

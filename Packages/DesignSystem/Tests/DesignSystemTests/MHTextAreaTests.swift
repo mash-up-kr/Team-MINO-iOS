@@ -29,7 +29,7 @@ final class MHTextAreaTests: XCTestCase {
         XCTAssertEqual(spec(.normal, true, true).borderColor, Color.mhPrimaryNormal.opacity(0.43))
         XCTAssertEqual(spec(.negative, true, false).borderColor, Color.mhStatusNegative.opacity(0.28))
         XCTAssertEqual(spec(.negative, true, true).borderColor, Color.mhStatusNegative.opacity(0.43))
-        XCTAssertEqual(spec(.normal, false, true).borderColor, .mhLineNormalAlternative)
+        XCTAssertEqual(spec(.normal, false, true).borderColor, .mhLineNormalNeutral)   // TextArea 비활성=Neutral
         XCTAssertEqual(spec(.normal, true, true).borderWidth, 2)
         XCTAssertEqual(spec(.negative, true, true).borderWidth, 2)
         XCTAssertEqual(spec(.normal, true, false).borderWidth, 1)
