@@ -98,7 +98,7 @@ struct RoomDetailMemberPill: View {
                 Image(.plus)
                     .resizable()
                     .frame(width: 18, height: 18)
-                    .foregroundStyle(.mhInverseLabel)
+                    .foregroundStyle(.mhStaticWhite)
                     .padding(7)
                     .background(Circle().fill(.mhPrimaryNormal))
             }
