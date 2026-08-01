@@ -13,5 +13,9 @@ public final class ProfileCoordinator: Coordinator {
     public var cover: Never? = nil
     public let finish = FlowFinish<Never>()
 
+    /// 방 상세 시트 표시 여부. 시안이 탭바 없는 전체 화면이라 시트가 열려 있는 동안
+    /// 앱 루트가 탭바를 감춰야 해서, 탭 화면 내부 상태가 아니라 여기(탭 flow)에 둔다.
+    public var isRoomDetailPresented = false
+
     public init() {}
 }
