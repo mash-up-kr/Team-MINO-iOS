@@ -1,17 +1,20 @@
 import DesignSystem
 import FeatureArchive
 import FeatureHome
+import FeatureProfile
 import SwiftUI
 
 /// 메인 탭 종류
 enum MainTab: CaseIterable {
     case home
     case save
+    case profile
 
     var title: String {
         switch self {
         case .home: "홈"
         case .save: "저장"
+        case .profile: "마이"
         }
     }
 
@@ -19,11 +22,12 @@ enum MainTab: CaseIterable {
         switch self {
         case .home: "MainTab.tab.home"
         case .save: "MainTab.tab.save"
+        case .profile: "MainTab.tab.profile"
         }
     }
 }
 
-/// 앱 루트 탭 화면. 홈/저장 탭 콘텐츠와 커스텀 탭바를 담는다.
+/// 앱 루트 탭 화면. 홈/저장/마이 탭 콘텐츠와 커스텀 탭바를 담는다.
 /// 탭바는 safeAreaInset 으로 붙여 콘텐츠가 기본으로 탭바에 가리지 않는다.
 /// 탭바 뒤까지 깔려야 하는 화면(지도 등)은 그 화면에서 ignoresSafeArea 로 opt-in 한다.
 /// 탭 아이콘 이미지는 추후 삽입 — 지금은 영역(24pt)만 표시한다.
@@ -44,6 +48,7 @@ struct MainTabView: View {
         switch selectedTab {
         case .home: HomeTabView(coordinator: coordinator.home)
         case .save: ArchiveTabView(coordinator: coordinator.archive)
+        case .profile: ProfileTabView(coordinator: coordinator.profile)
         }
     }
 
