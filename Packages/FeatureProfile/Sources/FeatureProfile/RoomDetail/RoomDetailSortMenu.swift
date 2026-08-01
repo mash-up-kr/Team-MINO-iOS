@@ -1,30 +1,28 @@
 import DesignSystem
 import SwiftUI
 
-/// 툴바 정렬 트리거 아래에 뜨는 드롭다운. Figma `004-1-3 full` 의 열린 상태.
-/// 시트 콘텐츠 위에 겹쳐 놓는 오버레이라 자체 배경·그림자를 갖는다.
+/// 툴바 정렬 트리거 아래에 뜨는 드롭다운. Figma `Menu/Menu`.
 struct RoomDetailSortMenu: View {
-    /// 항목 하나의 높이.
-    static let rowHeight: CGFloat = 44
-    /// 메뉴 전체 높이. 툴바 아래로 떨어뜨릴 offset 계산에 쓴다.
-    static var height: CGFloat { rowHeight * CGFloat(RoomDetailSort.allCases.count) }
+    private static let rowHeight: CGFloat = 40
 
     let selected: RoomDetailSort
     let onSelect: (RoomDetailSort) -> Void
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 4) {
             ForEach(RoomDetailSort.allCases) { option in
                 row(option)
             }
         }
+        .padding(.vertical, 8)
         .frame(width: 140)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(.mhBackgroundElevatedNormal)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .mhShadow(.medium, cornerRadius: 12)
+        .background(.mhBackgroundElevatedNormal)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(.mhLineSolidNeutral, lineWidth: 1)
+        }
+        .mhShadow(.small, cornerRadius: 16)
         .accessibilityIdentifier("RoomDetail.sortMenu")
     }
 
@@ -34,15 +32,21 @@ struct RoomDetailSortMenu: View {
             onSelect(option)
         } label: {
             Text(option.rawValue)
-                .mhTypography(.body2NormalMedium)
-                .foregroundStyle(isSelected ? .mhLabelNormal : .mhLabelAlternative)
+                .mhTypography(.body1NormalRegular)
+                .foregroundStyle(.mhLabelNormal)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 20)
                 .frame(height: Self.rowHeight)
+                .padding(.horizontal, 20)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .background(isSelected ? Color.mhFillAlternative : .clear)
+        .background {
+            if isSelected {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color.mhLabelNormal.opacity(0.04))
+                    .padding(.horizontal, 8)
+            }
+        }
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
 }
