@@ -11,11 +11,24 @@ import SwiftUI
 public enum MHActionAreaVariant: Sendable { case strong, neutral, cancel }
 
 /// Action Area 안의 버튼 하나(라벨 + 탭 동작).
+///
+/// `variant`·`color` 로 그 슬롯의 기본 버튼 스타일을 덮어쓸 수 있다(Figma `customize = button`).
+/// 안 주면 배치(variant)별 기본값을 따른다 — 예: strong 의 main 은 solid/primary.
 public struct MHAction {
     public let title: String
+    public let variant: MHButtonVariant?
+    public let color: MHButtonColor?
     public let action: () -> Void
-    public init(_ title: String, action: @escaping () -> Void) {
+
+    public init(
+        _ title: String,
+        variant: MHButtonVariant? = nil,
+        color: MHButtonColor? = nil,
+        action: @escaping () -> Void
+    ) {
         self.title = title
+        self.variant = variant
+        self.color = color
         self.action = action
     }
 }
@@ -28,9 +41,17 @@ public struct MHAction {
 /// - `cancel`: 단일 풀폭 outlined/assistive
 ///
 /// `divider`·`sticky`·`safeArea`·`caption` 과 `extra` 슬롯(``MHActionAreaSummary`` 등 Preset)을 조합한다.
+/// 각 액션의 버튼 스타일은 ``MHAction`` 의 `variant`·`color` 로 슬롯 기본값을 덮어쓸 수 있다(`customize = button`).
+///
+/// > `outlined` 는 옅은 `Line/Normal/Neutral` 테두리, `outlinedStrong` 은 진한 `Primary/Normal`(검정)
+/// > 테두리(Figma customize 예시의 강조 아웃라인). `color` 는 solid 의 배경/글자색에 반영된다.
 ///
 /// ```swift
 /// MHActionArea(main: .init("메인 액션") { next() })
+///
+/// // customize = button: main 을 solid 대신 검정 테두리 아웃라인으로 스왑
+/// MHActionArea(main: .init("메인 액션", variant: .outlinedStrong) { next() },
+///              alternative: .init("대체 액션") { back() })
 ///
 /// MHActionArea(variant: .strong,
 ///              main: .init("메인 액션") { next() },
@@ -122,10 +143,10 @@ public struct MHActionArea<Extra: View>: View {
         switch variant {
         case .strong:
             VStack(spacing: 8) {
-                MHButton(main.title, variant: .solid, color: .primary, size: .large, action: main.action)
+                button(main, variant: .solid, color: .primary)
                     .mhButtonFillWidth()
                 if let alternative {
-                    MHButton(alternative.title, variant: .outlined, color: .primary, size: .large, action: alternative.action)
+                    button(alternative, variant: .outlined, color: .primary)
                         .mhButtonFillWidth()
                 }
                 if let sub {
@@ -135,19 +156,30 @@ public struct MHActionArea<Extra: View>: View {
         case .neutral:
             HStack(spacing: 12) {
                 if let sub {
-                    MHButton(sub.title, variant: .outlined, color: .assistive, size: .large, action: sub.action)  // hug
+                    button(sub, variant: .outlined, color: .assistive)  // hug
                 }
                 if let alternative {
-                    MHButton(alternative.title, variant: .outlined, color: .primary, size: .large, action: alternative.action)
+                    button(alternative, variant: .outlined, color: .primary)
                         .mhButtonFillWidth()
                 }
-                MHButton(main.title, variant: .solid, color: .primary, size: .large, action: main.action)
+                button(main, variant: .solid, color: .primary)
                     .mhButtonFillWidth()
             }
         case .cancel:
-            MHButton(main.title, variant: .outlined, color: .assistive, size: .large, action: main.action)
+            button(main, variant: .outlined, color: .assistive)
                 .mhButtonFillWidth()
         }
+    }
+
+    // 슬롯 버튼 — action 의 variant/color 오버라이드(customize=button)가 있으면 그걸, 없으면 슬롯 기본값.
+    private func button(_ action: MHAction, variant defaultVariant: MHButtonVariant, color defaultColor: MHButtonColor) -> some View {
+        MHButton(
+            action.title,
+            variant: action.variant ?? defaultVariant,
+            color: action.color ?? defaultColor,
+            size: .large,
+            action: action.action
+        )
     }
 
     // MARK: sticky 배경(Elevated + 상단 페이드)
