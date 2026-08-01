@@ -10,7 +10,11 @@ let package = Package(
     targets: [
         .target(
             name: "DesignSystem",
-            resources: [.process("Resources/SemanticColor.xcassets")]
+            resources: [
+                .process("Resources/SemanticColor.xcassets"),
+                .process("Resources/Icon.xcassets"),
+                .process("Resources/Fonts"),
+            ]
         ),
         .testTarget(name: "DesignSystemTests", dependencies: ["DesignSystem"]),
     ],
