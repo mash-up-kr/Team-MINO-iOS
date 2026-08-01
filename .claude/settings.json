@@ -2,8 +2,8 @@
   "extraKnownMarketplaces": {
     "hooni-workflow": {
       "source": {
-        "source": "github",
-        "repo": "hooni0918/AI-Workflow"
+        "source": "url",
+        "url": "https://github.com/hooni0918/AI-Workflow.git"
       }
     }
   },
