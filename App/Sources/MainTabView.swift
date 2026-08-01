@@ -39,9 +39,16 @@ struct MainTabView: View {
         self.coordinator = coordinator
     }
 
+    /// 탭바 없이 화면 바닥까지 깔려야 하는 화면(방 상세 바텀시트 등)이 떠 있는가.
+    private var isFullBleedContentPresented: Bool {
+        coordinator.profile.isRoomDetailPresented
+    }
+
     var body: some View {
         content
-            .safeAreaInset(edge: .bottom, spacing: 0) { tabBar }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if !isFullBleedContentPresented { tabBar }
+            }
     }
 
     @ViewBuilder private var content: some View {
