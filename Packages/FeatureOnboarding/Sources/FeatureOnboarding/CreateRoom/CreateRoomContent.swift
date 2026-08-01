@@ -11,22 +11,21 @@ private struct RoomColorSwatch {
 
 /// 방 색상 선택 12색. 순서는 피그마 4열×3행 그리드(좌→우, 상→하)와 동일하다.
 ///
-/// NOTE(디자인시스템 갭): 피그마 팔레트의 Red/Orange/Green/Blue 는 `mhAccentBackground*`(7색)에 없어
-/// `mhAccentForeground*` 로 채웠다. Brown 은 두 계열 어디에도 없어 중립 `Fill/Strong` 으로 대체했다 —
-/// 12색 중 유일하게 색상이 아니라 회색으로 보이는 자리이므로, 디자인팀에 Brown 토큰 추가를 확인해야 한다.
+/// 색상은 Figma `Atomic/*` 팔레트를 그대로 쓴다 — 사용자가 고르는 팔레트라 역할이 없어 시맨틱 토큰이 맞지 않는다.
+/// 계열마다 밝은 단계가 채움, 진한 단계가 테두리다.
 private let roomColorSwatches: [RoomColorSwatch] = [
-    RoomColorSwatch(fill: .mhAccentForegroundRed, border: .mhAccentForegroundRed),
-    RoomColorSwatch(fill: .mhAccentBackgroundRedOrange, border: .mhAccentForegroundRedOrange),
-    RoomColorSwatch(fill: .mhAccentForegroundOrange, border: .mhAccentForegroundOrange),
-    RoomColorSwatch(fill: .mhAccentBackgroundLime, border: .mhAccentForegroundLime),
-    RoomColorSwatch(fill: .mhAccentForegroundGreen, border: .mhAccentForegroundGreen),
-    RoomColorSwatch(fill: .mhAccentBackgroundCyan, border: .mhAccentForegroundCyan),
-    RoomColorSwatch(fill: .mhAccentBackgroundViolet, border: .mhAccentForegroundViolet),
-    RoomColorSwatch(fill: .mhAccentBackgroundPink, border: .mhAccentForegroundPink),
-    RoomColorSwatch(fill: .mhAccentForegroundBlue, border: .mhAccentForegroundBlue),
-    RoomColorSwatch(fill: .mhFillStrong, border: .mhLineSolidNeutral),
-    RoomColorSwatch(fill: .mhAccentBackgroundLightBlue, border: .mhAccentForegroundLightBlue),
-    RoomColorSwatch(fill: .mhAccentBackgroundPurple, border: .mhAccentForegroundPurple),
+    RoomColorSwatch(fill: .mhAtomicRed60, border: .mhAtomicRed30),
+    RoomColorSwatch(fill: .mhAtomicRedOrange70, border: .mhAtomicRedOrange40),
+    RoomColorSwatch(fill: .mhAtomicOrange70, border: .mhAtomicOrange40),
+    RoomColorSwatch(fill: .mhAtomicLime80, border: .mhAtomicLime37),
+    RoomColorSwatch(fill: .mhAtomicGreen90, border: .mhAtomicGreen60),
+    RoomColorSwatch(fill: .mhAtomicCyan90, border: .mhAtomicCyan50),
+    RoomColorSwatch(fill: .mhAtomicViolet80, border: .mhAtomicViolet50),
+    RoomColorSwatch(fill: .mhAtomicPink90, border: .mhAtomicPink60),
+    RoomColorSwatch(fill: .mhAtomicBlue65, border: .mhAtomicBlue40),
+    RoomColorSwatch(fill: .mhAtomicBrown70, border: .mhAtomicBrown40),
+    RoomColorSwatch(fill: .mhAtomicLightBlue60, border: .mhAtomicLightBlue40),
+    RoomColorSwatch(fill: .mhAtomicPurple70, border: .mhAtomicPurple40),
 ]
 
 // MARK: - CreateRoomContent
