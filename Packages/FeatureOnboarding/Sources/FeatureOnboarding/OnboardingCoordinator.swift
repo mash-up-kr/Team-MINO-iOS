@@ -12,6 +12,11 @@ public enum OnboardingResult: Equatable, Sendable {
     case completed
 }
 
+/// 온보딩 flow 1회당 **새 인스턴스**를 만들어 쓴다.
+///
+/// `path`·Store 캐시·`finish` 발사 여부가 모두 1회 실행분 상태라, 완주한 인스턴스를 재사용하면
+/// 마지막 화면부터 뜨고 `finish` 도 다시 발사되지 않는다. 앱 수명 동안 하나를 들고 있는
+/// 탭 Coordinator 들과 보유 방식이 다르다.
 @Observable
 @MainActor
 public final class OnboardingCoordinator: Coordinator {
