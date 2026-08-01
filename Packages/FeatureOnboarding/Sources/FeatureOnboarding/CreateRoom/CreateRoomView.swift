@@ -11,9 +11,17 @@ struct CreateRoomView: View {
     }
 
     var body: some View {
-        // TODO [AI_IMPL]: store 있으면 placeholder 본문 — 화면명 Text·"다음" 버튼(store.send(.tapNext)),
-        //   accessibilityIdentifier "Onboarding.createRoom.next"
-        //   없으면 ProgressView().task { store = coordinator.makeCreateRoomStore() }
-        fatalError("not implemented")
+        Group {
+            if let store {
+                VStack(spacing: 16) {
+                    Text("공동방 만들기")
+                    Button("다음") { store.send(.tapNext) }
+                        .accessibilityIdentifier("Onboarding.createRoom.next")
+                }
+            } else {
+                ProgressView()
+                    .task { store = coordinator.makeCreateRoomStore() }
+            }
+        }
     }
 }

@@ -10,10 +10,31 @@ public struct ProfileSetupView: View {
     }
 
     public var body: some View {
-        // TODO [AI_IMPL]: NavigationStack(path: $coordinator.path)
-        //   + navigationDestination(for: OnboardingRoute.self) → CreateRoomView / InviteFriendsView (coordinator 주입)
-        //   + placeholder 본문: 화면명 Text·"다음" 버튼(store.send(.tapNext)), accessibilityIdentifier "Onboarding.profileSetup.next"
-        //   + store 지연 생성: .task { store = coordinator.makeProfileSetupStore() }
-        fatalError("not implemented")
+        @Bindable var coordinator = coordinator
+        NavigationStack(path: $coordinator.path) {
+            content
+                .navigationDestination(for: OnboardingRoute.self) { route in
+                    switch route {
+                    case .createRoom:
+                        CreateRoomView(coordinator: coordinator)
+                    case .inviteFriends:
+                        InviteFriendsView(coordinator: coordinator)
+                    }
+                }
+        }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if let store {
+            VStack(spacing: 16) {
+                Text("프로필 설정")
+                Button("다음") { store.send(.tapNext) }
+                    .accessibilityIdentifier("Onboarding.profileSetup.next")
+            }
+        } else {
+            ProgressView()
+                .task { store = coordinator.makeProfileSetupStore() }
+        }
     }
 }

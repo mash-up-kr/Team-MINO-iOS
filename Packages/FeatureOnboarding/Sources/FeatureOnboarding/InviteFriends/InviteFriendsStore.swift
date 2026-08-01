@@ -14,7 +14,12 @@ enum InviteFriendsNav: Equatable, Sendable {
 
 typealias InviteFriendsStore = Store<InviteFriendsState, InviteFriendsAction, InviteFriendsNav>
 
-// TODO [AI_IMPL]: .tapComplete → .navigate(.complete) — 골격 완주(finish 발사) 경로는 PR 4 이후에도 유지
+// 골격 완주(finish 발사) 경로는 PR 4 이후에도 유지
 func inviteFriendsReducer() -> (inout InviteFriendsState, InviteFriendsAction) -> Effect<InviteFriendsAction, InviteFriendsNav> {
-    fatalError("not implemented")
+    { _, action in
+        switch action {
+        case .tapComplete:
+            return .navigate(.complete)
+        }
+    }
 }

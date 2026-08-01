@@ -15,7 +15,11 @@ enum ProfileSetupNav: Equatable, Sendable {
 
 typealias ProfileSetupStore = Store<ProfileSetupState, ProfileSetupAction, ProfileSetupNav>
 
-// TODO [AI_IMPL]: .tapNext → .navigate(.goToCreateRoom)
 func profileSetupReducer() -> (inout ProfileSetupState, ProfileSetupAction) -> Effect<ProfileSetupAction, ProfileSetupNav> {
-    fatalError("not implemented")
+    { _, action in
+        switch action {
+        case .tapNext:
+            return .navigate(.goToCreateRoom)
+        }
+    }
 }

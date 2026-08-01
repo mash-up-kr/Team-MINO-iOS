@@ -14,7 +14,11 @@ enum CreateRoomNav: Equatable, Sendable {
 
 typealias CreateRoomStore = Store<CreateRoomState, CreateRoomAction, CreateRoomNav>
 
-// TODO [AI_IMPL]: .tapNext → .navigate(.goToInviteFriends)
 func createRoomReducer() -> (inout CreateRoomState, CreateRoomAction) -> Effect<CreateRoomAction, CreateRoomNav> {
-    fatalError("not implemented")
+    { _, action in
+        switch action {
+        case .tapNext:
+            return .navigate(.goToInviteFriends)
+        }
+    }
 }

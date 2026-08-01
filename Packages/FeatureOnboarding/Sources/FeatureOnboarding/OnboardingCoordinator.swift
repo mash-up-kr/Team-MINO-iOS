@@ -21,7 +21,6 @@ public final class OnboardingCoordinator: Coordinator {
     public let finish = FlowFinish<OnboardingResult>()
 
     // 입력값 유지 계약: 뒤로 갔다 다시 push해도 화면 상태가 남도록 Coordinator가 Store를 보유한다
-    // TODO [AI_IMPL]: make*가 최초 1회 생성 + observeNavigation 배선 후 이 캐시를 반환
     private var profileSetupStore: ProfileSetupStore?
     private var createRoomStore: CreateRoomStore?
     private var inviteFriendsStore: InviteFriendsStore?
@@ -29,29 +28,47 @@ public final class OnboardingCoordinator: Coordinator {
     public init() {}
 
     func makeProfileSetupStore() -> ProfileSetupStore {
-        fatalError("not implemented")
+        if let profileSetupStore { return profileSetupStore }
+        let store = ProfileSetupStore(ProfileSetupState(), reduce: profileSetupReducer())
+        store.observeNavigation { [weak self] in self?.handle($0) }
+        profileSetupStore = store
+        return store
     }
 
     func makeCreateRoomStore() -> CreateRoomStore {
-        fatalError("not implemented")
+        if let createRoomStore { return createRoomStore }
+        let store = CreateRoomStore(CreateRoomState(), reduce: createRoomReducer())
+        store.observeNavigation { [weak self] in self?.handle($0) }
+        createRoomStore = store
+        return store
     }
 
     func makeInviteFriendsStore() -> InviteFriendsStore {
-        fatalError("not implemented")
+        if let inviteFriendsStore { return inviteFriendsStore }
+        let store = InviteFriendsStore(InviteFriendsState(), reduce: inviteFriendsReducer())
+        store.observeNavigation { [weak self] in self?.handle($0) }
+        inviteFriendsStore = store
+        return store
     }
 
-    // TODO [AI_IMPL]: .goToCreateRoom → push(.createRoom)
     func handle(_ nav: ProfileSetupNav) {
-        fatalError("not implemented")
+        switch nav {
+        case .goToCreateRoom:
+            push(.createRoom)
+        }
     }
 
-    // TODO [AI_IMPL]: .goToInviteFriends → push(.inviteFriends)
     func handle(_ nav: CreateRoomNav) {
-        fatalError("not implemented")
+        switch nav {
+        case .goToInviteFriends:
+            push(.inviteFriends)
+        }
     }
 
-    // TODO [AI_IMPL]: .complete → finish(.completed)
     func handle(_ nav: InviteFriendsNav) {
-        fatalError("not implemented")
+        switch nav {
+        case .complete:
+            finish(.completed)
+        }
     }
 }

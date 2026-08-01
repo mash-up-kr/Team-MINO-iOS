@@ -10,9 +10,17 @@ struct InviteFriendsView: View {
     }
 
     var body: some View {
-        // TODO [AI_IMPL]: store 있으면 placeholder 본문 — 화면명 Text·"완료" 버튼(store.send(.tapComplete)),
-        //   accessibilityIdentifier "Onboarding.inviteFriends.complete"
-        //   없으면 ProgressView().task { store = coordinator.makeInviteFriendsStore() }
-        fatalError("not implemented")
+        Group {
+            if let store {
+                VStack(spacing: 16) {
+                    Text("친구초대")
+                    Button("완료") { store.send(.tapComplete) }
+                        .accessibilityIdentifier("Onboarding.inviteFriends.complete")
+                }
+            } else {
+                ProgressView()
+                    .task { store = coordinator.makeInviteFriendsStore() }
+            }
+        }
     }
 }
