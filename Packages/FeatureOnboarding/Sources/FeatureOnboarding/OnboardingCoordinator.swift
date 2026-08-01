@@ -20,10 +20,11 @@ public final class OnboardingCoordinator: Coordinator {
     public var cover: Never? = nil
     public let finish = FlowFinish<OnboardingResult>()
 
-    // 입력값 유지 계약: 뒤로 갔다 다시 push해도 화면 상태가 남도록 Coordinator가 Store를 보유한다
-    private var profileSetupStore: ProfileSetupStore?
-    private var createRoomStore: CreateRoomStore?
-    private var inviteFriendsStore: InviteFriendsStore?
+    // 입력값 유지 계약: 뒤로 갔다 다시 push해도 화면 상태가 남도록 Coordinator가 Store를 보유한다.
+    // 뷰가 직접 읽지 않는 보유물이라 관찰 대상에서 뺀다 — body 안에서 읽히면 캐시 쓰기가 그 body를 무효화한다.
+    @ObservationIgnored private var profileSetupStore: ProfileSetupStore?
+    @ObservationIgnored private var createRoomStore: CreateRoomStore?
+    @ObservationIgnored private var inviteFriendsStore: InviteFriendsStore?
 
     public init() {}
 
