@@ -40,7 +40,7 @@ Mash-Up MINO 팀의 iOS 앱입니다. SwiftUI 위에 **Clean Architecture** 구�
 레포를 클론하고 Claude Code에서 프로젝트 폴더를 신뢰하면, `.claude/settings.json`이 워크플로우 플러그인 설치를 안내합니다. 수락하면 `/ios-workflow`·`/code-review` 같은 스킬이 `ai-workflow:` 접두사로 들어옵니다. 안내가 안 뜨면 직접 두 줄:
 
 ```
-/plugin marketplace add hooni0918/AI-Workflow
+/plugin marketplace add https://github.com/hooni0918/AI-Workflow.git
 /plugin install ai-workflow@hooni-workflow
 ```
 
