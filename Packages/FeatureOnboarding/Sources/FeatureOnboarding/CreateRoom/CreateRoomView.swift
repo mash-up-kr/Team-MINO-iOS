@@ -5,6 +5,10 @@ import SwiftUI
 struct CreateRoomView: View {
     private let coordinator: OnboardingCoordinator
     @State private var store: CreateRoomStore?
+    // 뒤로가기: Coordinator.pop() 을 직접 부르지 않고 NavigationStack 표준 dismiss 를 쓴다.
+    // Nav 케이스로 표현하려면 OnboardingCoordinator.handle(_:CreateRoomNav) 수정이 필요한데
+    // 그 파일은 이 작업 범위 밖(다른 에이전트 작업 중)이라 건드릴 수 없다.
+    @Environment(\.dismiss) private var dismiss
 
     init(coordinator: OnboardingCoordinator) {
         self.coordinator = coordinator
@@ -13,15 +17,28 @@ struct CreateRoomView: View {
     var body: some View {
         Group {
             if let store {
-                VStack(spacing: 16) {
-                    Text("공동방 만들기")
-                    Button("다음") { store.send(.tapNext) }
-                        .accessibilityIdentifier("Onboarding.createRoom.next")
-                }
+                CreateRoomContent(
+                    roomName: Binding(
+                        get: { store.state.roomName },
+                        set: { store.send(.roomNameChanged($0)) }
+                    ),
+                    roomDescription: Binding(
+                        get: { store.state.roomDescription },
+                        set: { store.send(.roomDescriptionChanged($0)) }
+                    ),
+                    selectedColorIndex: store.state.selectedColorIndex,
+                    isCreateEnabled: store.state.isCreateEnabled,
+                    onSelectColor: { store.send(.selectColor($0)) },
+                    onCreate: { store.send(.tapNext) },
+                    onBack: { dismiss() },
+                    onSkip: { store.send(.tapSkip) }
+                )
             } else {
                 ProgressView()
                     .task { store = coordinator.makeCreateRoomStore() }
             }
         }
+        // 마크업이 자체 상단 내비바를 그린다 — 시스템 내비바를 두면 뒤로가기가 두 개로 보인다.
+        .toolbar(.hidden, for: .navigationBar)
     }
 }

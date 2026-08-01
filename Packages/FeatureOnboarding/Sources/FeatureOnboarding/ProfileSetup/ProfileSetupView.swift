@@ -13,6 +13,8 @@ public struct ProfileSetupView: View {
         @Bindable var coordinator = coordinator
         NavigationStack(path: $coordinator.path) {
             content
+                .navigationTitle("프로필 설정")
+                .navigationBarTitleDisplayMode(.inline)
                 .navigationDestination(for: OnboardingRoute.self) { route in
                     switch route {
                     case .createRoom:
@@ -27,11 +29,17 @@ public struct ProfileSetupView: View {
     @ViewBuilder
     private var content: some View {
         if let store {
-            VStack(spacing: 16) {
-                Text("프로필 설정")
-                Button("다음") { store.send(.tapNext) }
-                    .accessibilityIdentifier("Onboarding.profileSetup.next")
-            }
+            ProfileSetupContent(
+                name: Binding(
+                    get: { store.state.name },
+                    set: { store.send(.nameChanged($0)) }
+                ),
+                selectedCharacterIndex: store.state.selectedCharacterIndex,
+                isSaveEnabled: store.state.isSaveEnabled,
+                onSelectCharacter: { store.send(.selectCharacter($0)) },
+                onClear: { store.send(.tapClear) },
+                onSave: { store.send(.tapNext) }
+            )
         } else {
             ProgressView()
                 .task { store = coordinator.makeProfileSetupStore() }
