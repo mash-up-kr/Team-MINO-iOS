@@ -33,7 +33,7 @@ struct RoomDetailToolbar<SortMenu: View>: View {
                 Image(.caretDown)
                     .resizable()
                     .frame(width: 24, height: 24)
-                    .foregroundStyle(.mhPrimaryNormal)
+                    .foregroundStyle(.mhLabelNeutral)
                     .rotationEffect(.degrees(isSortExpanded ? 180 : 0))
             }
             .frame(height: Self.triggerHeight)
