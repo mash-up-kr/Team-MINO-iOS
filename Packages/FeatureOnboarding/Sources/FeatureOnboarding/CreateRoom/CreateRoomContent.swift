@@ -61,8 +61,12 @@ struct CreateRoomContent: View {
                 }
                 .padding(20)
             }
-            MHActionArea(main: MHAction("방 생성하기", action: onCreate), sticky: true)
-                .disabled(!isCreateEnabled)
+            // 액션 영역을 VStack 자식으로 두면 키보드가 올라올 때 MHActionArea 의 하단 안전영역 측정에
+            // 키보드 높이가 섞여 스크롤뷰가 찌그러진다. safeAreaInset 으로 붙여 키보드 회피를 맡긴다.
+            .safeAreaInset(edge: .bottom) {
+                MHActionArea(main: MHAction("방 생성하기", action: onCreate), sticky: true, safeArea: false)
+                    .disabled(!isCreateEnabled)
+            }
         }
         .background(Color.mhBackgroundNormalNormal)
     }

@@ -18,9 +18,8 @@ struct ProfileSetupContent: View {
     let onSave: () -> Void
 
     var body: some View {
-        VStack(spacing: 0) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
                     Text("친구들에게 어떻게 보일까요?")
                         .mhTypography(.title3Bold)
                         .foregroundStyle(.mhPrimaryNormal)
@@ -36,15 +35,19 @@ struct ProfileSetupContent: View {
                         isRequired: true
                     )
 
-                    characterPicker
-                }
-                .padding(20)
+                characterPicker
             }
-
+            .padding(20)
+        }
+        // 액션 영역을 VStack 자식으로 두면 키보드가 올라올 때 MHActionArea 의 하단 안전영역 측정에
+        // 키보드 높이가 섞여 스크롤뷰가 찌그러진다. safeAreaInset 으로 붙여 키보드 회피를 맡긴다.
+        .safeAreaInset(edge: .bottom) {
             MHActionArea(
                 variant: .neutral,
                 main: MHAction("저장", action: onSave),
-                alternative: MHAction("지우기", action: onClear)
+                alternative: MHAction("지우기", action: onClear),
+                sticky: true,
+                safeArea: false
             )
             .disabled(!isSaveEnabled)
         }
