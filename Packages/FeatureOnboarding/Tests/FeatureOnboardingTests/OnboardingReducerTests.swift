@@ -4,7 +4,7 @@ import Testing
 
 @MainActor
 struct OnboardingReducerTests {
-    @Test("profileSetupReducer — tapNext 는 goToCreateRoom 으로 navigate 한다")
+    @Test("L2 — profileSetupReducer: tapNext 는 goToCreateRoom 으로 navigate 한다")
     func profileSetup_tapNext_navigates() async {
         let store = TestStore(ProfileSetupState(), reduce: profileSetupReducer())
 
@@ -14,7 +14,7 @@ struct OnboardingReducerTests {
         store.finish()
     }
 
-    @Test("createRoomReducer — tapNext 는 goToInviteFriends 로 navigate 한다")
+    @Test("L2 — createRoomReducer: tapNext 는 goToInviteFriends 로 navigate 한다")
     func createRoom_tapNext_navigates() async {
         let store = TestStore(CreateRoomState(), reduce: createRoomReducer())
 
@@ -24,7 +24,7 @@ struct OnboardingReducerTests {
         store.finish()
     }
 
-    @Test("inviteFriendsReducer — tapComplete 는 complete 로 navigate 한다")
+    @Test("L2 — inviteFriendsReducer: tapComplete 는 complete 로 navigate 한다")
     func inviteFriends_tapComplete_navigates() async {
         let store = TestStore(InviteFriendsState(), reduce: inviteFriendsReducer())
 
