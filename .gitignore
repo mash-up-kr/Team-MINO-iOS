@@ -30,3 +30,6 @@ qa-artifacts/
 
 ### Mino-harness 배치 기록 (make sync 가 남기는 로컬 상태)
 .claude/.mino-harness-manifest
+
+### 로컬 시크릿 (API 키 등) — 커밋 금지
+App/Config/Secrets.xcconfig
