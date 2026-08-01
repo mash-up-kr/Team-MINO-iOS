@@ -1,7 +1,7 @@
 import DesignSystem
 import SwiftUI
 
-/// 카드형 카드 — 텍스트 위, 썸네일 2장 아래. Figma `Card_Location B`(15852:88759).
+/// 카드형 카드 — 텍스트 위, 썸네일 2장 아래. Figma `Card_Location B`.
 struct LocationGridCard: View {
     let location: RoomDetailLocation
     let onMore: () -> Void
@@ -39,7 +39,6 @@ struct LocationGridCard: View {
         }
     }
 
-    // Figma: 163.5 × 204 (4:5) 두 장을 8pt 간격으로 나란히
     private var photoRow: some View {
         HStack(spacing: 8) {
             ForEach(0..<max(location.photoCount, 1), id: \.self) { _ in

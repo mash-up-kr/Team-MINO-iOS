@@ -1,7 +1,7 @@
 import DesignSystem
 import SwiftUI
 
-/// 리스트형 카드 — 좌측 썸네일 1장 + 우측 텍스트/메타. Figma `Card_Location A`(15852:88675).
+/// 리스트형 카드 — 좌측 썸네일 1장 + 우측 텍스트/메타. Figma `Card_Location A`.
 struct LocationRowCard: View {
     let location: RoomDetailLocation
     let onMore: () -> Void
@@ -32,7 +32,6 @@ struct LocationRowCard: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            // Figma 는 아이콘 18pt — 탭 영역은 버튼이 44pt 로 확보하되 위치는 아이콘 기준으로 맞춘다
             RoomDetailPlainIconButton(
                 icon: .moreVerticalTight,
                 size: 18,

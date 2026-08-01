@@ -1,8 +1,7 @@
 import DesignSystem
 import SwiftUI
 
-/// 방 상세 시트 최상단 — 멤버 pill·더보기·닫기 줄과 `Header_Room`(제목/메모/장소 수).
-/// peek 단계에서 보이는 유일한 영역이라 시트 높이(`lowFraction`) 산정 기준이기도 하다.
+/// 시트 최상단 — 멤버 pill·더보기·닫기 줄과 `Header_Room`(제목/메모/장소 수).
 struct RoomDetailHeader: View {
     let room: RoomDetailRoom
     let onAddMember: () -> Void
@@ -22,7 +21,6 @@ struct RoomDetailHeader: View {
         }
     }
 
-    // Figma 1672:66177 — h60, px20, 좌우 끝 정렬
     private var actionRow: some View {
         HStack(spacing: 0) {
             RoomDetailMemberPill(memberCount: room.memberCount, onAdd: onAddMember)
@@ -37,7 +35,6 @@ struct RoomDetailHeader: View {
         .frame(height: 60)
     }
 
-    // Figma Header_Room(15852:88517) — pt12 pb20 px20, gap10
     private var roomInfo: some View {
         VStack(alignment: .leading, spacing: 10) {
             VStack(alignment: .leading, spacing: 4) {
