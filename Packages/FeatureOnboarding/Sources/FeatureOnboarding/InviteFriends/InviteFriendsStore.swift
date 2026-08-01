@@ -1,7 +1,7 @@
 import MVI
 
 struct InviteFriendsState: Equatable {
-    // TODO [AI_IMPL-PR4]: 친구초대 화면 상태 (PR 4 범위 — 정적 UI 예정, 이번 PR에서는 빈 상태 유지)
+    // 골격 PR 이라 상태가 없다. 친구초대 화면 PR 에서 필요해지면 채운다.
 }
 
 enum InviteFriendsAction: Equatable {
