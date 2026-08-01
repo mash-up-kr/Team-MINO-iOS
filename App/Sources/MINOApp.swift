@@ -1,5 +1,4 @@
 import SwiftUI
-import Feature
 
 @main
 struct MINOApp: App {
@@ -23,6 +22,6 @@ struct RootView: View {
     let coordinator: AppCoordinator
 
     var body: some View {
-        MemberHomeView(coordinator: coordinator.member)
+        MainTabView(coordinator: coordinator)
     }
 }

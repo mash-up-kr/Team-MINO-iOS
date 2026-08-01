@@ -10,6 +10,9 @@
 		1ABB0F369E27B809796ECB62 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 4B8003BACE60BD969B4B0C47 /* Assets.xcassets */; };
 		1C2828AB6F056A7680FC41D9 /* Domain in Frameworks */ = {isa = PBXBuildFile; productRef = E0F40E08DDD41C8DB3E42732 /* Domain */; };
 		1CA998C627766237F2232BEB /* Feature in Frameworks */ = {isa = PBXBuildFile; productRef = C0D4F0FC8286D9C61BB32BF4 /* Feature */; };
+		78492A156C1A471498E4D6C0 /* FeatureHome in Frameworks */ = {isa = PBXBuildFile; productRef = 9DB4CFD6500044279D5152C0 /* FeatureHome */; };
+		EF2B6F16D71C431694B01429 /* FeatureArchive in Frameworks */ = {isa = PBXBuildFile; productRef = 28D80F7784D54B5E900E11C8 /* FeatureArchive */; };
+		1E9A0431691248E1AF7498F7 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 870EC38E78064219B6961460 /* MainTabView.swift */; };
 		3EF75B20CDF46D5CBCADEDF8 /* Core in Frameworks */ = {isa = PBXBuildFile; productRef = 2FEFAD4646D1EBA99E6E7E08 /* Core */; };
 		95C38BB4FB56187972591E16 /* Data in Frameworks */ = {isa = PBXBuildFile; productRef = 30221BF92B4CCDE0D6CEA9E9 /* Data */; };
 		964C752F52C50D0DA03BAA47 /* Networking in Frameworks */ = {isa = PBXBuildFile; productRef = D106E25C257C7E7E8BC43D51 /* Networking */; };
@@ -33,6 +36,9 @@
 		A1A2A3A4A5A6A7A8A9A0A1A2 /* MINOApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MINOApp.swift; sourceTree = "<group>"; };
 		A6E10081ACCCE1687F63903A /* AppDependencies.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDependencies.swift; sourceTree = "<group>"; };
 		AE14BBEBA89FD412C42C94EB /* Feature */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Feature; path = ../Packages/Feature; sourceTree = SOURCE_ROOT; };
+		83E429DB5B9444888F2889BD /* FeatureHome */ = {isa = PBXFileReference; lastKnownFileType = folder; name = FeatureHome; path = ../Packages/FeatureHome; sourceTree = SOURCE_ROOT; };
+		90E12A0E04B542289EBE33C6 /* FeatureArchive */ = {isa = PBXFileReference; lastKnownFileType = folder; name = FeatureArchive; path = ../Packages/FeatureArchive; sourceTree = SOURCE_ROOT; };
+		870EC38E78064219B6961460 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
 		B1B2B3B4B5B6B7B8B9B0B1B2 /* AppCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCoordinator.swift; sourceTree = "<group>"; };
 		E65F524E24BD1439574B9AFF /* DesignSystem */ = {isa = PBXFileReference; lastKnownFileType = folder; name = DesignSystem; path = ../Packages/DesignSystem; sourceTree = SOURCE_ROOT; };
 		F7D5B97B3011ED2B8B8D6A82 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
@@ -45,6 +51,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				1CA998C627766237F2232BEB /* Feature in Frameworks */,
+				78492A156C1A471498E4D6C0 /* FeatureHome in Frameworks */,
+				EF2B6F16D71C431694B01429 /* FeatureArchive in Frameworks */,
 				95C38BB4FB56187972591E16 /* Data in Frameworks */,
 				1C2828AB6F056A7680FC41D9 /* Domain in Frameworks */,
 				964C752F52C50D0DA03BAA47 /* Networking in Frameworks */,
@@ -71,6 +79,7 @@
 			isa = PBXGroup;
 			children = (
 				A1A2A3A4A5A6A7A8A9A0A1A2 /* MINOApp.swift */,
+				870EC38E78064219B6961460 /* MainTabView.swift */,
 				B1B2B3B4B5B6B7B8B9B0B1B2 /* AppCoordinator.swift */,
 				A6E10081ACCCE1687F63903A /* AppDependencies.swift */,
 				3698F892C87398A1AB1FF12E /* AppDelegate.swift */,
@@ -87,6 +96,8 @@
 				E65F524E24BD1439574B9AFF /* DesignSystem */,
 				9385F6DBBC00D51067BF0767 /* Domain */,
 				AE14BBEBA89FD412C42C94EB /* Feature */,
+				90E12A0E04B542289EBE33C6 /* FeatureArchive */,
+				83E429DB5B9444888F2889BD /* FeatureHome */,
 				35D426C5753A372F270C6E9D /* Networking */,
 				FAB1000000000000000000F1 /* Logging */,
 			);
@@ -127,6 +138,8 @@
 			name = App;
 			packageProductDependencies = (
 				C0D4F0FC8286D9C61BB32BF4 /* Feature */,
+				9DB4CFD6500044279D5152C0 /* FeatureHome */,
+				28D80F7784D54B5E900E11C8 /* FeatureArchive */,
 				30221BF92B4CCDE0D6CEA9E9 /* Data */,
 				E0F40E08DDD41C8DB3E42732 /* Domain */,
 				D106E25C257C7E7E8BC43D51 /* Networking */,
@@ -180,6 +193,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A1A2A3A4A5A6A7A8A9A0A1A3 /* MINOApp.swift in Sources */,
+				1E9A0431691248E1AF7498F7 /* MainTabView.swift in Sources */,
 				B1B2B3B4B5B6B7B8B9B0B1B3 /* AppCoordinator.swift in Sources */,
 				F12A80D53AF08C9E442B7395 /* AppDependencies.swift in Sources */,
 				F020EE47FD9AFF29CB232A2C /* AppDelegate.swift in Sources */,
@@ -388,6 +402,14 @@
 		C0D4F0FC8286D9C61BB32BF4 /* Feature */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = Feature;
+		};
+		9DB4CFD6500044279D5152C0 /* FeatureHome */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = FeatureHome;
+		};
+		28D80F7784D54B5E900E11C8 /* FeatureArchive */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = FeatureArchive;
 		};
 		D106E25C257C7E7E8BC43D51 /* Networking */ = {
 			isa = XCSwiftPackageProductDependency;
