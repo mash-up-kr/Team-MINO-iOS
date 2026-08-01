@@ -46,19 +46,21 @@ struct RoomDetailPlainIconButton: View {
     }
 }
 
-/// Figma `Avatar/Avatar`. 이미지 에셋이 없어 person 아이콘 플레이스홀더로 그린다.
+/// Figma `Avatar/Avatar`. 사진 에셋이 없어 person 아이콘 플레이스홀더로 그린다.
 struct RoomDetailAvatar: View {
     var size: CGFloat = 32
     var hasOuterStroke: Bool = true
 
     var body: some View {
         Circle()
-            .fill(.mhFillAlternative)
+            // 컨테이너는 Static/White, 그 위 사진 레이어를 회색 자리로 대체한다(시안 렌더와 동일)
+            .fill(.mhStaticWhite)
+            .overlay { Circle().fill(.mhFillStrong) }
             .overlay {
                 Image(.personFill)
                     .resizable()
                     .frame(width: size * 0.5, height: size * 0.5)
-                    .foregroundStyle(.mhLabelAssistive)
+                    .foregroundStyle(.mhStaticWhite)
             }
             .overlay { Circle().strokeBorder(.mhLineNormalAlternative, lineWidth: 1) }
             .frame(width: size, height: size)
