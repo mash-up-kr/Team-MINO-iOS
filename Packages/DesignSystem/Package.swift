@@ -12,6 +12,7 @@ let package = Package(
             name: "DesignSystem",
             resources: [
                 .process("Resources/SemanticColor.xcassets"),
+                .process("Resources/AtomicColor.xcassets"),
                 .process("Resources/Icon.xcassets"),
                 .process("Resources/Fonts"),
             ]
