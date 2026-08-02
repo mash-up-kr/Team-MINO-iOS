@@ -8,7 +8,7 @@ Mino iOS 디자인 시스템 패키지. Figma `MU_Wanted` 디자인 토큰과 �
 | 컬러 | 시맨틱 토큰 `Color.mh*` (라이트/다크 자동 전환) |
 | 아이콘 | `MHIcon` (`Icon/Normal/*`) — `Image(_:)` |
 | 그림자 | `.mhShadow(...)` |
-| 컴포넌트 | `MHButton`, `MHChip`, `MHActionArea`, `MHTextField`, `MHTextArea`, `MHTextButton`, `MHCharacterCounter`, `MHContentBadge`, `MHThumbnail`, `MHAvatar`, `MHAvatarGroup`, `MHCategory`, `MHSnackbar`, `MHTooltip`, `MHMenu` |
+| 컴포넌트 | `MHButton`, `MHChip`, `MHActionArea`, `MHTextField`, `MHTextArea`, `MHTextButton`, `MHCharacterCounter`, `MHContentBadge`, `MHThumbnail`, `MHAvatar`, `MHAvatarGroup`, `MHAvatarStack`, `MHCategory`, `MHSnackbar`, `MHTooltip`, `MHMenu` |
 
 각 토큰·컴포넌트의 상세 사용법은 소스 상단 주석과 public API Quick Help(`///`)를 참조한다.
 
