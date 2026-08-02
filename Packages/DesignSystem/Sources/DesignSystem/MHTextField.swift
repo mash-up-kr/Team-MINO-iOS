@@ -178,7 +178,13 @@ public struct MHTextField: View {
         .frame(minHeight: MHTextFieldMetric.contentMinHeight)
         .padding(MHTextFieldMetric.contentPadding)
         .frame(minHeight: MHTextFieldMetric.boxHeight)
-        .background(spec.backgroundColor, in: shape)
+        .background {
+            // 불투명 base + 프로스트 틴트. base 가 없으면 inputBox 의 mhShadow(.xsmall) 잉크가
+            // 반투명(8% 흰색) 표면을 통과해 박스 내부를 회색으로 채운다(TextArea 와 동일 이슈).
+            // Figma 는 그림자를 항상 불투명 표면(Background/Normal/Normal)과 함께 쓴다.
+            shape.fill(Color.mhBackgroundNormalNormal)
+            shape.fill(spec.backgroundColor)               // Background/Transparent/Normal(활성) / Interaction/Disable(비활성)
+        }
         .overlay { shape.strokeBorder(spec.borderColor, lineWidth: spec.borderWidth) }
     }
 
@@ -353,7 +359,10 @@ struct MHTextFieldButtonStyle: ButtonStyle {
         configuration.label
             .padding(.horizontal, MHTextFieldMetric.buttonHPadding)
             .frame(minWidth: MHTextFieldMetric.buttonMinWidth, minHeight: MHTextFieldMetric.boxHeight)
-            .background(button.backgroundColor, in: shape)
+            .background {
+                shape.fill(Color.mhBackgroundNormalNormal)   // 불투명 base — 공유 mhShadow 가 투명 표면을 통과하는 것 방지
+                shape.fill(button.backgroundColor)
+            }
             .overlay {
                 if configuration.isPressed {
                     shape.fill(Color.mhLabelNormal.opacity(MHTextFieldMetric.buttonPressedOpacity))
