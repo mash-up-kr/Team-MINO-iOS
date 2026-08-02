@@ -220,7 +220,8 @@ struct TooltipArrow: Shape {
     .padding(40)
 }
 
-// Figma 축 밖의 인스턴스 옵션: align(start/center/end) · shortcut(단축키).
+// Figma 축 밖의 인스턴스 옵션: align(화살표가 변을 따라 start/center/end 이동) · shortcut(단축키).
+// 단축키 예시는 Figma 기본 정렬 start(화살표가 라벨 아래)로 둔다.
 #Preview("MHTooltip · 옵션") {
     VStack(alignment: .leading, spacing: 28) {
         HStack(spacing: 24) {
@@ -228,8 +229,8 @@ struct TooltipArrow: Shape {
             MHTooltip("center", position: .bottom, align: .center)
             MHTooltip("end", position: .bottom, align: .end)
         }
-        MHTooltip("복사", shortcut: "⌘C", position: .top, align: .center)
-        MHTooltip("붙여넣기", shortcut: "⌘V", size: .small, position: .top, align: .center)
+        MHTooltip("복사", shortcut: "⌘C", position: .top, align: .start)
+        MHTooltip("붙여넣기", shortcut: "⌘V", size: .small, position: .top, align: .start)
     }
     .padding(40)
 }
