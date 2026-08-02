@@ -150,13 +150,41 @@ private struct SnackbarCloseStyle: ButtonStyle {
     }
 }
 
-#Preview("MHSnackbar") {
+// Figma `Snackbar/Snackbar`(Variant=Normal) — 토글(leadingIcon·heading·description·closeButton) 조합.
+// 액션 텍스트버튼("텍스트")은 Figma 에서 항상 표시된다. 반투명 다크 바라 밝은 배경 위에서 확인.
+#Preview("MHSnackbar · Figma") {
     VStack(spacing: 12) {
-        MHSnackbar(title: "저장했어요.", actionTitle: "실행취소") {}
+        // heading + action (기본 = Figma 마스터)
+        MHSnackbar(title: "메시지에 마침표를 찍어요.", actionTitle: "텍스트") {}
+        // heading + description + action
         MHSnackbar(title: "메시지에 마침표를 찍어요.", description: "설명은 필요할 때만 써요.", actionTitle: "텍스트") {}
-        MHSnackbar(title: "링크를 복사했어요.", icon: .circleCheck, onClose: {})
+        // leadingIcon + heading + action
+        MHSnackbar(title: "메시지에 마침표를 찍어요.", icon: .circleCheck, actionTitle: "텍스트") {}
+        // heading + action + closeButton
+        MHSnackbar(title: "메시지에 마침표를 찍어요.", actionTitle: "텍스트", action: {}, onClose: {})
+        // leadingIcon + heading + description + action + closeButton (전체)
+        MHSnackbar(
+            title: "메시지에 마침표를 찍어요.",
+            description: "설명은 필요할 때만 써요.",
+            icon: .circleCheck,
+            actionTitle: "텍스트",
+            action: {},
+            onClose: {}
+        )
     }
-    .padding()
-    .frame(width: 360)
+    .padding(16)
+    .frame(width: 367)                         // 335(Figma 폭) + 좌우 패딩 16
+    .background(Color(white: 0.9))
+}
+
+// Figma 토글 축 밖의 활용: 액션 없이 닫기만 / 아이콘·제목만(후속 액션 불필요한 알림).
+#Preview("MHSnackbar · 확장") {
+    VStack(spacing: 12) {
+        MHSnackbar(title: "링크를 복사했어요.", icon: .link, onClose: {})
+        MHSnackbar(title: "저장했어요.", actionTitle: "실행취소") {}
+        MHSnackbar(title: "업로드를 완료했어요.", icon: .circleCheck)
+    }
+    .padding(16)
+    .frame(width: 367)
     .background(Color(white: 0.9))
 }
