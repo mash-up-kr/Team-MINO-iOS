@@ -72,24 +72,38 @@ public struct MHMenu<ActionArea: View>: View {
 
     private var hasActionArea: Bool { ActionArea.self != EmptyView.self }
 
+    @State private var listContentHeight: CGFloat = 0
+
     public var body: some View {
         VStack(spacing: 0) {
-            ScrollView(.vertical, showsIndicators: true) {
-                VStack(spacing: 4) {                          // Figma Contents gap-4
-                    ForEach(items.indices, id: \.self) { i in
-                        cell(items[i])
-                    }
-                }
-                .padding(.horizontal, 20)                     // Figma Container px-20
-                .padding(.vertical, 8)                        // Figma Container py-8
-            }
+            list
             if hasActionArea { actionAreaContainer }
         }
-        .frame(maxHeight: maxHeight)                          // Figma max-h-400
         .background(RoundedRectangle(cornerRadius: 16).fill(Color.mhBackgroundElevatedNormal))
         .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(.mhLineSolidNeutral, lineWidth: 1))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .mhShadow(.small, cornerRadius: 16)                   // Figma Shadow/Normal/Small
+    }
+
+    // 항목 리스트 — Figma `max-h-[400px]` 은 "최대 400": 내용에 맞춰 높이를 hug 하고 넘칠 때만 스크롤한다.
+    // ScrollView 는 세로로 greedy 라 그대로 두면 항목이 적어도 카드가 maxHeight 까지 늘어나 아래에 빈 공간이 생긴다.
+    // → 내용 높이(py-8 포함)를 재서 min(내용, maxHeight) 으로 고정(MHTextArea 의 성장-후-스크롤 패턴과 동일).
+    private var list: some View {
+        ScrollView(.vertical, showsIndicators: true) {
+            VStack(spacing: 4) {                              // Figma Contents gap-4
+                ForEach(items.indices, id: \.self) { i in
+                    cell(items[i])
+                }
+            }
+            .padding(.horizontal, 20)                         // Figma Container px-20
+            .padding(.vertical, 8)                            // Figma Container py-8
+            .background(GeometryReader { g in
+                Color.clear.preference(key: MHMenuContentHeightKey.self, value: g.size.height)
+            })
+        }
+        .frame(height: min(listContentHeight, maxHeight))     // 내용에 맞춰 hug (최대 maxHeight)
+        .scrollDisabled(listContentHeight <= maxHeight)       // 안 넘치면 스크롤 잠금(바운스 방지)
+        .onPreferenceChange(MHMenuContentHeightKey.self) { listContentHeight = $0 }
     }
 
     // 하단 액션영역 — 상단 구분선(Line/Solid/Alternative) + p-12 + elevated 배경. 내용(버튼)은 caller 가 채운다.
@@ -165,4 +179,54 @@ private struct MHMenuCellStyle: ButtonStyle {
                 }
             }
     }
+}
+
+// 메뉴 리스트 내용 높이 측정용 PreferenceKey (hug → 넘치면 스크롤 전환).
+private struct MHMenuContentHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
+}
+
+// Figma `Menu/Menu`(Variant=Normal) 기본 형태 — elevated 카드 + 텍스트 셀 리스트.
+#Preview("MHMenu · 기본") {
+    MHMenu([
+        MHMenuItem("복사", isActive: true) {},
+        MHMenuItem("붙여넣기") {},
+        MHMenuItem("이름 바꾸기") {},
+        MHMenuItem("복제") {},
+        MHMenuItem("삭제") {},
+    ])
+    .frame(width: 240)
+    .padding()
+}
+
+// 셀 상태: 기본 / active(Medium·Primary) / caption(부제목) / disable(Label/Disable) / trailing(아이콘·단축키).
+#Preview("MHMenu · 셀 상태") {
+    MHMenu([
+        MHMenuItem("복사", trailing: .text("⌘C")) {},
+        MHMenuItem("선택됨", isActive: true) {},
+        MHMenuItem("공유", caption: "링크로 공유") {},
+        MHMenuItem("내보내기", trailing: .icon(.download)) {},
+        MHMenuItem("삭제", trailing: .icon(.trash), isDisabled: true) {},
+    ])
+    .frame(width: 240)
+    .padding()
+}
+
+// 하단 액션영역(menuActionArea) — 상단 구분선 + 텍스트버튼 + CTA. cellVerticalPadding 12.
+#Preview("MHMenu · 액션영역") {
+    MHMenu(
+        (0..<5).map { MHMenuItem("텍스트 \($0)") {} },
+        cellVerticalPadding: 12
+    ) {
+        HStack {
+            Text("텍스트").mhTypography(.body1NormalRegular).foregroundStyle(.mhLabelAlternative)
+            Spacer()
+            Text("확인").mhTypography(.label1NormalBold).foregroundStyle(.mhStaticWhite)
+                .padding(.horizontal, 12).padding(.vertical, 6)
+                .background(RoundedRectangle(cornerRadius: 8).fill(Color.mhLabelStrong))
+        }
+    }
+    .frame(width: 280)
+    .padding()
 }

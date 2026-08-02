@@ -124,3 +124,19 @@ public struct MHActionAreaChips: View {
         .frame(maxWidth: .infinity)
     }
 }
+
+#Preview("MHActionArea Extra Presets") {
+    struct Host: View {
+        @State private var agreed = true
+        var body: some View {
+            VStack(spacing: 24) {
+                MHActionAreaSummary(label: "결제 금액", value: "12,000원")
+                MHActionAreaInformation(heading: "안내", description: "필요한 경우 설명을 덧붙입니다.")
+                MHActionAreaCheckbox("약관에 동의합니다.", isOn: $agreed)
+                MHActionAreaChips(["전체", "최신순", "인기순"])
+            }
+            .padding()
+        }
+    }
+    return Host()
+}

@@ -106,3 +106,12 @@ public struct MHAvatarGroupCountLabel: View {
             .padding(.vertical, 4)   // Figma: py-[4px]
     }
 }
+
+#Preview("MHAvatarGroup") {
+    VStack(alignment: .leading, spacing: 20) {
+        MHAvatarGroup(Array(repeating: Image?.none, count: 4), size: .xSmall)
+        MHAvatarGroup(Array(repeating: Image?.none, count: 5), size: .small)
+        MHAvatarGroup(Array(repeating: Image?.none, count: 5), size: .small, remaining: 12)
+    }
+    .padding()
+}

@@ -42,3 +42,11 @@ public struct MHCharacterCounter: View {
         .padding(.horizontal, 4)       // Figma Wrapper px-4
     }
 }
+
+#Preview("MHCharacterCounter") {
+    VStack(alignment: .trailing, spacing: 8) {
+        MHCharacterCounter(count: 12, limit: 100)
+        MHCharacterCounter(count: 105, limit: 100)   // 초과
+    }
+    .padding()
+}

@@ -145,12 +145,12 @@ public struct MHTooltip: View {
         let arrowW, arrowH, arrowInset, shortcutGap: CGFloat
         init(_ size: MHTooltipSize) {
             switch size {
-            case .medium:   // 라인박스 14×1.429≈20
+            case .medium:   // 라인박스 14×1.429≈20. 화살표 리소스 20×5.924(≈6)
                 font = .label1NormalMedium; hPad = 12; vPad = 8; radius = 8; minWidth = 64; lineHeight = 20
-                arrowW = 20; arrowH = 8; arrowInset = 8; shortcutGap = 6
-            case .small:    // 라인박스 11×1.273≈14
+                arrowW = 20; arrowH = 6; arrowInset = 8; shortcutGap = 6
+            case .small:    // 라인박스 11×1.273≈14. 화살표 리소스 14×5
                 font = .caption2Medium; hPad = 8; vPad = 5; radius = 6; minWidth = 36; lineHeight = 14
-                arrowW = 14; arrowH = 6; arrowInset = 5; shortcutGap = 4
+                arrowW = 14; arrowH = 5; arrowInset = 5; shortcutGap = 4
             }
         }
     }
@@ -158,30 +158,79 @@ public struct MHTooltip: View {
 
 // MARK: - Arrow Shape
 
-// position 변에서 바깥(앵커)을 향하는 삼각형. rect 는 화살표 프레임(가로/세로 배치는 호출부 frame 이 결정).
+// Figma `Tooltip/Resource/*/Arrow` 곡선 화살표 — 밑변이 부드럽게 벌어지고 꼭짓점이 둥근 형태(단순 삼각형 아님).
+// Medium 리소스 SVG(20×5.924) 를 단위좌표로 정규화한 베지어를 그대로 옮겼다(xn: 밑변 방향, yn: 0=꼭짓점(바깥)/1=밑변(버블면)).
+// 4방향은 정규화 좌표를 rect 에 매핑해 처리(가로 position 은 rect 가 깊이×밑변 으로 들어온다).
 struct TooltipArrow: Shape {
     let position: MHTooltipPosition
-    func path(in r: CGRect) -> Path {
-        var p = Path()
-        switch position {
-        case .bottom:   // 위 변, 위(↑)를 가리킴
-            p.move(to: CGPoint(x: r.midX, y: r.minY))
-            p.addLine(to: CGPoint(x: r.maxX, y: r.maxY))
-            p.addLine(to: CGPoint(x: r.minX, y: r.maxY))
-        case .top:      // 아래 변, 아래(↓)
-            p.move(to: CGPoint(x: r.midX, y: r.maxY))
-            p.addLine(to: CGPoint(x: r.minX, y: r.minY))
-            p.addLine(to: CGPoint(x: r.maxX, y: r.minY))
-        case .left:     // 오른 변, 오른쪽(→)
-            p.move(to: CGPoint(x: r.maxX, y: r.midY))
-            p.addLine(to: CGPoint(x: r.minX, y: r.minY))
-            p.addLine(to: CGPoint(x: r.minX, y: r.maxY))
-        case .right:    // 왼 변, 왼쪽(←)
-            p.move(to: CGPoint(x: r.minX, y: r.midY))
-            p.addLine(to: CGPoint(x: r.maxX, y: r.maxY))
-            p.addLine(to: CGPoint(x: r.maxX, y: r.minY))
+
+    func path(in rect: CGRect) -> Path {
+        // (xn, yn) 단위좌표 → rect. yn=0 은 꼭짓점(바깥/앵커쪽), yn=1 은 밑변(버블에 붙는 면).
+        func pt(_ xn: CGFloat, _ yn: CGFloat) -> CGPoint {
+            switch position {
+            case .bottom: return CGPoint(x: xn * rect.width, y: yn * rect.height)             // ↑ 꼭짓점 위
+            case .top:    return CGPoint(x: xn * rect.width, y: (1 - yn) * rect.height)        // ↓ 꼭짓점 아래
+            case .left:   return CGPoint(x: (1 - yn) * rect.width, y: xn * rect.height)        // → 꼭짓점 오른쪽
+            case .right:  return CGPoint(x: yn * rect.width, y: xn * rect.height)              // ← 꼭짓점 왼쪽
+            }
         }
+        var p = Path()
+        p.move(to: pt(0.295906, 0.622709))
+        p.addLine(to: pt(0.378519, 0.297323))
+        p.addCurve(to: pt(0.466193, 0.019879), control1: pt(0.420368, 0.132491), control2: pt(0.441293, 0.050076))
+        p.addCurve(to: pt(0.533805, 0.019879), control1: pt(0.488048, -0.006626), control2: pt(0.511955, -0.006626)) // 둥근 꼭짓점
+        p.addCurve(to: pt(0.621480, 0.297323), control1: pt(0.558705, 0.050076), control2: pt(0.579630, 0.132491))
+        p.addLine(to: pt(0.704095, 0.622709))
+        p.addCurve(to: pt(0.778450, 0.881068), control1: pt(0.739370, 0.761642), control2: pt(0.757005, 0.831114))
+        p.addCurve(to: pt(0.840885, 0.977811), control1: pt(0.797450, 0.925182), control2: pt(0.818575, 0.957938))
+        p.addCurve(to: pt(0.913570, 0.999796), control1: pt(0.860195, 0.995012), control2: pt(0.880640, 0.998967))
+        p.addLine(to: pt(1.0, 0.999796))
+        p.addLine(to: pt(0.0, 0.999796))                                                        // 밑변(버블면)
+        p.addLine(to: pt(0.086431, 0.999796))
+        p.addCurve(to: pt(0.159113, 0.977811), control1: pt(0.119362, 0.998967), control2: pt(0.139803, 0.995012))
+        p.addCurve(to: pt(0.221551, 0.881068), control1: pt(0.181424, 0.957938), control2: pt(0.202549, 0.925182))
+        p.addCurve(to: pt(0.295906, 0.622709), control1: pt(0.242995, 0.831114), control2: pt(0.260632, 0.761642))
         p.closeSubpath()
         return p
     }
+}
+
+// Figma `Tooltip/Tooltip` 매트릭스 — Size(Medium/Small) × Position(Bottom/Top/Left/Right).
+// 열: Medium("메시지에 마침표를 찍어요.") / Small("역할"). 행: Bottom·Top·Left·Right.
+// 화살표 정렬은 Figma 예제 기본값인 start(leading, 인셋 8/5pt)에 맞춘다(실측: 화살표가 leading).
+#Preview("MHTooltip · Figma 매트릭스") {
+    Grid(alignment: .leading, horizontalSpacing: 48, verticalSpacing: 28) {
+        GridRow {
+            MHTooltip("메시지에 마침표를 찍어요.", position: .bottom, align: .start)
+            MHTooltip("역할", size: .small, position: .bottom, align: .start)
+        }
+        GridRow {
+            MHTooltip("메시지에 마침표를 찍어요.", position: .top, align: .start)
+            MHTooltip("역할", size: .small, position: .top, align: .start)
+        }
+        GridRow {
+            MHTooltip("메시지에 마침표를 찍어요.", position: .left, align: .start)
+            MHTooltip("역할", size: .small, position: .left, align: .start)
+        }
+        GridRow {
+            MHTooltip("메시지에 마침표를 찍어요.", position: .right, align: .start)
+            MHTooltip("역할", size: .small, position: .right, align: .start)
+        }
+    }
+    .padding(40)
+}
+
+// Figma 축 밖의 인스턴스 옵션: align(화살표가 변을 따라 start/center/end 이동) · shortcut(단축키).
+// 단축키 예시는 Figma 기본 정렬 start(화살표가 라벨 아래)로 둔다.
+#Preview("MHTooltip · 옵션") {
+    VStack(alignment: .leading, spacing: 28) {
+        HStack(spacing: 24) {
+            MHTooltip("start", position: .bottom, align: .start)
+            MHTooltip("center", position: .bottom, align: .center)
+            MHTooltip("end", position: .bottom, align: .end)
+        }
+        MHTooltip("복사", shortcut: "⌘C", position: .top, align: .start)
+        MHTooltip("붙여넣기", shortcut: "⌘V", size: .small, position: .top, align: .start)
+    }
+    .padding(40)
 }

@@ -287,3 +287,48 @@ struct MHButtonSpinner: View {
             .onAppear { spin = true }
     }
 }
+
+// 프리뷰 한 열: 한 (variant, color) 조합의 L/M/S 텍스트(활성/비활성) + 아이콘 전용. Figma Button 매트릭스 열과 동일.
+private struct MHButtonPreviewColumn: View {
+    let title: String
+    let variant: MHButtonVariant
+    let color: MHButtonColor
+    var body: some View {
+        VStack(spacing: 10) {
+            Text(title).font(.system(size: 9, weight: .semibold)).foregroundStyle(.secondary)
+            MHButton("텍스트", variant: variant, color: color, size: .large) {}
+            MHButton("텍스트", variant: variant, color: color, size: .large) {}.disabled(true)
+            MHButton("텍스트", variant: variant, color: color, size: .medium) {}
+            MHButton("텍스트", variant: variant, color: color, size: .medium) {}.disabled(true)
+            MHButton("텍스트", variant: variant, color: color, size: .small) {}
+            MHButton("텍스트", variant: variant, color: color, size: .small) {}.disabled(true)
+            MHButton(icon: .check, variant: variant, color: color, size: .large) {}
+            MHButton(icon: .check, variant: variant, color: color, size: .medium) {}
+            MHButton(icon: .check, variant: variant, color: color, size: .small) {}
+        }
+    }
+}
+
+// Figma `Button/Button` 전체 매트릭스: Solid/Outlined × Primary/Assistive × Large/Medium/Small × 텍스트/아이콘 × 활성/비활성.
+#Preview("MHButton · Figma 매트릭스") {
+    ScrollView([.horizontal, .vertical]) {
+        HStack(alignment: .top, spacing: 16) {
+            MHButtonPreviewColumn(title: "Solid · Primary",    variant: .solid,    color: .primary)
+            MHButtonPreviewColumn(title: "Solid · Assistive",  variant: .solid,    color: .assistive)
+            MHButtonPreviewColumn(title: "Outlined · Primary",   variant: .outlined, color: .primary)
+            MHButtonPreviewColumn(title: "Outlined · Assistive", variant: .outlined, color: .assistive)
+        }
+        .padding(20)
+    }
+}
+
+// 우리 확장(Figma Button 표준 아님): outlinedStrong(검정 테두리)·leadingIcon·loading.
+#Preview("MHButton · 확장") {
+    VStack(alignment: .leading, spacing: 12) {
+        MHButton("Outlined Strong", variant: .outlinedStrong) {}
+        MHButton("담기", leadingIcon: .plus) {}
+        MHButton("전송", trailingIcon: .send) {}
+        MHButton("로딩", isLoading: true) {}
+    }
+    .padding()
+}

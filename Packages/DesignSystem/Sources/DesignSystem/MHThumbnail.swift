@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // MARK: - Ratio
 
@@ -89,4 +90,103 @@ public struct MHThumbnail<Overlay: View>: View {
 
 enum MHThumbnailMetric {
     static let cornerRadius: CGFloat = 12   // radius=true 일 때 모서리
+}
+
+// 프리뷰용 플레이스홀더: 옅게 채운 이미지(실제 이미지 자리). Figma 는 이미지에 object-cover(=fill)
+// 를 쓰므로 어떤 비율이든 scaledToFill 로 균일하게 채워진다 — 실제 사진도 같은 방식으로 꽉 채워(fill) 잘린다.
+private func thumbFill() -> Image {
+    let size = CGSize(width: 16, height: 16)
+    let ui = UIGraphicsImageRenderer(size: size).image { _ in
+        UIColor(Color.mhFillNormal).setFill()
+        UIRectFill(CGRect(origin: .zero, size: size))
+    }
+    return Image(uiImage: ui)
+}
+
+// 이미지 자리 표시 아이콘 — 오버레이라 고정 크기(비율과 무관하게 안 찌그러진다).
+private struct ThumbPlaceholderIcon: View {
+    var body: some View {
+        Image(systemName: "photo")
+            .font(.system(size: 20))
+            .foregroundStyle(Color.mhLabelDisable)
+    }
+}
+
+// 비율 한 칸 — 썸네일(옅은 채움 + 중앙 아이콘) + 비율 라벨. Figma 기본은 테두리 없음(border=false).
+private struct ThumbRatioDemo: View {
+    let title: String
+    let ratio: MHThumbnailRatio
+    var body: some View {
+        VStack(spacing: 4) {
+            MHThumbnail(thumbFill(), ratio: ratio, radius: true) { ThumbPlaceholderIcon() }
+                .frame(width: 96)
+            Text(title).font(.system(size: 9)).foregroundStyle(.secondary)
+        }
+    }
+}
+
+// Figma `Thumbnail/Thumbnail` 의 ratio 축 — 가로형/세로형 프리셋을 폭 고정으로 나열(높이는 비율로 결정).
+#Preview("MHThumbnail · 비율") {
+    ScrollView {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("가로형 (Horizontal)").font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .top, spacing: 10) {
+                    ThumbRatioDemo(title: "1:1", ratio: .square)
+                    ThumbRatioDemo(title: "4:3", ratio: .r4x3)
+                    ThumbRatioDemo(title: "3:2", ratio: .r3x2)
+                    ThumbRatioDemo(title: "16:9", ratio: .r16x9)
+                    ThumbRatioDemo(title: "2:1", ratio: .r2x1)
+                }
+            }
+            Text("세로형 (Vertical)").font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .top, spacing: 10) {
+                    ThumbRatioDemo(title: "4:5", ratio: .r4x5)
+                    ThumbRatioDemo(title: "3:4", ratio: .r3x4)
+                    ThumbRatioDemo(title: "2:3", ratio: .r2x3)
+                    ThumbRatioDemo(title: "9:16", ratio: .r9x16)
+                }
+            }
+        }
+        .padding()
+    }
+}
+
+// Figma `radius` · `border` · `overlay` 옵션 축 (16:9 기준).
+#Preview("MHThumbnail · 옵션") {
+    VStack(alignment: .leading, spacing: 14) {
+        HStack(alignment: .top, spacing: 12) {
+            optionCell("각진 (radius off)") {
+                MHThumbnail(thumbFill(), ratio: .r16x9) { ThumbPlaceholderIcon() }.frame(width: 130)
+            }
+            optionCell("둥근 (radius on)") {
+                MHThumbnail(thumbFill(), ratio: .r16x9, radius: true) { ThumbPlaceholderIcon() }.frame(width: 130)
+            }
+        }
+        optionCell("테두리 (border)") {
+            MHThumbnail(thumbFill(), ratio: .r16x9, radius: true, border: true) { ThumbPlaceholderIcon() }.frame(width: 130)
+        }
+        optionCell("오버레이 (overlay) — 스크림 + 재생시간") {
+            MHThumbnail(thumbFill(), ratio: .r16x9, radius: true) {
+                ZStack {
+                    Color.black.opacity(0.24)
+                    Text("12:34")
+                        .mhTypography(.caption1Bold)
+                        .foregroundStyle(.mhStaticWhite)
+                        .padding(6)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                }
+            }
+            .frame(width: 200)
+        }
+    }
+    .padding()
+}
+
+@ViewBuilder private func optionCell<V: View>(_ title: String, @ViewBuilder _ content: () -> V) -> some View {
+    VStack(alignment: .leading, spacing: 4) {
+        Text(title).font(.system(size: 9, weight: .semibold)).foregroundStyle(.secondary)
+        content()
+    }
 }

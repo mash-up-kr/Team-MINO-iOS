@@ -234,3 +234,65 @@ public extension MHTypography {
     /// Figma `Caption 2/Regular`
     static let caption2Regular = MHTypography(weight: .regular, size: 11, lineHeightMultiple: 1.273, letterSpacingPercent: 3.11)
 }
+
+// MARK: - Preview
+
+// 스케일 한 줄 — 위계명·크기 라벨 + 실제 토큰으로 렌더한 샘플(폰트·크기·자간·행간 반영).
+private struct MHTypeRow: View {
+    let name: String
+    let token: MHTypography
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("\(name) · \(Int(token.size))pt · LH \(String(format: "%.3g", token.lineHeightMultiple)) · LS \(String(format: "%g", token.letterSpacingPercent))%")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(.secondary)
+            Text("가나다 Aa 123")
+                .mhTypography(token)
+                .foregroundStyle(.mhLabelNormal)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+// Figma `타이포그래피` 스케일 — 18개 하위 위계(각 Bold 대표). 크기·행간·자간이 토큰에 그대로 반영됨을 확인.
+#Preview("MHTypography · 스케일") {
+    ScrollView {
+        VStack(alignment: .leading, spacing: 16) {
+            Group {
+                MHTypeRow(name: "Display 1", token: .display1Bold)
+                MHTypeRow(name: "Display 2", token: .display2Bold)
+                MHTypeRow(name: "Display 3", token: .display3Bold)
+                MHTypeRow(name: "Title 1", token: .title1Bold)
+                MHTypeRow(name: "Title 2", token: .title2Bold)
+                MHTypeRow(name: "Title 3", token: .title3Bold)
+                MHTypeRow(name: "Heading 1", token: .heading1Bold)
+                MHTypeRow(name: "Heading 2", token: .heading2Bold)
+            }
+            Group {
+                MHTypeRow(name: "Headline 1", token: .headline1Bold)
+                MHTypeRow(name: "Headline 2", token: .headline2Bold)
+                MHTypeRow(name: "Body 1/Normal", token: .body1NormalBold)
+                MHTypeRow(name: "Body 1/Reading", token: .body1ReadingBold)
+                MHTypeRow(name: "Body 2/Normal", token: .body2NormalBold)
+                MHTypeRow(name: "Body 2/Reading", token: .body2ReadingBold)
+                MHTypeRow(name: "Label 1/Normal", token: .label1NormalBold)
+                MHTypeRow(name: "Label 1/Reading", token: .label1ReadingBold)
+                MHTypeRow(name: "Label 2", token: .label2Bold)
+                MHTypeRow(name: "Caption 1", token: .caption1Bold)
+                MHTypeRow(name: "Caption 2", token: .caption2Bold)
+            }
+        }
+        .padding()
+    }
+}
+
+// 굵기 3종(Regular/Medium/Bold) 렌더 확인.
+#Preview("MHTypography · 굵기") {
+    VStack(alignment: .leading, spacing: 12) {
+        Text("Regular 가나다 Aa").mhTypography(.heading1Regular)
+        Text("Medium 가나다 Aa").mhTypography(.heading1Medium)
+        Text("Bold 가나다 Aa").mhTypography(.heading1Bold)
+    }
+    .foregroundStyle(.mhLabelNormal)
+    .padding()
+}

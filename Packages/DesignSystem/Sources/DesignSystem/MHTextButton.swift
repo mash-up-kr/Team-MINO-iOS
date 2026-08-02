@@ -69,3 +69,12 @@ struct MHTextButtonStyle: ButtonStyle {
             .contentShape(RoundedRectangle(cornerRadius: 6))
     }
 }
+
+#Preview("MHTextButton") {
+    HStack(spacing: 16) {
+        MHTextButton("Primary") {}
+        MHTextButton("Assistive", variant: .assistive) {}
+        MHTextButton("Disabled") {}.disabled(true)
+    }
+    .padding()
+}

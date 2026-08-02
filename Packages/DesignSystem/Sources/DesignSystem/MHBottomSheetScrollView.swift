@@ -112,3 +112,17 @@ private final class IntrospectorView: UIView {
         }
     }
 }
+
+#Preview("MHBottomSheetScrollView") {
+    MHBottomSheetScrollView {
+        VStack(spacing: 12) {
+            ForEach(0..<20, id: \.self) { i in
+                Text("항목 \(i)")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding()
+                    .background(Color.mhFillAlternative, in: RoundedRectangle(cornerRadius: 8))
+            }
+        }
+        .padding()
+    }
+}
