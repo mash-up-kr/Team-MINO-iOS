@@ -373,16 +373,74 @@ struct MHTextFieldButtonStyle: ButtonStyle {
     }
 }
 
-#Preview("MHTextField") {
+// 한 상태 셀 — Figma 문서 셀과 동일: heading "주제" + Input + description(상태별 문구).
+// 실제 @State 바인딩이라 타이핑하면 placeholder 가 사라지고 지우면 다시 나타난다.
+private struct MHTextFieldStateCell: View {
+    let label: String
+    @State private var text: String
+    let status: MHTextFieldStatus
+    let disabled: Bool
+
+    init(_ label: String, text: String, status: MHTextFieldStatus = .normal, disabled: Bool = false) {
+        self.label = label
+        self._text = State(initialValue: text)
+        self.status = status
+        self.disabled = disabled
+    }
+
+    private var desc: String {
+        switch status {
+        case .normal:   "메시지에 마침표를 찍어요."
+        case .positive: "성공 메시지를 나타내요."
+        case .negative: "에러 메시지를 나타내요."
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label).font(.system(size: 9, weight: .semibold)).foregroundStyle(.secondary)
+            MHTextField("텍스트를 입력해 주세요.", text: $text, heading: "주제", description: desc, status: status)
+                .disabled(disabled)
+        }
+    }
+}
+
+// Figma `Textinput/Textfield` 상태 매트릭스 중 정적으로 고정되는 8종
+// (status(Normal/Positive/Negative) × active × disable). 성공=체크 아이콘, 에러=느낌표 아이콘.
+// focus 상태(테두리 2px + 편집 중 clear(×) 버튼)는 @FocusState 라 정적으로 못 박는다 →
+// 아래 "입력·포커스" 프리뷰에서 탭하면 확인.
+#Preview("MHTextField · 상태") {
+    ScrollView {
+        VStack(alignment: .leading, spacing: 18) {
+            MHTextFieldStateCell("기본 (Inactive)", text: "")
+            MHTextFieldStateCell("입력됨 (Active)", text: "값")
+            MHTextFieldStateCell("성공 (Positive)", text: "값", status: .positive)
+            MHTextFieldStateCell("에러 (Negative)", text: "", status: .negative)
+            MHTextFieldStateCell("에러·입력 (Negative·Active)", text: "값", status: .negative)
+            MHTextFieldStateCell("비활성 (Disabled)", text: "", disabled: true)
+            MHTextFieldStateCell("비활성·입력 (Disabled·Active)", text: "값", disabled: true)
+            MHTextFieldStateCell("성공·비활성 (Positive·Disabled)", text: "값", status: .positive, disabled: true)
+        }
+        .padding()
+    }
+    .frame(width: 367)
+}
+
+// 실제 입력 — 탭하면 focus 테두리(2px), 편집 중 clear(×) 버튼. Figma 의 Focus / *·Focus 상태를 상호작용으로 확인.
+// trailing 버튼 세그먼트(분절 필드)도 함께 시연.
+#Preview("MHTextField · 입력·포커스") {
     struct Host: View {
-        @State private var text = ""
-        @State private var value = "값"
+        @State private var normal = ""
+        @State private var positive = "값"
+        @State private var negative = "값"
+        @State private var code = ""
         var body: some View {
             VStack(spacing: 20) {
-                MHTextField("닉네임을 입력해 주세요.", text: $text, heading: "닉네임")
-                MHTextField("이메일", text: $value, description: "형식이 올바르지 않아요.", status: .negative)
-                MHTextField("검색", text: $value, status: .positive, leadingIcon: .search)
-                MHTextField("비활성", text: .constant("값"), heading: "비활성").disabled(true)
+                MHTextField("텍스트를 입력해 주세요.", text: $normal, heading: "주제", description: "메시지에 마침표를 찍어요.")
+                MHTextField("텍스트를 입력해 주세요.", text: $positive, heading: "주제", description: "성공 메시지를 나타내요.", status: .positive)
+                MHTextField("텍스트를 입력해 주세요.", text: $negative, heading: "주제", description: "에러 메시지를 나타내요.", status: .negative)
+                MHTextField("인증번호", text: $code, heading: "주제",
+                            trailingButton: .init("인증") {})
             }
             .padding()
         }
