@@ -217,10 +217,47 @@ private struct MHChipStyleBody: View {
     }
 }
 
-#Preview("MHChip") {
+// 프리뷰 한 묶음: 한 variant 의 XSmall/Small/Medium/Large × (비활성 / 활성 / 비활성화). Figma Chip 매트릭스 반쪽과 동일.
+private struct MHChipPreviewMatrix: View {
+    let title: String
+    let variant: MHChipVariant
+    private let sizes: [MHChipSize] = [.xsmall, .small, .medium, .large]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title).font(.system(size: 9, weight: .semibold)).foregroundStyle(.secondary)
+            row(active: false, disabled: false)   // 비활성
+            row(active: true, disabled: false)    // 활성
+            row(active: true, disabled: true)     // 비활성화
+        }
+    }
+
+    private func row(active: Bool, disabled: Bool) -> some View {
+        HStack(spacing: 10) {
+            ForEach(Array(sizes.enumerated()), id: \.offset) { _, s in
+                MHChip("텍스트", variant: variant, size: s, isActive: active) {}
+                    .disabled(disabled)
+            }
+        }
+    }
+}
+
+// Figma `Chip/Chip` 전체 매트릭스: Solid/Outlined × XSmall/Small/Medium/Large × 활성/비활성 × 비활성화.
+#Preview("MHChip · Figma 매트릭스") {
+    HStack(alignment: .top, spacing: 32) {
+        MHChipPreviewMatrix(title: "Solid", variant: .solid)
+        MHChipPreviewMatrix(title: "Outlined", variant: .outlined)
+    }
+    .padding(20)
+}
+
+// 콘텐츠 슬롯: leading/trailing 아이콘·썸네일(1:1 이미지). (Figma Chip 매트릭스 축 밖의 확장 슬롯)
+#Preview("MHChip · 콘텐츠 슬롯") {
     VStack(alignment: .leading, spacing: 12) {
-        HStack { MHChip("전체", isActive: true) {}; MHChip("최신순") {}; MHChip("인기") {} }
-        HStack { MHChip("필터", variant: .outlined, leading: .icon(.tune)) {}; MHChip("삭제", size: .small, trailing: .icon(.close)) {} }
+        MHChip("필터", leading: .icon(.tune)) {}
+        MHChip("삭제", trailing: .icon(.close)) {}
+        MHChip("필터", variant: .outlined, leading: .icon(.tune)) {}
+        MHChip("전체", isActive: true) {}
     }
     .padding()
 }
