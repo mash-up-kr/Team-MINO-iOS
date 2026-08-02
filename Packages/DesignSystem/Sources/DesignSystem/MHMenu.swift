@@ -167,13 +167,38 @@ private struct MHMenuCellStyle: ButtonStyle {
     }
 }
 
-#Preview("MHMenu") {
+// Figma `Menu/Menu`(Variant=Normal) 기본 형태 — elevated 카드 + 텍스트 셀 리스트.
+#Preview("MHMenu · 기본") {
+    MHMenu([
+        MHMenuItem("복사", isActive: true) {},
+        MHMenuItem("붙여넣기") {},
+        MHMenuItem("이름 바꾸기") {},
+        MHMenuItem("복제") {},
+        MHMenuItem("삭제") {},
+    ])
+    .frame(width: 240)
+    .padding()
+}
+
+// 셀 상태: 기본 / active(Medium·Primary) / caption(부제목) / disable(Label/Disable) / trailing(아이콘·단축키).
+#Preview("MHMenu · 셀 상태") {
     MHMenu([
         MHMenuItem("복사", trailing: .text("⌘C")) {},
-        MHMenuItem("이름 바꾸기", isActive: true) {},
+        MHMenuItem("선택됨", isActive: true) {},
         MHMenuItem("공유", caption: "링크로 공유") {},
+        MHMenuItem("내보내기", trailing: .icon(.download)) {},
         MHMenuItem("삭제", trailing: .icon(.trash), isDisabled: true) {},
-    ]) {
+    ])
+    .frame(width: 240)
+    .padding()
+}
+
+// 하단 액션영역(menuActionArea) — 상단 구분선 + 텍스트버튼 + CTA. cellVerticalPadding 12.
+#Preview("MHMenu · 액션영역") {
+    MHMenu(
+        (0..<5).map { MHMenuItem("텍스트 \($0)") {} },
+        cellVerticalPadding: 12
+    ) {
         HStack {
             Text("텍스트").mhTypography(.body1NormalRegular).foregroundStyle(.mhLabelAlternative)
             Spacer()
