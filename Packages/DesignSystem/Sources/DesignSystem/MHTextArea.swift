@@ -121,7 +121,13 @@ public struct MHTextArea<Leading: View, Trailing: View>: View {
             if hasBottom { bottomBar }
         }
         .padding(MHTextAreaMetric.contentPadding)
-        .background(spec.backgroundColor, in: shape)
+        .background {
+            // 불투명 base + 프로스트 틴트. base 가 없으면 아래 mhShadow(.xsmall) 의 그림자 잉크가
+            // 반투명(8% 흰색) 프로스트를 통과해 박스 내부를 회색(#EAEAEA)으로 채운다.
+            // Figma 는 그림자를 항상 불투명 표면(Background/Normal/Normal)과 함께 쓴다 — Shadow 토큰 레퍼런스 확인.
+            shape.fill(Color.mhBackgroundNormalNormal)
+            shape.fill(spec.backgroundColor)               // Background/Transparent/Normal(enabled) / Interaction/Disable(disabled)
+        }
         .overlay { shape.strokeBorder(spec.borderColor, lineWidth: spec.borderWidth) }
         .clipShape(shape)                                   // Figma overflow-clip
         .mhShadow(.xsmall, cornerRadius: MHTextAreaMetric.cornerRadius)
