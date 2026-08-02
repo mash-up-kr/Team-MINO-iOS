@@ -221,22 +221,95 @@ enum MHTextAreaMetric {
     static let bottomItemGap: CGFloat = 4     // 같은 쪽 아이템 간격
 }
 
-#Preview("MHTextArea") {
-    struct Host: View {
-        @State private var text = ""
-        var body: some View {
+// 한 상태 셀 — Figma 문서 셀과 동일 구성: heading "주제" + 입력 박스(카운터/텍스트버튼) + description.
+// 실제 @State 바인딩이라 타이핑하면 placeholder 가 사라지고 지우면 다시 나타난다(초깃값으로 빈/채움 상태를 시연).
+private struct MHTextAreaStateCell: View {
+    let label: String
+    @State private var text: String
+    let status: MHTextAreaStatus
+    let disabled: Bool
+
+    init(label: String, text: String, status: MHTextAreaStatus = .normal, disabled: Bool = false) {
+        self.label = label
+        self._text = State(initialValue: text)
+        self.status = status
+        self.disabled = disabled
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label).font(.system(size: 9, weight: .semibold)).foregroundStyle(.secondary)
             MHTextArea(
                 "메시지를 입력해 주세요.",
                 text: $text,
                 heading: "주제",
-                isRequired: true,
-                description: "메시지에 마침표를 찍어요."
+                description: "메시지에 마침표를 찍어요.",
+                status: status
             ) {
-                EmptyView()
-            } bottomTrailing: {
                 MHCharacterCounter(count: text.count, limit: 2000)
+            } bottomTrailing: {
+                MHTextButton("텍스트") {}
             }
-            .padding()
+            .disabled(disabled)
+        }
+    }
+}
+
+// Figma `Textinput/Textarea` 상태 매트릭스 중 정적으로 고정되는 6종(status × active × disable).
+// focus 상태(Primary 43%·2px 테두리)는 `@FocusState` 기반이라 정적 프리뷰로 못 박는다 →
+// 아래 "입력·포커스" 프리뷰에서 탭하면 focus/active-focus 테두리를 실제로 확인.
+#Preview("MHTextArea · 상태") {
+    ScrollView {
+        VStack(alignment: .leading, spacing: 20) {
+            MHTextAreaStateCell(label: "기본 (Inactive)", text: "")
+            MHTextAreaStateCell(label: "입력됨 (Active)", text: "회의 내용을 정리했어요.")
+            MHTextAreaStateCell(label: "에러 (Negative)", text: "", status: .negative)
+            MHTextAreaStateCell(label: "에러·입력 (Negative·Active)", text: "회의 내용을 정리했어요.", status: .negative)
+            MHTextAreaStateCell(label: "비활성 (Disabled)", text: "", disabled: true)
+            MHTextAreaStateCell(label: "비활성·입력 (Disabled·Active)", text: "회의 내용을 정리했어요.", disabled: true)
+        }
+        .padding()
+    }
+    .frame(width: 367)
+}
+
+// 실제 입력 — 탭하면 focus 테두리(Primary 43%·2px, 에러는 빨강), 타이핑하면 성장(resize).
+// Figma 의 Focus / Active·Focus / Error·Focus 상태와 resize 동작을 상호작용으로 확인한다.
+#Preview("MHTextArea · 입력·포커스") {
+    struct Host: View {
+        @State private var normal = ""
+        @State private var error = "형식에 맞지 않는 값이에요."
+        var body: some View {
+            ScrollView {
+                VStack(spacing: 20) {
+                    MHTextArea(
+                        "메시지를 입력해 주세요.",
+                        text: $normal,
+                        heading: "주제",
+                        isRequired: true,
+                        description: "메시지에 마침표를 찍어요.",
+                        resize: .limit(minLines: 1, maxLines: 5)
+                    ) {
+                        MHCharacterCounter(count: normal.count, limit: 2000)
+                    } bottomTrailing: {
+                        MHTextButton("전송") {}
+                    }
+
+                    MHTextArea(
+                        "메시지를 입력해 주세요.",
+                        text: $error,
+                        heading: "주제",
+                        description: "형식에 맞지 않아요.",
+                        status: .negative
+                    ) {
+                        MHCharacterCounter(count: error.count, limit: 2000)
+                    } bottomTrailing: {
+                        MHTextButton("전송") {}
+                    }
+                }
+                .padding()
+            }
+            .frame(width: 367)
         }
     }
     return Host()
