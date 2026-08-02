@@ -172,9 +172,8 @@ private struct SnackbarCloseStyle: ButtonStyle {
             onClose: {}
         )
     }
-    .padding(16)
-    .frame(width: 367)                         // 335(Figma 폭) + 좌우 패딩 16
-    .background(Color(white: 0.9))
+    .frame(width: 335)                          // Figma 스낵바 폭. 반투명 다크라 흰 캔버스 위에서 Figma 와 동일한 회색으로 렌더
+    .padding()
 }
 
 // Figma 토글 축 밖의 활용: 액션 없이 닫기만 / 아이콘·제목만(후속 액션 불필요한 알림).
@@ -184,7 +183,6 @@ private struct SnackbarCloseStyle: ButtonStyle {
         MHSnackbar(title: "저장했어요.", actionTitle: "실행취소") {}
         MHSnackbar(title: "업로드를 완료했어요.", icon: .circleCheck)
     }
-    .padding(16)
-    .frame(width: 367)
-    .background(Color(white: 0.9))
+    .frame(width: 335)
+    .padding()
 }
