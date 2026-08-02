@@ -112,3 +112,11 @@ extension MHContentBadgeSize {
         }
     }
 }
+
+#Preview("MHContentBadge") {
+    VStack(spacing: 12) {
+        HStack { MHContentBadge("N"); MHContentBadge("NEW", variant: .outlined); MHContentBadge("3", size: .xsmall) }
+        HStack { MHContentBadge("완료", color: .mhStatusPositive); MHContentBadge("주의", color: .mhStatusNegative, leadingIcon: .circleExclamation) }
+    }
+    .padding()
+}

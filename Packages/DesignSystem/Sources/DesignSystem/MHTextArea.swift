@@ -214,3 +214,24 @@ enum MHTextAreaMetric {
     static let bottomGap: CGFloat = 16        // leading ↔ trailing 간격
     static let bottomItemGap: CGFloat = 4     // 같은 쪽 아이템 간격
 }
+
+#Preview("MHTextArea") {
+    struct Host: View {
+        @State private var text = ""
+        var body: some View {
+            MHTextArea(
+                "메시지를 입력해 주세요.",
+                text: $text,
+                heading: "주제",
+                isRequired: true,
+                description: "메시지에 마침표를 찍어요."
+            ) {
+                EmptyView()
+            } bottomTrailing: {
+                MHCharacterCounter(count: text.count, limit: 2000)
+            }
+            .padding()
+        }
+    }
+    return Host()
+}

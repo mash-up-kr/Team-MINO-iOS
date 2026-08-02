@@ -133,3 +133,20 @@ struct MHAvatarStyle: ButtonStyle {
             }
     }
 }
+
+#Preview("MHAvatar") {
+    VStack(spacing: 16) {
+        HStack(spacing: 12) {
+            MHAvatar(nil, size: 40)
+            MHAvatar(nil, variant: .company, size: 40)
+            MHAvatar(nil, variant: .academy, size: 40)
+        }
+        HStack(alignment: .bottom, spacing: 12) {
+            ForEach([24, 32, 40, 48, 56], id: \.self) { s in
+                MHAvatar(nil, size: CGFloat(s))
+            }
+        }
+        MHAvatar(nil, size: 48, borderColor: .mhPrimaryNormal, borderWidth: 2)
+    }
+    .padding()
+}

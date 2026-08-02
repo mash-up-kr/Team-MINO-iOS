@@ -166,3 +166,22 @@ private struct MHMenuCellStyle: ButtonStyle {
             }
     }
 }
+
+#Preview("MHMenu") {
+    MHMenu([
+        MHMenuItem("복사", trailing: .text("⌘C")) {},
+        MHMenuItem("이름 바꾸기", isActive: true) {},
+        MHMenuItem("공유", caption: "링크로 공유") {},
+        MHMenuItem("삭제", trailing: .icon(.trash), isDisabled: true) {},
+    ]) {
+        HStack {
+            Text("텍스트").mhTypography(.body1NormalRegular).foregroundStyle(.mhLabelAlternative)
+            Spacer()
+            Text("확인").mhTypography(.label1NormalBold).foregroundStyle(.mhStaticWhite)
+                .padding(.horizontal, 12).padding(.vertical, 6)
+                .background(RoundedRectangle(cornerRadius: 8).fill(Color.mhLabelStrong))
+        }
+    }
+    .frame(width: 280)
+    .padding()
+}

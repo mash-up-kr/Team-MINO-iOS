@@ -149,3 +149,14 @@ private struct SnackbarCloseStyle: ButtonStyle {
             }
     }
 }
+
+#Preview("MHSnackbar") {
+    VStack(spacing: 12) {
+        MHSnackbar(title: "저장했어요.", actionTitle: "실행취소") {}
+        MHSnackbar(title: "메시지에 마침표를 찍어요.", description: "설명은 필요할 때만 써요.", actionTitle: "텍스트") {}
+        MHSnackbar(title: "링크를 복사했어요.", icon: .circleCheck, onClose: {})
+    }
+    .padding()
+    .frame(width: 360)
+    .background(Color(white: 0.9))
+}

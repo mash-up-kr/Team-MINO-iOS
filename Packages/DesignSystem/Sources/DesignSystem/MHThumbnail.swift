@@ -90,3 +90,15 @@ public struct MHThumbnail<Overlay: View>: View {
 enum MHThumbnailMetric {
     static let cornerRadius: CGFloat = 12   // radius=true 일 때 모서리
 }
+
+#Preview("MHThumbnail") {
+    VStack(spacing: 16) {
+        MHThumbnail(Image(systemName: "photo"), ratio: .r16x9, radius: true, border: true)
+            .frame(width: 220)
+        HStack(spacing: 12) {
+            MHThumbnail(Image(systemName: "photo"), ratio: .square).frame(width: 90)
+            MHThumbnail(Image(systemName: "photo"), ratio: .r3x4, radius: true).frame(width: 90)
+        }
+    }
+    .padding()
+}

@@ -287,3 +287,16 @@ struct MHButtonSpinner: View {
             .onAppear { spin = true }
     }
 }
+
+#Preview("MHButton") {
+    VStack(spacing: 12) {
+        MHButton("Solid Primary") {}
+        MHButton("Outlined", variant: .outlined) {}
+        MHButton("Outlined Strong", variant: .outlinedStrong) {}
+        MHButton("Assistive", color: .assistive) {}
+        MHButton("Leading", leadingIcon: .check) {}
+        MHButton("Loading", isLoading: true) {}
+        MHButton("Disabled") {}.disabled(true)
+    }
+    .padding()
+}

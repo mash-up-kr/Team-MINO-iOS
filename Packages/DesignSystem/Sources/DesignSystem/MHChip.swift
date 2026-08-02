@@ -216,3 +216,11 @@ private struct MHChipStyleBody: View {
             .clipShape(RoundedRectangle(cornerRadius: metric.cornerRadius))
     }
 }
+
+#Preview("MHChip") {
+    VStack(alignment: .leading, spacing: 12) {
+        HStack { MHChip("전체", isActive: true) {}; MHChip("최신순") {}; MHChip("인기") {} }
+        HStack { MHChip("필터", variant: .outlined, leading: .icon(.tune)) {}; MHChip("삭제", size: .small, trailing: .icon(.close)) {} }
+    }
+    .padding()
+}

@@ -363,3 +363,20 @@ struct MHTextFieldButtonStyle: ButtonStyle {
             .contentShape(shape)
     }
 }
+
+#Preview("MHTextField") {
+    struct Host: View {
+        @State private var text = ""
+        @State private var value = "값"
+        var body: some View {
+            VStack(spacing: 20) {
+                MHTextField("닉네임을 입력해 주세요.", text: $text, heading: "닉네임")
+                MHTextField("이메일", text: $value, description: "형식이 올바르지 않아요.", status: .negative)
+                MHTextField("검색", text: $value, status: .positive, leadingIcon: .search)
+                MHTextField("비활성", text: .constant("값"), heading: "비활성").disabled(true)
+            }
+            .padding()
+        }
+    }
+    return Host()
+}

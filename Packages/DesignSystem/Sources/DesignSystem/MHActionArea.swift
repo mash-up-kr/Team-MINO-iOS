@@ -236,3 +236,21 @@ private struct MHSubLinkStyle: ButtonStyle {
             }
     }
 }
+
+#Preview("MHActionArea") {
+    VStack(spacing: 32) {
+        MHActionArea(
+            variant: .strong,
+            main: .init("메인 액션") {},
+            alternative: .init("대체 액션") {},
+            sub: .init("보조 액션") {},
+            caption: "필요한 경우 설명을 덧붙입니다."
+        )
+        MHActionArea(
+            variant: .strong,
+            main: .init("메인 액션", variant: .outlinedStrong) {},
+            alternative: .init("대체 액션") {}
+        )
+        MHActionArea(variant: .cancel, main: .init("확인") {})
+    }
+}

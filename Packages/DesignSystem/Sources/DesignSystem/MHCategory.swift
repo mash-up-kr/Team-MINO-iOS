@@ -112,3 +112,19 @@ public struct MHCategory<Trailing: View>: View {
         }
     }
 }
+
+#Preview("MHCategory") {
+    struct Host: View {
+        @State private var sel = 0
+        var body: some View {
+            VStack(alignment: .leading, spacing: 20) {
+                MHCategory(["전체", "개발", "디자인", "기획", "PM"], selection: $sel)
+                MHCategory(["전체", "개발", "디자인"], selection: $sel, variant: .alternative)
+                MHCategory(["전체", "개발", "디자인", "기획", "PM", "마케팅", "데이터"], selection: $sel, horizontalPadding: true) {
+                    Image(systemName: "slider.horizontal.3").foregroundStyle(.mhLabelNormal)
+                }
+            }
+        }
+    }
+    return Host()
+}

@@ -185,3 +185,18 @@ struct TooltipArrow: Shape {
         return p
     }
 }
+
+#Preview("MHTooltip") {
+    VStack(spacing: 28) {
+        MHTooltip("메시지에 마침표를 찍어요.")
+        HStack(spacing: 24) {
+            MHTooltip("Top", position: .top)
+            MHTooltip("Bottom", position: .bottom)
+            MHTooltip("Left", position: .left)
+            MHTooltip("Right", position: .right)
+        }
+        MHTooltip("역할", size: .small)
+        MHTooltip("복사", shortcut: "⌘C")
+    }
+    .padding(40)
+}
