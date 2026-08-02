@@ -243,8 +243,9 @@ private struct MHChipPreviewMatrix: View {
 }
 
 // Figma `Chip/Chip` 전체 매트릭스: Solid/Outlined × XSmall/Small/Medium/Large × 활성/비활성 × 비활성화.
+// (Solid·Outlined 를 가로로 나란히 두면 8개 폭이 캔버스를 넘어 잘리므로 세로로 쌓는다 — 한 줄에 4개.)
 #Preview("MHChip · Figma 매트릭스") {
-    HStack(alignment: .top, spacing: 32) {
+    VStack(alignment: .leading, spacing: 24) {
         MHChipPreviewMatrix(title: "Solid", variant: .solid)
         MHChipPreviewMatrix(title: "Outlined", variant: .outlined)
     }
