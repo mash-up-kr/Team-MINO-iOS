@@ -5,7 +5,7 @@ import SwiftUI
 /// 아바타 종류. `person`(원형) / `company`·`academy`(둥근 사각, radius = 크기×0.25). Figma `variant`.
 ///
 /// person 은 사람용(원), company·academy 는 기관용(둥근 사각)이다. 셋 다 이미지가 없으면
-/// 기본 placeholder 를 보여준다(현재 person=사람 아이콘). Figma 는 company=건물·academy=학사모
+/// 기본 placeholder 를 보여준다(person=회색 원 채움 + 흰 사람 실루엣). Figma 는 company=건물·academy=학사모
 /// placeholder 아이콘을 쓰지만, 그 두 일러스트는 아이콘 세트에 없어(에셋 대기) 지금은 빈 배경으로 둔다.
 public enum MHAvatarVariant: Sendable { case person, company, academy }
 
@@ -96,14 +96,19 @@ public struct MHAvatar<Badge: View>: View {
         }
     }
 
-    // 이미지 없을 때 기본 표시. person=사람 아이콘(회색). company(건물)·academy(학사모)는 Figma placeholder
+    // 이미지 없을 때 기본 표시. person=회색(Fill/Strong) 원 + 흰 사람. company(건물)·academy(학사모)는 Figma placeholder
     // 아이콘이 아이콘 세트에 없어(에셋 대기) 빈 배경 — 에셋 확보 시 person 과 대칭으로 추가.
     @ViewBuilder private var placeholder: some View {
         if variant == .person {
-            Image(MHIcon.personFill)
-                .resizable().scaledToFit()
-                .frame(width: size * 0.5, height: size * 0.5)   // Figma placeholder ~50%
-                .foregroundStyle(.mhLabelAssistive)
+            // Figma: 회색 채움(Fill/Strong) 원 + 흰 사람 실루엣. 사람색은 카브아웃이라 Background/Normal/Normal
+            // (라이트=흰/다크=어둠, 테마 적응). 프레임 0.68×size = 머리 25%·어깨 50%·세로 25~75%(Figma 실측 정합).
+            Color.mhFillStrong
+                .overlay {
+                    Image(MHIcon.personFill)
+                        .resizable().scaledToFit()
+                        .frame(width: size * 0.68, height: size * 0.68)
+                        .foregroundStyle(.mhBackgroundNormalNormal)
+                }
         }
     }
 
