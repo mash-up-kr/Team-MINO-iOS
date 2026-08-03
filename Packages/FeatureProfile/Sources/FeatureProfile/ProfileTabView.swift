@@ -2,9 +2,10 @@ import DesignSystem
 import FlowCoordination
 import SwiftUI
 
-/// 마이 탭 진입 View. 실제 화면이 붙기 전까지 탭 이름과 방 상세 시트 확인용 버튼만 표시한다.
+/// 마이 탭 진입 View. 이번 브랜치에서 추가한 합성 컴포넌트를 확인할 수 있다.
 public struct ProfileTabView: View {
     private let coordinator: ProfileCoordinator
+    @State private var selected = 0
 
     public init(coordinator: ProfileCoordinator) {
         self.coordinator = coordinator
@@ -13,27 +14,79 @@ public struct ProfileTabView: View {
     public var body: some View {
         @Bindable var coordinator = coordinator
         NavigationStack(path: $coordinator.path) {
-            ZStack {
-                VStack(spacing: 16) {
-                    Text("마이")
-                        .accessibilityIdentifier("ProfileTab.title")
-
-                    MHButton("방 상세 열기", size: .medium) {
-                        coordinator.isRoomDetailPresented = true
-                    }
-                    .accessibilityIdentifier("ProfileTab.openRoomDetail")
+            VStack(spacing: 0) {
+                Picker("컴포넌트", selection: $selected) {
+                    Text("Invitation").tag(0)
+                    Text("Card").tag(1)
+                    Text("Thumbnail").tag(2)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .pickerStyle(.segmented)
+                .padding()
 
-                // MHBottomSheet 은 딤 없는 비모달이라 .sheet 가 아니라 ZStack 에 겹쳐 놓는다
-                if coordinator.isRoomDetailPresented {
-                    RoomDetailSheet(room: .sample, locations: RoomDetailLocation.samples) {
-                        coordinator.isRoomDetailPresented = false
+                ScrollView {
+                    Group {
+                        switch selected {
+                        case 0:  invitationPage
+                        case 1:  cardPage
+                        default: thumbnailPage
+                        }
                     }
-                    .transition(.move(edge: .bottom))
+                    .padding()
                 }
             }
-            .animation(.spring(duration: 0.3), value: coordinator.isRoomDetailPresented)
+            .accessibilityIdentifier("ProfileTab.title")
+        }
+    }
+
+    // MARK: - Pages
+
+    private var invitationPage: some View {
+        MHInvitation(
+            thumbnailColor: .pink,
+            title: "5월의 약속 : 우리끼리",
+            description: "우리 모임 장소 픽업 공간.",
+            members: [nil, nil, nil],
+            placeCount: 1200
+        )
+    }
+
+    private var cardPage: some View {
+        VStack(spacing: 16) {
+            MHInvitationCard(
+                thumbnailColor: .pink,
+                title: "5월의 약속 : 우리끼리",
+                description: "우리 모임 장소 픽업 공간.",
+                members: [nil, nil, nil],
+                placeCount: 1200
+            )
+            .frame(width: 260)
+
+            MHInvitationCard(
+                thumbnailColor: .violet,
+                title: "5월의 약속 : 우리끼리",
+                description: "우리 모임 장소 픽업 공간.",
+                members: [nil, nil, nil, nil, nil, nil, nil],
+                placeCount: 5
+            )
+            .frame(width: 200)
+        }
+    }
+
+    private var thumbnailPage: some View {
+        VStack(spacing: 24) {
+            Text("unselect").font(.caption).foregroundStyle(.secondary)
+            LazyVGrid(columns: Array(repeating: GridItem(.fixed(70), spacing: 10), count: 4), spacing: 10) {
+                ForEach(MHRoomThumbnailColor.allCases, id: \.self) { color in
+                    MHRoomThumbnail(color: color, size: 70)
+                }
+            }
+
+            Text("select").font(.caption).foregroundStyle(.secondary)
+            LazyVGrid(columns: Array(repeating: GridItem(.fixed(70), spacing: 10), count: 4), spacing: 10) {
+                ForEach(MHRoomThumbnailColor.allCases.filter { $0 != .normal }, id: \.self) { color in
+                    MHRoomThumbnail(color: color, isSelected: true, size: 70)
+                }
+            }
         }
     }
 }
