@@ -100,6 +100,7 @@ public enum MHIcon: String, CaseIterable, Sendable {
     case pencil
     case pencilFill
     case person
+    case personCircleFill
     case personFill
     case personPlus
     case personPlusFill
