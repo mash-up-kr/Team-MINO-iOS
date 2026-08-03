@@ -14,6 +14,24 @@ fileprivate extension Color {
 }
 
 public extension ShapeStyle where Self == Color {
-    /// Figma atomic `Pink/95` (#FEECFB). 방 기본 썸네일 배경 등에 쓰인다.
+    /// Figma atomic `Pink/95` (#FEECFB).
     static var mhPink95: Color { Color(atomic: "Pink/95") }
+    /// Figma atomic `Purple/95` (#F9EDFF).
+    static var mhPurple95: Color { Color(atomic: "Purple/95") }
+    /// Figma atomic `Violet/95` (#F0ECFE).
+    static var mhViolet95: Color { Color(atomic: "Violet/95") }
+    /// Figma atomic `Blue/95` (#EAF2FE).
+    static var mhBlue95: Color { Color(atomic: "Blue/95") }
+    /// Figma atomic `Light Blue/95` (#E5F6FE).
+    static var mhLightBlue95: Color { Color(atomic: "Light Blue/95") }
+    /// Figma atomic `Cyan/95` (#DEFAFF).
+    static var mhCyan95: Color { Color(atomic: "Cyan/95") }
+    /// Figma atomic `Green/95` (#D9FFE6).
+    static var mhGreen95: Color { Color(atomic: "Green/95") }
+    /// Figma atomic `Lime/95` (#E6FFD4).
+    static var mhLime95: Color { Color(atomic: "Lime/95") }
+    /// Figma atomic `Orange/95` (#FEF4E6).
+    static var mhOrange95: Color { Color(atomic: "Orange/95") }
+    /// Figma atomic `Red Orange/95` (#FEEEE5).
+    static var mhRedOrange95: Color { Color(atomic: "Red Orange/95") }
 }
