@@ -250,7 +250,7 @@ public struct MHLocationCard: View {
 public enum MHLocationCardLayout: Sendable {
     /// 썸네일이 왼쪽(94pt 정사각), 콘텐츠가 오른쪽. 목록 한 줄에 적합.
     case compact
-    /// 썸네일이 제목 아래(가로 꽉 채운 4:3 큰 이미지). 강조 표시에 적합.
+    /// 썸네일이 제목 아래(절반 너비 164pt, 4:5 세로 비율). 강조 표시에 적합.
     case expanded
 
     /// 더보기·버블 아이콘의 한 변(pt). compact 18 / expanded 24.

@@ -61,7 +61,7 @@ public struct MHInvitation: View {
             .overlay(alignment: .bottom) {
                 // 3) 카드 하단 그림자 가림 (카드 위, 봉투 앞면 아래)
                 Rectangle()
-                    .fill(.white)
+                    .fill(Color.mhBackgroundNormalNormal)
                     .frame(height: 60)
                     .offset(y: 50)
             }
