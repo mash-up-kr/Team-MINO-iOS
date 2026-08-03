@@ -36,31 +36,11 @@ struct RoomDetailHeader: View {
     }
 
     private var roomInfo: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(room.title)
-                    .mhTypography(.title3Bold)
-                    .foregroundStyle(.mhLabelStrong)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                Text(room.memo)
-                    .mhTypography(.label1NormalRegular)
-                    .foregroundStyle(.mhLabelNeutral)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            RoomDetailMetric(
-                icon: .locationFill,
-                text: room.locationCountText,
-                typography: .label1NormalRegular
-            )
-        }
-        .padding(.horizontal, 20)
-        .padding(.top, 12)
-        .padding(.bottom, 20)
-        .accessibilityElement(children: .combine)
+        MHRoomHeader(
+            title: room.title,
+            memo: room.memo.isEmpty ? nil : room.memo,
+            count: room.locationCountText
+        )
         .accessibilityIdentifier("RoomDetail.header")
     }
 }
