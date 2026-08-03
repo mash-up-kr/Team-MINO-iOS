@@ -84,7 +84,7 @@ public struct MHAvatarStack: View {
             Image(MHIcon.plus)
                 .resizable().scaledToFit()
                 .frame(width: 18, height: 18)             // Figma: p-7 안쪽 아이콘 18pt
-                .foregroundStyle(.mhStaticWhite)
+                .foregroundStyle(.mhInversePrimary)
                 .frame(width: side, height: side)
                 .background(shape.fill(.mhPrimaryNormal))
                 .clipShape(shape)
