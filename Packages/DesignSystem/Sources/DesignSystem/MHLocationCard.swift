@@ -119,11 +119,12 @@ public struct MHLocationCard: View {
         }
     }
 
-    // expanded — 제목 행, 그 아래 가로 꽉 채운 4:3 썸네일, 마지막에 코멘트/아바타 행.
+    // expanded — 제목 행, 그 아래 절반 너비 4:5 썸네일(좌측 정렬), 마지막에 코멘트/아바타 행.
     private var expandedBody: some View {
-        VStack(spacing: 12) {                            // Figma: gap 12
+        VStack(alignment: .leading, spacing: 12) {       // Figma: gap 12
             titleRow
-            thumbView(ratio: .r4x3)
+            thumbView(ratio: .r4x5)                      // Figma: 163.5×204 ≈ 4:5
+                .frame(width: 164)                       // Figma: 163.5pt ≈ 164
             bottomRow
         }
     }
