@@ -26,11 +26,10 @@ struct InviteFriendsContent: View {
     private var topNavigation: some View {
         HStack(spacing: 16) {
             Button(action: onTapBack) {
-                // NOTE(에셋): Figma `Icon/Normal/Chevron Left` 는 MHIcon 에 없음 → SF Symbol 로 대체.
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(Color.mhLabelNormal)
+                Image(MHIcon.chevronLeft)
+                    .resizable()
                     .frame(width: 24, height: 24)
+                    .foregroundStyle(Color.mhLabelNormal)
             }
             Spacer(minLength: 0)
             Button(action: onTapSkip) {

@@ -79,8 +79,7 @@ struct CreateRoomContent: View {
                 .foregroundStyle(Color.mhLabelStrong)
             HStack {
                 Button(action: onBack) {
-                    // NOTE: 피그마 원본 아이콘은 chevronLeft. MHIcon 에 대응 케이스가 없어 최근접인 arrowLeft 로 대체(보고 대상).
-                    Image(MHIcon.arrowLeft)
+                    Image(MHIcon.chevronLeft)
                         .resizable()
                         .frame(width: 24, height: 24)
                         .foregroundStyle(Color.mhLabelNormal)
