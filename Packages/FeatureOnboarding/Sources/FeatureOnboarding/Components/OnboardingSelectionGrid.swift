@@ -132,7 +132,7 @@ private extension OnboardingGridShape {
 #Preview("원형 — 캐릭터") {
     OnboardingSelectionGrid(
         title: "프로필 이미지 선택",
-        items: [Color.mhAtomicRed60, .mhAtomicOrange70, .mhAtomicLime80, .mhAtomicCyan90]
+        items: [Color.mhRed60, .mhOrange70, .mhLime80, .mhCyan90]
             .map { .color(fill: $0, border: .mhLineNormalAlternative) },
         selectedIndex: 1,
         shape: .circle,
@@ -145,10 +145,10 @@ private extension OnboardingGridShape {
     OnboardingSelectionGrid(
         title: "방 색상 선택",
         items: [
-            .color(fill: .mhAtomicRed60, border: .mhAtomicRed30),
-            .color(fill: .mhAtomicCyan90, border: .mhAtomicCyan50),
-            .color(fill: .mhAtomicPink90, border: .mhAtomicPink60),
-            .color(fill: .mhAtomicBlue65, border: .mhAtomicBlue40),
+            .color(fill: .mhRed60, border: .mhRed30),
+            .color(fill: .mhCyan90, border: .mhCyan50),
+            .color(fill: .mhPink90, border: .mhPink60),
+            .color(fill: .mhBlue65, border: .mhBlue40),
         ],
         selectedIndex: 1,
         shape: .roundedSquare,

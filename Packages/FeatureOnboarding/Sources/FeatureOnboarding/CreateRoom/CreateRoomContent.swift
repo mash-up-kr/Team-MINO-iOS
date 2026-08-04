@@ -8,18 +8,18 @@ import DesignSystem
 /// 색상은 Figma `Atomic/*` 팔레트를 그대로 쓴다 — 사용자가 고르는 팔레트라 역할이 없어 시맨틱 토큰이 맞지 않는다.
 /// 계열마다 밝은 단계가 채움, 진한 단계가 테두리다.
 private let roomColorSwatches: [OnboardingGridItem] = [
-    .color(fill: .mhAtomicRed60, border: .mhAtomicRed30),
-    .color(fill: .mhAtomicRedOrange70, border: .mhAtomicRedOrange40),
-    .color(fill: .mhAtomicOrange70, border: .mhAtomicOrange40),
-    .color(fill: .mhAtomicLime80, border: .mhAtomicLime37),
-    .color(fill: .mhAtomicGreen90, border: .mhAtomicGreen60),
-    .color(fill: .mhAtomicCyan90, border: .mhAtomicCyan50),
-    .color(fill: .mhAtomicViolet80, border: .mhAtomicViolet50),
-    .color(fill: .mhAtomicPink90, border: .mhAtomicPink60),
-    .color(fill: .mhAtomicBlue65, border: .mhAtomicBlue40),
-    .color(fill: .mhAtomicBrown70, border: .mhAtomicBrown40),
-    .color(fill: .mhAtomicLightBlue60, border: .mhAtomicLightBlue40),
-    .color(fill: .mhAtomicPurple70, border: .mhAtomicPurple40),
+    .color(fill: .mhRed60, border: .mhRed30),
+    .color(fill: .mhRedOrange70, border: .mhRedOrange40),
+    .color(fill: .mhOrange70, border: .mhOrange40),
+    .color(fill: .mhLime80, border: .mhLime37),
+    .color(fill: .mhGreen90, border: .mhGreen60),
+    .color(fill: .mhCyan90, border: .mhCyan50),
+    .color(fill: .mhViolet80, border: .mhViolet50),
+    .color(fill: .mhPink90, border: .mhPink60),
+    .color(fill: .mhBlue65, border: .mhBlue40),
+    .color(fill: .mhBrown70, border: .mhBrown40),
+    .color(fill: .mhLightBlue60, border: .mhLightBlue40),
+    .color(fill: .mhPurple70, border: .mhPurple40),
 ]
 
 // MARK: - CreateRoomContent
