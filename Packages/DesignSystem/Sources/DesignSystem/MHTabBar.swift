@@ -49,12 +49,10 @@ public struct MHTabBar: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            // 상단 디바이더 (1px)
             Rectangle()
                 .fill(.mhLineNormalNeutral)
                 .frame(height: 1)
 
-            // 탭 아이템 행
             HStack(spacing: 0) {
                 ForEach(items) { item in
                     tabButton(item)

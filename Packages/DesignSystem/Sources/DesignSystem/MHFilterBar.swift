@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - Filter Bar
-
 /// 정렬 드롭다운 + 카테고리 칩 바를 한 줄에 담은 필터 바. Figma `Chip_Room`(node 15852:88538).
 ///
 /// 정렬 버튼을 누르면 아래에 정렬 옵션 메뉴(``MHMenu``)가 열리고, 항목을 고르면 `selectedSort` 가 갱신되며

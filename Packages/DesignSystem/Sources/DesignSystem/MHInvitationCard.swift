@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - Invitation Card
-
 /// 모임 초대 카드. Figma `invitation_card`(node 16108:23255).
 ///
 /// 상단에 방 대표 썸네일(``MHRoomThumbnail``), 중간에 모임 이름·설명,
@@ -52,7 +50,6 @@ public struct MHInvitationCard: View {
         .mhShadow(.small, cornerRadius: 16)
     }
 
-    // 제목 + 설명. 각각 한 줄 말줄임, 중앙 정렬.
     private var info: some View {
         VStack(spacing: 2) {
             Text(title)
@@ -69,7 +66,6 @@ public struct MHInvitationCard: View {
         .frame(maxWidth: .infinity)
     }
 
-    // 멤버 아바타 그룹 + 장소 수. 고정 간격으로 나란히 놓는다.
     private var bottomRow: some View {
         HStack(spacing: 8) {
             if !members.isEmpty {

@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - Avatar Stack
-
 /// `MHAvatarStack` 우측 트레일링. Figma `state`: default(`none`) / add(`add`) / more(`overflow`).
 ///
 /// 셋은 상호 배타적이다(Figma variant) — 하나만 붙는다.
@@ -50,18 +48,16 @@ public struct MHAvatarStack: View {
     }
 
     public var body: some View {
-        // 겹침: 음수 간격으로 step = side − overlap(=26). 링은 배경이라 레이아웃 폭을 늘리지 않아 겹침은 side 기준.
         HStack(spacing: -overlap) {
             ForEach(Array(images.enumerated()), id: \.offset) { _, image in
                 avatarCell(image)
             }
-            trailingCell   // 트레일링도 같은 체인의 오른쪽 끝(맨 위)
+            trailingCell
         }
         .padding(inset)
         .background(Capsule().fill(.mhFillNormal))
     }
 
-    // 아바타 1개 + 뒤에 깔린 배경색 링(둘레 1.5px, 레이아웃 비확장).
     private func avatarCell(_ image: Image?) -> some View {
         MHAvatar(image, variant: variant, size: side, badge: { EmptyView() })
             .background { ring }
@@ -107,19 +103,15 @@ public struct MHAvatarStack: View {
             .background { ring }
     }
 
-    // 셀과 동심인 배경색 링(person=원, 그 외=둥근 사각). 배경이라 레이아웃 폭을 늘리지 않는다.
     private var ring: some View {
         shape.fill(Color.mhBackgroundNormalNormal)
             .frame(width: side + ringWidth * 2, height: side + ringWidth * 2)
     }
 
-    // 아바타/배지/링 공통 모양. person=원(radius=16), company·academy=둥근 사각.
     private var shape: RoundedRectangle {
         RoundedRectangle(cornerRadius: variant.cornerRadius(size: side))
     }
 }
-
-// MARK: - 편의 이니셜라이저 ("+" 추가 버튼)
 
 public extension MHAvatarStack {
     /// "+" 추가 버튼을 붙인 스택(후행 클로저). Figma `state=add`.

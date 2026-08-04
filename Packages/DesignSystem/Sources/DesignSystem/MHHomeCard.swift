@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - Home Card
-
 /// 홈에서 쓰는 장소 카드. Figma `Card_Home`(node 15852:88604).
 ///
 /// 상단에 작성자 아바타 + 추천 이유 뱃지(강조색) + 더보기 버튼, 그 아래 제목·주소, 마지막에 사진 2장을
@@ -63,7 +61,6 @@ public struct MHHomeCard: View {
         .overlay(RoundedRectangle(cornerRadius: 24).strokeBorder(.mhBackgroundNormalAlternative, lineWidth: 1))
     }
 
-    // 제목 + 주소. 각각 한 줄 말줄임.
     private var info: some View {
         VStack(alignment: .leading, spacing: 2) {
             line(title, .body1NormalBold, .mhLabelNormal)
@@ -82,7 +79,6 @@ public struct MHHomeCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    // 더보기(⋮) 버튼. Figma: Background/Normal/Alternative 원 + moreVertical 18pt, p7=32pt.
     private var moreButton: some View {
         Button { onMore?() } label: {
             Image(MHIcon.moreVertical)
@@ -95,7 +91,6 @@ public struct MHHomeCard: View {
         .buttonStyle(MHHomeCardMoreStyle())
     }
 
-    // 사진 2장 나란히(각 가용폭 절반, 높이 184, radius 16, fill+crop).
     private var imageGrid: some View {
         HStack(spacing: 8) {
             ForEach(Array(images.prefix(2).enumerated()), id: \.offset) { _, image in
@@ -108,8 +103,6 @@ public struct MHHomeCard: View {
         }
     }
 }
-
-// MARK: - ButtonStyle (더보기 press)
 
 // Figma `Interaction/Strong`(Label/Normal) — 눌림 시 원 위에 옅게 덮는다.
 struct MHHomeCardMoreStyle: ButtonStyle {

@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - Room Thumbnail Color
-
 /// ``MHRoomThumbnail`` 의 색상 variant. Figma `Room Thumbnail` Property 1.
 ///
 /// 각 색상은 `{Color}/95` 애터믹 배경과 `Accent/Foreground/{Color}` 시맨틱 테두리로 구성된다.

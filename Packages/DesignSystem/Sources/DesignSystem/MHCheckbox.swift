@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - Checkbox
-
 /// 체크박스 크기. Figma `size` = Normal(18) / Small(16).
 public enum MHCheckboxSize: Sendable {
     case normal, small
@@ -59,10 +57,10 @@ public struct MHCheckbox: View {
         let shape = RoundedRectangle(cornerRadius: 5)
         ZStack {
             if filled {
-                shape.fill(Color.mhPrimaryNormal)       // 체크/미결정: 검정 채움
+                shape.fill(Color.mhPrimaryNormal)
                 mark
             } else {
-                shape.strokeBorder(.mhLineNormalNormal, lineWidth: 1.5)   // 빈 박스 테두리
+                shape.strokeBorder(.mhLineNormalNormal, lineWidth: 1.5)
             }
         }
         .frame(width: size.box, height: size.box)

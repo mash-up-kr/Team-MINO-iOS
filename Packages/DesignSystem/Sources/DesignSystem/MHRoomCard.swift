@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - Room Card
-
 /// 방 목록 한 줄. Figma `Card_Room`(showMemo / showListCell, node 15852:88349).
 ///
 /// 왼쪽에 방 썸네일(``MHRoomThumbnail``), 가운데에 방 이름 + (선택) 메모 + "장소 N개", 오른쪽에 멤버
@@ -48,7 +46,7 @@ public struct MHRoomCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    // 제목 + 선택 메모. 높이 46 고정(메모 유무와 무관하게 행 높이 유지 — Figma).
+    // 메모 유무와 무관하게 행 높이 46 고정.
     private var titleBlock: some View {
         VStack(alignment: .leading, spacing: 4) {
             line(title, .body1NormalBold, .mhLabelNormal)
@@ -60,7 +58,6 @@ public struct MHRoomCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    // "장소 N개" + (선택 모드가 아니면) 멤버 아바타 그룹.
     private var bottom: some View {
         HStack(alignment: .bottom, spacing: 4) {
             Text("장소 \(placeCount)개")

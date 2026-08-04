@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - Comment
-
 /// 작성자(아바타 + 이름)와 코멘트 본문을 보여주는 표시형 컴포넌트. Figma `comment`(node 15852:88585).
 ///
 /// 상단에 32pt 아바타와 이름, 아래에 본문을 둔다. 본문은 `maxBodyHeight`(기본 140pt)를 넘으면 말줄임 없이

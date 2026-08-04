@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - Room Header
-
 /// 방(Room) 화면 상단 헤더. Figma `Header_Room`(show memo = on / off, node 15852:88515).
 ///
 /// 제목 + (선택) 메모 부제 + 메타 행(위치 아이콘 + 개수, 우측 아이콘 버튼) + 하단 구분선으로 구성된다.
@@ -57,7 +55,7 @@ public struct MHRoomHeader: View {
         }
     }
 
-    // 한 줄 말줄임 텍스트. `.mhTypography` 를 View(=lineLimit 이후) 에 적용해 Figma 라인박스(행간 포함)를 그대로 얻는다.
+    // `.mhTypography`를 lineLimit 이후에 적용해야 Figma 라인박스(행간 포함)가 유지된다.
     private func text(_ string: String, _ token: MHTypography, _ color: Color) -> some View {
         Text(string)
             .lineLimit(1)
@@ -67,7 +65,6 @@ public struct MHRoomHeader: View {
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    // 좌: 위치 아이콘 + 개수 / 우: 아이콘 버튼. Figma: items-end(바닥 정렬), justify-between.
     private var metaRow: some View {
         HStack(alignment: .bottom, spacing: 0) {
             HStack(spacing: 2) {

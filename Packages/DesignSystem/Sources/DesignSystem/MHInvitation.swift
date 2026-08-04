@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - Invitation (Envelope + Card)
-
 /// 봉투에 담긴 모임 초대장. Figma `invitation`(node 16108:23382, iOS variant).
 ///
 /// ``MHInvitationCard`` 를 편지 봉투 그래픽 위에 얹어, 카드가 봉투에서 꺼내진 모습을 연출한다.
@@ -43,13 +41,11 @@ public struct MHInvitation: View {
 
     public var body: some View {
         ZStack(alignment: .top) {
-            // 1) 봉투 뒷면
             Image("envelopeBack", bundle: .module)
                 .resizable().scaledToFit()
                 .frame(width: designWidth)
                 .offset(y: 60)
 
-            // 2) 초대 카드
             MHInvitationCard(
                 thumbnailColor: thumbnailColor,
                 title: title,
@@ -66,7 +62,6 @@ public struct MHInvitation: View {
                     .offset(y: 50)
             }
 
-            // 4) 봉투 앞면
             Image("envelopeFront", bundle: .module)
                 .resizable().scaledToFit()
                 .frame(width: designWidth)

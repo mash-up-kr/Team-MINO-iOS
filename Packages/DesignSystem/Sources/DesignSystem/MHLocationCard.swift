@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - Location Card
-
 /// 장소 하나를 보여주는 카드. Figma `Card/Location`(node 15852:88757).
 ///
 /// 썸네일 + 제목 + 주소 + 더보기(⋮) 버튼에, 하단에 코멘트 수(버블 아이콘 + 숫자)와 멤버
@@ -138,7 +136,6 @@ public struct MHLocationCard: View {
         }
     }
 
-    // compact — 썸네일 왼쪽(94 정사각), 오른쪽에 제목 행 + 코멘트/아바타 행(고정 gap 24, top 정렬).
     private var compactBody: some View {
         HStack(alignment: .top, spacing: 12) {
             thumbView(thumbnails.first ?? nil, ratio: .square).frame(width: 94)
@@ -149,7 +146,6 @@ public struct MHLocationCard: View {
         }
     }
 
-    // expanded — 제목 행, 그 아래 4:5 썸네일(여러 장이면 HStack 나열), 마지막에 코멘트/아바타 행.
     private var expandedBody: some View {
         VStack(alignment: .leading, spacing: 12) {
             titleRow
@@ -171,7 +167,6 @@ public struct MHLocationCard: View {
         .scrollClipDisabled()
     }
 
-    // 제목 + 주소(각 한 줄 말줄임) + 더보기 버튼.
     private var titleRow: some View {
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
@@ -183,7 +178,6 @@ public struct MHLocationCard: View {
         }
     }
 
-    // 코멘트 수(버블 + 숫자) + 멤버 아바타 그룹. 멤버가 없으면 아바타 그룹은 숨긴다.
     private var bottomRow: some View {
         HStack(spacing: 0) {
             HStack(spacing: 2) {
@@ -254,7 +248,6 @@ public struct MHLocationCard: View {
         }
     }
 
-    // 썸네일 — 지정 이미지가 있으면 ``MHThumbnail``, 없으면 플레이스홀더(둘 다 radius 12 + 테두리).
     @ViewBuilder private func thumbView(_ image: Image?, ratio: MHThumbnailRatio) -> some View {
         if let image {
             MHThumbnail(image, ratio: ratio, radius: true, border: true)
