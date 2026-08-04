@@ -2,7 +2,7 @@ import DesignSystem
 import SwiftUI
 
 /// 리스트형 카드 — `MHLocationCard(layout: .compact)` 래핑. Figma `Card_Location A`.
-struct LocationRowCard: View {
+struct LocationCompactCard: View {
     let location: RoomDetailLocation
     let onMore: () -> Void
 
@@ -10,15 +10,16 @@ struct LocationRowCard: View {
         MHLocationCard(
             title: location.name,
             address: location.address,
-            commentCount: Int(location.commentCount) ?? 0,
+            commentCount: location.commentCount,
             members: [nil],
             layout: .compact,
+            moreButtonLabel: "\(location.name) 더보기",
             onMore: onMore
         )
     }
 }
 
 #Preview {
-    LocationRowCard(location: RoomDetailLocation.samples[0]) {}
+    LocationCompactCard(location: RoomDetailLocation.samples[0]) {}
         .padding(.horizontal, 20)
 }

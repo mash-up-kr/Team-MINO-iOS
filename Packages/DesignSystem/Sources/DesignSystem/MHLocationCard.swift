@@ -7,9 +7,10 @@ import SwiftUI
 /// 썸네일 + 제목 + 주소 + 더보기(⋮) 버튼에, 하단에 코멘트 수(버블 아이콘 + 숫자)와 멤버
 /// 아바타 그룹(``MHAvatarGroup``)을 둔다. Figma 의 두 variant 는 `layout` 으로 받는다:
 /// - ``MHLocationCardLayout/compact``: 썸네일이 **왼쪽**(94pt 정사각), 콘텐츠가 오른쪽.
-/// - ``MHLocationCardLayout/expanded``: 썸네일이 제목 **아래**(가로 꽉 채운 4:3 큰 이미지).
+/// - ``MHLocationCardLayout/expanded``: 썸네일이 제목 **아래**(절반 너비 164pt, 4:5 세로 비율).
 ///
-/// 코멘트 수는 999 를 넘으면 `999+` 로 표기한다. 썸네일이 `nil` 이면 이미지 자리 플레이스홀더를 보여준다.
+/// 코멘트 수는 999 를 넘으면 `999+` 로 표기한다. 썸네일 배열의 각 원소가 `nil` 이면 플레이스홀더를 보여준다.
+/// compact 에서는 첫 번째 썸네일만, expanded 에서는 배열 전체를 `HStack` 으로 나열한다.
 ///
 /// 더보기(⋮) 를 누르면 나오는 메뉴는 `menuItems`(``MHMenuItem``)로 주입한다. 항목이 있으면 ⋮ 가
 /// 카드에 앵커된 ``MHMenu`` 를 토글하고(Figma `edit` = on/on_top), 없으면 `onMore` 콜백만 부른다.
@@ -29,7 +30,7 @@ import SwiftUI
 /// ```swift
 /// MHLocationCard(title: "레이어스튜디오 10", address: "서울 성동구 상원4길 10",
 ///                commentCount: 1200, members: [img1, img2])            // compact(기본)
-/// MHLocationCard(thumbnail: Image("cover"), title: "레이어스튜디오 10", address: "서울 성동구 상원4길 10",
+/// MHLocationCard(thumbnails: [img1, img2], title: "레이어스튜디오 10", address: "서울 성동구 상원4길 10",
 ///                commentCount: 8, members: [img1], layout: .expanded) { openMore() }
 /// MHLocationCard(title: "레이어스튜디오 10", address: "서울 성동구 상원4길 10", commentCount: 8,
 ///                menuItems: [MHMenuItem("다른 방에 공유") { share() },
@@ -37,7 +38,7 @@ import SwiftUI
 ///                            MHMenuItem("장소 이동") { move() }])       // ⋮ → 메뉴
 /// ```
 public struct MHLocationCard: View {
-    private let thumbnail: Image?
+    private let thumbnails: [Image?]
     private let title: String
     private let address: String
     private let commentCount: Int
@@ -45,6 +46,7 @@ public struct MHLocationCard: View {
     private let layout: MHLocationCardLayout
     private let menuItems: [MHMenuItem]
     private let menuPlacement: MHLocationCardMenuPlacement
+    private let moreButtonLabel: String
     private let onMore: (() -> Void)?
 
     private let externalMenuPresented: Binding<Bool>?
@@ -61,9 +63,10 @@ public struct MHLocationCard: View {
         menuItems: [MHMenuItem] = [],
         menuPlacement: MHLocationCardMenuPlacement = .below,
         menuPresented: Binding<Bool>? = nil,
+        moreButtonLabel: String = "더보기",
         onMore: (() -> Void)? = nil
     ) {
-        self.thumbnail = thumbnail
+        self.thumbnails = thumbnail.map { [$0] } ?? []
         self.title = title
         self.address = address
         self.commentCount = commentCount
@@ -72,6 +75,33 @@ public struct MHLocationCard: View {
         self.menuItems = menuItems
         self.menuPlacement = menuPlacement
         self.externalMenuPresented = menuPresented
+        self.moreButtonLabel = moreButtonLabel
+        self.onMore = onMore
+    }
+
+    public init(
+        thumbnails: [Image?],
+        title: String,
+        address: String,
+        commentCount: Int,
+        members: [Image?] = [],
+        layout: MHLocationCardLayout = .compact,
+        menuItems: [MHMenuItem] = [],
+        menuPlacement: MHLocationCardMenuPlacement = .below,
+        menuPresented: Binding<Bool>? = nil,
+        moreButtonLabel: String = "더보기",
+        onMore: (() -> Void)? = nil
+    ) {
+        self.thumbnails = thumbnails
+        self.title = title
+        self.address = address
+        self.commentCount = commentCount
+        self.members = members
+        self.layout = layout
+        self.menuItems = menuItems
+        self.menuPlacement = menuPlacement
+        self.externalMenuPresented = menuPresented
+        self.moreButtonLabel = moreButtonLabel
         self.onMore = onMore
     }
 
@@ -111,7 +141,7 @@ public struct MHLocationCard: View {
     // compact — 썸네일 왼쪽(94 정사각), 오른쪽에 제목 행 + 코멘트/아바타 행(고정 gap 24, top 정렬).
     private var compactBody: some View {
         HStack(alignment: .top, spacing: 12) {          // Figma: gap 12
-            thumbView(ratio: .square).frame(width: 94)
+            thumbView(thumbnails.first ?? nil, ratio: .square).frame(width: 94)
             VStack(alignment: .leading, spacing: 24) {   // Figma: gap xl(24)
                 titleRow
                 bottomRow
@@ -119,14 +149,26 @@ public struct MHLocationCard: View {
         }
     }
 
-    // expanded — 제목 행, 그 아래 절반 너비 4:5 썸네일(좌측 정렬), 마지막에 코멘트/아바타 행.
+    // expanded — 제목 행, 그 아래 4:5 썸네일(여러 장이면 HStack 나열), 마지막에 코멘트/아바타 행.
     private var expandedBody: some View {
         VStack(alignment: .leading, spacing: 12) {       // Figma: gap 12
             titleRow
-            thumbView(ratio: .r4x5)                      // Figma: 163.5×204 ≈ 4:5
-                .frame(width: 164)                       // Figma: 163.5pt ≈ 164
+            expandedThumbnails
             bottomRow
         }
+    }
+
+    @ViewBuilder private var expandedThumbnails: some View {
+        let items = thumbnails.isEmpty ? [Image?.none] : thumbnails
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {                         // Figma: gap 8
+                ForEach(items.indices, id: \.self) { i in
+                    thumbView(items[i], ratio: .r4x5)
+                        .frame(width: 164)               // Figma: 163.5pt ≈ 164 고정
+                }
+            }
+        }
+        .scrollClipDisabled()
     }
 
     // 제목 + 주소(각 한 줄 말줄임) + 더보기 버튼.
@@ -180,6 +222,7 @@ public struct MHLocationCard: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(moreButtonLabel)
     }
 
     // ⋮ 에 앵커된 더보기 메뉴. 트레일링 정렬로 카드 오른쪽 끝(⋮ 위치)에 붙고, below 는 ⋮ 아래로,
@@ -212,9 +255,9 @@ public struct MHLocationCard: View {
     }
 
     // 썸네일 — 지정 이미지가 있으면 ``MHThumbnail``, 없으면 플레이스홀더(둘 다 radius 12 + 테두리).
-    @ViewBuilder private func thumbView(ratio: MHThumbnailRatio) -> some View {
-        if let thumbnail {
-            MHThumbnail(thumbnail, ratio: ratio, radius: true, border: true)
+    @ViewBuilder private func thumbView(_ image: Image?, ratio: MHThumbnailRatio) -> some View {
+        if let image {
+            MHThumbnail(image, ratio: ratio, radius: true, border: true)
         } else {
             RoundedRectangle(cornerRadius: 12)
                 .fill(.mhFillNormal)
