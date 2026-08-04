@@ -121,7 +121,11 @@ public struct MHTextArea<Leading: View, Trailing: View>: View {
             if hasBottom { bottomBar }
         }
         .padding(MHTextAreaMetric.contentPadding)
-        .background(spec.backgroundColor, in: shape)
+        // 배경 토큰이 반투명이라 불투명 바탕을 먼저 깐다 — 안 그러면 아래 mhShadow 가 비쳐 회색으로 보인다.
+        .background {
+            shape.fill(Color.mhBackgroundNormalNormal)
+            shape.fill(spec.backgroundColor)
+        }
         .overlay { shape.strokeBorder(spec.borderColor, lineWidth: spec.borderWidth) }
         .clipShape(shape)                                   // Figma overflow-clip
         .mhShadow(.xsmall, cornerRadius: MHTextAreaMetric.cornerRadius)

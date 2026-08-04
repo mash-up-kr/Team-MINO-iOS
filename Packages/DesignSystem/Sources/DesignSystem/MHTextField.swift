@@ -178,7 +178,12 @@ public struct MHTextField: View {
         .frame(minHeight: MHTextFieldMetric.contentMinHeight)
         .padding(MHTextFieldMetric.contentPadding)
         .frame(minHeight: MHTextFieldMetric.boxHeight)
-        .background(spec.backgroundColor, in: shape)
+        // 배경 토큰이 반투명(Background/Transparent/Normal = 흰색 7.8%)이라 불투명 바탕을 먼저 깐다.
+        // 안 그러면 mhShadow 가 뒤에 그리는 그림자가 비쳐 입력칸이 회색으로 보인다(Shadows.swift 전제).
+        .background {
+            shape.fill(Color.mhBackgroundNormalNormal)
+            shape.fill(spec.backgroundColor)
+        }
         .overlay { shape.strokeBorder(spec.borderColor, lineWidth: spec.borderWidth) }
     }
 
