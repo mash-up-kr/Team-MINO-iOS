@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - TextField
-
 /// 검증/상태 표현. `normal`(기본) / `positive`(성공) / `negative`(에러). Figma `status` 축.
 ///
 /// `positive`·`negative` 는 trailing 에 상태 아이콘(체크/느낌표)을 자동으로 띄우고,

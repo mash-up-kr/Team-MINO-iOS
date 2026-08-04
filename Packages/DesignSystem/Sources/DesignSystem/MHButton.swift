@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - Button
-
 /// 배경·테두리 스타일. `solid`(채운 배경) / `outlined`(옅은 Line/Normal/Neutral 테두리) /
 /// `outlinedStrong`(진한 Primary/Normal 검정 테두리·텍스트 — 강조 아웃라인, Figma Action Area customize).
 public enum MHButtonVariant: Sendable { case solid, outlined, outlinedStrong }

@@ -85,8 +85,8 @@ struct RoomDetailSheet: View {
         LazyVStack(spacing: 0) {
             ForEach(locations) { location in
                 switch viewMode {
-                case .list: LocationRowCard(location: location, onMore: {})
-                case .grid: LocationGridCard(location: location, onMore: {})
+                case .list: LocationCompactCard(location: location, onMore: {})
+                case .grid: LocationExpandedCard(location: location, onMore: {})
                 }
             }
         }

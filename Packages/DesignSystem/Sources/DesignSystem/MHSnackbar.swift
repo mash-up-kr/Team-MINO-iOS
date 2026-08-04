@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - Snackbar
-
 /// 사용자 작업에 대한 피드백을 잠깐 띄우는 다크 바. Figma `Snackbar/Snackbar`.
 ///
 /// 반투명 어두운 배경(`Inverse/Background` 52% + 검정 5%) 위에 흰 메시지를 얹고, 오른쪽에 후속 액션

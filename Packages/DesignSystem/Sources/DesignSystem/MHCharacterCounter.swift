@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - Character Counter
-
 /// 입력 글자수/최대치를 `현재/최대` 로 보여주는 카운터. Figma TextArea `characterCounter`.
 ///
 /// TextArea 하단 바(leading/trailing)에 넣어 쓴다. 최대치를 넘으면(`overflow`) 색이 에러색으로 바뀐다.

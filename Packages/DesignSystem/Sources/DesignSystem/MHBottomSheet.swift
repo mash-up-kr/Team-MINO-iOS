@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - Detent
-
 /// 바텀시트 높이 단계. `low`(최저) → `medium`(중간) → `full`(전체 화면).
 public enum MHBottomSheetDetent: CaseIterable, Equatable, Sendable {
     case low

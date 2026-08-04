@@ -5,7 +5,7 @@ struct RoomDetailLocation: Identifiable, Equatable {
     let id: UUID = UUID()
     let name: String
     let address: String
-    let commentCount: String
+    let commentCount: Int
     let photoCount: Int
 }
 
@@ -59,8 +59,8 @@ extension RoomDetailLocation {
         RoomDetailLocation(
             name: "레이어스튜디오 10",
             address: "서울 성동구 상원4길 10",
-            commentCount: "999+",
-            photoCount: 2
+            commentCount: 1000,
+            photoCount: 5
         )
     }
 }
