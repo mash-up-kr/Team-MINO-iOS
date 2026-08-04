@@ -36,8 +36,8 @@ public struct MHComment: View {
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: 10) {   // Figma: gap sm(10)
-            HStack(spacing: 6) {                       // Figma: gap 6
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
                 MHAvatar(avatar, size: 32, action: onAvatarTap)
                 Text(name)
                     .mhTypography(.label1NormalMedium)
@@ -49,7 +49,7 @@ public struct MHComment: View {
                 .foregroundStyle(.mhLabelNormal)
                 .fixedSize(horizontal: false, vertical: true)   // 전체 높이로 레이아웃 → 말줄임(…) 대신 하드 클립
                 .frame(maxWidth: .infinity, maxHeight: maxBodyHeight, alignment: .topLeading)
-                .clipped()                             // Figma: overflow-clip(넘치면 그대로 잘림)
+                .clipped()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

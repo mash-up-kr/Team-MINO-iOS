@@ -24,7 +24,7 @@ public struct MHFilterBar: View {
 
     private let sortButtonHeight: CGFloat = 40
     private let menuWidth: CGFloat = 140
-    private let menuGap: CGFloat = 8   // Figma: 버튼 ↔ 메뉴 카드 간격
+    private let menuGap: CGFloat = 8
 
     public init(
         sortOptions: [String],

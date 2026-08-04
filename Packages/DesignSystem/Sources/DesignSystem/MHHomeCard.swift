@@ -42,10 +42,10 @@ public struct MHHomeCard: View {
     }
 
     public var body: some View {
-        VStack(spacing: 16) {                          // Figma: gap base(16)
-            VStack(spacing: 12) {                       // Figma: gap md(12)
+        VStack(spacing: 16) {
+            VStack(spacing: 12) {
                 HStack(spacing: 0) {
-                    HStack(spacing: 8) {                // Figma: gap sm(8)
+                    HStack(spacing: 8) {
                         MHAvatar(avatar, size: 32)
                         MHContentBadge(badgeText, variant: .solid, size: .medium, color: badgeColor)
                     }
@@ -65,11 +65,11 @@ public struct MHHomeCard: View {
 
     // 제목 + 주소. 각각 한 줄 말줄임.
     private var info: some View {
-        VStack(alignment: .leading, spacing: 2) {      // Figma: gap xxs(2)
+        VStack(alignment: .leading, spacing: 2) {
             line(title, .body1NormalBold, .mhLabelNormal)
             line(address, .label2Regular, .mhLabelAlternative)
         }
-        .padding(.horizontal, 4)                        // Figma: px4
+        .padding(.horizontal, 4)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 

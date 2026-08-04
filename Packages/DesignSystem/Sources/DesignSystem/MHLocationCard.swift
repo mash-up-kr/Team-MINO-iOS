@@ -117,7 +117,7 @@ public struct MHLocationCard: View {
             case .expanded: expandedBody
             }
         }
-        .padding(.vertical, 12)                         // Figma: py 12
+        .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .overlay { dismissScrim }                        // 바깥 탭 감지(메뉴 아래 레이어)
         .overlay(alignment: .topTrailing) { menuOverlay } // 메뉴(스크림 위)
@@ -140,9 +140,9 @@ public struct MHLocationCard: View {
 
     // compact — 썸네일 왼쪽(94 정사각), 오른쪽에 제목 행 + 코멘트/아바타 행(고정 gap 24, top 정렬).
     private var compactBody: some View {
-        HStack(alignment: .top, spacing: 12) {          // Figma: gap 12
+        HStack(alignment: .top, spacing: 12) {
             thumbView(thumbnails.first ?? nil, ratio: .square).frame(width: 94)
-            VStack(alignment: .leading, spacing: 24) {   // Figma: gap xl(24)
+            VStack(alignment: .leading, spacing: 24) {
                 titleRow
                 bottomRow
             }
@@ -151,7 +151,7 @@ public struct MHLocationCard: View {
 
     // expanded — 제목 행, 그 아래 4:5 썸네일(여러 장이면 HStack 나열), 마지막에 코멘트/아바타 행.
     private var expandedBody: some View {
-        VStack(alignment: .leading, spacing: 12) {       // Figma: gap 12
+        VStack(alignment: .leading, spacing: 12) {
             titleRow
             expandedThumbnails
             bottomRow
@@ -161,7 +161,7 @@ public struct MHLocationCard: View {
     @ViewBuilder private var expandedThumbnails: some View {
         let items = thumbnails.isEmpty ? [Image?.none] : thumbnails
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {                         // Figma: gap 8
+            HStack(spacing: 8) {
                 ForEach(items.indices, id: \.self) { i in
                     thumbView(items[i], ratio: .r4x5)
                         .frame(width: 164)               // Figma: 163.5pt ≈ 164 고정
@@ -174,7 +174,7 @@ public struct MHLocationCard: View {
     // 제목 + 주소(각 한 줄 말줄임) + 더보기 버튼.
     private var titleRow: some View {
         HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {   // Figma: gap xs(4)
+            VStack(alignment: .leading, spacing: 4) {
                 line(title, .body1NormalBold, .mhLabelNormal)
                 line(address, .label2Medium, .mhLabelAlternative)
             }
@@ -186,7 +186,7 @@ public struct MHLocationCard: View {
     // 코멘트 수(버블 + 숫자) + 멤버 아바타 그룹. 멤버가 없으면 아바타 그룹은 숨긴다.
     private var bottomRow: some View {
         HStack(spacing: 0) {
-            HStack(spacing: 2) {                         // Figma: gap 2
+            HStack(spacing: 2) {
                 Image(MHIcon.bubble)
                     .resizable().scaledToFit()
                     .frame(width: layout.controlSize, height: layout.controlSize)
@@ -230,7 +230,7 @@ public struct MHLocationCard: View {
     @ViewBuilder private var menuOverlay: some View {
         if menuPresented.wrappedValue, !menuItems.isEmpty {
             MHMenu(closableMenuItems)
-                .frame(width: 140)                       // Figma Menu w-140
+                .frame(width: 140)
                 .background(GeometryReader { g in
                     Color.clear.preference(key: MHLocationCardMenuHeightKey.self, value: g.size.height)
                 })

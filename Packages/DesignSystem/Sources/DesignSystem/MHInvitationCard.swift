@@ -38,14 +38,14 @@ public struct MHInvitationCard: View {
     }
 
     public var body: some View {
-        VStack(spacing: 12) {                              // Figma: gap md(12)
+        VStack(spacing: 12) {
             MHRoomThumbnail(color: thumbnailColor, size: 80)
-            VStack(spacing: 8) {                            // Figma: gap sm(8)
+            VStack(spacing: 8) {
                 info
                 bottomRow
             }
         }
-        .padding(16)                                        // Figma: p base(16)
+        .padding(16)
         .frame(maxWidth: .infinity, alignment: .top)
         .background(RoundedRectangle(cornerRadius: 16).fill(Color.mhBackgroundNormalNormal))
         .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(.mhBackgroundNormalAlternative, lineWidth: 1))
@@ -54,7 +54,7 @@ public struct MHInvitationCard: View {
 
     // 제목 + 설명. 각각 한 줄 말줄임, 중앙 정렬.
     private var info: some View {
-        VStack(spacing: 2) {                                // Figma: gap xxs(2)
+        VStack(spacing: 2) {
             Text(title)
                 .lineLimit(1)
                 .truncationMode(.tail)
@@ -71,7 +71,7 @@ public struct MHInvitationCard: View {
 
     // 멤버 아바타 그룹 + 장소 수. 고정 간격으로 나란히 놓는다.
     private var bottomRow: some View {
-        HStack(spacing: 8) {                                // Figma: gap sm(8)
+        HStack(spacing: 8) {
             if !members.isEmpty {
                 MHAvatarGroup(members, variant: .person, size: .xSmall)
             }

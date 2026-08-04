@@ -39,8 +39,8 @@ public struct MHRoomHeader: View {
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: 10) {   // Figma: gap sm(10) — 제목 묶음 ↔ 메타 행
-            VStack(alignment: .leading, spacing: 4) { // Figma: gap 4 — 제목 ↔ 메모
+        VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 4) {
                 text(title, .title3Bold, .mhLabelStrong)
                 if let memo {
                     text(memo, .label1NormalRegular, .mhLabelNeutral)
@@ -48,11 +48,11 @@ public struct MHRoomHeader: View {
             }
             metaRow
         }
-        .padding(.top, 12)          // Figma: pt-12
-        .padding(.bottom, 20)       // Figma: pb-20
-        .padding(.horizontal, 20)   // Figma: px-20
+        .padding(.top, 12)
+        .padding(.bottom, 20)
+        .padding(.horizontal, 20)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .overlay(alignment: .bottom) {   // Figma: 하단 border(Line/Solid/Alternative) — 폭 끝까지
+        .overlay(alignment: .bottom) {
             Rectangle().fill(Color.mhLineSolidAlternative).frame(height: 1)
         }
     }
@@ -70,7 +70,7 @@ public struct MHRoomHeader: View {
     // 좌: 위치 아이콘 + 개수 / 우: 아이콘 버튼. Figma: items-end(바닥 정렬), justify-between.
     private var metaRow: some View {
         HStack(alignment: .bottom, spacing: 0) {
-            HStack(spacing: 2) {   // Figma: gap 2
+            HStack(spacing: 2) {
                 Image(locationIcon)
                     .resizable().scaledToFit()
                     .frame(width: 18, height: 18)

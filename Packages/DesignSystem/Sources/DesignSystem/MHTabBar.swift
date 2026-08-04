@@ -60,11 +60,11 @@ public struct MHTabBar: View {
                     tabButton(item)
                 }
             }
-            .padding(.top, 10)                               // Figma: Content 상단 여백
-            .padding(.bottom, 2)                             // Figma: Content 하단 여백
+            .padding(.top, 10)
+            .padding(.bottom, 2)
         }
-        .padding(.bottom, 34)                                // Figma: Bottom Safe Area
-        .background(.ultraThinMaterial)                      // Figma: backdrop blur + 반투명
+        .padding(.bottom, 34)
+        .background(.ultraThinMaterial)
         .background(Color.mhBackgroundNormalNormal.opacity(0.88))
     }
 
@@ -74,7 +74,7 @@ public struct MHTabBar: View {
         return Button {
             selectedID = item.id
         } label: {
-            VStack(spacing: 2) {                            // Figma: icon-label gap
+            VStack(spacing: 2) {
                 Image(item.icon)
                     .resizable().scaledToFit()
                     .frame(width: 24, height: 24)

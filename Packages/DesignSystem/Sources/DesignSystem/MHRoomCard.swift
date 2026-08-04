@@ -34,9 +34,9 @@ public struct MHRoomCard: View {
     }
 
     public var body: some View {
-        HStack(spacing: 12) {                     // Figma: gap 12
+        HStack(spacing: 12) {
             MHRoomThumbnail(size: 80)
-            VStack(alignment: .leading, spacing: 8) {   // Figma: gap sm(8)
+            VStack(alignment: .leading, spacing: 8) {
                 titleBlock
                 bottom
             }
@@ -44,13 +44,13 @@ public struct MHRoomCard: View {
                 MHCheckbox(isOn: selection)
             }
         }
-        .padding(.vertical, 12)                   // Figma: py 12
+        .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // 제목 + 선택 메모. 높이 46 고정(메모 유무와 무관하게 행 높이 유지 — Figma).
     private var titleBlock: some View {
-        VStack(alignment: .leading, spacing: 4) {   // Figma: gap xs(4)
+        VStack(alignment: .leading, spacing: 4) {
             line(title, .body1NormalBold, .mhLabelNormal)
             if let memo {
                 line(memo, .label2Medium, .mhLabelAlternative)

@@ -34,10 +34,10 @@ public struct MHAvatarStack: View {
     private let variant: MHAvatarVariant
     private let trailing: MHAvatarStackTrailing
 
-    private let side: CGFloat = 32       // Figma: 아바타·트레일링 레이아웃 지름 32
-    private let overlap: CGFloat = 6      // Figma: 이웃끼리 겹침(mr-[-6px])
-    private let ringWidth: CGFloat = 1.5  // Figma: 각 셀 둘레 배경색 링
-    private let inset: CGFloat = 4        // Figma: pill 안쪽 여백(p-[4px])
+    private let side: CGFloat = 32
+    private let overlap: CGFloat = 6
+    private let ringWidth: CGFloat = 1.5
+    private let inset: CGFloat = 4
 
     public init(
         _ images: [Image?],
@@ -83,7 +83,7 @@ public struct MHAvatarStack: View {
         Button(action: action) {
             Image(MHIcon.plus)
                 .resizable().scaledToFit()
-                .frame(width: 18, height: 18)             // Figma: p-7 안쪽 아이콘 18pt
+                .frame(width: 18, height: 18)
                 .foregroundStyle(.mhInversePrimary)
                 .frame(width: side, height: side)
                 .background(shape.fill(.mhPrimaryNormal))

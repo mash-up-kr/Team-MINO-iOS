@@ -50,13 +50,13 @@ public struct MHCheckbox: View {
                 box
             }
         }
-        .opacity(isEnabled ? 1 : 0.43)   // Figma: disable opacity 0.43
+        .opacity(isEnabled ? 1 : 0.43)
     }
 
     private var filled: Bool { state != .unchecked }
 
     @ViewBuilder private var box: some View {
-        let shape = RoundedRectangle(cornerRadius: 5)   // Figma: radius 5
+        let shape = RoundedRectangle(cornerRadius: 5)
         ZStack {
             if filled {
                 shape.fill(Color.mhPrimaryNormal)       // 체크/미결정: 검정 채움
