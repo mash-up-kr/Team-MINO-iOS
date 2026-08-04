@@ -1,11 +1,5 @@
 import SwiftUI
 
-//
-// 레이아웃: 컨테이너 여백 20/20, 액션 간격 strong 8·neutral 12.
-// caption 은 actions 컨테이너 안(버튼과 간격 16), extra(Preset)는 별도 블록(상단 20·하단 4)이라 버튼과 24.
-// sticky 시 Background/Elevated/Normal + 상단 페이드.
-// (Figma 의 `Compact (Web Only)`·`compactContent` 는 "앱 미대응" 명시라 iOS 에서 제외)
-
 /// 액션 영역의 배치 방식. `strong`(세로 풀폭 스택)·`neutral`(가로 행)·`cancel`(단일 outlined).
 public enum MHActionAreaVariant: Sendable { case strong, neutral, cancel }
 

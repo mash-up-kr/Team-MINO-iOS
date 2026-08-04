@@ -1,21 +1,6 @@
 import SwiftUI
 import CoreText
 
-//
-// Figma `타이포그래피` 스케일이다. 서체는 **SUITE**(원티드 디자인 토큰이 바인딩한 값)를 쓴다.
-// 7단계 위계(Display·Title·Heading·Headline·Body·Label·Caption)에 Regular/Medium/Bold.
-//
-// 화면에서는 토큰을 **모디파이어로** 적용한다. 폰트·자간·행간이 한 번에 반영된다.
-//
-//     Text("제목").mhTypography(.title1Bold)
-//     Text("본문 여러 줄…").mhTypography(.body1NormalRegular)   // 행간까지 반영(멀티라인)
-//     Text("인라인").mhTypography(.label2Bold)                 // Text 오버로드: 폰트+자간만
-//
-// 값 규칙(Figma 변수 기준):
-// - letterSpacing 은 **퍼센트** → tracking(pt) = size * percent / 100
-// - lineHeight 는 **배수** → 목표 줄높이(pt) = size * multiple. SwiftUI 는 lineSpacing(추가분)
-//   + 상하 패딩(절반)으로 Figma 라인박스를 맞춘다.
-//
 // SUITE 는 앱 번들이 아니라 이 패키지 리소스에 있으므로 런타임에 CTFontManager 로 등록한다
 // (Info.plist `UIAppFonts` 는 앱 타깃 전용이라 SPM 리소스엔 적용되지 않는다).
 

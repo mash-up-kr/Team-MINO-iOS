@@ -1,18 +1,5 @@
 import SwiftUI
 
-//
-// Figma `Action Area/Resource/Extra/Preset`. Action Area 의 actions 위(extra 슬롯)에 얹는 콘텐츠.
-//
-//     MHActionArea(main: .init("결제") { }) {
-//         MHActionAreaSummary(label: "결제 금액", value: "12,000원")
-//     }
-//
-// - Custom : 임의 콘텐츠 → 별도 뷰 없이 extra 슬롯에 원하는 뷰를 그대로 넣는다.
-// - Summary/Information/Checkbox/Chips : 아래 프리셋.
-//
-// NOTE: Checkbox 는 `Check Mark`, Chips 는 `Chip/Chip` 이라는 **별도 DS 컴포넌트**를 참조한다.
-// 여기서는 프리셋 외형만 인라인 스펙대로 충실히 렌더한다(추후 독립 컴포넌트로 승격 가능).
-
 /// 요약 행: 라벨(좌) ↔ 값(우). Figma `Variant=Summary`
 public struct MHActionAreaSummary: View {
     private let label: String
