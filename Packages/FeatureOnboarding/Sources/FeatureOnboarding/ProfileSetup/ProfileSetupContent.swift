@@ -72,36 +72,17 @@ struct ProfileSetupContent: View {
         return characterColors[selectedCharacterIndex]
     }
 
-    // MARK: - 캐릭터 선택 그리드 (4열 x 3행, 70x70 원)
+    // MARK: - 캐릭터 선택 그리드
 
     private var characterPicker: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("프로필 이미지 선택")
-                .mhTypography(.label1NormalBold)
-                .foregroundStyle(.mhLabelNeutral)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 4), spacing: 10) {
-                ForEach(characterColors.indices, id: \.self) { index in
-                    characterCell(index)
-                }
-            }
-        }
-    }
-
-    private func characterCell(_ index: Int) -> some View {
-        let isSelected = selectedCharacterIndex == index
-        return ZStack {
-            Circle().fill(Color.mhLineNormalAlternative)
-            Circle().fill(characterColors[index]).padding(1.25)
-        }
-        .frame(width: 70, height: 70)
-        .overlay {
-            if isSelected {
-                Circle().strokeBorder(Color.mhPrimaryNormal, lineWidth: 2).padding(-3)
-            }
-        }
-        .onTapGesture { onSelectCharacter(index) }
+        // 캐릭터 아트가 준비되면 .color 를 .image 로 바꿔 끼운다.
+        OnboardingSelectionGrid(
+            title: "프로필 이미지 선택",
+            items: characterColors.map { .color(fill: $0, border: .mhLineNormalAlternative) },
+            selectedIndex: selectedCharacterIndex,
+            shape: .circle,
+            onSelect: onSelectCharacter
+        )
     }
 
     // 캐릭터 아트 대신 색으로만 구분하므로 12개가 서로 겹치면 안 된다.

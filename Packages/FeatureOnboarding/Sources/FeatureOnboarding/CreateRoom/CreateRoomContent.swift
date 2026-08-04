@@ -3,29 +3,23 @@ import DesignSystem
 
 // MARK: - 방 색상 스와치
 
-/// 색 선택 그리드 한 칸의 채움/테두리 색. 미선택 = fill 채움 + border 테두리, 선택 = border 색으로 통짜 채움 + 체크.
-private struct RoomColorSwatch {
-    let fill: Color
-    let border: Color
-}
-
 /// 방 색상 선택 12색. 순서는 피그마 4열×3행 그리드(좌→우, 상→하)와 동일하다.
 ///
 /// 색상은 Figma `Atomic/*` 팔레트를 그대로 쓴다 — 사용자가 고르는 팔레트라 역할이 없어 시맨틱 토큰이 맞지 않는다.
 /// 계열마다 밝은 단계가 채움, 진한 단계가 테두리다.
-private let roomColorSwatches: [RoomColorSwatch] = [
-    RoomColorSwatch(fill: .mhAtomicRed60, border: .mhAtomicRed30),
-    RoomColorSwatch(fill: .mhAtomicRedOrange70, border: .mhAtomicRedOrange40),
-    RoomColorSwatch(fill: .mhAtomicOrange70, border: .mhAtomicOrange40),
-    RoomColorSwatch(fill: .mhAtomicLime80, border: .mhAtomicLime37),
-    RoomColorSwatch(fill: .mhAtomicGreen90, border: .mhAtomicGreen60),
-    RoomColorSwatch(fill: .mhAtomicCyan90, border: .mhAtomicCyan50),
-    RoomColorSwatch(fill: .mhAtomicViolet80, border: .mhAtomicViolet50),
-    RoomColorSwatch(fill: .mhAtomicPink90, border: .mhAtomicPink60),
-    RoomColorSwatch(fill: .mhAtomicBlue65, border: .mhAtomicBlue40),
-    RoomColorSwatch(fill: .mhAtomicBrown70, border: .mhAtomicBrown40),
-    RoomColorSwatch(fill: .mhAtomicLightBlue60, border: .mhAtomicLightBlue40),
-    RoomColorSwatch(fill: .mhAtomicPurple70, border: .mhAtomicPurple40),
+private let roomColorSwatches: [OnboardingGridItem] = [
+    .color(fill: .mhAtomicRed60, border: .mhAtomicRed30),
+    .color(fill: .mhAtomicRedOrange70, border: .mhAtomicRedOrange40),
+    .color(fill: .mhAtomicOrange70, border: .mhAtomicOrange40),
+    .color(fill: .mhAtomicLime80, border: .mhAtomicLime37),
+    .color(fill: .mhAtomicGreen90, border: .mhAtomicGreen60),
+    .color(fill: .mhAtomicCyan90, border: .mhAtomicCyan50),
+    .color(fill: .mhAtomicViolet80, border: .mhAtomicViolet50),
+    .color(fill: .mhAtomicPink90, border: .mhAtomicPink60),
+    .color(fill: .mhAtomicBlue65, border: .mhAtomicBlue40),
+    .color(fill: .mhAtomicBrown70, border: .mhAtomicBrown40),
+    .color(fill: .mhAtomicLightBlue60, border: .mhAtomicLightBlue40),
+    .color(fill: .mhAtomicPurple70, border: .mhAtomicPurple40),
 ]
 
 // MARK: - CreateRoomContent
@@ -121,9 +115,8 @@ struct CreateRoomContent: View {
 
     // 색을 고르면 색이 바뀌는 지도 placeholder(실제 지도 에셋 도입 전까지).
     private var mapThumbnail: some View {
-        let swatch = selectedColorIndex.flatMap(swatch(at:))
-        return RoundedRectangle(cornerRadius: 20)
-            .fill(swatch?.fill ?? Color.mhFillNormal)
+        RoundedRectangle(cornerRadius: 20)
+            .fill(selectedFillColor ?? Color.mhFillNormal)
             .frame(width: 92, height: 92)
             .overlay {
                 Image(MHIcon.pinFill)
@@ -159,46 +152,20 @@ struct CreateRoomContent: View {
     // MARK: 색상 선택
 
     private var colorPicker: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            Text("방 색상 선택")
-                .mhTypography(.label1NormalBold)
-                .foregroundStyle(Color.mhLabelNeutral)
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 10) {
-                ForEach(roomColorSwatches.indices, id: \.self) { index in
-                    colorSwatchButton(index)
-                }
-            }
-        }
+        OnboardingSelectionGrid(
+            title: "방 색상 선택",
+            items: roomColorSwatches,
+            selectedIndex: selectedColorIndex,
+            shape: .roundedSquare,
+            onSelect: onSelectColor
+        )
     }
 
-    private func colorSwatchButton(_ index: Int) -> some View {
-        let swatch = roomColorSwatches[index]
-        let isSelected = selectedColorIndex == index
-        return Button {
-            onSelectColor(index)
-        } label: {
-            ZStack {
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(isSelected ? swatch.border : swatch.fill)
-                if !isSelected {
-                    RoundedRectangle(cornerRadius: 20)
-                        .strokeBorder(swatch.border, lineWidth: 3)
-                }
-                if isSelected {
-                    Image(MHIcon.checkThick)
-                        .resizable()
-                        .frame(width: 28, height: 28)
-                        .foregroundStyle(Color.mhStaticWhite)
-                }
-            }
-            .frame(width: 70, height: 70)
-            .mhShadow(.medium, cornerRadius: 20)
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func swatch(at index: Int) -> RoomColorSwatch? {
-        roomColorSwatches.indices.contains(index) ? roomColorSwatches[index] : nil
+    /// 선택된 칸의 채움색 — 지도 썸네일 틴트에 쓴다.
+    private var selectedFillColor: Color? {
+        guard let selectedColorIndex, roomColorSwatches.indices.contains(selectedColorIndex),
+              case .color(let fill, _) = roomColorSwatches[selectedColorIndex] else { return nil }
+        return fill
     }
 }
 
