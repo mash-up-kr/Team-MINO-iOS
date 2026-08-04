@@ -37,6 +37,7 @@ public enum MHIcon: String, CaseIterable, Sendable {
     case caretUp
     case check
     case checkThick
+    case chevronLeft
     case circleCheck
     case circleCheckFill
     case circleClose
