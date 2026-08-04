@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - Tab Bar Item
-
 /// ``MHTabBar`` 에 표시할 탭 하나의 정보.
 public struct MHTabBarItem: Identifiable {
     public let id: Int

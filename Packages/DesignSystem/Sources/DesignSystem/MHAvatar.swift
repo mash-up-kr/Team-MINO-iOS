@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - Avatar
-
 /// 아바타 종류. `person`(원형) / `company`·`academy`(둥근 사각, radius = 크기×0.25). Figma `variant`.
 ///
 /// person 은 사람용(원), company·academy 는 기관용(둥근 사각)이다. 셋 다 이미지가 없으면

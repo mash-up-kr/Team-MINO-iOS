@@ -1,6 +1,5 @@
 import SwiftUI
 
-// MARK: - Action Area / Extra Presets
 //
 // Figma `Action Area/Resource/Extra/Preset`. Action Area 의 actions 위(extra 슬롯)에 얹는 콘텐츠.
 //

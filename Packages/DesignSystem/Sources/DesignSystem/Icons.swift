@@ -1,6 +1,5 @@
 import SwiftUI
 
-// MARK: - Icon (Normal)
 //
 // Figma `Icon/Normal/*` 단색 아이콘 세트다. 아이콘은 기본적으로 단색으로 사용되며,
 // 템플릿 렌더링이라 `.foregroundStyle`로 원하는 색을 입힌다(대비가 충분한 색을 고른다).

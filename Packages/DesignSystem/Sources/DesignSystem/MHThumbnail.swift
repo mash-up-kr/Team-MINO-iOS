@@ -1,8 +1,6 @@
 import SwiftUI
 import UIKit
 
-// MARK: - Ratio
-
 /// 썸네일 가로세로 비(width / height). Figma `ratio` 축의 이름값들을 프리셋으로 제공하고,
 /// 그 외 비율은 `MHThumbnailRatio(_:)` 로 직접 넣는다.
 public struct MHThumbnailRatio: Equatable, Sendable {

@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - Text Button
-
 /// 강조 위계. `primary`(Primary/Normal) / `assistive`(Label/Alternative). Figma `Button/Text` variant.
 public enum MHTextButtonVariant: Sendable { case primary, assistive }
 

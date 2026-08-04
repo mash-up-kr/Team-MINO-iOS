@@ -1,7 +1,6 @@
 import SwiftUI
 import CoreText
 
-// MARK: - Typography (SUITE)
 //
 // Figma `타이포그래피` 스케일이다. 서체는 **SUITE**(원티드 디자인 토큰이 바인딩한 값)를 쓴다.
 // 7단계 위계(Display·Title·Heading·Headline·Body·Label·Caption)에 Regular/Medium/Bold.

@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - TextArea
-
 /// 검증 상태. `normal`(기본) / `negative`(에러). Figma `status` 축 (TextArea 는 positive 없음).
 public enum MHTextAreaStatus: Sendable { case normal, negative }
 

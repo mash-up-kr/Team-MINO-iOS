@@ -1,6 +1,5 @@
 import SwiftUI
 
-// MARK: - Action Area
 //
 // 레이아웃: 컨테이너 여백 20/20, 액션 간격 strong 8·neutral 12.
 // caption 은 actions 컨테이너 안(버튼과 간격 16), extra(Preset)는 별도 블록(상단 20·하단 4)이라 버튼과 24.
