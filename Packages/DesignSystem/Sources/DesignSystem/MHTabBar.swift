@@ -47,10 +47,7 @@ public struct MHTabBar: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            Rectangle()
-                .fill(.mhLineNormalNeutral)
-                .frame(height: 1)
-
+            // 탭 아이템 행
             HStack(spacing: 0) {
                 ForEach(items) { item in
                     tabButton(item)
@@ -59,9 +56,16 @@ public struct MHTabBar: View {
             .padding(.top, 10)
             .padding(.bottom, 2)
         }
-        .padding(.bottom, 34)
-        .background(.ultraThinMaterial)
-        .background(Color.mhBackgroundNormalNormal.opacity(0.88))
+        .background(
+            Color.mhBackgroundNormalNormal.opacity(0.88)
+                .background(.ultraThinMaterial)
+                .ignoresSafeArea(edges: .bottom)
+        )
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(.mhLineNormalNeutral)
+                .frame(height: 0.5)
+        }
     }
 
     private func tabButton(_ item: MHTabBarItem) -> some View {
