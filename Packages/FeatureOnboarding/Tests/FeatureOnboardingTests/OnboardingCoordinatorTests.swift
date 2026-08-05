@@ -41,13 +41,15 @@ struct OnboardingCoordinatorTests {
         #expect(results == [.completed])
     }
 
-    @Test("make*Store 재호출 시 동일 인스턴스를 반환한다 — 입력값 유지 계약")
-    func makeStores_return_cached_instance() {
+    // NavigationStack 기본 동작 — pop 된 화면은 다시 push 될 때 빈 상태로 시작한다.
+    // (스택에 남아 있는 화면의 입력값 유지는 뷰 수명이 보장하므로 Coordinator 가 관여하지 않는다)
+    @Test("make*Store 재호출 시 매번 새 인스턴스를 만든다")
+    func makeStores_return_new_instance_each_time() {
         let coord = OnboardingCoordinator()
 
-        #expect(coord.makeProfileSetupStore() === coord.makeProfileSetupStore())
-        #expect(coord.makeCreateRoomStore() === coord.makeCreateRoomStore())
-        #expect(coord.makeInviteFriendsStore() === coord.makeInviteFriendsStore())
+        #expect(coord.makeProfileSetupStore() !== coord.makeProfileSetupStore())
+        #expect(coord.makeCreateRoomStore() !== coord.makeCreateRoomStore())
+        #expect(coord.makeInviteFriendsStore() !== coord.makeInviteFriendsStore())
     }
 
     // 아래 3건은 make*Store 안의 observeNavigation 배선을 production Store 로 지난다.
