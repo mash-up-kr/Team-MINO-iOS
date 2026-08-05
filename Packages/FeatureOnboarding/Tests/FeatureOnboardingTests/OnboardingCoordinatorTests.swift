@@ -78,17 +78,8 @@ struct OnboardingCoordinatorTests {
         #expect(coord.path == [.inviteFriends])
     }
 
-    @Test("배선 — InviteFriends Store 의 tapComplete 가 finish 를 발사한다")
-    func inviteFriendsStore_isWiredToFinish() async {
-        let coord = OnboardingCoordinator()
-        var results: [OnboardingResult] = []
-        coord.finish.bind { results.append($0) }
-
-        coord.makeInviteFriendsStore().send(.tapComplete)
-
-        for _ in 0..<1000 where results.isEmpty {
-            await Task.yield()
-        }
-        #expect(results == [.completed])
-    }
+    // NOTE(커버리지 공백): InviteFriends 화면은 navigate 하는 action 이 하나도 없어
+    // `makeInviteFriendsStore` 의 observeNavigation 배선을 Store 쪽에서 검증할 방법이 없다.
+    // 라우팅 자체는 위 `complete_fires_finish_once`(handle 직접 호출)가 계속 지킨다.
+    // 건너뛰기에 `.navigate(.complete)` 를 되살리면 배선 테스트도 함께 되돌린다.
 }

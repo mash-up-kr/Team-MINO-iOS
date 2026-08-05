@@ -4,14 +4,15 @@ import Testing
 
 @MainActor
 struct InviteFriendsReducerTests {
-    @Test("L2 — 건너뛰기(tapComplete) 는 complete 로 navigate 한다")
-    func tapComplete_navigatesToComplete() async {
+    // 종료 조건이 기획에 없어 건너뛰기를 비워둔 상태다. `.navigate(.complete)` 를 되살릴 때는
+    // 이 테스트와 OnboardingCoordinatorTests 의 InviteFriends 배선 테스트를 함께 되돌린다.
+    @Test("L1 — 건너뛰기(tapComplete) 는 아직 navigate 하지 않는다")
+    func tapComplete_doesNotNavigate() async {
         let store = TestStore(InviteFriendsState(), reduce: inviteFriendsReducer())
 
         await store.send(.tapComplete)
-        store.receiveNavigation(.complete)
 
-        store.finish()
+        store.finish()   // 미수신 nav 가 있으면 여기서 실패한다
     }
 
     @Test("L1 — 뒤로가기(tapBack) 는 state 를 바꾸지 않고 navigate 하지도 않는다 (실제 pop 은 View 의 dismiss 가 담당)")

@@ -6,12 +6,14 @@ struct InviteFriendsState: Equatable {
 }
 
 enum InviteFriendsAction: Equatable {
-    case tapComplete   // 건너뛰기 — 온보딩 플로우 완료(사실상 유일한 완료 경로)
+    case tapComplete   // 건너뛰기 — 온보딩 종료 경로였으나 현재 비어 있음(아래 reduce 주석)
     case tapBack       // 뒤로가기 — 실제 pop 은 View 의 dismiss 환경값이 담당, reduce 는 상태 변화 없음
     case tapInvite     // 친구 초대하기 — 공유 시트 미연결(확정 사항), 상태 변화 없음
     case tapCopyLink   // 초대 링크 복사 — 링크 생성 미연결(확정 사항), 상태 변화 없음
 }
 
+/// 온보딩 종료 채널. 현재 발사하는 곳이 없다 — `complete` 를 보내던 건너뛰기가 비워졌기 때문.
+/// Coordinator·`FlowFinish` 배선은 그대로 살아 있어, 종료 조건이 정해지면 `.navigate(.complete)` 한 줄로 되살아난다.
 enum InviteFriendsNav: Equatable, Sendable {
     case complete
 }
@@ -21,9 +23,9 @@ typealias InviteFriendsStore = Store<InviteFriendsState, InviteFriendsAction, In
 func inviteFriendsReducer() -> (inout InviteFriendsState, InviteFriendsAction) -> Effect<InviteFriendsAction, InviteFriendsNav> {
     { _, action in
         switch action {
-        case .tapComplete:
-            return .navigate(.complete)
-        case .tapBack, .tapInvite, .tapCopyLink:
+        // 건너뛰기가 온보딩을 끝내던 유일한 경로였으나, 종료 조건이 기획에 없어 비워둔다.
+        // 되살릴 때는 `.navigate(.complete)` 로 되돌리면 Coordinator 의 finish 까지 그대로 이어진다.
+        case .tapComplete, .tapBack, .tapInvite, .tapCopyLink:
             return .none
         }
     }

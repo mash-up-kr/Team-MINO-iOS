@@ -24,12 +24,11 @@ struct OnboardingReducerTests {
         store.finish()
     }
 
-    @Test("L2 — inviteFriendsReducer: tapComplete 는 complete 로 navigate 한다")
-    func inviteFriends_tapComplete_navigates() async {
+    @Test("L1 — inviteFriendsReducer: tapComplete 는 아직 navigate 하지 않는다")
+    func inviteFriends_tapComplete_doesNotNavigate() async {
         let store = TestStore(InviteFriendsState(), reduce: inviteFriendsReducer())
 
         await store.send(.tapComplete)
-        store.receiveNavigation(.complete)
 
         store.finish()
     }

@@ -72,13 +72,12 @@ struct CreateRoomReducerTests {
         store.finish()
     }
 
-    @Test("L2 — tapSkip(건너뛰기): goToInviteFriends 로 navigate 한다")
-    func tapSkip_navigatesToInviteFriends() async {
+    @Test("L1 — tapSkip(건너뛰기): 목적지가 기획에 없어 navigate 하지 않는다")
+    func tapSkip_doesNotNavigate() async {
         let store = TestStore(CreateRoomState(), reduce: createRoomReducer())
 
         await store.send(.tapSkip)
-        store.receiveNavigation(.goToInviteFriends)
 
-        store.finish()
+        store.finish()   // 미수신 nav 가 있으면 여기서 실패한다
     }
 }

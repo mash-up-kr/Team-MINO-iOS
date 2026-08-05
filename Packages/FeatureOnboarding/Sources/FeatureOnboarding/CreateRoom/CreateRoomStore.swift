@@ -42,9 +42,12 @@ func createRoomReducer() -> (inout CreateRoomState, CreateRoomAction) -> Effect<
         case .selectColor(let index):
             state.selectedColorIndex = index
             return .none
-        case .tapNext, .tapSkip:
-            // 건너뛰기도 방 생성하기와 동일하게 다음 화면(친구초대)으로 넘어간다 — 기획 미명시, 온보딩 관례.
+        case .tapNext:
             return .navigate(.goToInviteFriends)
+        case .tapSkip:
+            // 건너뛰기 목적지가 기획에 없어 비워둔다 — 추측으로 넘기지 않는다.
+            // (Figma Flow 2 는 "생성 안 하면 다음 접속에 유도"라 건너뛴 사실을 남겨야 하는데 저장할 곳이 없다)
+            return .none
         }
     }
 }
