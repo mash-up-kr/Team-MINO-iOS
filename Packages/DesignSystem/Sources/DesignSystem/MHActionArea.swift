@@ -34,6 +34,12 @@ public struct MHAction {
 /// - `cancel`: 단일 풀폭 outlined/assistive
 ///
 /// `divider`·`sticky`·`safeArea`·`caption` 과 `extra` 슬롯(``MHActionAreaSummary`` 등 Preset)을 조합한다.
+///
+/// `sticky` 와 `safeArea` 는 이름이 비슷하지만 담당이 다르다:
+/// - `sticky`: **배경**. 켜면 불투명 채움(+상단 20pt 페이드)을 깔아 뒤로 지나가는 스크롤 콘텐츠를 가린다.
+///   배경은 `safeArea` 값과 무관하게 화면 바닥(홈 인디케이터)까지 내려간다.
+/// - `safeArea`: **높이**. 켜면 하단에 홈 인디케이터 높이만큼 여백을 넣어 버튼을 띄운다.
+///   `safeAreaInset(edge: .bottom)` 으로 이 컴포넌트를 붙이는 화면은 SwiftUI 가 이미 띄워 주므로 꺼야 한다.
 /// 각 액션의 버튼 스타일은 ``MHAction`` 의 `variant`·`color` 로 슬롯 기본값을 덮어쓸 수 있다(`customize = button`).
 ///
 /// > `outlined` 는 옅은 `Line/Normal/Neutral` 테두리, `outlinedStrong` 은 진한 `Primary/Normal`(검정)
@@ -188,6 +194,10 @@ public struct MHActionArea<Extra: View>: View {
                 Rectangle().fill(Color.mhBackgroundElevatedNormal)
             }
             .allowsHitTesting(false)
+            // 배경만 홈 인디케이터 띠까지 내려 깐다. `safeArea == false` 로 그 띠에 여백을 두지 않는 화면
+            // (스크롤뷰 위에 safeAreaInset 으로 얹는 경우)에서도 아래 콘텐츠가 비쳐 보이지 않게 한다.
+            // 넓히는 건 `.container` 뿐이라 레이아웃과 키보드 회피는 그대로다.
+            .ignoresSafeArea(.container, edges: .bottom)
         }
     }
 
@@ -197,6 +207,9 @@ public struct MHActionArea<Extra: View>: View {
                 .onAppear { bottomInset = proxy.safeAreaInsets.bottom }
                 .onChange(of: proxy.safeAreaInsets.bottom) { _, newValue in bottomInset = newValue }
         }
+        // 키보드는 빼고 컨테이너 인셋(홈 인디케이터)만 잰다. 안 빼면 키보드가 올라올 때 인셋이
+        // 300pt 넘게 잡혀 `safeArea == true` 인 화면의 액션 영역이 그만큼 부풀고 본문이 찌그러진다.
+        .ignoresSafeArea(.keyboard, edges: .bottom)
     }
 }
 
