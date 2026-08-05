@@ -1,20 +1,5 @@
 import SwiftUI
 
-// MARK: - Icon (Normal)
-//
-// Figma `Icon/Normal/*` 단색 아이콘 세트다. 아이콘은 기본적으로 단색으로 사용되며,
-// 템플릿 렌더링이라 `.foregroundStyle`로 원하는 색을 입힌다(대비가 충분한 색을 고른다).
-// 크기는 `.resizable().frame(...)` 또는 `.font`/`.imageScale`로 제어한다.
-//
-//     Image(.download)
-//         .resizable().frame(width: 24, height: 24)
-//         .foregroundStyle(.mhLabelNormal)
-//
-//     MHIcon.star.image.foregroundStyle(.mhAccentForegroundOrange)
-//
-// 이름은 Figma 컴포넌트 이름을 그대로 따른다. `Fill`/`Thick`/`Tight` 변형은
-// 접미사로 구분된다(예: `bell`/`bellFill`, `arrowLeft`/`arrowLeftThick`).
-
 /// Figma `Icon/Normal/*` 아이콘. `Image(_:)` 또는 `.image`로 SwiftUI `Image`를 만든다.
 public enum MHIcon: String, CaseIterable, Sendable {
     case aiReview
@@ -101,6 +86,7 @@ public enum MHIcon: String, CaseIterable, Sendable {
     case pencil
     case pencilFill
     case person
+    case personCircleFill
     case personFill
     case personPlus
     case personPlusFill

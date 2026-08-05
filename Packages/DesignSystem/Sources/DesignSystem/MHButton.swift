@@ -1,9 +1,8 @@
 import SwiftUI
 
-// MARK: - Button
-
-/// 배경·테두리 스타일. `solid`(채운 배경) / `outlined`(테두리만).
-public enum MHButtonVariant: Sendable { case solid, outlined }
+/// 배경·테두리 스타일. `solid`(채운 배경) / `outlined`(옅은 Line/Normal/Neutral 테두리) /
+/// `outlinedStrong`(진한 Primary/Normal 검정 테두리·텍스트 — 강조 아웃라인, Figma Action Area customize).
+public enum MHButtonVariant: Sendable { case solid, outlined, outlinedStrong }
 /// 강조 위계. `primary`(Bold·강조 배경) / `assistive`(Medium·보조 배경).
 public enum MHButtonColor: Sendable { case primary, assistive }
 /// 크기 프리셋. 패딩·radius·아이콘 크기·타이포가 함께 정해진다.
@@ -134,27 +133,32 @@ struct MHButtonSpec {
         // 이 버튼들은 불투명한 일반 화면에 쓰여 블러가 보이지 않고 per-button backdrop 블러는 비용도 크다.
         // 그래서 의도적으로 플랫 8%(Fill/Normal)만 쓴다. (미디어 위 플로팅에 쓰게 되면 그때 .bar 머티리얼 검토)
         case (.solid, .assistive):  .mhFillNormal
-        case (.outlined, _):        .clear
+        case (.outlined, _), (.outlinedStrong, _): .clear
         }
     }
 
     var foreground: Color {
         switch (variant, color) {
-        case (.solid, .primary):    .mhStaticWhite
-        case (.solid, .assistive):  .mhLabelNeutral
-        case (.outlined, _):        .mhLabelNormal
+        case (.solid, .primary):     .mhStaticWhite
+        case (.solid, .assistive):   .mhLabelNeutral
+        case (.outlined, _):         .mhLabelNormal
+        case (.outlinedStrong, _):   .mhPrimaryNormal   // 강조 아웃라인 = 검정 텍스트
         }
     }
 
     var border: Color? {
-        variant == .outlined ? .mhLineNormalNeutral : nil
+        switch variant {
+        case .solid:          nil
+        case .outlined:       .mhLineNormalNeutral       // 옅은 회색
+        case .outlinedStrong: .mhPrimaryNormal           // 진한 검정
+        }
     }
 
     // 비활성(disable): Figma 스펙상 Solid=bg Interaction/Disable·text Label/Assistive,
     //                              Outlined=bg 없음·text Label/Disable (variant 별로 글자색이 다름)
     var disabledBackground: Color { variant == .solid ? .mhInteractionDisable : .clear }
     var disabledForeground: Color { variant == .solid ? .mhLabelAssistive : .mhLabelDisable }
-    var disabledBorder: Color? { variant == .outlined ? .mhLineNormalNeutral : nil }
+    var disabledBorder: Color? { variant == .solid ? nil : .mhLineNormalNeutral }
 }
 
 struct MHButtonMetric {
@@ -280,4 +284,49 @@ struct MHButtonSpinner: View {
             .animation(.linear(duration: 0.8).repeatForever(autoreverses: false), value: spin)
             .onAppear { spin = true }
     }
+}
+
+// 프리뷰 한 열: 한 (variant, color) 조합의 L/M/S 텍스트(활성/비활성) + 아이콘 전용. Figma Button 매트릭스 열과 동일.
+private struct MHButtonPreviewColumn: View {
+    let title: String
+    let variant: MHButtonVariant
+    let color: MHButtonColor
+    var body: some View {
+        VStack(spacing: 10) {
+            Text(title).font(.system(size: 9, weight: .semibold)).foregroundStyle(.secondary)
+            MHButton("텍스트", variant: variant, color: color, size: .large) {}
+            MHButton("텍스트", variant: variant, color: color, size: .large) {}.disabled(true)
+            MHButton("텍스트", variant: variant, color: color, size: .medium) {}
+            MHButton("텍스트", variant: variant, color: color, size: .medium) {}.disabled(true)
+            MHButton("텍스트", variant: variant, color: color, size: .small) {}
+            MHButton("텍스트", variant: variant, color: color, size: .small) {}.disabled(true)
+            MHButton(icon: .check, variant: variant, color: color, size: .large) {}
+            MHButton(icon: .check, variant: variant, color: color, size: .medium) {}
+            MHButton(icon: .check, variant: variant, color: color, size: .small) {}
+        }
+    }
+}
+
+// Figma `Button/Button` 전체 매트릭스: Solid/Outlined × Primary/Assistive × Large/Medium/Small × 텍스트/아이콘 × 활성/비활성.
+#Preview("MHButton · Figma 매트릭스") {
+    ScrollView([.horizontal, .vertical]) {
+        HStack(alignment: .top, spacing: 16) {
+            MHButtonPreviewColumn(title: "Solid · Primary",    variant: .solid,    color: .primary)
+            MHButtonPreviewColumn(title: "Solid · Assistive",  variant: .solid,    color: .assistive)
+            MHButtonPreviewColumn(title: "Outlined · Primary",   variant: .outlined, color: .primary)
+            MHButtonPreviewColumn(title: "Outlined · Assistive", variant: .outlined, color: .assistive)
+        }
+        .padding(20)
+    }
+}
+
+// 우리 확장(Figma Button 표준 아님): outlinedStrong(검정 테두리)·leadingIcon·loading.
+#Preview("MHButton · 확장") {
+    VStack(alignment: .leading, spacing: 12) {
+        MHButton("Outlined Strong", variant: .outlinedStrong) {}
+        MHButton("담기", leadingIcon: .plus) {}
+        MHButton("전송", trailingIcon: .send) {}
+        MHButton("로딩", isLoading: true) {}
+    }
+    .padding()
 }

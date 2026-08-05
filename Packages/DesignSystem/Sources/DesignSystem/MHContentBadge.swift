@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - Content Badge
-
 /// 배경·테두리 스타일. `solid`(옅은 배경 채움) / `outlined`(테두리만). Figma `variant`.
 public enum MHContentBadgeVariant: Sendable { case solid, outlined }
 /// 크기 프리셋. 폰트·패딩·radius·아이콘이 함께 정해진다. Figma `size`.
@@ -111,4 +109,45 @@ extension MHContentBadgeSize {
         case .medium: MHContentBadgeMetric(font: .label2Medium,   height: 28, hPadding: 8, cornerRadius: 8, gap: 4, iconSize: 16)
         }
     }
+}
+
+// 프리뷰 한 행: 한 (variant, color) 조합의 XSmall/Small/Medium. Figma Content Badge 매트릭스 한 줄과 동일.
+private struct MHContentBadgePreviewRow: View {
+    let title: String
+    let variant: MHContentBadgeVariant
+    let color: Color?
+    private let sizes: [MHContentBadgeSize] = [.xsmall, .small, .medium]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title).font(.system(size: 9, weight: .semibold)).foregroundStyle(.secondary)
+            HStack(spacing: 12) {
+                ForEach(Array(sizes.enumerated()), id: \.offset) { _, s in
+                    MHContentBadge("텍스트", variant: variant, size: s, color: color)
+                }
+            }
+        }
+    }
+}
+
+// Figma `Content Badge/Content Badge` 전체 매트릭스: Solid/Outlined × XSmall/Small/Medium × Neutral/Accent.
+// (Accent 는 임의 색 C — Figma 예제는 Cyan(#0098B2). Solid=C 8% 배경, Outlined=C 43% 테두리, 글자·아이콘=C.)
+#Preview("MHContentBadge · Figma 매트릭스") {
+    VStack(alignment: .leading, spacing: 16) {
+        MHContentBadgePreviewRow(title: "Solid · Neutral", variant: .solid, color: nil)
+        MHContentBadgePreviewRow(title: "Outlined · Neutral", variant: .outlined, color: nil)
+        MHContentBadgePreviewRow(title: "Solid · Accent (Cyan)", variant: .solid, color: .mhAccentForegroundCyan)
+        MHContentBadgePreviewRow(title: "Outlined · Accent (Cyan)", variant: .outlined, color: .mhAccentForegroundCyan)
+    }
+    .padding(20)
+}
+
+// 아이콘·상태색 예시(Figma 축 밖의 활용).
+#Preview("MHContentBadge · 아이콘·상태색") {
+    HStack(spacing: 12) {
+        MHContentBadge("완료", color: .mhStatusPositive, leadingIcon: .check)
+        MHContentBadge("주의", color: .mhStatusCautionary)
+        MHContentBadge("오류", variant: .outlined, color: .mhStatusNegative, leadingIcon: .circleExclamation)
+    }
+    .padding()
 }

@@ -1,22 +1,6 @@
 import SwiftUI
 import CoreText
 
-// MARK: - Typography (SUITE)
-//
-// Figma `타이포그래피` 스케일이다. 서체는 **SUITE**(원티드 디자인 토큰이 바인딩한 값)를 쓴다.
-// 7단계 위계(Display·Title·Heading·Headline·Body·Label·Caption)에 Regular/Medium/Bold.
-//
-// 화면에서는 토큰을 **모디파이어로** 적용한다. 폰트·자간·행간이 한 번에 반영된다.
-//
-//     Text("제목").mhTypography(.title1Bold)
-//     Text("본문 여러 줄…").mhTypography(.body1NormalRegular)   // 행간까지 반영(멀티라인)
-//     Text("인라인").mhTypography(.label2Bold)                 // Text 오버로드: 폰트+자간만
-//
-// 값 규칙(Figma 변수 기준):
-// - letterSpacing 은 **퍼센트** → tracking(pt) = size * percent / 100
-// - lineHeight 는 **배수** → 목표 줄높이(pt) = size * multiple. SwiftUI 는 lineSpacing(추가분)
-//   + 상하 패딩(절반)으로 Figma 라인박스를 맞춘다.
-//
 // SUITE 는 앱 번들이 아니라 이 패키지 리소스에 있으므로 런타임에 CTFontManager 로 등록한다
 // (Info.plist `UIAppFonts` 는 앱 타깃 전용이라 SPM 리소스엔 적용되지 않는다).
 
@@ -233,4 +217,66 @@ public extension MHTypography {
     static let caption2Medium = MHTypography(weight: .medium, size: 11, lineHeightMultiple: 1.273, letterSpacingPercent: 3.11)
     /// Figma `Caption 2/Regular`
     static let caption2Regular = MHTypography(weight: .regular, size: 11, lineHeightMultiple: 1.273, letterSpacingPercent: 3.11)
+}
+
+// MARK: - Preview
+
+// 스케일 한 줄 — 위계명·크기 라벨 + 실제 토큰으로 렌더한 샘플(폰트·크기·자간·행간 반영).
+private struct MHTypeRow: View {
+    let name: String
+    let token: MHTypography
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("\(name) · \(Int(token.size))pt · LH \(String(format: "%.3g", token.lineHeightMultiple)) · LS \(String(format: "%g", token.letterSpacingPercent))%")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(.secondary)
+            Text("가나다 Aa 123")
+                .mhTypography(token)
+                .foregroundStyle(.mhLabelNormal)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+// Figma `타이포그래피` 스케일 — 18개 하위 위계(각 Bold 대표). 크기·행간·자간이 토큰에 그대로 반영됨을 확인.
+#Preview("MHTypography · 스케일") {
+    ScrollView {
+        VStack(alignment: .leading, spacing: 16) {
+            Group {
+                MHTypeRow(name: "Display 1", token: .display1Bold)
+                MHTypeRow(name: "Display 2", token: .display2Bold)
+                MHTypeRow(name: "Display 3", token: .display3Bold)
+                MHTypeRow(name: "Title 1", token: .title1Bold)
+                MHTypeRow(name: "Title 2", token: .title2Bold)
+                MHTypeRow(name: "Title 3", token: .title3Bold)
+                MHTypeRow(name: "Heading 1", token: .heading1Bold)
+                MHTypeRow(name: "Heading 2", token: .heading2Bold)
+            }
+            Group {
+                MHTypeRow(name: "Headline 1", token: .headline1Bold)
+                MHTypeRow(name: "Headline 2", token: .headline2Bold)
+                MHTypeRow(name: "Body 1/Normal", token: .body1NormalBold)
+                MHTypeRow(name: "Body 1/Reading", token: .body1ReadingBold)
+                MHTypeRow(name: "Body 2/Normal", token: .body2NormalBold)
+                MHTypeRow(name: "Body 2/Reading", token: .body2ReadingBold)
+                MHTypeRow(name: "Label 1/Normal", token: .label1NormalBold)
+                MHTypeRow(name: "Label 1/Reading", token: .label1ReadingBold)
+                MHTypeRow(name: "Label 2", token: .label2Bold)
+                MHTypeRow(name: "Caption 1", token: .caption1Bold)
+                MHTypeRow(name: "Caption 2", token: .caption2Bold)
+            }
+        }
+        .padding()
+    }
+}
+
+// 굵기 3종(Regular/Medium/Bold) 렌더 확인.
+#Preview("MHTypography · 굵기") {
+    VStack(alignment: .leading, spacing: 12) {
+        Text("Regular 가나다 Aa").mhTypography(.heading1Regular)
+        Text("Medium 가나다 Aa").mhTypography(.heading1Medium)
+        Text("Bold 가나다 Aa").mhTypography(.heading1Bold)
+    }
+    .foregroundStyle(.mhLabelNormal)
+    .padding()
 }

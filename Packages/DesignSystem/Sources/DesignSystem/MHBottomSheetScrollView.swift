@@ -1,8 +1,6 @@
 import SwiftUI
 import UIKit
 
-// MARK: - 시트 ↔ 스크롤 연동 채널 (같은 모듈 내부용)
-
 /// MHBottomSheet 가 콘텐츠로 내려주는 "지금 스크롤해도 되는가" (full 에서만 true)
 struct MHSheetScrollEnabledKey: EnvironmentKey {
     static let defaultValue = true   // 시트 밖에서 쓰이면 일반 스크롤로 동작
@@ -110,5 +108,19 @@ private final class IntrospectorView: UIView {
             }
             view = current.superview
         }
+    }
+}
+
+#Preview("MHBottomSheetScrollView") {
+    MHBottomSheetScrollView {
+        VStack(spacing: 12) {
+            ForEach(0..<20, id: \.self) { i in
+                Text("항목 \(i)")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding()
+                    .background(Color.mhFillAlternative, in: RoundedRectangle(cornerRadius: 8))
+            }
+        }
+        .padding()
     }
 }
