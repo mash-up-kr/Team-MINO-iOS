@@ -1,4 +1,3 @@
-import FeatureOnboarding
 import SwiftUI
 
 @main
@@ -23,10 +22,6 @@ struct RootView: View {
     let coordinator: AppCoordinator
 
     var body: some View {
-        if let onboarding = coordinator.onboarding {
-            ProfileSetupView(coordinator: onboarding)
-        } else {
-            MainTabView(coordinator: coordinator)
-        }
+        MainTabView(coordinator: coordinator)
     }
 }
