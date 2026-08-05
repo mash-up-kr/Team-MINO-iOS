@@ -1,0 +1,60 @@
+import SwiftUI
+import DesignSystem
+
+/// 온보딩 세 화면이 공유하는 상단 내비게이션. Figma `Top Navigation/Top Navigation`.
+///
+/// 타이틀은 가운데 고정이고 뒤로가기·건너뛰기는 좌우 끝에 얹힌다 — 타이틀이 길어져도 버튼을 밀지 않도록
+/// 겹쳐 배치한다. 세 요소 모두 선택이라, 필요한 것만 넘기면 된다(프로필 설정은 타이틀만, 친구초대는 타이틀 없음).
+///
+/// > 시스템 내비바(`.navigationTitle`)를 쓰지 않는 이유: Figma 타이틀이 SUITE 인데 시스템 내비바는
+/// > 시스템 폰트로 그린다. 이 컴포넌트를 쓰는 화면은 `.toolbar(.hidden, for: .navigationBar)` 를 함께 건다.
+struct OnboardingTopNavigation: View {
+    var title: String?
+    var onBack: (() -> Void)?
+    var onSkip: (() -> Void)?
+
+    var body: some View {
+        ZStack {
+            if let title {
+                Text(title)
+                    .mhTypography(.headline2Bold)
+                    .foregroundStyle(Color.mhLabelStrong)
+                    .lineLimit(1)
+            }
+            HStack(spacing: 16) {
+                if let onBack {
+                    Button(action: onBack) {
+                        Image(MHIcon.chevronLeft)
+                            .resizable()
+                            .frame(width: 24, height: 24)
+                            .foregroundStyle(Color.mhLabelNormal)
+                    }
+                }
+                Spacer(minLength: 0)
+                if let onSkip {
+                    // MHTextButton 은 Body1Bold(16) 고정이라 Figma 스펙(Label1Medium 14)과 달라 직접 조립한다.
+                    Button(action: onSkip) {
+                        Text("건너뛰기")
+                            .mhTypography(.label1NormalMedium)
+                            .foregroundStyle(Color.mhLabelNormal)
+                    }
+                }
+            }
+        }
+        .frame(minHeight: 24)                 // 버튼이 없는 화면에서도 아이콘(24pt) 기준 높이를 유지
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+    }
+}
+
+#Preview("타이틀 + 뒤로 + 건너뛰기") {
+    OnboardingTopNavigation(title: "공동방 만들기", onBack: {}, onSkip: {})
+}
+
+#Preview("타이틀만") {
+    OnboardingTopNavigation(title: "프로필 설정")
+}
+
+#Preview("뒤로 + 건너뛰기") {
+    OnboardingTopNavigation(onBack: {}, onSkip: {})
+}

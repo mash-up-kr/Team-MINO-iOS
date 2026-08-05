@@ -13,8 +13,8 @@ public struct ProfileSetupView: View {
         @Bindable var coordinator = coordinator
         NavigationStack(path: $coordinator.path) {
             content
-                .navigationTitle("프로필 설정")
-                .navigationBarTitleDisplayMode(.inline)
+                // 마크업이 자체 상단 내비바를 그린다 — 세 화면이 같은 OnboardingTopNavigation 을 쓴다.
+                .toolbar(.hidden, for: .navigationBar)
                 .navigationDestination(for: OnboardingRoute.self) { route in
                     switch route {
                     case .createRoom:

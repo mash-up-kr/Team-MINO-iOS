@@ -6,8 +6,6 @@ struct CreateRoomView: View {
     private let coordinator: OnboardingCoordinator
     @State private var store: CreateRoomStore?
     // 뒤로가기: Coordinator.pop() 을 직접 부르지 않고 NavigationStack 표준 dismiss 를 쓴다.
-    // Nav 케이스로 표현하려면 OnboardingCoordinator.handle(_:CreateRoomNav) 수정이 필요한데
-    // 그 파일은 이 작업 범위 밖(다른 에이전트 작업 중)이라 건드릴 수 없다.
     @Environment(\.dismiss) private var dismiss
 
     init(coordinator: OnboardingCoordinator) {

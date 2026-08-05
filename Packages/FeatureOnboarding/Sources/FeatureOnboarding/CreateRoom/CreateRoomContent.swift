@@ -40,11 +40,10 @@ struct CreateRoomContent: View {
 
     private let namePlaceholder = "방 이름을 입력해 주세요."
     private let descriptionPlaceholder = "어떤 장소들을 모으는 방인가요?"
-    private let descriptionLimit = 20
 
     var body: some View {
         VStack(spacing: 0) {
-            topNavigation
+            OnboardingTopNavigation(title: "공동방 만들기", onBack: onBack, onSkip: onSkip)
             ScrollView {
                 VStack(spacing: 30) {
                     previewCard
@@ -62,32 +61,6 @@ struct CreateRoomContent: View {
             }
         }
         .background(Color.mhBackgroundNormalNormal)
-    }
-
-    // MARK: Top Navigation
-
-    private var topNavigation: some View {
-        ZStack {
-            Text("공동방 만들기")
-                .mhTypography(.headline2Bold)
-                .foregroundStyle(Color.mhLabelStrong)
-            HStack {
-                Button(action: onBack) {
-                    Image(MHIcon.chevronLeft)
-                        .resizable()
-                        .frame(width: 24, height: 24)
-                        .foregroundStyle(Color.mhLabelNormal)
-                }
-                Spacer()
-                Button(action: onSkip) {
-                    Text("건너뛰기")
-                        .mhTypography(.label1NormalMedium)
-                        .foregroundStyle(Color.mhLabelNormal)
-                }
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
     }
 
     // MARK: 미리보기 카드
@@ -109,7 +82,7 @@ struct CreateRoomContent: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.mhBackgroundElevatedNormal, in: RoundedRectangle(cornerRadius: 20))
         .overlay {
-            RoundedRectangle(cornerRadius: 20).strokeBorder(Color.mhPrimaryNormal, lineWidth: 1)
+            RoundedRectangle(cornerRadius: 20).strokeBorder(Color.mhLineSolidNormal, lineWidth: 1)
         }
     }
 
@@ -134,7 +107,7 @@ struct CreateRoomContent: View {
             text: $roomName,
             heading: "방 이름",
             isRequired: true,
-            description: "한글·영문·숫자만 입력 가능해요. (공백 포함 15자 이내)"
+            description: "한글·영문·숫자만 입력 가능해요. (공백 포함 \(CreateRoomLimit.name)자 이내)"
         )
     }
 
@@ -144,7 +117,7 @@ struct CreateRoomContent: View {
             text: $roomDescription,
             heading: "방 설명",
             bottomLeading: {
-                MHCharacterCounter(count: roomDescription.count, limit: descriptionLimit)
+                MHCharacterCounter(count: roomDescription.count, limit: CreateRoomLimit.description)
             }
         )
     }

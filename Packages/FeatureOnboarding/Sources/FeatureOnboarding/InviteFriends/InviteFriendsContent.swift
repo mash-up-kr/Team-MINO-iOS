@@ -13,34 +13,11 @@ struct InviteFriendsContent: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            topNavigation
+            OnboardingTopNavigation(onBack: onTapBack, onSkip: onTapSkip)
             titleAndDescription
             actionArea
         }
         .background(Color.mhBackgroundNormalNormal)
-    }
-
-    // MARK: - Top Navigation
-
-    // NOTE: DS 에 Top Navigation 컴포넌트가 없어 Figma 스펙(패딩 16/10, 아이콘 24pt)대로 직접 조립.
-    private var topNavigation: some View {
-        HStack(spacing: 16) {
-            Button(action: onTapBack) {
-                Image(MHIcon.chevronLeft)
-                    .resizable()
-                    .frame(width: 24, height: 24)
-                    .foregroundStyle(Color.mhLabelNormal)
-            }
-            Spacer(minLength: 0)
-            Button(action: onTapSkip) {
-                // NOTE: MHTextButton 은 Body1Bold(16) 고정이라 Figma 스펙(Label1Medium 14)과 다름 → 직접 조립.
-                Text("건너뛰기")
-                    .mhTypography(.label1NormalMedium)
-                    .foregroundStyle(Color.mhLabelNormal)
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
     }
 
     // MARK: - Title / Illustration / Description

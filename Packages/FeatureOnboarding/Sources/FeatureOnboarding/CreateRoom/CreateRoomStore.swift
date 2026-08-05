@@ -26,18 +26,21 @@ enum CreateRoomNav: Equatable, Sendable {
 
 typealias CreateRoomStore = Store<CreateRoomState, CreateRoomAction, CreateRoomNav>
 
-// CreateRoomContent 헬퍼 문구 계약: 방 이름 "공백 포함 15자 이내", 방 설명 카운터 "/20"
-private let roomNameLimit = 15
-private let roomDescriptionLimit = 20
+/// 입력 길이 상한. reduce 가 자르는 값과 화면이 안내·카운터로 보여주는 값이 어긋나면
+/// 카운터가 거짓말을 하므로 한 곳에서만 정의한다(`CreateRoomContent` 가 같은 값을 읽는다).
+enum CreateRoomLimit {
+    static let name = 15
+    static let description = 20
+}
 
 func createRoomReducer() -> (inout CreateRoomState, CreateRoomAction) -> Effect<CreateRoomAction, CreateRoomNav> {
     { state, action in
         switch action {
         case .roomNameChanged(let name):
-            state.roomName = String(name.prefix(roomNameLimit))
+            state.roomName = String(name.prefix(CreateRoomLimit.name))
             return .none
         case .roomDescriptionChanged(let description):
-            state.roomDescription = String(description.prefix(roomDescriptionLimit))
+            state.roomDescription = String(description.prefix(CreateRoomLimit.description))
             return .none
         case .selectColor(let index):
             state.selectedColorIndex = index

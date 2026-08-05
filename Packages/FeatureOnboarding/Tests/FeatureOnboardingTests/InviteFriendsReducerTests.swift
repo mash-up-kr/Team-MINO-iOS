@@ -15,15 +15,6 @@ struct InviteFriendsReducerTests {
         store.finish()   // 미수신 nav 가 있으면 여기서 실패한다
     }
 
-    @Test("L1 — 뒤로가기(tapBack) 는 state 를 바꾸지 않고 navigate 하지도 않는다 (실제 pop 은 View 의 dismiss 가 담당)")
-    func tapBack_doesNotMutateStateOrNavigate() async {
-        let store = TestStore(InviteFriendsState(), reduce: inviteFriendsReducer())
-
-        await store.send(.tapBack)
-
-        store.finish()
-    }
-
     @Test("L1 — 친구 초대하기(tapInvite) 는 미연결 동작이라 state 를 바꾸지 않는다")
     func tapInvite_doesNothing() async {
         let store = TestStore(InviteFriendsState(), reduce: inviteFriendsReducer())

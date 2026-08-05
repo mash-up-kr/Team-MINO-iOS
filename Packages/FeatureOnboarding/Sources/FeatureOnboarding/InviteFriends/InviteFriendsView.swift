@@ -15,10 +15,7 @@ struct InviteFriendsView: View {
         Group {
             if let store {
                 InviteFriendsContent(
-                    onTapBack: {
-                        store.send(.tapBack)
-                        dismiss()
-                    },
+                    onTapBack: { dismiss() },
                     onTapSkip: { store.send(.tapComplete) },
                     onTapInvite: { store.send(.tapInvite) },
                     onTapCopyLink: { store.send(.tapCopyLink) }

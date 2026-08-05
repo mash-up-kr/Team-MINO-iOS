@@ -1,6 +1,29 @@
 import SwiftUI
 import DesignSystem
 
+// MARK: - 캐릭터 스와치
+
+/// 캐릭터 선택 12색. 순서는 피그마 4열×3행 그리드(좌→우, 상→하)와 동일하다.
+///
+/// 캐릭터 아트 대신 색으로만 구분하므로 12개가 서로 겹치면 안 된다.
+/// Accent/Foreground(11종)로 채우고 모자란 하나만 Background 계열에서 가져온다.
+/// 피그마 캐릭터는 토큰이 아니라 이미지라 대응되는 변수가 없다 — 색상은 계열 근사다.
+/// 아트가 준비되면 `.color` 를 `.image` 로 바꿔 끼운다.
+private let characterSwatches: [OnboardingGridItem] = [
+    .color(fill: .mhAccentForegroundRed, border: .mhLineNormalAlternative),         // 0: 빨강
+    .color(fill: .mhAccentForegroundOrange, border: .mhLineNormalAlternative),      // 1: 노랑주황
+    .color(fill: .mhAccentForegroundRedOrange, border: .mhLineNormalAlternative),   // 2: 주황
+    .color(fill: .mhAccentForegroundGreen, border: .mhLineNormalAlternative),       // 3: 민트 그린
+    .color(fill: .mhAccentForegroundViolet, border: .mhLineNormalAlternative),      // 4: 라벤더
+    .color(fill: .mhAccentForegroundLime, border: .mhLineNormalAlternative),        // 5: 그린
+    .color(fill: .mhAccentForegroundCyan, border: .mhLineNormalAlternative),        // 6: 하늘색
+    .color(fill: .mhAccentForegroundPink, border: .mhLineNormalAlternative),        // 7: 핑크
+    .color(fill: .mhAccentForegroundBlue, border: .mhLineNormalAlternative),        // 8: 블루
+    .color(fill: .mhAccentBackgroundRedOrange, border: .mhLineNormalAlternative),   // 9: 베이지 — Foreground 에 대응색이 없어 옅은 계열로
+    .color(fill: .mhAccentForegroundLightBlue, border: .mhLineNormalAlternative),   // 10: 터콰이즈
+    .color(fill: .mhAccentForegroundPurple, border: .mhLineNormalAlternative),      // 11: 퍼플
+]
+
 // [Convention] .claude/docs/mvi-coordinator-di.md — Store·Coordinator 를 모르는 순수 마크업.
 // Figma `001-1. 프로필 설정` (node 1645:18880 저장 활성 / 1645:18927 비활성) — 두 상태를 값(`isSaveEnabled`)으로만 그린다.
 /// 프로필 설정 화면의 마크업. 이름 입력 + 캐릭터(색상) 선택 + 저장/지우기 액션으로 구성된다.
@@ -18,38 +41,42 @@ struct ProfileSetupContent: View {
     let onSave: () -> Void
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
+        VStack(spacing: 0) {
+            OnboardingTopNavigation(title: "프로필 설정")
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
                     Text("친구들에게 어떻게 보일까요?")
                         .mhTypography(.title3Bold)
                         .foregroundStyle(.mhPrimaryNormal)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
 
                     previewAvatar
                         .frame(maxWidth: .infinity)
 
                     MHTextField(
-                        "한글·영문 2글자 이상",
+                        "한글·영문 \(ProfileSetupLimit.minimumNameLength)글자 이상",
                         text: $name,
                         heading: "이름 또는 닉네임",
                         isRequired: true
                     )
 
-                characterPicker
+                    characterPicker
+                }
+                .padding(20)
             }
-            .padding(20)
-        }
-        // 액션 영역을 VStack 자식으로 두면 키보드가 올라올 때 MHActionArea 의 하단 안전영역 측정에
-        // 키보드 높이가 섞여 스크롤뷰가 찌그러진다. safeAreaInset 으로 붙여 키보드 회피를 맡긴다.
-        .safeAreaInset(edge: .bottom) {
-            MHActionArea(
-                variant: .neutral,
-                main: MHAction("저장", action: onSave),
-                alternative: MHAction("지우기", action: onClear),
-                sticky: true,
-                safeArea: false
-            )
-            .disabled(!isSaveEnabled)
+            // 액션 영역을 VStack 자식으로 두면 키보드가 올라올 때 MHActionArea 의 하단 안전영역 측정에
+            // 키보드 높이가 섞여 스크롤뷰가 찌그러진다. safeAreaInset 으로 붙여 키보드 회피를 맡긴다.
+            .safeAreaInset(edge: .bottom) {
+                MHActionArea(
+                    variant: .neutral,
+                    main: MHAction("저장", action: onSave),
+                    alternative: MHAction("지우기", action: onClear),
+                    sticky: true,
+                    safeArea: false
+                )
+                .disabled(!isSaveEnabled)
+            }
         }
         .background(Color.mhBackgroundNormalNormal)
     }
@@ -66,44 +93,25 @@ struct ProfileSetupContent: View {
 
     // 선택 전엔 캐릭터 색이 없어 중립 배경으로 둔다(Figma 는 두 상태 모두 선택된 예시만 보여줘 무선택 색은 실측 불가 — 판단 근거).
     private var previewColor: Color {
-        guard let selectedCharacterIndex, characterColors.indices.contains(selectedCharacterIndex) else {
+        guard let selectedCharacterIndex, characterSwatches.indices.contains(selectedCharacterIndex),
+              case .color(let fill, _) = characterSwatches[selectedCharacterIndex] else {
             return .mhBackgroundNormalAlternative
         }
-        return characterColors[selectedCharacterIndex]
+        return fill
     }
 
     // MARK: - 캐릭터 선택 그리드
 
     private var characterPicker: some View {
-        // 캐릭터 아트가 준비되면 .color 를 .image 로 바꿔 끼운다.
         OnboardingSelectionGrid(
             title: "프로필 이미지 선택",
-            items: characterColors.map { .color(fill: $0, border: .mhLineNormalAlternative) },
+            items: characterSwatches,
             selectedIndex: selectedCharacterIndex,
             shape: .circle,
             onSelect: onSelectCharacter
         )
     }
 
-    // 캐릭터 아트 대신 색으로만 구분하므로 12개가 서로 겹치면 안 된다.
-    // Accent/Foreground(11종)로 채우고 모자란 하나만 Background 계열에서 가져온다.
-    // 피그마 캐릭터는 토큰이 아니라 이미지라 대응되는 변수가 없다 — 색상은 계열 근사다.
-    private var characterColors: [Color] {
-        [
-            .mhAccentForegroundRed,         // 0: 빨강
-            .mhAccentForegroundOrange,      // 1: 노랑주황
-            .mhAccentForegroundRedOrange,   // 2: 주황
-            .mhAccentForegroundGreen,       // 3: 민트 그린
-            .mhAccentForegroundViolet,      // 4: 라벤더
-            .mhAccentForegroundLime,        // 5: 그린
-            .mhAccentForegroundCyan,        // 6: 하늘색
-            .mhAccentForegroundPink,        // 7: 핑크
-            .mhAccentForegroundBlue,        // 8: 블루
-            .mhAccentBackgroundRedOrange,   // 9: 베이지 — Foreground 에 대응색이 없어 옅은 계열로
-            .mhAccentForegroundLightBlue,   // 10: 터콰이즈
-            .mhAccentForegroundPurple,      // 11: 퍼플
-        ]
-    }
 }
 
 #Preview("저장 활성") {

@@ -28,6 +28,24 @@ struct ProfileSetupReducerTests {
         store.finish()
     }
 
+    @Test("L1 — 최소 길이(2자) 미만이면 저장이 비활성이다 — 화면 안내 문구와 같은 기준")
+    func nameChanged_shorterThanMinimum_keepsSaveDisabled() async {
+        let store = TestStore(ProfileSetupState(), reduce: profileSetupReducer())
+
+        await store.send(.nameChanged("민")) {
+            $0.name = "민"
+        }
+        #expect(!store.currentState.isSaveEnabled)
+
+        // 앞뒤 공백은 길이에서 빠진다 — " 민 " 은 1자 취급
+        await store.send(.nameChanged(" 민 ")) {
+            $0.name = " 민 "
+        }
+        #expect(!store.currentState.isSaveEnabled)
+
+        store.finish()
+    }
+
     @Test("L1 — selectCharacter 는 선택된 캐릭터 인덱스를 State 에 반영한다")
     func selectCharacter_updatesSelectedIndex() async {
         let store = TestStore(ProfileSetupState(), reduce: profileSetupReducer())
