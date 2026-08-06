@@ -39,14 +39,15 @@ public struct MHSelectionGrid: View {
     private let identifierPrefix: String
     private let onSelect: (Int) -> Void
 
-    /// - Parameter identifierPrefix: 칸의 접근성 식별자 접두사(`<prefix>.cell.<index>`). 한 화면에 그리드가
-    ///   둘 이상이면 서로 다른 값을 줘야 QA 자동화가 칸을 구분할 수 있다.
+    /// - Parameter identifierPrefix: 칸의 접근성 식별자 접두사(`<prefix>.cell.<index>`).
+    ///   기본값을 두지 않는다 — 한 화면에 그리드가 둘 이상일 때 접두사가 겹치면 식별자가 조용히 중복되고,
+    ///   빌드·테스트는 통과한 채 QA 시나리오에서야 다중 매치로 터진다.
     public init(
         title: String,
         items: [MHSelectionGridItem],
         selectedIndex: Int?,
         shape: MHSelectionGridShape,
-        identifierPrefix: String = "MHSelectionGrid",
+        identifierPrefix: String,
         onSelect: @escaping (Int) -> Void
     ) {
         self.title = title
@@ -167,6 +168,7 @@ private extension MHSelectionGridShape {
             .map { .color(fill: $0, border: .mhLineNormalAlternative) },
         selectedIndex: 1,
         shape: .circle,
+        identifierPrefix: "Preview.character",
         onSelect: { _ in }
     )
     .padding(20)
@@ -183,6 +185,7 @@ private extension MHSelectionGridShape {
         ],
         selectedIndex: 1,
         shape: .roundedSquare,
+        identifierPrefix: "Preview.color",
         onSelect: { _ in }
     )
     .padding(20)
