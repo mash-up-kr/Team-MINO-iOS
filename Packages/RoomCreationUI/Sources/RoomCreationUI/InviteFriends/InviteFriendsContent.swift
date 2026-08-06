@@ -7,7 +7,8 @@ import SwiftUI
 /// 콜백은 기본값 `{}` 로 열어두기만 한다.
 struct InviteFriendsContent: View {
     var onTapBack: () -> Void = {}
-    var onTapSkip: () -> Void = {}
+    /// `nil` 이면 상단바에 건너뛰기 버튼을 그리지 않는다 — 건너뛸 수 없는 진입점을 위해.
+    var onTapSkip: (() -> Void)?
     var onTapInvite: () -> Void = {}
     var onTapCopyLink: () -> Void = {}
 
@@ -73,6 +74,10 @@ struct InviteFriendsContent: View {
     }
 }
 
-#Preview {
+#Preview("건너뛰기 있음") {
+    InviteFriendsContent(onTapSkip: {})
+}
+
+#Preview("건너뛰기 없음") {
     InviteFriendsContent()
 }
