@@ -7,10 +7,9 @@ import SwiftUI
 /// 전환이 서로 달라서, 한 뷰로 묶으면 딤까지 아래에서 밀려 올라온다.
 /// 시트 안 검색창·아바타 그리드는 **탭 대상이 아닌 배경 장식**이라 placeholder 로 둔다 — Figma 원본도 같다.
 struct TutorialShareTargetContent: View {
+    /// 튜토리얼이 진행되는 유일한 경로. 나머지 액션(링크 복사·다운로드·메시지)은 Figma 에 있으니
+    /// 그리기는 하되 **누르면 아무 일도 일어나지 않는다** — 정해진 흐름만 따라가게 하려는 의도다.
     var onTapShareTarget: () -> Void = {}
-    var onTapCopyLink: () -> Void = {}
-    var onTapDownload: () -> Void = {}
-    var onTapMessage: () -> Void = {}
 
     var body: some View {
         sheet
@@ -113,11 +112,11 @@ struct TutorialShareTargetContent: View {
         HStack(spacing: 0) {
             actionItem(icon: .upload, title: "공유 대상", identifier: "shareTarget", isPrimary: true, action: onTapShareTarget)
             Spacer(minLength: 0)
-            actionItem(icon: .link, title: "링크 복사", identifier: "copyLink", isPrimary: false, action: onTapCopyLink)
+            actionItem(icon: .link, title: "링크 복사", identifier: "copyLink", isPrimary: false)
             Spacer(minLength: 0)
-            actionItem(icon: .download, title: "다운로드", identifier: "download", isPrimary: false, action: onTapDownload)
+            actionItem(icon: .download, title: "다운로드", identifier: "download", isPrimary: false)
             Spacer(minLength: 0)
-            actionItem(icon: .bubble, title: "메시지", identifier: "message", isPrimary: false, action: onTapMessage)
+            actionItem(icon: .bubble, title: "메시지", identifier: "message", isPrimary: false)
         }
         .overlay(alignment: .topLeading) {
             // 첫 항목(공유 대상) 위 8pt 에 말풍선 바닥이 닿게 — top 가이드를 자기 바닥으로 옮겨 위로 밀어낸다.
@@ -143,7 +142,7 @@ struct TutorialShareTargetContent: View {
         title: String,
         identifier: String,
         isPrimary: Bool,
-        action: @escaping () -> Void
+        action: @escaping () -> Void = {}
     ) -> some View {
         Button(action: action) {
             VStack(spacing: 6) {

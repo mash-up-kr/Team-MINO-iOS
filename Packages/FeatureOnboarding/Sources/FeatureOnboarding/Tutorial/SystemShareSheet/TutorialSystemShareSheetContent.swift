@@ -9,10 +9,6 @@ import SwiftUI
 /// 연락처 사진과 애플 기본 앱 아이콘은 번들에 넣을 수 없어 실루엣·근사 타일로 대체했다.
 /// Figma 가 AirDrop 자리에 `우리 앱` 이라고 적어둔 첫 칸은 우리 앱(검정 타일 + send)으로 그린다.
 struct TutorialSystemShareSheetContent: View {
-    /// 시스템 공유시트에 원래 있는 닫기 버튼. **튜토리얼 중에는 동작하지 않는다** —
-    /// 정해진 흐름을 끝까지 따라가야 하는 화면이라 중간에 빠져나가는 경로를 두지 않는다.
-    /// 그리기는 하는 이유는 시스템 UI 를 흉내 내는 목업이라 버튼이 없으면 어색해서다.
-    var onTapClose: () -> Void = {}
     var onTapAppShare: () -> Void = {}
 
     /// Figma 행 높이(node 0:56 / 0:118 / 0:136). 한 칸 78pt, 좌우 여백 24pt, 칸 간격 14pt.
@@ -85,7 +81,10 @@ struct TutorialSystemShareSheetContent: View {
 
             Spacer(minLength: 0)
 
-            Button(action: onTapClose) {
+            // 시스템 공유시트에 원래 있는 닫기 버튼. **튜토리얼 중에는 동작하지 않는다** —
+            // 정해진 흐름을 끝까지 따라가야 해서 중간에 빠져나가는 경로를 두지 않는다.
+            // 그리기는 하는 이유는 시스템 UI 목업이라 버튼이 없으면 어색해서다.
+            Button {} label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 13, weight: .bold))
                     .foregroundStyle(Color(uiColor: .secondaryLabel))
