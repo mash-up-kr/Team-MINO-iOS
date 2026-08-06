@@ -103,37 +103,39 @@ struct MockInstagramPost<ShareAccessory: View>: View {
     private var actionRow: some View {
         HStack(spacing: 0) {
             HStack(spacing: 12) {
-                Image(systemName: "heart")
-                    .font(.system(size: 22, weight: .light))
-                    .accessibilityHidden(true)
-                Image(systemName: "bubble.right")
-                    .font(.system(size: 20, weight: .light))
-                    .scaleEffect(x: -1)          // Instagram 말풍선은 꼬리가 왼쪽 아래
-                    .accessibilityHidden(true)
+                mockIcon("tutorialIconHeart")
+                mockIcon("tutorialIconComment")
                 shareButton
             }
             .foregroundStyle(Color.mhPrimaryNormal)
 
             Spacer(minLength: 0)
 
-            Image(systemName: "bookmark")
-                .font(.system(size: 22, weight: .light))
+            mockIcon("tutorialIconBookmark")
                 .foregroundStyle(Color.mhPrimaryNormal)
-                .accessibilityHidden(true)
         }
         .frame(height: 28, alignment: .center)
         .padding(.bottom, 4)
     }
 
-    // 이 화면의 학습 대상. Figma `Button/Icon/Solid` + `Icon/Normal/Send`(검정 원 36 / 아이콘 20.25).
+    // SNS 앱 아이콘은 SF Symbols 로 근사하면 모양이 눈에 띄게 달라(댓글·북마크) Figma 벡터를 그대로 쓴다.
+    // 단색 template 이라 위에서 건 foregroundStyle 이 그대로 먹는다.
+    private func mockIcon(_ name: String) -> some View {
+        Image(name, bundle: .module)
+            .resizable()
+            .renderingMode(.template)
+            .frame(width: 24, height: 24)
+            .accessibilityHidden(true)
+    }
+
+    // 이 화면의 학습 대상. Figma `Menu/Resource/Action Area/Trailing Content/Icon Button`(36×36).
+    // MHIcon.send 는 외곽선인데 Figma 는 속이 채워진 종이비행기라, 원까지 포함된 벡터를 그대로 쓴다.
+    // SNS 앱을 흉내 내는 목업이라 색도 Figma 값 고정이다(틴트하지 않는다).
     private var shareButton: some View {
         Button(action: onTapShare) {
-            Image(MHIcon.send)
+            Image("tutorialIconShare", bundle: .module)
                 .resizable()
-                .frame(width: 20.25, height: 20.25)
-                .foregroundStyle(Color.mhStaticWhite)
-                .padding(7.875)
-                .background(Color.mhPrimaryNormal, in: Circle())
+                .frame(width: 36, height: 36)
         }
         .accessibilityLabel("공유")
         .accessibilityIdentifier("TutorialShareGuide.shareButton")

@@ -33,6 +33,10 @@ struct TutorialView: View {
                 onTapSkip: onTapSkip,
                 onTapShare: { go(to: .shareTarget) }
             )
+            // 시트가 떠 있는 동안 뒤 화면은 잠근다. 직접 그린 오버레이라 `.sheet` 처럼
+            // 시스템이 막아주지 않아, 스크린리더가 딤 뒤의 건너뛰기·공유 버튼까지 훑을 수 있다.
+            .disabled(step != .shareGuide)
+            .accessibilityHidden(step != .shareGuide)
 
             if step != .shareGuide {
                 Color.mhMaterialDimmer
@@ -48,7 +52,7 @@ struct TutorialView: View {
             if step == .systemShareSheet {
                 // 시트의 X 는 넘기지 않는다 — 튜토리얼 중에는 닫히지 않는다(기본값 = 무동작).
                 TutorialSystemShareSheetContent(onTapAppShare: onFinish)
-                .transition(.move(edge: .bottom))
+                    .transition(.move(edge: .bottom))
             }
         }
     }
