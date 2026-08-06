@@ -9,7 +9,7 @@ import DesignSystem
 /// Accent/Foreground(11종)로 채우고 모자란 하나만 Background 계열에서 가져온다.
 /// 피그마 캐릭터는 토큰이 아니라 이미지라 대응되는 변수가 없다 — 색상은 계열 근사다.
 /// 아트가 준비되면 `.color` 를 `.image` 로 바꿔 끼운다.
-private let characterSwatches: [OnboardingGridItem] = [
+private let characterSwatches: [MHSelectionGridItem] = [
     .color(fill: .mhAccentForegroundRed, border: .mhLineNormalAlternative),         // 0: 빨강
     .color(fill: .mhAccentForegroundOrange, border: .mhLineNormalAlternative),      // 1: 노랑주황
     .color(fill: .mhAccentForegroundRedOrange, border: .mhLineNormalAlternative),   // 2: 주황
@@ -42,7 +42,7 @@ struct ProfileSetupContent: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            OnboardingTopNavigation(title: "프로필 설정")
+            MHTopNavigation(title: "프로필 설정")
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     Text("친구들에게 어떻게 보일까요?")
@@ -103,7 +103,7 @@ struct ProfileSetupContent: View {
     // MARK: - 캐릭터 선택 그리드
 
     private var characterPicker: some View {
-        OnboardingSelectionGrid(
+        MHSelectionGrid(
             title: "프로필 이미지 선택",
             items: characterSwatches,
             selectedIndex: selectedCharacterIndex,

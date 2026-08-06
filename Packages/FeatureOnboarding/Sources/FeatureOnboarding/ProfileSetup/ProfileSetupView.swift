@@ -1,3 +1,4 @@
+import FeatureRoomCreation
 import SwiftUI
 
 // [Convention] .claude/docs/mvi-coordinator-di.md 5절 — 진입 화면 View가 NavigationStack 보유, Coordinator는 생성자 주입
@@ -13,14 +14,14 @@ public struct ProfileSetupView: View {
         @Bindable var coordinator = coordinator
         NavigationStack(path: $coordinator.path) {
             content
-                // 마크업이 자체 상단 내비바를 그린다 — 세 화면이 같은 OnboardingTopNavigation 을 쓴다.
+                // 마크업이 자체 상단 내비바를 그린다 — 세 화면이 같은 MHTopNavigation 을 쓴다.
                 .toolbar(.hidden, for: .navigationBar)
                 .navigationDestination(for: OnboardingRoute.self) { route in
                     switch route {
                     case .createRoom:
-                        CreateRoomView(coordinator: coordinator)
+                        CreateRoomView(makeStore: coordinator.makeCreateRoomStore)
                     case .inviteFriends:
-                        InviteFriendsView(coordinator: coordinator)
+                        InviteFriendsView(makeStore: coordinator.makeInviteFriendsStore)
                     }
                 }
         }

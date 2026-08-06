@@ -13,7 +13,7 @@ struct InviteFriendsContent: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            OnboardingTopNavigation(onBack: onTapBack, onSkip: onTapSkip)
+            MHTopNavigation(onBack: onTapBack, onSkip: onTapSkip)
             titleAndDescription
             actionArea
         }

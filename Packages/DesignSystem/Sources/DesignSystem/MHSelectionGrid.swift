@@ -1,34 +1,58 @@
 import SwiftUI
-import DesignSystem
 
 /// 그리드 한 칸에 들어갈 것.
 ///
-/// 캐릭터는 아직 아트가 없어 색으로만 구분하지만, 아트가 준비되면 같은 자리에 `.image` 를 넣으면 된다
-/// — 그리드는 칸 내용이 색인지 이미지인지에 따라 배치를 바꾸지 않는다.
-enum OnboardingGridItem {
+/// 색 칸과 이미지 칸 중 하나로 그린다 — 그리드는 칸 내용이 색인지 이미지인지에 따라 배치를 바꾸지 않는다.
+/// > public 타입은 Sendable 을 자동 추론하지 않는다 — 스와치 배열을 전역 상수로 두는 사용처가
+/// > Swift 6 동시성 검사에 걸리지 않도록 명시한다.
+public enum MHSelectionGridItem: Sendable {
     /// 색으로 채우는 칸. `border` 는 테두리(원형은 얇은 링, 사각형은 선택 시 채움색으로도 쓰인다).
     case color(fill: Color, border: Color)
     /// 이미지로 채우는 칸.
     case image(Image)
 }
 
-/// 칸의 시각 형태. 프로필 설정과 공동방 만들기의 피그마 디자인이 달라 형태로 갈린다.
-enum OnboardingGridShape {
-    /// 원형. 선택하면 바깥에 링이 생긴다 (프로필 캐릭터).
+/// 칸의 시각 형태.
+public enum MHSelectionGridShape: Sendable {
+    /// 원형. 선택하면 바깥에 링이 생긴다.
     case circle
-    /// 둥근 사각. 선택하면 테두리 색으로 통짜 채우고 체크를 얹는다 (방 색상).
+    /// 둥근 사각. 선택하면 테두리 색으로 통짜 채우고 체크를 얹는다.
     case roundedSquare
 }
 
-/// 여러 칸 중 하나를 고르는 4열 그리드. 제목·배치·선택 처리를 담당하고, 칸에 무엇을 그릴지는 ``OnboardingGridItem`` 이 정한다.
-struct OnboardingSelectionGrid: View {
-    let title: String
-    let items: [OnboardingGridItem]
-    let selectedIndex: Int?
-    let shape: OnboardingGridShape
-    let onSelect: (Int) -> Void
+/// 여러 칸 중 하나를 고르는 4열 그리드. 제목·배치·선택 처리를 담당하고, 칸에 무엇을 그릴지는 ``MHSelectionGridItem`` 이 정한다.
+///
+/// ```swift
+/// MHSelectionGrid(
+///     title: "방 색상 선택",
+///     items: swatches,
+///     selectedIndex: selected,
+///     shape: .roundedSquare,
+///     onSelect: { selected = $0 }
+/// )
+/// ```
+public struct MHSelectionGrid: View {
+    private let title: String
+    private let items: [MHSelectionGridItem]
+    private let selectedIndex: Int?
+    private let shape: MHSelectionGridShape
+    private let onSelect: (Int) -> Void
 
-    var body: some View {
+    public init(
+        title: String,
+        items: [MHSelectionGridItem],
+        selectedIndex: Int?,
+        shape: MHSelectionGridShape,
+        onSelect: @escaping (Int) -> Void
+    ) {
+        self.title = title
+        self.items = items
+        self.selectedIndex = selectedIndex
+        self.shape = shape
+        self.onSelect = onSelect
+    }
+
+    public var body: some View {
         VStack(alignment: .leading, spacing: shape.titleSpacing) {
             Text(title)
                 .mhTypography(.label1NormalBold)
@@ -64,7 +88,7 @@ struct OnboardingSelectionGrid: View {
 
     // MARK: 원형 칸
 
-    private func circleCell(_ item: OnboardingGridItem, isSelected: Bool) -> some View {
+    private func circleCell(_ item: MHSelectionGridItem, isSelected: Bool) -> some View {
         ZStack {
             switch item {
             case .color(let fill, let border):
@@ -86,7 +110,7 @@ struct OnboardingSelectionGrid: View {
 
     // MARK: 둥근 사각 칸
 
-    private func roundedSquareCell(_ item: OnboardingGridItem, isSelected: Bool) -> some View {
+    private func roundedSquareCell(_ item: MHSelectionGridItem, isSelected: Bool) -> some View {
         let box = RoundedRectangle(cornerRadius: Metric.cornerRadius)
         return ZStack {
             switch item {
@@ -119,8 +143,8 @@ struct OnboardingSelectionGrid: View {
     }
 }
 
-private extension OnboardingGridShape {
-    /// 제목과 그리드 사이 간격. 피그마가 두 화면에서 다르게 잡았다.
+private extension MHSelectionGridShape {
+    /// 제목과 그리드 사이 간격. 피그마가 두 형태에서 다르게 잡았다.
     var titleSpacing: CGFloat {
         switch self {
         case .circle: 16
@@ -130,7 +154,7 @@ private extension OnboardingGridShape {
 }
 
 #Preview("원형 — 캐릭터") {
-    OnboardingSelectionGrid(
+    MHSelectionGrid(
         title: "프로필 이미지 선택",
         items: [Color.mhRed60, .mhOrange70, .mhLime80, .mhCyan90]
             .map { .color(fill: $0, border: .mhLineNormalAlternative) },
@@ -142,7 +166,7 @@ private extension OnboardingGridShape {
 }
 
 #Preview("둥근 사각 — 채움/테두리 쌍") {
-    OnboardingSelectionGrid(
+    MHSelectionGrid(
         title: "방 색상 선택",
         items: [
             .color(fill: .mhRed60, border: .mhRed30),

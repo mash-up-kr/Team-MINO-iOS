@@ -7,7 +7,7 @@ import DesignSystem
 ///
 /// 색상은 Figma `Atomic/*` 팔레트를 그대로 쓴다 — 사용자가 고르는 팔레트라 역할이 없어 시맨틱 토큰이 맞지 않는다.
 /// 계열마다 밝은 단계가 채움, 진한 단계가 테두리다.
-private let roomColorSwatches: [OnboardingGridItem] = [
+private let roomColorSwatches: [MHSelectionGridItem] = [
     .color(fill: .mhRed60, border: .mhRed30),
     .color(fill: .mhRedOrange70, border: .mhRedOrange40),
     .color(fill: .mhOrange70, border: .mhOrange40),
@@ -43,7 +43,7 @@ struct CreateRoomContent: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            OnboardingTopNavigation(title: "공동방 만들기", onBack: onBack, onSkip: onSkip)
+            MHTopNavigation(title: "공동방 만들기", onBack: onBack, onSkip: onSkip)
             ScrollView {
                 VStack(spacing: 30) {
                     previewCard
@@ -125,7 +125,7 @@ struct CreateRoomContent: View {
     // MARK: 색상 선택
 
     private var colorPicker: some View {
-        OnboardingSelectionGrid(
+        MHSelectionGrid(
             title: "방 색상 선택",
             items: roomColorSwatches,
             selectedIndex: selectedColorIndex,

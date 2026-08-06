@@ -2,26 +2,24 @@
 import PackageDescription
 
 let package = Package(
-    name: "FeatureOnboarding",
+    name: "FeatureRoomCreation",
     platforms: [.iOS(.v17)],
     products: [
-        .library(name: "FeatureOnboarding", targets: ["FeatureOnboarding"]),
+        .library(name: "FeatureRoomCreation", targets: ["FeatureRoomCreation"]),
     ],
     dependencies: [
-        .package(path: "../FlowCoordination"),
         .package(path: "../MVI"),
         .package(path: "../DesignSystem"),
-        .package(path: "../FeatureRoomCreation"),
     ],
     targets: [
         .target(
-            name: "FeatureOnboarding",
-            dependencies: ["FlowCoordination", "MVI", "DesignSystem", "FeatureRoomCreation"]
+            name: "FeatureRoomCreation",
+            dependencies: ["MVI", "DesignSystem"]
         ),
         .testTarget(
-            name: "FeatureOnboardingTests",
+            name: "FeatureRoomCreationTests",
             dependencies: [
-                "FeatureOnboarding",
+                "FeatureRoomCreation",
                 .product(name: "MVITestSupport", package: "MVI"),
             ]
         ),

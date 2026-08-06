@@ -1,19 +1,34 @@
 import SwiftUI
-import DesignSystem
 
-/// 온보딩 세 화면이 공유하는 상단 내비게이션. Figma `Top Navigation/Top Navigation`.
+/// 화면 상단 내비게이션. Figma `Top Navigation/Top Navigation`.
 ///
 /// 타이틀은 가운데 고정이고 뒤로가기·건너뛰기는 좌우 끝에 얹힌다 — 타이틀이 길어져도 버튼을 밀지 않도록
-/// 겹쳐 배치한다. 세 요소 모두 선택이라, 필요한 것만 넘기면 된다(프로필 설정은 타이틀만, 친구초대는 타이틀 없음).
+/// 겹쳐 배치한다. 세 요소 모두 선택이라, 필요한 것만 넘기면 된다(타이틀만 쓰거나 버튼만 쓸 수 있다).
 ///
 /// > 시스템 내비바(`.navigationTitle`)를 쓰지 않는 이유: Figma 타이틀이 SUITE 인데 시스템 내비바는
 /// > 시스템 폰트로 그린다. 이 컴포넌트를 쓰는 화면은 `.toolbar(.hidden, for: .navigationBar)` 를 함께 건다.
-struct OnboardingTopNavigation: View {
-    var title: String?
-    var onBack: (() -> Void)?
-    var onSkip: (() -> Void)?
+///
+/// ```swift
+/// MHTopNavigation(title: "공동방 만들기", onBack: { dismiss() }, onSkip: { skip() })
+/// MHTopNavigation(title: "프로필 설정")                        // 타이틀만
+/// MHTopNavigation(onBack: { dismiss() }, onSkip: { skip() })  // 버튼만
+/// ```
+public struct MHTopNavigation: View {
+    private let title: String?
+    private let onBack: (() -> Void)?
+    private let onSkip: (() -> Void)?
 
-    var body: some View {
+    public init(
+        title: String? = nil,
+        onBack: (() -> Void)? = nil,
+        onSkip: (() -> Void)? = nil
+    ) {
+        self.title = title
+        self.onBack = onBack
+        self.onSkip = onSkip
+    }
+
+    public var body: some View {
         ZStack {
             if let title {
                 Text(title)
@@ -48,13 +63,13 @@ struct OnboardingTopNavigation: View {
 }
 
 #Preview("타이틀 + 뒤로 + 건너뛰기") {
-    OnboardingTopNavigation(title: "공동방 만들기", onBack: {}, onSkip: {})
+    MHTopNavigation(title: "공동방 만들기", onBack: {}, onSkip: {})
 }
 
 #Preview("타이틀만") {
-    OnboardingTopNavigation(title: "프로필 설정")
+    MHTopNavigation(title: "프로필 설정")
 }
 
 #Preview("뒤로 + 건너뛰기") {
-    OnboardingTopNavigation(onBack: {}, onSkip: {})
+    MHTopNavigation(onBack: {}, onSkip: {})
 }
