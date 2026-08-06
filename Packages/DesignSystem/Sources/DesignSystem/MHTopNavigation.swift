@@ -35,6 +35,7 @@ public struct MHTopNavigation: View {
                     .mhTypography(.headline2Bold)
                     .foregroundStyle(Color.mhLabelStrong)
                     .lineLimit(1)
+                    .accessibilityIdentifier("MHTopNavigation.title")
             }
             HStack(spacing: 16) {
                 if let onBack {
@@ -44,6 +45,8 @@ public struct MHTopNavigation: View {
                             .frame(width: 24, height: 24)
                             .foregroundStyle(Color.mhLabelNormal)
                     }
+                    .accessibilityLabel("뒤로")
+                    .accessibilityIdentifier("MHTopNavigation.back")
                 }
                 Spacer(minLength: 0)
                 if let onSkip {
@@ -53,6 +56,7 @@ public struct MHTopNavigation: View {
                             .mhTypography(.label1NormalMedium)
                             .foregroundStyle(Color.mhLabelNormal)
                     }
+                    .accessibilityIdentifier("MHTopNavigation.skip")
                 }
             }
         }

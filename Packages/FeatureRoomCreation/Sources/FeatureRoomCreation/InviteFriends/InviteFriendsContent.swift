@@ -29,6 +29,8 @@ struct InviteFriendsContent: View {
                 .foregroundStyle(Color.mhPrimaryNormal)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity)
+                // 이 화면은 상단바에 타이틀이 없어 도달 검증을 이 문구로 한다.
+                .accessibilityIdentifier("InviteFriends.title")
 
             Spacer(minLength: 24)
 
@@ -61,8 +63,10 @@ struct InviteFriendsContent: View {
         VStack(spacing: 8) {
             MHButton("친구 초대하기", variant: .solid, color: .primary, size: .large, action: onTapInvite)
                 .mhButtonFillWidth()
+                .accessibilityIdentifier("InviteFriends.invite")
             MHButton("초대 링크 복사", variant: .outlined, color: .primary, size: .large, leadingIcon: .link, action: onTapCopyLink)
                 .mhButtonFillWidth()
+                .accessibilityIdentifier("InviteFriends.copyLink")
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 20)

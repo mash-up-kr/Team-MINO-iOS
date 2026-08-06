@@ -36,19 +36,24 @@ public struct MHSelectionGrid: View {
     private let items: [MHSelectionGridItem]
     private let selectedIndex: Int?
     private let shape: MHSelectionGridShape
+    private let identifierPrefix: String
     private let onSelect: (Int) -> Void
 
+    /// - Parameter identifierPrefix: 칸의 접근성 식별자 접두사(`<prefix>.cell.<index>`). 한 화면에 그리드가
+    ///   둘 이상이면 서로 다른 값을 줘야 QA 자동화가 칸을 구분할 수 있다.
     public init(
         title: String,
         items: [MHSelectionGridItem],
         selectedIndex: Int?,
         shape: MHSelectionGridShape,
+        identifierPrefix: String = "MHSelectionGrid",
         onSelect: @escaping (Int) -> Void
     ) {
         self.title = title
         self.items = items
         self.selectedIndex = selectedIndex
         self.shape = shape
+        self.identifierPrefix = identifierPrefix
         self.onSelect = onSelect
     }
 
@@ -84,6 +89,8 @@ public struct MHSelectionGrid: View {
             .frame(width: Metric.cellSize, height: Metric.cellSize)
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("\(identifierPrefix).cell.\(index)")
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
     }
 
     // MARK: 원형 칸

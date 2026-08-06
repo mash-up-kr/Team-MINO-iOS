@@ -84,6 +84,10 @@ struct CreateRoomContent: View {
         .overlay {
             RoundedRectangle(cornerRadius: 20).strokeBorder(Color.mhLineSolidNormal, lineWidth: 1)
         }
+        // 카드는 한 덩어리로 읽는다 — combine 이 없으면 식별자가 자식(썸네일·이름·설명)마다 복제돼
+        // QA 자동화의 선택자가 다중 매치된다.
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("CreateRoom.previewCard")
     }
 
     // 색을 고르면 색이 바뀌는 지도 placeholder(실제 지도 에셋 도입 전까지).
@@ -107,7 +111,8 @@ struct CreateRoomContent: View {
             text: $roomName,
             heading: "방 이름",
             isRequired: true,
-            description: "한글·영문·숫자만 입력 가능해요. (공백 포함 \(CreateRoomLimit.name)자 이내)"
+            description: "한글·영문·숫자만 입력 가능해요. (공백 포함 \(CreateRoomLimit.name)자 이내)",
+            identifier: "CreateRoom.nameField"
         )
     }
 
@@ -116,6 +121,7 @@ struct CreateRoomContent: View {
             descriptionPlaceholder,
             text: $roomDescription,
             heading: "방 설명",
+            identifier: "CreateRoom.descriptionField",
             bottomLeading: {
                 MHCharacterCounter(count: roomDescription.count, limit: CreateRoomLimit.description)
             }
@@ -130,6 +136,7 @@ struct CreateRoomContent: View {
             items: roomColorSwatches,
             selectedIndex: selectedColorIndex,
             shape: .roundedSquare,
+            identifierPrefix: "CreateRoom.color",
             onSelect: onSelectColor
         )
     }

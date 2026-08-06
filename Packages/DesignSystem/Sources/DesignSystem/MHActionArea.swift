@@ -142,36 +142,43 @@ public struct MHActionArea<Extra: View>: View {
         switch variant {
         case .strong:
             VStack(spacing: 8) {
-                button(main, variant: .solid, color: .primary)
+                button(main, slot: "main", variant: .solid, color: .primary)
                     .mhButtonFillWidth()
                 if let alternative {
-                    button(alternative, variant: .outlined, color: .primary)
+                    button(alternative, slot: "alternative", variant: .outlined, color: .primary)
                         .mhButtonFillWidth()
                 }
                 if let sub {
                     MHActionSubLink(title: sub.title, action: sub.action)
+                        .accessibilityIdentifier("MHActionArea.sub")
                 }
             }
         case .neutral:
             HStack(spacing: 12) {
                 if let sub {
-                    button(sub, variant: .outlined, color: .assistive)  // hug
+                    button(sub, slot: "sub", variant: .outlined, color: .assistive)  // hug
                 }
                 if let alternative {
-                    button(alternative, variant: .outlined, color: .primary)
+                    button(alternative, slot: "alternative", variant: .outlined, color: .primary)
                         .mhButtonFillWidth()
                 }
-                button(main, variant: .solid, color: .primary)
+                button(main, slot: "main", variant: .solid, color: .primary)
                     .mhButtonFillWidth()
             }
         case .cancel:
-            button(main, variant: .outlined, color: .assistive)
+            button(main, slot: "main", variant: .outlined, color: .assistive)
                 .mhButtonFillWidth()
         }
     }
 
     // 슬롯 버튼 — action 의 variant/color 오버라이드(customize=button)가 있으면 그걸, 없으면 슬롯 기본값.
-    private func button(_ action: MHAction, variant defaultVariant: MHButtonVariant, color defaultColor: MHButtonColor) -> some View {
+    // 식별자는 슬롯 고정("MHActionArea.main" 등) — 액션 영역은 화면당 하나라 화면 안에서 유일하다.
+    private func button(
+        _ action: MHAction,
+        slot: String,
+        variant defaultVariant: MHButtonVariant,
+        color defaultColor: MHButtonColor
+    ) -> some View {
         MHButton(
             action.title,
             variant: action.variant ?? defaultVariant,
@@ -179,6 +186,7 @@ public struct MHActionArea<Extra: View>: View {
             size: .large,
             action: action.action
         )
+        .accessibilityIdentifier("MHActionArea.\(slot)")
     }
 
     // MARK: sticky 배경(Elevated + 상단 페이드)

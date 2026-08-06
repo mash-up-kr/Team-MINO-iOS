@@ -52,6 +52,8 @@ public struct MHTextArea<Leading: View, Trailing: View>: View {
     private let resize: MHTextAreaResize
     private let bottomLeading: Leading
     private let bottomTrailing: Trailing
+    /// 입력 요소(내부 `TextField`)의 접근성 식별자. QA 자동화가 화면 안에서 필드를 특정하는 데 쓴다.
+    private let identifier: String?
 
     @Environment(\.isEnabled) private var isEnabled
     @FocusState private var isFocused: Bool
@@ -65,6 +67,7 @@ public struct MHTextArea<Leading: View, Trailing: View>: View {
         description: String? = nil,
         status: MHTextAreaStatus = .normal,
         resize: MHTextAreaResize = .normal(),
+        identifier: String? = nil,
         @ViewBuilder bottomLeading: () -> Leading = { EmptyView() },
         @ViewBuilder bottomTrailing: () -> Trailing = { EmptyView() }
     ) {
@@ -75,6 +78,7 @@ public struct MHTextArea<Leading: View, Trailing: View>: View {
         self.description = description
         self.status = status
         self.resize = resize
+        self.identifier = identifier
         self.bottomLeading = bottomLeading()
         self.bottomTrailing = bottomTrailing()
     }
@@ -148,6 +152,8 @@ public struct MHTextArea<Leading: View, Trailing: View>: View {
                 }
                 TextField("", text: $text, axis: .vertical)
                     .focused($isFocused)
+                    // 입력 요소에만 붙인다 — 바깥 modifier 는 heading·카운터까지 물들여 선택자가 다중 매치된다.
+                    .accessibilityIdentifier(identifier ?? "MHTextArea.input")
                     .foregroundStyle(spec.valueTextColor)
                     .padding(.horizontal, MHTextAreaMetric.textHPadding)
                     .background(GeometryReader { g in

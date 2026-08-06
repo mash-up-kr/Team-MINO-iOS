@@ -58,7 +58,8 @@ struct ProfileSetupContent: View {
                         "한글·영문 \(ProfileSetupLimit.minimumNameLength)글자 이상",
                         text: $name,
                         heading: "이름 또는 닉네임",
-                        isRequired: true
+                        isRequired: true,
+                        identifier: "ProfileSetup.nameField"
                     )
 
                     characterPicker
@@ -89,6 +90,7 @@ struct ProfileSetupContent: View {
             Circle().fill(previewColor).padding(5)
         }
         .frame(width: 120, height: 120)
+        .accessibilityIdentifier("ProfileSetup.previewAvatar")
     }
 
     // 선택 전엔 캐릭터 색이 없어 중립 배경으로 둔다(Figma 는 두 상태 모두 선택된 예시만 보여줘 무선택 색은 실측 불가 — 판단 근거).
@@ -108,6 +110,7 @@ struct ProfileSetupContent: View {
             items: characterSwatches,
             selectedIndex: selectedCharacterIndex,
             shape: .circle,
+            identifierPrefix: "ProfileSetup.character",
             onSelect: onSelectCharacter
         )
     }

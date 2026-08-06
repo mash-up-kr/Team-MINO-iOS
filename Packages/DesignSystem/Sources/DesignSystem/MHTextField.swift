@@ -78,6 +78,8 @@ public struct MHTextField: View {
     private let showsClearButton: Bool
     private let trailingButton: MHTextFieldTrailingButton?
     private let trailingContent: AnyView?
+    /// 입력 요소(내부 `TextField`)의 접근성 식별자. QA 자동화가 화면 안에서 필드를 특정하는 데 쓴다.
+    private let identifier: String?
 
     @Environment(\.isEnabled) private var isEnabled
     @FocusState private var isFocused: Bool
@@ -92,6 +94,7 @@ public struct MHTextField: View {
         leadingIcon: MHIcon? = nil,
         showsClearButton: Bool = true,
         trailingButton: MHTextFieldTrailingButton? = nil,
+        identifier: String? = nil,
         @ViewBuilder trailingContent: () -> some View = { EmptyView() }
     ) {
         self._text = text
@@ -103,6 +106,7 @@ public struct MHTextField: View {
         self.leadingIcon = leadingIcon
         self.showsClearButton = showsClearButton
         self.trailingButton = trailingButton
+        self.identifier = identifier
         let content = trailingContent()
         self.trailingContent = content is EmptyView ? nil : AnyView(content)
     }
@@ -219,6 +223,9 @@ public struct MHTextField: View {
             TextField("", text: $text)
                 .focused($isFocused)
                 .foregroundStyle(spec.valueTextColor)
+                // 입력 요소에만 붙인다 — 컴포넌트 바깥에서 modifier 로 걸면 heading·description 까지
+                // 같은 식별자를 물려받아 QA 자동화의 선택자가 다중 매치로 실패한다.
+                .accessibilityIdentifier(identifier ?? "MHTextField.input")
         }
         .font(.system(size: MHTextFieldMetric.inputFontSize))
         .lineLimit(1)
