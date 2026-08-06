@@ -22,8 +22,12 @@ public enum CreateRoomAction: Equatable {
     case tapSkip
 }
 
+/// 목적지가 아니라 **일어난 일**로 이름 붙인다 — 이 화면은 온보딩과 방리스트가 함께 쓰는데
+/// 방 생성 뒤 어디로 갈지는 진입점마다 다르다. `goToInviteFriends` 처럼 목적지를 박으면
+/// 다른 곳으로 보내는 소비자에서 이름이 거짓말이 된다.
 public enum CreateRoomNav: Equatable, Sendable {
-    case goToInviteFriends
+    case didCreateRoom
+    case didSkip
 }
 
 public typealias CreateRoomStore = Store<CreateRoomState, CreateRoomAction, CreateRoomNav>
@@ -48,11 +52,9 @@ public func createRoomReducer() -> (inout CreateRoomState, CreateRoomAction) -> 
             state.selectedColorIndex = index
             return .none
         case .tapNext:
-            return .navigate(.goToInviteFriends)
+            return .navigate(.didCreateRoom)
         case .tapSkip:
-            // 건너뛰기 목적지가 기획에 없어 비워둔다 — 추측으로 넘기지 않는다.
-            // (Figma Flow 2 는 "생성 안 하면 다음 접속에 유도"라 건너뛴 사실을 남겨야 하는데 저장할 곳이 없다)
-            return .none
+            return .navigate(.didSkip)
         }
     }
 }

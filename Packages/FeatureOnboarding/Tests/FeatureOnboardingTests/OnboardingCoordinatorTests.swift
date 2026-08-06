@@ -20,12 +20,12 @@ struct OnboardingCoordinatorTests {
         #expect(coord.path == [.createRoom])
     }
 
-    @Test("goToInviteFriends nav → path 에 createRoom, inviteFriends 가 순서대로 push 된다")
+    @Test("didCreateRoom nav → path 에 createRoom, inviteFriends 가 순서대로 push 된다")
     func navigate_pushes_inviteFriends() {
         let coord = OnboardingCoordinator()
 
         coord.handle(ProfileSetupNav.goToCreateRoom)
-        coord.handle(CreateRoomNav.goToInviteFriends)
+        coord.handle(CreateRoomNav.didCreateRoom)
 
         #expect(coord.path == [.createRoom, .inviteFriends])
     }

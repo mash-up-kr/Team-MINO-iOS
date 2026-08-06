@@ -59,8 +59,12 @@ public final class OnboardingCoordinator: Coordinator {
 
     func handle(_ nav: CreateRoomNav) {
         switch nav {
-        case .goToInviteFriends:
+        case .didCreateRoom:
             push(.inviteFriends)
+        case .didSkip:
+            // 건너뛰기 목적지가 기획에 없어 비워둔다 — 추측으로 넘기지 않는다.
+            // (Figma Flow 2 는 "생성 안 하면 다음 접속에 유도"라 건너뛴 사실을 남겨야 하는데 저장할 곳이 없다)
+            break
         }
     }
 

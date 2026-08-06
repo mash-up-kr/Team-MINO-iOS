@@ -36,7 +36,8 @@ struct CreateRoomContent: View {
     let onSelectColor: (Int) -> Void
     let onCreate: () -> Void
     let onBack: () -> Void
-    let onSkip: () -> Void
+    /// `nil` 이면 상단바에 건너뛰기 버튼을 그리지 않는다 — 건너뛸 수 없는 진입점(방리스트 등)을 위해.
+    let onSkip: (() -> Void)?
 
     private let namePlaceholder = "방 이름을 입력해 주세요."
     private let descriptionPlaceholder = "어떤 장소들을 모으는 방인가요?"
@@ -169,11 +170,22 @@ struct CreateRoomContent: View {
     )
 }
 
+#Preview("건너뛰기 없음") {
+    PreviewHost(
+        roomName: "민호야 잘하자",
+        roomDescription: "팀 회식 장소 모음",
+        selectedColorIndex: 2,
+        isCreateEnabled: true,
+        showsSkip: false
+    )
+}
+
 private struct PreviewHost: View {
     @State var roomName: String
     @State var roomDescription: String
     @State var selectedColorIndex: Int?
     let isCreateEnabled: Bool
+    var showsSkip: Bool = true
 
     var body: some View {
         CreateRoomContent(
@@ -184,7 +196,7 @@ private struct PreviewHost: View {
             onSelectColor: { selectedColorIndex = $0 },
             onCreate: {},
             onBack: {},
-            onSkip: {}
+            onSkip: showsSkip ? {} : nil
         )
     }
 }

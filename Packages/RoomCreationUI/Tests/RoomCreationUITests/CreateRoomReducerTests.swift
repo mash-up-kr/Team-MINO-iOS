@@ -62,22 +62,25 @@ struct CreateRoomReducerTests {
         store.finish()
     }
 
-    @Test("L2 — tapNext(방 생성하기): goToInviteFriends 로 navigate 한다")
-    func tapNext_navigatesToInviteFriends() async {
+    // Nav 는 목적지가 아니라 일어난 일을 알린다 — 어디로 갈지는 소비하는 flow 가 정하므로
+    // 이 테스트는 "무엇이 일어났는지"만 단언한다.
+    @Test("L2 — tapNext(방 생성하기): didCreateRoom 을 알린다")
+    func tapNext_notifiesDidCreateRoom() async {
         let store = TestStore(CreateRoomState(), reduce: createRoomReducer())
 
         await store.send(.tapNext)
-        store.receiveNavigation(.goToInviteFriends)
+        store.receiveNavigation(.didCreateRoom)
 
         store.finish()
     }
 
-    @Test("L1 — tapSkip(건너뛰기): 목적지가 기획에 없어 navigate 하지 않는다")
-    func tapSkip_doesNotNavigate() async {
+    @Test("L2 — tapSkip(건너뛰기): didSkip 을 알린다")
+    func tapSkip_notifiesDidSkip() async {
         let store = TestStore(CreateRoomState(), reduce: createRoomReducer())
 
         await store.send(.tapSkip)
+        store.receiveNavigation(.didSkip)
 
-        store.finish()   // 미수신 nav 가 있으면 여기서 실패한다
+        store.finish()
     }
 }
