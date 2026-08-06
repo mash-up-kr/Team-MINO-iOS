@@ -19,6 +19,8 @@ struct TutorialShareGuideContent: View {
                     MHTooltip("공유 버튼을 눌러보세요", position: .top)
                         .fixedSize()
                         .alignmentGuide(.top) { $0[.bottom] + 6 }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityIdentifier("TutorialShareGuide.tooltip")
                 }
             }
             .padding(20)
@@ -43,6 +45,7 @@ struct TutorialShareGuideContent: View {
     private var titleBlock: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text("SNS 공유 방법")
+                .accessibilityIdentifier("TutorialShareGuide.title")
                 .mhTypography(.title3Bold)
             Text("아래 공유 버튼을 눌러서 연습해보세요")
                 .mhTypography(.label1NormalRegular)

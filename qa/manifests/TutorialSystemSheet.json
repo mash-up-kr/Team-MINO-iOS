@@ -1,0 +1,7 @@
+[
+  { "id": "TutorialSystemSheet.close", "kind": "button" },
+  { "id": "TutorialSystemSheet.ourApp", "kind": "button" },
+  { "id": "TutorialSystemSheet.messages", "kind": "button" },
+  { "id": "TutorialSystemSheet.mail", "kind": "button" },
+  { "id": "TutorialSystemSheet.notes", "kind": "button" }
+]

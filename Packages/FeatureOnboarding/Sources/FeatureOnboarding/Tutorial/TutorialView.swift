@@ -13,12 +13,14 @@ enum TutorialStep: Equatable {
 
 /// 튜토리얼 화면. 게시물 위로 시트 두 개가 차례로 오르내린다.
 ///
+/// 단계를 상태로 들고 흐름을 제어하므로 `Content`(순수 마크업)가 아니라 `View` 다.
+///
 /// 딤과 시트를 여기서 각각 그리는 이유는 전환이 달라서다 — 시트는 아래에서 올라오고(`move`),
 /// 딤은 페이드한다(`opacity`). 두 시트가 교대할 때 딤은 그대로 유지돼 깜빡이지 않는다.
 ///
 /// > 단계 전환을 지금은 `@State` 로 들고 있다. Store 가 붙으면 이 `step` 이 State 로,
 /// > 각 콜백이 Action 으로 옮겨간다(`.claude/docs/mvi-coordinator-di.md` 5절).
-struct TutorialContent: View {
+struct TutorialView: View {
     /// 마지막 단계(시스템 공유시트)에서 우리 앱을 골랐을 때. 완료 화면으로 가는 건 flow 몫이라 밖으로 넘긴다.
     var onFinish: () -> Void = {}
     var onTapSkip: () -> Void = {}
@@ -44,10 +46,8 @@ struct TutorialContent: View {
             }
 
             if step == .systemShareSheet {
-                TutorialSystemShareSheetContent(
-                    onTapClose: { go(to: .shareGuide) },
-                    onTapAppShare: onFinish
-                )
+                // 시트의 X 는 넘기지 않는다 — 튜토리얼 중에는 닫히지 않는다(기본값 = 무동작).
+                TutorialSystemShareSheetContent(onTapAppShare: onFinish)
                 .transition(.move(edge: .bottom))
             }
         }
@@ -59,5 +59,5 @@ struct TutorialContent: View {
 }
 
 #Preview {
-    TutorialContent()
+    TutorialView()
 }

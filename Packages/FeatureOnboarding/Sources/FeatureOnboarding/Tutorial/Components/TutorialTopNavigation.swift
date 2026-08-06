@@ -11,6 +11,7 @@ struct TutorialTopNavigation: View {
 
     var body: some View {
         Text(title)
+            .accessibilityIdentifier("Tutorial.title")
             .mhTypography(.headline2Bold)
             .foregroundStyle(Color.mhLabelStrong)
             .lineLimit(1)
@@ -23,6 +24,7 @@ struct TutorialTopNavigation: View {
                         .mhTypography(.label1NormalMedium)
                         .foregroundStyle(Color.mhLabelNormal)
                 }
+                .accessibilityIdentifier("Tutorial.skip")
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)

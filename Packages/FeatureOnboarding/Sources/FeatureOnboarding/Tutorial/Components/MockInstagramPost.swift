@@ -58,6 +58,8 @@ struct MockInstagramPost<ShareAccessory: View>: View {
         }
         .padding(.horizontal, 20)
         .padding(.bottom, 6)
+        // 목업 전용 프로필(가짜 이름·아이콘) — 학습 대상(공유 버튼)이 아니라 탭도 안 된다.
+        .accessibilityHidden(true)
     }
 
     // MARK: - Feed image
@@ -71,6 +73,7 @@ struct MockInstagramPost<ShareAccessory: View>: View {
             .frame(height: 270)
             .background(MockColor.feedBackground)
             .clipped()
+            .accessibilityHidden(true)
     }
 
     // MARK: - Bottom
@@ -94,6 +97,7 @@ struct MockInstagramPost<ShareAccessory: View>: View {
                     .frame(width: 6, height: 6)
             }
         }
+        .accessibilityHidden(true)
     }
 
     private var actionRow: some View {
@@ -101,9 +105,11 @@ struct MockInstagramPost<ShareAccessory: View>: View {
             HStack(spacing: 12) {
                 Image(systemName: "heart")
                     .font(.system(size: 22, weight: .light))
+                    .accessibilityHidden(true)
                 Image(systemName: "bubble.right")
                     .font(.system(size: 20, weight: .light))
                     .scaleEffect(x: -1)          // Instagram 말풍선은 꼬리가 왼쪽 아래
+                    .accessibilityHidden(true)
                 shareButton
             }
             .foregroundStyle(Color.mhPrimaryNormal)
@@ -113,6 +119,7 @@ struct MockInstagramPost<ShareAccessory: View>: View {
             Image(systemName: "bookmark")
                 .font(.system(size: 22, weight: .light))
                 .foregroundStyle(Color.mhPrimaryNormal)
+                .accessibilityHidden(true)
         }
         .frame(height: 28, alignment: .center)
         .padding(.bottom, 4)
@@ -128,6 +135,10 @@ struct MockInstagramPost<ShareAccessory: View>: View {
                 .padding(7.875)
                 .background(Color.mhPrimaryNormal, in: Circle())
         }
+        .accessibilityLabel("공유")
+        .accessibilityIdentifier("TutorialShareGuide.shareButton")
+        // 툴팁 오버레이는 식별자를 붙인 뒤에 얹는다 — 먼저 얹으면 버튼의 식별자를 물려받아
+        // 같은 id 가 둘이 되고 QA 자동화의 `tap --id` 가 다중 매치로 실패한다.
         .overlay(alignment: .top) { shareAccessory() }
     }
 

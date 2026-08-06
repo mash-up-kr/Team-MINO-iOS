@@ -3,7 +3,7 @@ import SwiftUI
 
 /// 튜토리얼 2단계 — 공유 버튼을 누르면 올라오는 공유 대상 시트. Figma `000-1-2 튜토리얼_step 4`(node 2314:58901).
 ///
-/// 시트만 그린다 — 딤은 ``TutorialContent`` 가 그린다. 시트는 아래에서 올라오고 딤은 페이드라
+/// 시트만 그린다 — 딤은 ``TutorialView`` 가 그린다. 시트는 아래에서 올라오고 딤은 페이드라
 /// 전환이 서로 달라서, 한 뷰로 묶으면 딤까지 아래에서 밀려 올라온다.
 /// 시트 안 검색창·아바타 그리드는 **탭 대상이 아닌 배경 장식**이라 placeholder 로 둔다 — Figma 원본도 같다.
 struct TutorialShareTargetContent: View {
@@ -14,7 +14,6 @@ struct TutorialShareTargetContent: View {
 
     var body: some View {
         sheet
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
     }
 
     // MARK: - Sheet
@@ -44,6 +43,7 @@ struct TutorialShareTargetContent: View {
             .fill(Color.mhFillNormal)
             .frame(width: 38, height: 4)
             .frame(height: 30)
+            .accessibilityHidden(true)
     }
 
     // MARK: - 배경 장식(검색 + 아바타 그리드)
@@ -83,6 +83,8 @@ struct TutorialShareTargetContent: View {
                 .padding(12)
                 .background(Color.mhFillNormal, in: RoundedRectangle(cornerRadius: 20))
         }
+        // 탭 대상이 아닌 시트 배경 장식(검색창 목업) — 아래 avatarGrid 와 같은 취급.
+        .accessibilityHidden(true)
     }
 
     private var avatarGrid: some View {
@@ -109,19 +111,21 @@ struct TutorialShareTargetContent: View {
 
     private var actionBar: some View {
         HStack(spacing: 0) {
-            actionItem(icon: .upload, title: "공유 대상", isPrimary: true, action: onTapShareTarget)
+            actionItem(icon: .upload, title: "공유 대상", identifier: "shareTarget", isPrimary: true, action: onTapShareTarget)
             Spacer(minLength: 0)
-            actionItem(icon: .link, title: "링크 복사", isPrimary: false, action: onTapCopyLink)
+            actionItem(icon: .link, title: "링크 복사", identifier: "copyLink", isPrimary: false, action: onTapCopyLink)
             Spacer(minLength: 0)
-            actionItem(icon: .download, title: "다운로드", isPrimary: false, action: onTapDownload)
+            actionItem(icon: .download, title: "다운로드", identifier: "download", isPrimary: false, action: onTapDownload)
             Spacer(minLength: 0)
-            actionItem(icon: .bubble, title: "메시지", isPrimary: false, action: onTapMessage)
+            actionItem(icon: .bubble, title: "메시지", identifier: "message", isPrimary: false, action: onTapMessage)
         }
         .overlay(alignment: .topLeading) {
             // 첫 항목(공유 대상) 위 8pt 에 말풍선 바닥이 닿게 — top 가이드를 자기 바닥으로 옮겨 위로 밀어낸다.
             MHTooltip("공유 대상을 눌러주세요", position: .top, align: .start)
                 .fixedSize()
                 .alignmentGuide(.top) { $0[.bottom] + 8 }
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("TutorialShareTarget.tooltip")
         }
         .padding(.horizontal, 20)
         .padding(.top, 20)
@@ -137,6 +141,7 @@ struct TutorialShareTargetContent: View {
     private func actionItem(
         icon: MHIcon,
         title: String,
+        identifier: String,
         isPrimary: Bool,
         action: @escaping () -> Void
     ) -> some View {
@@ -156,6 +161,7 @@ struct TutorialShareTargetContent: View {
                     .foregroundStyle(Color.mhLabelNormal)
             }
         }
+        .accessibilityIdentifier("TutorialShareTarget.\(identifier)")
     }
 }
 

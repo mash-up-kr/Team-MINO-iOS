@@ -26,6 +26,7 @@ struct TutorialCompleteContent: View {
     private var textBlock: some View {
         VStack(spacing: 4) {
             Text("튜토리얼 완료")
+                .accessibilityIdentifier("TutorialComplete.title")
                 .mhTypography(.display3Bold)
             Text("이제 진짜 SNS 핫플을 공유해보세요")
                 .mhTypography(.body1ReadingRegular)

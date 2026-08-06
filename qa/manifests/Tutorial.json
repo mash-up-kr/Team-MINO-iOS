@@ -1,0 +1,4 @@
+[
+  { "id": "Tutorial.title", "kind": "text" },
+  { "id": "Tutorial.skip", "kind": "button" }
+]

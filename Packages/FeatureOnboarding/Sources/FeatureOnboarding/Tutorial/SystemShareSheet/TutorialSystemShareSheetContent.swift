@@ -9,6 +9,9 @@ import SwiftUI
 /// 연락처 사진과 애플 기본 앱 아이콘은 번들에 넣을 수 없어 실루엣·근사 타일로 대체했다.
 /// Figma 가 AirDrop 자리에 `우리 앱` 이라고 적어둔 첫 칸은 우리 앱(검정 타일 + send)으로 그린다.
 struct TutorialSystemShareSheetContent: View {
+    /// 시스템 공유시트에 원래 있는 닫기 버튼. **튜토리얼 중에는 동작하지 않는다** —
+    /// 정해진 흐름을 끝까지 따라가야 하는 화면이라 중간에 빠져나가는 경로를 두지 않는다.
+    /// 그리기는 하는 이유는 시스템 UI 를 흉내 내는 목업이라 버튼이 없으면 어색해서다.
     var onTapClose: () -> Void = {}
     var onTapAppShare: () -> Void = {}
 
@@ -23,10 +26,9 @@ struct TutorialSystemShareSheetContent: View {
         static let actionsHeight: CGFloat = 141
     }
 
-    /// 시트만 그린다 — 딤은 ``TutorialContent`` 가 그린다(전환이 달라서 분리).
+    /// 시트만 그린다 — 딤은 ``TutorialView`` 가 그린다(전환이 달라서 분리).
     var body: some View {
         sheet
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
     }
 
     private var sheet: some View {
@@ -66,6 +68,7 @@ struct TutorialSystemShareSheetContent: View {
                 .scaledToFill()
                 .frame(width: 70, height: 67)
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("Title")
@@ -89,6 +92,8 @@ struct TutorialSystemShareSheetContent: View {
                     .frame(width: 30, height: 30)
                     .background(Color(uiColor: .systemGray5), in: Circle())
             }
+            .accessibilityLabel("닫기")
+            .accessibilityIdentifier("TutorialSystemSheet.close")
         }
         .padding(.horizontal, Layout.sidePadding)
         .frame(height: Layout.headerHeight)
@@ -98,6 +103,7 @@ struct TutorialSystemShareSheetContent: View {
                 .fill(Color(uiColor: .systemGray3))
                 .frame(width: 36, height: 5)
                 .padding(.top, 5)
+                .accessibilityHidden(true)
         }
     }
 
@@ -110,11 +116,13 @@ struct TutorialSystemShareSheetContent: View {
             contact(firstLine: "Magico and El...", secondLine: "2 People", isSecondLineMuted: true)
             contact(firstLine: "Jenny", secondLine: "Court", isSecondLineMuted: false)
         }
+        // 목업 전용 — 실제 연락처가 아니고 탭해도 동작하지 않는다(Button 미사용).
+        .accessibilityHidden(true)
     }
 
     private var appsRow: some View {
         row(height: Layout.appsHeight) {
-            appItem(name: "우리 앱", action: onTapAppShare) {
+            appItem(name: "우리 앱", identifier: "ourApp", action: onTapAppShare) {
                 Image(MHIcon.send)
                     .resizable()
                     .frame(width: 34, height: 34)
@@ -122,13 +130,13 @@ struct TutorialSystemShareSheetContent: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Color.mhPrimaryNormal)
             }
-            appItem(name: "Messages") {
+            appItem(name: "Messages", identifier: "messages") {
                 systemAppTile(symbol: "message.fill", tint: Color(red: 0.29, green: 0.83, blue: 0.37))
             }
-            appItem(name: "Mail") {
+            appItem(name: "Mail", identifier: "mail") {
                 systemAppTile(symbol: "envelope.fill", tint: Color(red: 0.11, green: 0.51, blue: 0.95))
             }
-            appItem(name: "Notes") {
+            appItem(name: "Notes", identifier: "notes") {
                 notesTile
             }
         }
@@ -141,6 +149,8 @@ struct TutorialSystemShareSheetContent: View {
             action(symbol: "eyeglasses", title: "Add to\nReading List")
             action(symbol: "book", title: "Add\nBookmark")
         }
+        // 목업 전용 — 실제 액션이 아니고 탭해도 동작하지 않는다(Button 미사용).
+        .accessibilityHidden(true)
     }
 
     /// 78pt 칸을 왼쪽부터 14pt 간격으로 늘어놓는 행.
@@ -197,6 +207,7 @@ struct TutorialSystemShareSheetContent: View {
 
     private func appItem<Tile: View>(
         name: String,
+        identifier: String,
         action: @escaping () -> Void = {},
         @ViewBuilder tile: () -> Tile
     ) -> some View {
@@ -212,6 +223,7 @@ struct TutorialSystemShareSheetContent: View {
             }
         }
         .frame(width: Layout.itemWidth)
+        .accessibilityIdentifier("TutorialSystemSheet.\(identifier)")
     }
 
     private func systemAppTile(symbol: String, tint: Color) -> some View {
