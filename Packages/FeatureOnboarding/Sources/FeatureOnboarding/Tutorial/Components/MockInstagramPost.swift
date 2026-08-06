@@ -1,7 +1,7 @@
 import DesignSystem
 import SwiftUI
 
-/// 튜토리얼에서 "공유 버튼 누르기"를 연습시키기 위한 **가짜 SNS 게시물 카드**. Figma `Photo Insta`(node 1529:84576).
+/// 튜토리얼에서 "공유 버튼 누르기"를 연습시키기 위한 **가짜 SNS 게시물 카드**. Figma `Photo Insta`(node 2314:58861).
 ///
 /// 실제 Instagram 과 연동되지 않는 목업이라 서체·아이콘·색이 우리 디자인 시스템을 따르지 않는다.
 /// SNS 화면처럼 보이는 것이 목적이므로 SF(시스템 폰트)와 SF Symbols 를 쓰고, 카드 테두리·공유 버튼처럼
@@ -11,7 +11,8 @@ import SwiftUI
 /// 배치 책임을 밖으로 넘기지 않는다.
 /// Figma 가 토큰 대신 hex 로 박아둔 목업 전용 색 — SNS 앱을 흉내 내는 값이라 DS 토큰으로 승격하지 않는다.
 private enum MockColor {
-    static let hashtag = Color(red: 62 / 255, green: 169 / 255, blue: 229 / 255)  // #3EA9E5
+    static let activeDot = Color(red: 0 / 255, green: 152 / 255, blue: 252 / 255)      // #0098FC
+    static let feedBackground = Color(red: 244 / 255, green: 244 / 255, blue: 254 / 255)  // #F4F4FE
 }
 
 struct MockInstagramPost<ShareAccessory: View>: View {
@@ -29,7 +30,7 @@ struct MockInstagramPost<ShareAccessory: View>: View {
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .overlay {
             RoundedRectangle(cornerRadius: 20)
-                .strokeBorder(Color.mhPrimaryNormal, lineWidth: 1.5)
+                .strokeBorder(Color.mhLineSolidNeutral, lineWidth: 1.5)
         }
     }
 
@@ -61,11 +62,14 @@ struct MockInstagramPost<ShareAccessory: View>: View {
 
     // MARK: - Feed image
 
+    // 게시물 사진 자리. 실제 사진이 아니라 투명 배경 일러스트라 연보라 판 위에 여백을 두고 얹는다.
     private var feedImage: some View {
         Image("tutorialSamplePost", bundle: .module)
             .resizable()
-            .scaledToFill()
-            .frame(height: 319)
+            .scaledToFit()
+            .frame(maxWidth: .infinity)
+            .frame(height: 270)
+            .background(MockColor.feedBackground)
             .clipped()
     }
 
@@ -86,7 +90,7 @@ struct MockInstagramPost<ShareAccessory: View>: View {
         HStack(spacing: 4) {
             ForEach(0..<4, id: \.self) { index in
                 Circle()
-                    .fill(index == 0 ? MockColor.hashtag : Color.mhFillNormal)
+                    .fill(index == 0 ? MockColor.activeDot : Color.mhFillNormal)
                     .frame(width: 6, height: 6)
             }
         }
@@ -127,22 +131,18 @@ struct MockInstagramPost<ShareAccessory: View>: View {
         .overlay(alignment: .top) { shareAccessory() }
     }
 
+    /// 캡션 자리. Figma 가 실제 문구 대신 placeholder 바 2개(295×20, 간격 12)로 바꿨다 —
+    /// 튜토리얼의 학습 대상은 공유 버튼이라 읽을거리로 시선을 끌지 않으려는 의도로 보인다.
     private var caption: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            (Text("GGUK").font(.system(size: 12, weight: .medium))
-                + Text("님 외 여러명이 좋아합니다").font(.system(size: 12)))
-                .foregroundStyle(Color.mhLabelNormal)
-
-            (Text("GGUK ").font(.system(size: 12, weight: .medium))
-                + Text("꾸덕한 크림과 버섯의 깊은 풍미.\n가끔은 이런 한 그릇이 가장 큰 위로가 돼요.🍴\n").font(.system(size: 12))
-                + Text("#Proud").font(.system(size: 12)).foregroundColor(MockColor.hashtag))
-                .foregroundStyle(Color.mhLabelNormal)
-
-            Text("5일 전")
-                .font(.system(size: 11))
-                .foregroundStyle(Color.mhLabelNeutral)
+        VStack(spacing: 12) {
+            ForEach(0..<2, id: \.self) { _ in
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.mhFillNormal)
+                    .frame(height: 20)
+            }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity)
+        .accessibilityHidden(true)
     }
 }
 

@@ -1,7 +1,7 @@
 import DesignSystem
 import SwiftUI
 
-/// 튜토리얼 3단계 — iOS 시스템 공유시트를 **흉내 낸** 화면. Figma `000-3. 시스템 공유시트 표출`(node 1529:84677).
+/// 튜토리얼 3단계 — iOS 시스템 공유시트를 **흉내 낸** 화면. Figma `iOS_시스템 공유시트 표출`(node 2314:58969).
 ///
 /// 진짜 `UIActivityViewController` 가 아니라 직접 그린 목업이다 — 실제로 공유하지 않고 튜토리얼 진행만 시키기
 /// 때문이다. 시스템 UI 복제라 색·서체는 우리 디자인 시스템이 아니라 **시스템 색/시스템 폰트(SF)** 를 쓴다.
@@ -23,12 +23,10 @@ struct TutorialSystemShareSheetContent: View {
         static let actionsHeight: CGFloat = 141
     }
 
+    /// 시트만 그린다 — 딤은 ``TutorialContent`` 가 그린다(전환이 달라서 분리).
     var body: some View {
-        ZStack(alignment: .bottom) {
-            Color.mhMaterialDimmer
-                .ignoresSafeArea()
-            sheet
-        }
+        sheet
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
     }
 
     private var sheet: some View {
@@ -42,9 +40,13 @@ struct TutorialSystemShareSheetContent: View {
             actionsRow
         }
         .frame(maxWidth: .infinity)
-        .background(Color(uiColor: .systemBackground))
-        .clipShape(UnevenRoundedRectangle(topLeadingRadius: 10, topTrailingRadius: 10))
-        .ignoresSafeArea(edges: .bottom)
+        // 배경만 안전영역 밖으로 늘린다 — 시트에 clipShape 를 걸면 크기가 콘텐츠에 고정돼
+        // 바깥에서 ignoresSafeArea 를 걸어도 홈 인디케이터 띠가 딤인 채로 남는다.
+        .background {
+            UnevenRoundedRectangle(topLeadingRadius: 10, topTrailingRadius: 10)
+                .fill(Color(uiColor: .systemBackground))
+                .ignoresSafeArea(edges: .bottom)
+        }
     }
 
     private var separator: some View {
@@ -58,8 +60,8 @@ struct TutorialSystemShareSheetContent: View {
 
     private var header: some View {
         HStack(spacing: 10) {
-            // 공유 대상 미리보기 — 앞 단계에서 누른 그 게시물 이미지를 그대로 쓴다.
-            Image("tutorialSamplePost", bundle: .module)
+            // 공유 대상 미리보기. Figma 가 시스템 공유시트에 넣어둔 이미지를 그대로 쓴다.
+            Image("tutorialSharePreview", bundle: .module)
                 .resizable()
                 .scaledToFill()
                 .frame(width: 70, height: 67)
@@ -256,5 +258,8 @@ struct TutorialSystemShareSheetContent: View {
 }
 
 #Preview {
-    TutorialSystemShareSheetContent()
+    ZStack {
+        Color.mhMaterialDimmer.ignoresSafeArea()
+        TutorialSystemShareSheetContent()
+    }
 }

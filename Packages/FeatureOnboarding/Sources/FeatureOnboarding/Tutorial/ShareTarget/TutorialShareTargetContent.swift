@@ -1,9 +1,10 @@
 import DesignSystem
 import SwiftUI
 
-/// 튜토리얼 2단계 — 공유 버튼을 누르면 올라오는 공유 대상 시트. Figma `000-2. 공유 대상 클릭`(node 1529:84617).
+/// 튜토리얼 2단계 — 공유 버튼을 누르면 올라오는 공유 대상 시트. Figma `000-1-2 튜토리얼_step 4`(node 2314:58901).
 ///
-/// 딤 + 바텀시트만 그리는 오버레이라 아래 화면은 포함하지 않는다(실제로는 1단계 위에 얹힌다).
+/// 시트만 그린다 — 딤은 ``TutorialContent`` 가 그린다. 시트는 아래에서 올라오고 딤은 페이드라
+/// 전환이 서로 달라서, 한 뷰로 묶으면 딤까지 아래에서 밀려 올라온다.
 /// 시트 안 검색창·아바타 그리드는 **탭 대상이 아닌 배경 장식**이라 placeholder 로 둔다 — Figma 원본도 같다.
 struct TutorialShareTargetContent: View {
     var onTapShareTarget: () -> Void = {}
@@ -12,11 +13,8 @@ struct TutorialShareTargetContent: View {
     var onTapMessage: () -> Void = {}
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            Color.mhMaterialDimmer
-                .ignoresSafeArea()
-            sheet
-        }
+        sheet
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
     }
 
     // MARK: - Sheet
@@ -28,10 +26,13 @@ struct TutorialShareTargetContent: View {
             actionBar
         }
         .frame(maxWidth: .infinity)
-        .background(Color.mhBackgroundElevatedAlternative)
-        .clipShape(sheetShape)
-        .overlay { sheetShape.strokeBorder(Color.mhPrimaryNormal, lineWidth: 1.5) }
-        .ignoresSafeArea(edges: .bottom)
+        // 배경만 안전영역 밖으로 늘린다 — 시트에 clipShape 를 걸면 크기가 콘텐츠에 고정돼
+        // 바깥에서 ignoresSafeArea 를 걸어도 홈 인디케이터 띠가 딤인 채로 남는다.
+        .background {
+            sheetShape
+                .fill(Color.mhBackgroundElevatedAlternative)
+                .ignoresSafeArea(edges: .bottom)
+        }
     }
 
     private var sheetShape: UnevenRoundedRectangle {
@@ -161,6 +162,7 @@ struct TutorialShareTargetContent: View {
 #Preview {
     ZStack {
         TutorialShareGuideContent()
+        Color.mhMaterialDimmer.ignoresSafeArea()
         TutorialShareTargetContent()
     }
 }

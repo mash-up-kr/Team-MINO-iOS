@@ -1,7 +1,7 @@
 import DesignSystem
 import SwiftUI
 
-/// 튜토리얼 상단 내비게이션. Figma `Top Navigation/Top Navigation`(node I1529:84571).
+/// 튜토리얼 상단 내비게이션. Figma `Top Navigation/Top Navigation`(node 2314:58856).
 ///
 /// 가운데 타이틀 + 우측 `건너뛰기` 텍스트 버튼 구성이다.
 /// 타이틀은 폭이 길어져도 우측 버튼을 밀지 않도록 오버레이로 얹는다.

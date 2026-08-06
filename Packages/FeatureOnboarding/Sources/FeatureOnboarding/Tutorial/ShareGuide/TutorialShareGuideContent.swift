@@ -1,7 +1,7 @@
 import DesignSystem
 import SwiftUI
 
-/// 튜토리얼 1단계 — 가짜 SNS 게시물의 공유 버튼을 눌러보게 하는 화면. Figma `000-1. 공유 버튼 클릭`(node 1529:84570).
+/// 튜토리얼 1단계 — 가짜 SNS 게시물의 공유 버튼을 눌러보게 하는 화면. Figma `000-1-1 튜토리얼_step 3`(node 2314:58846).
 ///
 /// Store/Coordinator 를 모른다 — 콜백만 받는다. 동작 연결 전이라 기본값 `{}` 로 열어두기만 한다.
 struct TutorialShareGuideContent: View {
@@ -24,7 +24,20 @@ struct TutorialShareGuideContent: View {
             .padding(20)
             .frame(maxHeight: .infinity)
         }
+        .background(alignment: .bottom) { cloudBackground }
         .background(Color.mhBackgroundNormalNormal)
+        .ignoresSafeArea(edges: .bottom)
+    }
+
+    /// 화면 하단을 채우는 옅은 구름 장식(Figma `BG` 375×325 — 완료 화면과 같은 에셋).
+    private var cloudBackground: some View {
+        Image("tutorialCloudBackground", bundle: .module)
+            .resizable()
+            .scaledToFill()
+            .frame(height: 325)
+            .frame(maxWidth: .infinity)
+            .clipped()
+            .accessibilityHidden(true)
     }
 
     private var titleBlock: some View {
