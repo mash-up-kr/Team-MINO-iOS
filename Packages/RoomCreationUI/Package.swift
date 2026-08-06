@@ -1,11 +1,13 @@
 // swift-tools-version: 6.0
 import PackageDescription
 
+// 공통 화면 레이어(`*UI`) — 여러 Feature 가 가져다 쓰고, 자기는 어떤 Feature 도 모른다.
+// Feature 의존을 추가하면 CI(layer-guard)가 막는다.
 let package = Package(
-    name: "FeatureRoomCreation",
+    name: "RoomCreationUI",
     platforms: [.iOS(.v17)],
     products: [
-        .library(name: "FeatureRoomCreation", targets: ["FeatureRoomCreation"]),
+        .library(name: "RoomCreationUI", targets: ["RoomCreationUI"]),
     ],
     dependencies: [
         .package(path: "../MVI"),
@@ -13,13 +15,13 @@ let package = Package(
     ],
     targets: [
         .target(
-            name: "FeatureRoomCreation",
+            name: "RoomCreationUI",
             dependencies: ["MVI", "DesignSystem"]
         ),
         .testTarget(
-            name: "FeatureRoomCreationTests",
+            name: "RoomCreationUITests",
             dependencies: [
-                "FeatureRoomCreation",
+                "RoomCreationUI",
                 .product(name: "MVITestSupport", package: "MVI"),
             ]
         ),

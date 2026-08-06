@@ -7,9 +7,11 @@
 ## 1. 모듈 구조
 
 ```
-App ──▶ Feature ──▶ Domain ──▶ Core
-   │       ├──────▶ FlowCoordination     (Coordinator 프로토콜·FlowFinish·flowRoot · SwiftUI)
-   │       └──────▶ MVI                  (Effect·Store + MVITestSupport · Observation)
+App ──▶ Feature* ──▶ Domain ──▶ Core
+   │       ├───────▶ FlowCoordination     (Coordinator 프로토콜·FlowFinish·flowRoot · SwiftUI)
+   │       ├───────▶ MVI                  (Effect·Store + MVITestSupport · Observation)
+   │       └───────▶ *UI                  (공통 화면 — RoomCreationUI·MapUI …)
+   │                   └──▶ DesignSystem · MVI
    └──▶ Data ──▶ Domain
             └──▶ Networking ──▶ Core
 ```
@@ -18,10 +20,20 @@ App ──▶ Feature ──▶ Domain ──▶ Core
 |--------|------|
 | **FlowCoordination** | `Coordinator` 프로토콜, `FlowFinish`, `flowRoot` modifier (영구 인프라) |
 | **MVI** | `Effect`, `Store` / `MVITestSupport`의 `TestStore` (영구 인프라) |
-| **Feature** | 화면별 State/Action/Nav·reducer·Coordinator·SwiftUI View |
+| **Feature\*** | flow 단위. Coordinator·Route·NavigationStack 을 소유하고 화면을 배치한다 |
+| **\*UI** | 둘 이상의 Feature 가 함께 쓰는 화면(State/Action/Nav·reducer·View). flow 를 소유하지 않는다 |
 
 - `Store`/`Effect`는 `Observation`만 의존(SwiftUI 비의존) → reduce 단위 테스트가 UI 비의존
 - `FlowCoordination`과 `MVI`는 서로 모른다. 둘을 잇는 건 Feature의 Coordinator
+
+### 공통 화면 레이어(`*UI`)
+
+같은 화면을 여러 flow 가 쓰게 되면(예: 공동방 생성 → 친구초대를 온보딩과 방리스트가 함께 진입) 그 화면을 `*UI` 패키지로 내린다. **Feature 끼리 직접 의존하지 않기 위한 자리**다.
+
+- **`*UI` 는 어떤 `Feature*` 도 import 하지 않는다** — CI(`layer-guard`)가 `Packages/*UI/Package.swift` 를 검사한다. 선언된 역방향 의존은 빌드가 잡지 못하므로 매니페스트 대조가 유일한 게이트다.
+- **`*UI` 는 Coordinator·Route·NavigationStack 을 갖지 않는다.** 스택 소유는 소비하는 Feature 몫 — 그래야 같은 화면을 한쪽은 push 로, 다른 쪽은 cover 안 스택으로 띄울 수 있다.
+- 그래서 `*UI` 의 View 는 Coordinator 대신 **`makeStore` 클로저**를 받는다. 특정 Coordinator 타입을 알면 다른 진입점에서 쓸 수 없기 때문(`RoomCreationUI.CreateRoomView` 참조).
+- 화면이 아니라 **부품**(버튼·칩·그리드)이면 `*UI` 가 아니라 `DesignSystem` 이다. 판단 기준은 Store 보유 여부 — 상태를 들면 `*UI`, 값과 콜백만 받으면 `DesignSystem`.
 
 ---
 

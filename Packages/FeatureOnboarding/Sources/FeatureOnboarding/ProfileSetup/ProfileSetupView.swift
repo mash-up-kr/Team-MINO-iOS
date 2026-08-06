@@ -1,4 +1,4 @@
-import FeatureRoomCreation
+import RoomCreationUI
 import SwiftUI
 
 // [Convention] .claude/docs/mvi-coordinator-di.md 5절 — 진입 화면 View가 NavigationStack 보유, Coordinator는 생성자 주입

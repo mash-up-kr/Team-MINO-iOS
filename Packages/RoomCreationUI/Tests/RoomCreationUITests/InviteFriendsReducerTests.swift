@@ -1,6 +1,6 @@
 import MVITestSupport
 import Testing
-@testable import FeatureRoomCreation
+@testable import RoomCreationUI
 
 @MainActor
 struct InviteFriendsReducerTests {

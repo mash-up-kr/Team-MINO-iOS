@@ -1,4 +1,4 @@
-import FeatureRoomCreation
+import RoomCreationUI
 import Testing
 @testable import FeatureOnboarding
 
