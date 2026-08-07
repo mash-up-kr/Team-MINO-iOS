@@ -9,11 +9,13 @@ import SwiftUI
 /// ```swift
 /// MHRoomCard(title: "내 방", memo: "내가 꾹 저장한 장소", placeCount: 0, members: [img])
 /// MHRoomCard(title: "내 방", placeCount: 3, selection: $picked)     // 선택 모드(체크박스)
+/// MHRoomCard(title: "내 방", placeCount: 0, thumbnail: .myRoom)     // my-room 전용 일러스트 썸네일
 /// ```
 public struct MHRoomCard: View {
     private let title: String
     private let memo: String?
     private let placeCount: Int
+    private let thumbnail: MHRoomThumbnailKind
     private let members: [Image?]
     private let selection: Binding<Bool>?
 
@@ -21,19 +23,21 @@ public struct MHRoomCard: View {
         title: String,
         memo: String? = nil,
         placeCount: Int,
+        thumbnail: MHRoomThumbnailKind = .color(.pink, isSelected: false),
         members: [Image?] = [],
         selection: Binding<Bool>? = nil
     ) {
         self.title = title
         self.memo = memo
         self.placeCount = placeCount
+        self.thumbnail = thumbnail
         self.members = members
         self.selection = selection
     }
 
     public var body: some View {
         HStack(spacing: 12) {
-            MHRoomThumbnail(size: 80)
+            MHRoomThumbnail(kind: thumbnail, size: 80)
             VStack(alignment: .leading, spacing: 8) {
                 titleBlock
                 bottom
@@ -90,6 +94,7 @@ public struct MHRoomCard: View {
                 MHRoomCard(title: "내 방", placeCount: 0, members: [nil])
                 MHRoomCard(title: "내 방", placeCount: 0, selection: $picked)
                 MHRoomCard(title: "내 방", memo: "내가 꾹 저장한 장소", placeCount: 0, selection: $picked)
+                MHRoomCard(title: "내 장소", placeCount: 0, thumbnail: .myRoom, members: [nil])
             }
             .frame(width: 375)
             .padding()
