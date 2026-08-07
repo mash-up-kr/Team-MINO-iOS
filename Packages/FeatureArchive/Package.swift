@@ -9,9 +9,10 @@ let package = Package(
     ],
     dependencies: [
         .package(path: "../FlowCoordination"),
+        .package(path: "../DesignSystem"),
     ],
     targets: [
-        .target(name: "FeatureArchive", dependencies: ["FlowCoordination"]),
+        .target(name: "FeatureArchive", dependencies: ["FlowCoordination", "DesignSystem"]),
         .testTarget(name: "FeatureArchiveTests", dependencies: ["FeatureArchive"]),
     ],
     swiftLanguageModes: [.v6]
