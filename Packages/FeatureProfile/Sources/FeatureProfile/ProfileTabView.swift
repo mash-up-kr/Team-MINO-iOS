@@ -8,6 +8,9 @@ public struct ProfileTabView: View {
 
     /// 공유 시트를 띄운 장소. 방 상세 시트는 `MHBottomSheet` 클립 경계 안이라 딤 모달을 자기 안에서 못 띄운다.
     @State private var sharingLocation: RoomDetailLocation?
+    /// 시트 dismiss 가 끝난 뒤 띄울 토스트. 닫힘과 같은 프레임에 띄우면
+    /// 내려가는 시트가 토스트 자리를 덮어 초반이 가려진 채 시작한다.
+    @State private var pendingToast: String?
     @State private var toastMessage: String?
     /// 토스트 발사 횟수. 자동 소멸 타이머의 수명을 문구가 아니라 이 값에 묶는다 —
     /// 같은 문구로 두 번 뜨면 문구를 id 로 쓴 타이머는 재시작하지 않는다.
@@ -46,14 +49,19 @@ public struct ProfileTabView: View {
             }
             .animation(.spring(duration: 0.3), value: coordinator.isRoomDetailPresented)
             .animation(.easeInOut(duration: 0.2), value: toastMessage)
-            .sheet(item: $sharingLocation) { location in
+            .sheet(item: $sharingLocation, onDismiss: {
+                if let pendingToast {
+                    showToast(pendingToast)
+                    self.pendingToast = nil
+                }
+            }) { location in
                 RoomShareSheet(
                     location: location,
                     rooms: RoomShareRoom.samples,
                     onClose: { sharingLocation = nil },
                     onSubmit: { _ in
+                        pendingToast = "공유가 완료됐습니다."
                         sharingLocation = nil
-                        showToast("공유가 완료됐습니다.")
                     }
                 )
                 .presentationDetents([.height(RoomShareSheet.detentHeight)])
@@ -78,7 +86,11 @@ public struct ProfileTabView: View {
             .task(id: toastToken) {
                 // 취소를 삼키면 안 된다. try? 로 받으면 새 토스트가 이 task 를 취소했을 때
                 // sleep 이 즉시 반환하고, 이어지는 nil 대입이 **방금 뜬 토스트**를 지운다.
+                let token = toastToken
                 do { try await Task.sleep(for: .seconds(2)) } catch { return }
+                // catch 는 sleep 재개 전 취소만 잡는다. 재개 후 같은 틱에 새 토스트가 뜨는
+                // 좁은 창은 토큰 비교로 막는다 — 낡은 타이머는 최신 토스트를 지우면 안 된다.
+                guard token == toastToken else { return }
                 self.toastMessage = nil
             }
         }
