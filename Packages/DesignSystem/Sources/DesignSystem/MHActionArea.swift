@@ -201,7 +201,8 @@ public struct MHActionArea<Extra: View>: View {
                 .frame(height: 20)   // Figma: 상단 20px 페이드
                 Rectangle().fill(Color.mhBackgroundElevatedNormal)
             }
-            .allowsHitTesting(false)
+            // 탭을 먹어야 한다 — 뒤로 지나가는 스크롤 콘텐츠를 시각적으로만 가리고 탭은 통과시키면
+            // 버튼 사이 여백을 눌렀을 때 가려진 콘텐츠가 눌린다.
             // 배경만 홈 인디케이터 띠까지 내려 깐다. `safeArea == false` 로 그 띠에 여백을 두지 않는 화면
             // (스크롤뷰 위에 safeAreaInset 으로 얹는 경우)에서도 아래 콘텐츠가 비쳐 보이지 않게 한다.
             // 넓히는 건 `.container` 뿐이라 레이아웃과 키보드 회피는 그대로다.
