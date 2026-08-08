@@ -8,13 +8,19 @@ struct RoomDetailSheet: View {
     let locations: [RoomDetailLocation]
     let onOutput: (RoomDetailOutput) -> Void
 
+    /// 동시에 하나만 떠야 하는 오버레이(정렬 드롭다운 / 장소 케밥 메뉴).
+    /// Bool 두 개로 두면 정렬을 연 채 케밥을 탭했을 때 둘이 겹친다 — 단일 enum 으로 상호배제를 타입으로 강제한다.
+    enum Overlay: Equatable {
+        case sort
+        /// 순번이 아니라 식별자로 잡아야 목록이 바뀌어도 엉뚱한 카드에 붙지 않는다.
+        case locationMenu(RoomDetailLocation.ID)
+    }
+
     @State private var detent: MHBottomSheetDetent = .low
     @State private var viewMode: RoomDetailViewMode = .list
     @State private var sort: RoomDetailSort = .pick
     @State private var category: RoomDetailCategory = .all
-    @State private var isSortExpanded = false
-    /// 케밥 메뉴가 열려 있는 장소. 순번이 아니라 식별자로 잡아야 목록이 바뀌어도 엉뚱한 카드에 붙지 않는다.
-    @State private var menuLocationID: RoomDetailLocation.ID?
+    @State private var overlay: Overlay?
 
     // peek = 그래버 30 + 액션 row 60 + Header_Room 118, half = peek + 카드 2장
     private let peekFraction: CGFloat = 208.0 / 812.0
@@ -41,8 +47,7 @@ struct RoomDetailSheet: View {
             }
         }
         .onChange(of: detent) { _, _ in
-            isSortExpanded = false
-            menuLocationID = nil
+            overlay = nil
         }
     }
 
@@ -50,17 +55,25 @@ struct RoomDetailSheet: View {
         RoomDetailToolbar(
             sort: sort,
             viewMode: viewMode,
-            isSortExpanded: isSortExpanded,
-            onToggleSort: { isSortExpanded.toggle() },
-            onSelectViewMode: { viewMode = $0 },
+            isSortExpanded: overlay == .sort,
+            onToggleSort: { overlay = overlay == .sort ? nil : .sort },
+            onSelectViewMode: {
+                viewMode = $0
+                overlay = nil   // 리스트/카드 전환 시 열린 메뉴가 어긋난 위치에 남지 않게
+            },
             sortMenu: {
                 RoomDetailSortMenu(selected: sort) { picked in
                     sort = picked
-                    isSortExpanded = false
+                    overlay = nil
                 }
             }
         )
         .zIndex(1)
+    }
+
+    private var menuLocationID: RoomDetailLocation.ID? {
+        if case .locationMenu(let id) = overlay { return id }
+        return nil
     }
 
     private var categoryRow: some View {
@@ -110,7 +123,9 @@ struct RoomDetailSheet: View {
 
     @ViewBuilder private func card(_ location: RoomDetailLocation) -> some View {
         // 같은 케밥을 다시 누르면 닫힌다(정렬 드롭다운과 동일한 토글 동작)
-        let onMore = { menuLocationID = menuLocationID == location.id ? nil : location.id }
+        let onMore = {
+            overlay = menuLocationID == location.id ? nil : .locationMenu(location.id)
+        }
         switch viewMode {
         case .list: LocationRowCard(location: location, onMore: onMore)
         case .grid: LocationGridCard(location: location, onMore: onMore)
@@ -131,7 +146,7 @@ struct RoomDetailSheet: View {
     }
 
     private func select(_ item: RoomDetailMenuItemID, at locationID: RoomDetailLocation.ID) {
-        menuLocationID = nil
+        overlay = nil
         switch item {
         case .shareLocation:
             onOutput(.shareLocation(locationID))
