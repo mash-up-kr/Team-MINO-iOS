@@ -27,13 +27,25 @@ public struct ProfileTabView: View {
 
                 // MHBottomSheet 은 딤 없는 비모달이라 .sheet 가 아니라 ZStack 에 겹쳐 놓는다
                 if coordinator.isRoomDetailPresented {
-                    RoomDetailSheet(room: .sample, locations: RoomDetailLocation.samples) {
-                        coordinator.isRoomDetailPresented = false
-                    }
+                    RoomDetailSheet(
+                        room: .sample,
+                        locations: RoomDetailLocation.samples,
+                        onOutput: handle
+                    )
                     .transition(.move(edge: .bottom))
                 }
             }
             .animation(.spring(duration: 0.3), value: coordinator.isRoomDetailPresented)
+        }
+    }
+
+    private func handle(_ output: RoomDetailOutput) {
+        switch output {
+        case .close:
+            coordinator.isRoomDetailPresented = false
+        // TODO: 다음 커밋에서 공유 시트를 띄운다.
+        case .shareLocation:
+            break
         }
     }
 }
