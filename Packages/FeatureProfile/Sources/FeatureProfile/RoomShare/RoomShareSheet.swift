@@ -155,7 +155,9 @@ private struct RoomShareRoomCard: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                RoomShareCheckbox(isOn: isSelected)
+                // 행 전체가 버튼이라 체크박스는 표시 전용(action 없음) — 탭은 행이 받는다.
+                MHCheckbox(state: isSelected ? .checked : .unchecked)
+                    .padding(4)   // Figma Checkbox p-4
             }
             .padding(.vertical, 12)
             .contentShape(Rectangle())
@@ -184,30 +186,6 @@ private struct RoomShareCover: View {
                     .frame(width: 38, height: 38)
                     .foregroundStyle(.mhLineNormalNeutral)
             }
-    }
-}
-
-/// 사각 체크박스 18pt. Figma `Checkbox/Resource/Control`(`913:240056`).
-/// DesignSystem 에 아직 없어 이 화면 로컬로 둔다 — 공통화는 체크박스 컴포넌트가 생기는 PR에서.
-private struct RoomShareCheckbox: View {
-    let isOn: Bool
-
-    var body: some View {
-        RoundedRectangle(cornerRadius: 4)
-            .fill(isOn ? Color.mhPrimaryNormal : .clear)
-            .overlay {
-                if isOn {
-                    Image(.checkThick)
-                        .resizable()
-                        .frame(width: 14, height: 14)
-                        .foregroundStyle(.mhStaticWhite)
-                } else {
-                    RoundedRectangle(cornerRadius: 4)
-                        .strokeBorder(.mhLineNormalNormal, lineWidth: 1.5)
-                }
-            }
-            .frame(width: 18, height: 18)
-            .padding(4)
     }
 }
 
