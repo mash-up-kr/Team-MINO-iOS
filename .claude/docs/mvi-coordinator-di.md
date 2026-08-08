@@ -7,9 +7,11 @@
 ## 1. 모듈 구조
 
 ```
-App ──▶ Feature ──▶ Domain ──▶ Core
-   │       ├──────▶ FlowCoordination     (Coordinator 프로토콜·FlowFinish·flowRoot · SwiftUI)
-   │       └──────▶ MVI                  (Effect·Store + MVITestSupport · Observation)
+App ──▶ Feature* ──▶ Domain ──▶ Core
+   │       ├───────▶ FlowCoordination     (Coordinator 프로토콜·FlowFinish·flowRoot · SwiftUI)
+   │       ├───────▶ MVI                  (Effect·Store + MVITestSupport · Observation)
+   │       └───────▶ *UI                  (공통 화면 — RoomCreationUI·MapUI …)
+   │                   └──▶ DesignSystem · MVI
    └──▶ Data ──▶ Domain
             └──▶ Networking ──▶ Core
 ```
@@ -18,10 +20,47 @@ App ──▶ Feature ──▶ Domain ──▶ Core
 |--------|------|
 | **FlowCoordination** | `Coordinator` 프로토콜, `FlowFinish`, `flowRoot` modifier (영구 인프라) |
 | **MVI** | `Effect`, `Store` / `MVITestSupport`의 `TestStore` (영구 인프라) |
-| **Feature** | 화면별 State/Action/Nav·reducer·Coordinator·SwiftUI View |
+| **Feature\*** | flow 단위. Coordinator·Route·NavigationStack 을 소유하고 화면을 배치한다 |
+| **\*UI** | 여러 Feature 가 함께 쓰는 UI 모듈. 화면(`RoomCreationUI`)과 플랫폼·SDK 브릿지(`MapUI`) 둘 다. flow 를 소유하지 않는다 |
 
 - `Store`/`Effect`는 `Observation`만 의존(SwiftUI 비의존) → reduce 단위 테스트가 UI 비의존
 - `FlowCoordination`과 `MVI`는 서로 모른다. 둘을 잇는 건 Feature의 Coordinator
+
+### 공통 UI 레이어(`*UI`)
+
+여러 Feature 가 같은 UI 를 쓰게 되면(예: 공동방 생성 → 친구초대를 온보딩과 방리스트가 함께 진입) 그것을 `*UI` 패키지로 내린다. **Feature 끼리 직접 의존하지 않기 위한 자리**다.
+
+담기는 것은 두 종류다. 둘 다 아래 규칙을 똑같이 지킨다.
+
+| | 예 | 성격 |
+|---|---|---|
+| 화면 | `RoomCreationUI` | State/Action/Nav·reducer·View. 상태를 든다 |
+| 플랫폼·SDK 브릿지 | `MapUI` | `UIViewRepresentable` 래퍼와 순수 value type. 상태를 들지 않는다 |
+
+- **`*UI` 는 Coordinator·Route·NavigationStack·FlowFinish 를 갖지 않는다.** 스택 소유는 소비하는 Feature 몫 — 그래야 같은 화면을 한쪽은 push 로, 다른 쪽은 cover 안 스택으로 띄울 수 있다.
+- 그래서 `*UI` 의 View 는 Coordinator 대신 **`makeStore` 클로저**를 받는다. 특정 Coordinator 타입을 알면 다른 진입점에서 쓸 수 없기 때문(`RoomCreationUI.CreateRoomView` 참조).
+
+#### 허용 의존
+
+| 의존 | | 이유 |
+|---|---|---|
+| `DesignSystem` | ⭕ | 화면을 그리는 부품 |
+| `MVI` | ⭕ | `Store`·`Effect` |
+| `Domain` | ⭕ | reduce 가 UseCase 를 받는다 (5절 체크리스트와 동일) |
+| `Core` | ⭕ | 공용 유틸이 필요해지면 그때 선언한다 |
+| 다른 `*UI` | ⭕ | 단방향이면 허용 — 화면이 브릿지를 쓰는 경우(방생성 카드의 지도 썸네일). **순환 금지** |
+| `FlowCoordination` | ❌ | flow 를 소유하지 않으므로 Coordinator·FlowFinish 가 필요 없다 |
+| `Feature*` | ❌ | 역방향. 여러 Feature 가 함께 쓰는 자리라 특정 Feature 를 알면 그 순간 못 쓴다 |
+| `Data`·`Networking` | ❌ | Feature 도 모르는 레이어다. 화면이 Repository·API 를 직접 부르는 경로를 막는다 |
+
+선언된 역방향 의존은 빌드가 잡지 못하므로(선언만 하면 컴파일된다) `Package.swift` 의 `dependencies` 대조가 유일한 게이트다. **지금은 기계 검사가 없어 리뷰에서 확인한다** — `layer-guard` 에 `Packages/*UI/Package.swift` 검사를 추가하는 건 후속 작업이다.
+
+#### `DesignSystem` 과의 구분
+
+기준은 **DesignSystem 에 넣을 수 있는가**다. 디자인 토큰만으로 그려지는 순수 부품(버튼·칩·그리드)은 `DesignSystem` 에 둔다. 다음 중 하나라도 해당하면 DS 에 넣을 수 없어 `*UI` 로 간다.
+
+- **상태를 든다** — Store 를 가지면 `MVI` 의존이 생긴다 (`RoomCreationUI`)
+- **외부 SDK·시스템 프레임워크에 의존한다** — DS 를 쓰는 모든 패키지가 그 의존을 상속받는다 (`MapUI` 의 GoogleMaps)
 
 ---
 
