@@ -144,14 +144,14 @@ extension [RoomListItem] {
                 title: "우리 동네 맛집",
                 memo: "친구들이랑 같이 저장하는 곳",
                 placeCount: 12,
-                thumbnail: .color(.orange, isSelected: false),
+                thumbnail: .color(.orange),
                 members: [nil, nil, nil]
             ),
             RoomListItem(
                 title: "가고싶은 카페",
                 memo: "분위기 좋은 카페 모음",
                 placeCount: 5,
-                thumbnail: .color(.blue, isSelected: false),
+                thumbnail: .color(.blue),
                 members: [nil, nil]
             ),
         ]
