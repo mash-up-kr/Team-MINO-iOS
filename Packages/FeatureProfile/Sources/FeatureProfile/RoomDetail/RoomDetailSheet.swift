@@ -106,6 +106,10 @@ struct RoomDetailSheet: View {
                     .anchorPreference(key: RoomDetailMenuAnchorKey.self, value: .bounds) {
                         menuLocationID == location.id ? $0 : nil
                     }
+                switch viewMode {
+                case .list: LocationCompactCard(location: location, onMore: {})
+                case .grid: LocationExpandedCard(location: location, onMore: {})
+                }
             }
         }
         .padding(.horizontal, 20)

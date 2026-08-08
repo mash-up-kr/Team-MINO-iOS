@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - Content Badge
-
 /// 배경·테두리 스타일. `solid`(옅은 배경 채움) / `outlined`(테두리만). Figma `variant`.
 public enum MHContentBadgeVariant: Sendable { case solid, outlined }
 /// 크기 프리셋. 폰트·패딩·radius·아이콘이 함께 정해진다. Figma `size`.

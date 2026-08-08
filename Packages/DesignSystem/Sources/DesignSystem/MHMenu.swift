@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - Menu
-
 /// 메뉴 항목의 trailing 슬롯. 단색 아이콘(24pt) 또는 보조 텍스트(단축키·값 등).
 public enum MHMenuTrailing: Sendable {
     case icon(MHIcon)

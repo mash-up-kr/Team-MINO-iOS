@@ -1,12 +1,5 @@
 import SwiftUI
 
-// MARK: - Action Area
-//
-// 레이아웃: 컨테이너 여백 20/20, 액션 간격 strong 8·neutral 12.
-// caption 은 actions 컨테이너 안(버튼과 간격 16), extra(Preset)는 별도 블록(상단 20·하단 4)이라 버튼과 24.
-// sticky 시 Background/Elevated/Normal + 상단 페이드.
-// (Figma 의 `Compact (Web Only)`·`compactContent` 는 "앱 미대응" 명시라 iOS 에서 제외)
-
 /// 액션 영역의 배치 방식. `strong`(세로 풀폭 스택)·`neutral`(가로 행)·`cancel`(단일 outlined).
 public enum MHActionAreaVariant: Sendable { case strong, neutral, cancel }
 
@@ -14,19 +7,26 @@ public enum MHActionAreaVariant: Sendable { case strong, neutral, cancel }
 ///
 /// `variant`·`color` 로 그 슬롯의 기본 버튼 스타일을 덮어쓸 수 있다(Figma `customize = button`).
 /// 안 주면 배치(variant)별 기본값을 따른다 — 예: strong 의 main 은 solid/primary.
+///
+/// 슬롯마다 활성 조건이 다르면 `isEnabled` 로 따로 준다(저장은 2자 이상, 지우기는 1자 이상 같은 경우).
+/// 이때 ``MHActionArea`` 전체에 `.disabled` 를 걸면 안 된다 — SwiftUI 의 `.disabled` 는 서브트리로
+/// 전파되고 하위의 `.disabled(false)` 로 되돌릴 수 없어서, `isEnabled: true` 인 슬롯까지 함께 죽는다.
 public struct MHAction {
     public let title: String
+    public let isEnabled: Bool
     public let variant: MHButtonVariant?
     public let color: MHButtonColor?
     public let action: () -> Void
 
     public init(
         _ title: String,
+        isEnabled: Bool = true,
         variant: MHButtonVariant? = nil,
         color: MHButtonColor? = nil,
         action: @escaping () -> Void
     ) {
         self.title = title
+        self.isEnabled = isEnabled
         self.variant = variant
         self.color = color
         self.action = action
@@ -41,6 +41,12 @@ public struct MHAction {
 /// - `cancel`: 단일 풀폭 outlined/assistive
 ///
 /// `divider`·`sticky`·`safeArea`·`caption` 과 `extra` 슬롯(``MHActionAreaSummary`` 등 Preset)을 조합한다.
+///
+/// `sticky` 와 `safeArea` 는 이름이 비슷하지만 담당이 다르다:
+/// - `sticky`: **배경**. 켜면 불투명 채움(+상단 20pt 페이드)을 깔아 뒤로 지나가는 스크롤 콘텐츠를 가린다.
+///   배경은 `safeArea` 값과 무관하게 화면 바닥(홈 인디케이터)까지 내려간다.
+/// - `safeArea`: **높이**. 켜면 하단에 홈 인디케이터 높이만큼 여백을 넣어 버튼을 띄운다.
+///   `safeAreaInset(edge: .bottom)` 으로 이 컴포넌트를 붙이는 화면은 SwiftUI 가 이미 띄워 주므로 꺼야 한다.
 /// 각 액션의 버튼 스타일은 ``MHAction`` 의 `variant`·`color` 로 슬롯 기본값을 덮어쓸 수 있다(`customize = button`).
 ///
 /// > `outlined` 는 옅은 `Line/Normal/Neutral` 테두리, `outlinedStrong` 은 진한 `Primary/Normal`(검정)
@@ -143,36 +149,43 @@ public struct MHActionArea<Extra: View>: View {
         switch variant {
         case .strong:
             VStack(spacing: 8) {
-                button(main, variant: .solid, color: .primary)
+                button(main, slot: "main", variant: .solid, color: .primary)
                     .mhButtonFillWidth()
                 if let alternative {
-                    button(alternative, variant: .outlined, color: .primary)
+                    button(alternative, slot: "alternative", variant: .outlined, color: .primary)
                         .mhButtonFillWidth()
                 }
                 if let sub {
                     MHActionSubLink(title: sub.title, action: sub.action)
+                        .accessibilityIdentifier("MHActionArea.sub")
                 }
             }
         case .neutral:
             HStack(spacing: 12) {
                 if let sub {
-                    button(sub, variant: .outlined, color: .assistive)  // hug
+                    button(sub, slot: "sub", variant: .outlined, color: .assistive)  // hug
                 }
                 if let alternative {
-                    button(alternative, variant: .outlined, color: .primary)
+                    button(alternative, slot: "alternative", variant: .outlined, color: .primary)
                         .mhButtonFillWidth()
                 }
-                button(main, variant: .solid, color: .primary)
+                button(main, slot: "main", variant: .solid, color: .primary)
                     .mhButtonFillWidth()
             }
         case .cancel:
-            button(main, variant: .outlined, color: .assistive)
+            button(main, slot: "main", variant: .outlined, color: .assistive)
                 .mhButtonFillWidth()
         }
     }
 
     // 슬롯 버튼 — action 의 variant/color 오버라이드(customize=button)가 있으면 그걸, 없으면 슬롯 기본값.
-    private func button(_ action: MHAction, variant defaultVariant: MHButtonVariant, color defaultColor: MHButtonColor) -> some View {
+    // 식별자는 슬롯 고정("MHActionArea.main" 등) — 액션 영역은 화면당 하나라 화면 안에서 유일하다.
+    private func button(
+        _ action: MHAction,
+        slot: String,
+        variant defaultVariant: MHButtonVariant,
+        color defaultColor: MHButtonColor
+    ) -> some View {
         MHButton(
             action.title,
             variant: action.variant ?? defaultVariant,
@@ -180,6 +193,8 @@ public struct MHActionArea<Extra: View>: View {
             size: .large,
             action: action.action
         )
+        .disabled(!action.isEnabled)
+        .accessibilityIdentifier("MHActionArea.\(slot)")
     }
 
     // MARK: sticky 배경(Elevated + 상단 페이드)
@@ -194,7 +209,12 @@ public struct MHActionArea<Extra: View>: View {
                 .frame(height: 20)   // Figma: 상단 20px 페이드
                 Rectangle().fill(Color.mhBackgroundElevatedNormal)
             }
-            .allowsHitTesting(false)
+            // 탭을 먹어야 한다 — 뒤로 지나가는 스크롤 콘텐츠를 시각적으로만 가리고 탭은 통과시키면
+            // 버튼 사이 여백을 눌렀을 때 가려진 콘텐츠가 눌린다.
+            // 배경만 홈 인디케이터 띠까지 내려 깐다. `safeArea == false` 로 그 띠에 여백을 두지 않는 화면
+            // (스크롤뷰 위에 safeAreaInset 으로 얹는 경우)에서도 아래 콘텐츠가 비쳐 보이지 않게 한다.
+            // 넓히는 건 `.container` 뿐이라 레이아웃과 키보드 회피는 그대로다.
+            .ignoresSafeArea(.container, edges: .bottom)
         }
     }
 
@@ -204,6 +224,9 @@ public struct MHActionArea<Extra: View>: View {
                 .onAppear { bottomInset = proxy.safeAreaInsets.bottom }
                 .onChange(of: proxy.safeAreaInsets.bottom) { _, newValue in bottomInset = newValue }
         }
+        // 키보드는 빼고 컨테이너 인셋(홈 인디케이터)만 잰다. 안 빼면 키보드가 올라올 때 인셋이
+        // 300pt 넘게 잡혀 `safeArea == true` 인 화면의 액션 영역이 그만큼 부풀고 본문이 찌그러진다.
+        .ignoresSafeArea(.keyboard, edges: .bottom)
     }
 }
 

@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - Category
-
 /// 활성 칩의 강조 방식. `normal`=활성 시 solid 검정(Label/Strong), `alternative`=활성 시 옅은 Primary 아웃라인. Figma `variant`.
 public enum MHCategoryVariant: Sendable { case normal, alternative }
 

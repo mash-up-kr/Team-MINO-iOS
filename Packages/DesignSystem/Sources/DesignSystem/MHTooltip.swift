@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - Tooltip
-
 /// 툴팁 크기. Figma `size` = Medium(본문 14) / Small(캡션 11, 데스크톱 보조).
 public enum MHTooltipSize: Sendable { case medium, small }
 
