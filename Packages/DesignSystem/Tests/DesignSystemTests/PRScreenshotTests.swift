@@ -16,21 +16,26 @@ final class PRScreenshotTests: XCTestCase {
 
     // MARK: - 이번 브랜치 신규 컴포넌트
 
-    @MainActor func testRoomThumbnailUnselect() throws {
-        try snap("room_thumbnail_unselect") {
+    @MainActor func testRoomThumbnailEmpty() throws {
+        try snap("room_thumbnail_empty") {
             screen {
                 LazyVGrid(columns: Array(repeating: GridItem(.fixed(70), spacing: 10), count: 4), spacing: 10) {
                     ForEach(MHRoomThumbnailColor.allCases, id: \.self) { MHRoomThumbnail(color: $0, size: 70) }
+                    MHRoomThumbnail.myRoom(size: 70)
                 }
             }
         }
     }
 
-    @MainActor func testRoomThumbnailSelect() throws {
-        try snap("room_thumbnail_select") {
+    @MainActor func testRoomThumbnailFull() throws {
+        let photo = Image(systemName: "photo")
+        try snap("room_thumbnail_full") {
             screen {
                 LazyVGrid(columns: Array(repeating: GridItem(.fixed(70), spacing: 10), count: 4), spacing: 10) {
-                    ForEach(MHRoomThumbnailColor.allCases.filter { $0 != .normal }, id: \.self) { MHRoomThumbnail(color: $0, isSelected: true, size: 70) }
+                    MHRoomThumbnail(images: [photo], size: 70)
+                    MHRoomThumbnail(images: [photo, photo], size: 70)
+                    MHRoomThumbnail(images: [photo, photo, photo], size: 70)
+                    MHRoomThumbnail(images: [photo, photo, photo, photo], size: 70)
                 }
             }
         }

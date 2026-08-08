@@ -1,89 +1,67 @@
 import SwiftUI
 
-/// ``MHRoomThumbnail`` 의 색상 variant. Figma `Room Thumbnail` Property 1.
+/// ``MHRoomThumbnail`` 의 색상 variant. Figma `Room Thumbnail_Empty`(node 16765-22588) Property 1.
 ///
-/// 각 색상은 `{Color}/95` 애터믹 배경과 `Accent/Foreground/{Color}` 시맨틱 테두리로 구성된다.
-/// `normal` 은 색상 강조 없이 `Background/Normal/Alternative` 배경만 사용한다.
-public enum MHRoomThumbnailColor: Sendable, CaseIterable, Equatable {
+/// 각 색상은 전용 일러스트 에셋(`roomThumbnail_<color>`)을 그대로 그린다 — 색 배경 + 마스코트를
+/// 코드에서 합성하던 이전 방식과 달리, 배경까지 포함된 완성 이미지 한 장이다.
+public enum MHRoomThumbnailColor: String, Sendable, CaseIterable, Equatable {
     case pink, purple, violet, blue, lightBlue, cyan
-    case green, lime, orange, redOrange, red
-    case normal
+    case green, lime, orange, redOrange, red, brown
 
-    /// unselect 배경 + select 배경.
-    var fill: Color {
-        switch self {
-        case .pink:       return .mhPink95
-        case .purple:     return .mhPurple95
-        case .violet:     return .mhViolet95
-        case .blue:       return .mhBlue95
-        case .lightBlue:  return .mhLightBlue95
-        case .cyan:       return .mhCyan95
-        case .green:      return .mhGreen95
-        case .lime:       return .mhLime95
-        case .orange:     return .mhOrange95
-        case .redOrange:  return .mhRedOrange95
-        case .red:        return .mhRedOrange95          // Figma: Red 도 Red Orange/95 사용
-        case .normal:     return .mhBackgroundNormalAlternative
-        }
-    }
-
-    /// select 테두리 색. `normal` 은 선택 상태가 없어 `nil`.
-    var border: Color? {
-        switch self {
-        case .pink:       return .mhAccentForegroundPink
-        case .purple:     return .mhAccentForegroundPurple
-        case .violet:     return .mhAccentForegroundViolet
-        case .blue:       return .mhAccentForegroundBlue
-        case .lightBlue:  return .mhAccentForegroundLightBlue
-        case .cyan:       return .mhAccentForegroundCyan
-        case .green:      return .mhAccentForegroundGreen
-        case .lime:       return .mhAccentForegroundLime
-        case .orange:     return .mhAccentForegroundOrange
-        case .redOrange:  return .mhAccentForegroundRedOrange
-        case .red:        return .mhAccentForegroundRed
-        case .normal:     return nil
-        }
-    }
+    /// `Resources/Icon.xcassets` 의 imageset 이름. rawValue 가 접미사와 일치한다.
+    var assetName: String { "roomThumbnail_\(rawValue)" }
 }
 
 // MARK: - Room Thumbnail Kind
 
-/// ``MHRoomThumbnail`` 이 그릴 표현 종류. 색상 마스코트(기존) vs my-room 전용 일러스트(신규)는
-/// 배경·radius·이미지 배치가 서로 달라 한 색상 축에 욱여넣지 않고 별도 case 로 가른다.
-public enum MHRoomThumbnailKind: Sendable, Equatable {
-    /// 색 배경 + 중앙 마스코트. Figma `Room Thumbnail`(node 15852:88708).
-    case color(MHRoomThumbnailColor, isSelected: Bool)
-    /// my-room 전용 일러스트(edge-to-edge). Figma `Room Thumbnail`(prop1="my room", instance 2242:51242).
+/// ``MHRoomThumbnail`` 이 그릴 표현 종류. Figma `Room Thumbnail`(wrapper, node 16798-22367)의
+/// Empty(색상/my-room)·Full(사진 콜라주) 두 축을 그대로 옮긴다.
+public enum MHRoomThumbnailKind: Sendable {
+    /// 색 일러스트. Figma `Room Thumbnail_Empty`(node 16765-22588).
+    case color(MHRoomThumbnailColor)
+    /// my-room 전용 일러스트(edge-to-edge). Figma `Room Thumbnail_Empty` prop1="my room".
     case myRoom
+    /// 장소 사진 콜라주. 1~4장 레이아웃이 다르고, 4장 초과는 앞 4개만 그린다.
+    /// Figma `Room Thumbnail_full`(node 16798-22357) state1~4.
+    case full([Image])
 }
 
-/// 방의 기본 썸네일. Figma `Room Thumbnail`.
+extension MHRoomThumbnailKind: Equatable {
+    // `Image` 는 Equatable 이 아니라 내용을 비교할 수 없다(``RoomListItem`` 의 `members: [Image?]` 비교와
+    // 같은 근거). `full` 은 개수만 비교하는 근사치로 처리한다 — "장수가 바뀐 갱신"은 감지하지만, 같은
+    // 장수 안에서 이미지 자체가 바뀐 변경은 이 비교로 감지하지 않는다(허용된 근사).
+    public static func == (lhs: MHRoomThumbnailKind, rhs: MHRoomThumbnailKind) -> Bool {
+        switch (lhs, rhs) {
+        case let (.color(l), .color(r)): l == r
+        case (.myRoom, .myRoom): true
+        case let (.full(l), .full(r)): l.count == r.count
+        default: false
+        }
+    }
+}
+
+/// 방의 기본 썸네일. Figma `Room Thumbnail`(wrapper, node 16798-22367).
 ///
-/// 옅은 색 배경의 둥근 사각형 안에 기본 마스코트 캐릭터를 중앙에 얹는 **색상** 표현(node 15852:88708)과,
-/// 색 배경 없이 전용 일러스트가 썸네일을 가득 채우는 **my-room** 표현(prop1="my room") 두 가지를 그린다.
-/// 방에 지정 이미지가 없을 때 쓰는 기본 표시다.
+/// 방에 지정 사진이 없을 때(Empty) 색 일러스트 또는 my-room 전용 일러스트를, 사진이 있을 때(Full)
+/// 1~4장 콜라주를 그린다. 세 표현 모두 radius 는 80pt 기준 14 로 통일한다.
 ///
-/// - **색상**: ``MHRoomThumbnailColor`` 로 11색 + `normal`(무채색) 제공. `isSelected = true` 면 해당 색의
-///   `Accent/Foreground` 테두리를 두른다. radius 18.286(80pt 기준).
-/// - **my-room**: 색 토큰 배경 없이 전용 이미지 하나가 edge-to-edge 로 채운다. radius 14(80pt 기준) —
-///   색상 표현과 다른 값(Figma 인스턴스 실측).
+/// - **color**: ``MHRoomThumbnailColor`` 12색 중 하나의 완성 일러스트를 edge-to-edge 로 채운다.
+/// - **myRoom**: 색 배리언트 없이 my-room 전용 일러스트 하나로 채운다.
+/// - **full**: 장소 사진 1~4장을 1pt 간격 콜라주로 채운다(4장 초과는 앞 4개만).
 ///
 /// ```swift
-/// MHRoomThumbnail()                                  // Pink unselect 80pt
-/// MHRoomThumbnail(color: .violet, isSelected: true)  // Violet select
-/// MHRoomThumbnail(color: .lime, size: 48)            // Lime 48pt
-/// MHRoomThumbnail.myRoom()                           // my-room 일러스트 80pt
+/// MHRoomThumbnail()                              // Pink 80pt
+/// MHRoomThumbnail(color: .violet, size: 48)      // Violet 48pt
+/// MHRoomThumbnail.myRoom()                       // my-room 일러스트 80pt
+/// MHRoomThumbnail(images: [photo1, photo2])      // 2장 콜라주
 /// ```
 public struct MHRoomThumbnail: View {
     private let kind: MHRoomThumbnailKind
     private let size: CGFloat
 
-    public init(
-        color: MHRoomThumbnailColor = .pink,
-        isSelected: Bool = false,
-        size: CGFloat = 80
-    ) {
-        self.kind = .color(color, isSelected: isSelected)
+    /// 색상 variant. 기본값 pink.
+    public init(color: MHRoomThumbnailColor = .pink, size: CGFloat = 80) {
+        self.kind = .color(color)
         self.size = size
     }
 
@@ -93,61 +71,94 @@ public struct MHRoomThumbnail: View {
         self.size = size
     }
 
+    /// 장소 사진 콜라주. 1~4장(4장 초과는 앞 4개만 사용).
+    public init(images: [Image], size: CGFloat = 80) {
+        self.kind = .full(images)
+        self.size = size
+    }
+
     /// my-room 전용 일러스트 썸네일.
     public static func myRoom(size: CGFloat = 80) -> MHRoomThumbnail {
         MHRoomThumbnail(kind: .myRoom, size: size)
     }
 
-    // Figma 80pt 기준 비율. color: radius 18.286, 캐릭터 38.857×50.286(중앙). myRoom: radius 14.
-    // (myRoom 은 80pt 인스턴스 1개만 실측 — 다른 size 로의 비례 스케일은 color 경로와의 일관성을 위한
-    // 구현자 판단이며 Figma 로 별도 검증되지 않았다.)
-    private var radius: CGFloat {
-        switch kind {
-        case .color: size * 18.286 / 80
-        case .myRoom: size * 14 / 80
-        }
-    }
+    // Figma 80pt 기준 비율. 방 썸네일 radius 는 Card_Room 슬롯 기준(`--radius` = 14 @80pt)으로 통일한다.
+    private var radius: CGFloat { size * 14 / 80 }
 
-    private var borderWidth: CGFloat { size * 2 / 80 }   // Figma: ~2pt at 80 (color 경로 전용)
+    // 콜라주 타일 사이 간격. Figma `Room Thumbnail_full` 실측(80pt 기준 1pt 고정, 스케일 없음).
+    private let gap: CGFloat = 1
 
     public var body: some View {
-        switch kind {
-        case .color(let color, let isSelected):
-            colorBody(color: color, isSelected: isSelected)
-        case .myRoom:
-            myRoomBody
+        Group {
+            switch kind {
+            case .color(let color):
+                image(color.assetName)
+            case .myRoom:
+                image("myRoomThumbnail")
+            case .full(let images):
+                collage(images)
+            }
         }
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: radius))
     }
 
-    @ViewBuilder
-    private func colorBody(color: MHRoomThumbnailColor, isSelected: Bool) -> some View {
-        RoundedRectangle(cornerRadius: radius)
-            .fill(color.fill)
-            .frame(width: size, height: size)
-            .overlay {
-                Image("roomMascot", bundle: .module)
-                    .resizable().scaledToFit()
-                    .frame(width: size * 38.857 / 80, height: size * 50.286 / 80)
-            }
-            .overlay {
-                if isSelected, let border = color.border {
-                    RoundedRectangle(cornerRadius: radius)
-                        .strokeBorder(border, lineWidth: borderWidth)
-                }
-            }
-            .clipShape(RoundedRectangle(cornerRadius: radius))
-    }
-
-    private var myRoomBody: some View {
-        Image("myRoomThumbnail", bundle: .module)
+    private func image(_ name: String) -> some View {
+        Image(name, bundle: .module)
             .resizable()
             .scaledToFill()
             .frame(width: size, height: size)
-            .clipShape(RoundedRectangle(cornerRadius: radius))
+    }
+
+    private func tile(_ image: Image, width: CGFloat, height: CGFloat) -> some View {
+        image
+            .resizable()
+            .scaledToFill()
+            .frame(width: width, height: height)
+            .clipped()
+    }
+
+    // 1/2/3/4 장 레이아웃. Figma `Room Thumbnail_full` state1~4:
+    // state1=1장 꽉 채움, state2=세로 2분할, state3=좌1 풀높이+우2 세로스택, state4=2×2 그리드.
+    // 4장 초과는 앞 4개만 사용한다.
+    @ViewBuilder
+    private func collage(_ images: [Image]) -> some View {
+        let half = (size - gap) / 2
+        switch images.count {
+        case 0:
+            Color.mhBackgroundNormalAlternative
+        case 1:
+            tile(images[0], width: size, height: size)
+        case 2:
+            HStack(spacing: gap) {
+                tile(images[0], width: half, height: size)
+                tile(images[1], width: half, height: size)
+            }
+        case 3:
+            HStack(spacing: gap) {
+                tile(images[0], width: half, height: size)
+                VStack(spacing: gap) {
+                    tile(images[1], width: half, height: half)
+                    tile(images[2], width: half, height: half)
+                }
+            }
+        default:
+            let four = Array(images.prefix(4))
+            VStack(spacing: gap) {
+                HStack(spacing: gap) {
+                    tile(four[0], width: half, height: half)
+                    tile(four[1], width: half, height: half)
+                }
+                HStack(spacing: gap) {
+                    tile(four[2], width: half, height: half)
+                    tile(four[3], width: half, height: half)
+                }
+            }
+        }
     }
 }
 
-#Preview("MHRoomThumbnail · unselect") {
+#Preview("MHRoomThumbnail · Empty") {
     LazyVGrid(columns: Array(repeating: GridItem(.fixed(70), spacing: 10), count: 4), spacing: 10) {
         ForEach(MHRoomThumbnailColor.allCases, id: \.self) { color in
             MHRoomThumbnail(color: color, size: 70)
@@ -157,11 +168,13 @@ public struct MHRoomThumbnail: View {
     .padding()
 }
 
-#Preview("MHRoomThumbnail · select") {
-    LazyVGrid(columns: Array(repeating: GridItem(.fixed(70), spacing: 10), count: 4), spacing: 10) {
-        ForEach(MHRoomThumbnailColor.allCases.filter { $0 != .normal }, id: \.self) { color in
-            MHRoomThumbnail(color: color, isSelected: true, size: 70)
-        }
+#Preview("MHRoomThumbnail · Full") {
+    let photo = Image(systemName: "photo")
+    return LazyVGrid(columns: Array(repeating: GridItem(.fixed(70), spacing: 10), count: 4), spacing: 10) {
+        MHRoomThumbnail(images: [photo], size: 70)
+        MHRoomThumbnail(images: [photo, photo], size: 70)
+        MHRoomThumbnail(images: [photo, photo, photo], size: 70)
+        MHRoomThumbnail(images: [photo, photo, photo, photo], size: 70)
     }
     .padding()
 }

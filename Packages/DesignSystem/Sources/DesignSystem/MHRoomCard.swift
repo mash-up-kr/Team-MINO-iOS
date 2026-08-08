@@ -23,7 +23,7 @@ public struct MHRoomCard: View {
         title: String,
         memo: String? = nil,
         placeCount: Int,
-        thumbnail: MHRoomThumbnailKind = .color(.pink, isSelected: false),
+        thumbnail: MHRoomThumbnailKind = .color(.pink),
         members: [Image?] = [],
         selection: Binding<Bool>? = nil
     ) {
