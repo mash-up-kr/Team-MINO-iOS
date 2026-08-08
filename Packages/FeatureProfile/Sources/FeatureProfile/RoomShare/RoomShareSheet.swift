@@ -19,6 +19,8 @@ struct RoomShareSheet: View {
     let onSubmit: (Set<RoomShareRoom.ID>) -> Void
 
     @State private var selection = RoomShareSelection()
+    /// dismiss 애니메이션 동안 버튼이 살아 있어, 빠른 이중 탭이 onSubmit 을 두 번 쏘는 걸 막는다.
+    @State private var isSubmitting = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -29,12 +31,18 @@ struct RoomShareSheet: View {
             roomList
             // safeArea: false — 시트가 이미 홈 인디케이터 높이를 확보한다. 켜 두면 34pt 가 이중으로 잡혀
             // 시트가 시안(500)보다 그만큼 커진다.
-            MHActionArea(main: .init("공유하기") { onSubmit(selection.ids) }, safeArea: false)
-                .disabled(!selection.canSubmit)
+            MHActionArea(main: .init("공유하기") { submit() }, safeArea: false)
+                .disabled(!selection.canSubmit || isSubmitting)
                 .accessibilityIdentifier("RoomShare.submitButton")
         }
         .background(.mhBackgroundElevatedNormal)
         .accessibilityIdentifier("RoomShare.sheet")
+    }
+
+    private func submit() {
+        guard !isSubmitting else { return }
+        isSubmitting = true
+        onSubmit(selection.ids)
     }
 
     // 그래버 — h30(py12) 안에 38×4 바. Figma `1672:73594`.
