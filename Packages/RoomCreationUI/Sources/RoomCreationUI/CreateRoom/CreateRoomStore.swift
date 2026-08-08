@@ -18,7 +18,7 @@ public enum CreateRoomAction: Equatable {
     case roomNameChanged(String)
     case roomDescriptionChanged(String)
     case selectColor(Int)
-    case tapNext
+    case tapCreate
     case tapSkip
 }
 
@@ -51,7 +51,10 @@ public func createRoomReducer() -> (inout CreateRoomState, CreateRoomAction) -> 
         case .selectColor(let index):
             state.selectedColorIndex = index
             return .none
-        case .tapNext:
+        case .tapCreate:
+            // 뷰의 .disabled 는 UI 레이어 방어라 뷰가 바뀌면 뚫린다 — 전환 조건은 여기서도 지킨다.
+            // (.tapSkip 은 건너뛰기라 조건 없이 통과한다)
+            guard state.isCreateEnabled else { return .none }
             return .navigate(.didCreateRoom)
         case .tapSkip:
             return .navigate(.didSkip)

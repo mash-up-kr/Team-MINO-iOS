@@ -64,13 +64,32 @@ struct CreateRoomReducerTests {
 
     // Nav 는 목적지가 아니라 일어난 일을 알린다 — 어디로 갈지는 소비하는 flow 가 정하므로
     // 이 테스트는 "무엇이 일어났는지"만 단언한다.
-    @Test("L2 — tapNext(방 생성하기): didCreateRoom 을 알린다")
-    func tapNext_notifiesDidCreateRoom() async {
+    @Test("L2 — tapCreate(방 생성하기): 이름이 있으면 didCreateRoom 을 알린다")
+    func tapCreate_whenCreateEnabled_notifiesDidCreateRoom() async {
         let store = TestStore(CreateRoomState(), reduce: createRoomReducer())
 
-        await store.send(.tapNext)
+        await store.send(.roomNameChanged("민호야 잘하자")) {
+            $0.roomName = "민호야 잘하자"
+        }
+
+        await store.send(.tapCreate)
         store.receiveNavigation(.didCreateRoom)
 
+        store.finish()
+    }
+
+    @Test("L2 — tapCreate: 생성 조건 미충족이면 아무것도 알리지 않는다 — 뷰의 .disabled 와 별개로 reduce 가 막는다")
+    func tapCreate_whenCreateDisabled_notifiesNothing() async {
+        let store = TestStore(CreateRoomState(), reduce: createRoomReducer())
+
+        await store.send(.tapCreate)
+
+        await store.send(.roomNameChanged("   ")) {
+            $0.roomName = "   "
+        }
+        await store.send(.tapCreate)
+
+        // finish 가 미수신 navigation 잔여를 검사한다 — didCreateRoom 이 나갔다면 여기서 실패한다
         store.finish()
     }
 

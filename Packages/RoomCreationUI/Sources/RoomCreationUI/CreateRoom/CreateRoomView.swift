@@ -33,7 +33,7 @@ public struct CreateRoomView: View {
                     selectedColorIndex: store.state.selectedColorIndex,
                     isCreateEnabled: store.state.isCreateEnabled,
                     onSelectColor: { store.send(.selectColor($0)) },
-                    onCreate: { store.send(.tapNext) },
+                    onCreate: { store.send(.tapCreate) },
                     onBack: { dismiss() },
                     onSkip: showsSkip ? { store.send(.tapSkip) } : nil
                 )

@@ -37,9 +37,10 @@ public struct ProfileSetupView: View {
                 ),
                 selectedCharacterIndex: store.state.selectedCharacterIndex,
                 isSaveEnabled: store.state.isSaveEnabled,
+                isClearEnabled: store.state.isClearEnabled,
                 onSelectCharacter: { store.send(.selectCharacter($0)) },
                 onClear: { store.send(.tapClear) },
-                onSave: { store.send(.tapNext) }
+                onSave: { store.send(.tapSave) }
             )
         } else {
             ProgressView()

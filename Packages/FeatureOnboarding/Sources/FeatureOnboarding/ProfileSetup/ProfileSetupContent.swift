@@ -36,6 +36,8 @@ struct ProfileSetupContent: View {
     let selectedCharacterIndex: Int?
     /// 저장 가능 여부. 이름 유효성 등 판단은 다음 PR 의 Store 몫 — 여기서는 받은 값으로만 활성/비활성을 그린다.
     let isSaveEnabled: Bool
+    /// 지우기 가능 여부. 저장과 조건이 달라 따로 받는다.
+    let isClearEnabled: Bool
     let onSelectCharacter: (Int) -> Void
     let onClear: () -> Void
     let onSave: () -> Void
@@ -69,14 +71,15 @@ struct ProfileSetupContent: View {
             // 액션 영역을 VStack 자식으로 두면 키보드가 올라올 때 MHActionArea 의 하단 안전영역 측정에
             // 키보드 높이가 섞여 스크롤뷰가 찌그러진다. safeAreaInset 으로 붙여 키보드 회피를 맡긴다.
             .safeAreaInset(edge: .bottom) {
+                // 활성 조건이 슬롯마다 달라 MHAction 의 isEnabled 로 준다.
+                // 영역 전체에 .disabled 를 걸면 조건이 맞는 슬롯까지 함께 죽는다(MHAction 주석 참조).
                 MHActionArea(
                     variant: .neutral,
-                    main: MHAction("저장", action: onSave),
-                    alternative: MHAction("지우기", action: onClear),
+                    main: MHAction("저장", isEnabled: isSaveEnabled, action: onSave),
+                    alternative: MHAction("지우기", isEnabled: isClearEnabled, action: onClear),
                     sticky: true,
                     safeArea: false
                 )
-                .disabled(!isSaveEnabled)
             }
         }
         .background(Color.mhBackgroundNormalNormal)
@@ -125,6 +128,11 @@ struct ProfileSetupContent: View {
     ProfileSetupContentPreviewWrapper(name: "", selectedCharacterIndex: nil, isSaveEnabled: false)
 }
 
+// 저장은 막히고 지우기는 열리는 구간(이름 1글자) — 두 버튼이 갈리는 유일한 상태다.
+#Preview("저장만 비활성") {
+    ProfileSetupContentPreviewWrapper(name: "민", selectedCharacterIndex: nil, isSaveEnabled: false)
+}
+
 // #Preview 클로저는 @State 를 직접 못 가져 바인딩용 래퍼로 감싼다.
 private struct ProfileSetupContentPreviewWrapper: View {
     @State var name: String
@@ -136,6 +144,7 @@ private struct ProfileSetupContentPreviewWrapper: View {
             name: $name,
             selectedCharacterIndex: selectedCharacterIndex,
             isSaveEnabled: isSaveEnabled,
+            isClearEnabled: !name.isEmpty,
             onSelectCharacter: { selectedCharacterIndex = $0 },
             onClear: { name = "" },
             onSave: {}

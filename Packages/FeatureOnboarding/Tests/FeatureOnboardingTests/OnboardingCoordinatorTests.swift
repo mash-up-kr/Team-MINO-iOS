@@ -57,11 +57,13 @@ struct OnboardingCoordinatorTests {
     // handle 직접 호출 테스트는 이 배선이 끊겨도 통과하므로 별도로 둔다.
     // 폴링 대기는 StoreTests 선례를 따른다(회귀 시 hang 없이 유한 종료).
 
-    @Test("배선 — ProfileSetup Store 의 tapNext 가 path 에 반영된다")
+    @Test("배선 — ProfileSetup Store 의 tapSave 가 path 에 반영된다")
     func profileSetupStore_isWiredToPath() async {
         let coord = OnboardingCoordinator()
 
-        coord.makeProfileSetupStore().send(.tapNext)
+        let store = coord.makeProfileSetupStore()
+        store.send(.nameChanged("민호"))   // reduce 가 저장 조건을 가드하므로 유효한 이름을 먼저 넣는다
+        store.send(.tapSave)
 
         for _ in 0..<1000 where coord.path.isEmpty {
             await Task.yield()
@@ -69,11 +71,13 @@ struct OnboardingCoordinatorTests {
         #expect(coord.path == [.createRoom])
     }
 
-    @Test("배선 — CreateRoom Store 의 tapNext 가 path 에 반영된다")
+    @Test("배선 — CreateRoom Store 의 tapCreate 가 path 에 반영된다")
     func createRoomStore_isWiredToPath() async {
         let coord = OnboardingCoordinator()
 
-        coord.makeCreateRoomStore().send(.tapNext)
+        let store = coord.makeCreateRoomStore()
+        store.send(.roomNameChanged("민호야 잘하자"))   // reduce 가 생성 조건을 가드하므로 이름을 먼저 넣는다
+        store.send(.tapCreate)
 
         for _ in 0..<1000 where coord.path.isEmpty {
             await Task.yield()

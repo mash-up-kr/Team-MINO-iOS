@@ -16,13 +16,18 @@ struct ProfileSetupState: Equatable {
     var isSaveEnabled: Bool {
         name.trimmingCharacters(in: .whitespacesAndNewlines).count >= ProfileSetupLimit.minimumNameLength
     }
+
+    /// 지울 것이 있으면 지울 수 있다 — 저장과 조건이 다르다(저장 최소 길이에 못 미치는 1글자도 지움 대상).
+    var isClearEnabled: Bool {
+        !name.isEmpty
+    }
 }
 
 enum ProfileSetupAction: Equatable {
     case nameChanged(String)
     case selectCharacter(Int)
     case tapClear
-    case tapNext
+    case tapSave
 }
 
 enum ProfileSetupNav: Equatable, Sendable {
@@ -43,7 +48,9 @@ func profileSetupReducer() -> (inout ProfileSetupState, ProfileSetupAction) -> E
         case .tapClear:
             state.name = ""
             return .none
-        case .tapNext:
+        case .tapSave:
+            // 뷰의 .disabled 는 UI 레이어 방어라 뷰가 바뀌면 뚫린다 — 전환 조건은 여기서도 지킨다.
+            guard state.isSaveEnabled else { return .none }
             return .navigate(.goToCreateRoom)
         }
     }
