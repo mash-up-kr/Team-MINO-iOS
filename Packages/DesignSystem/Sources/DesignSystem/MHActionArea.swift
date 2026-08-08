@@ -7,19 +7,26 @@ public enum MHActionAreaVariant: Sendable { case strong, neutral, cancel }
 ///
 /// `variant`·`color` 로 그 슬롯의 기본 버튼 스타일을 덮어쓸 수 있다(Figma `customize = button`).
 /// 안 주면 배치(variant)별 기본값을 따른다 — 예: strong 의 main 은 solid/primary.
+///
+/// 슬롯마다 활성 조건이 다르면 `isEnabled` 로 따로 준다(저장은 2자 이상, 지우기는 1자 이상 같은 경우).
+/// 이때 ``MHActionArea`` 전체에 `.disabled` 를 걸면 안 된다 — SwiftUI 의 `.disabled` 는 서브트리로
+/// 전파되고 하위의 `.disabled(false)` 로 되돌릴 수 없어서, `isEnabled: true` 인 슬롯까지 함께 죽는다.
 public struct MHAction {
     public let title: String
+    public let isEnabled: Bool
     public let variant: MHButtonVariant?
     public let color: MHButtonColor?
     public let action: () -> Void
 
     public init(
         _ title: String,
+        isEnabled: Bool = true,
         variant: MHButtonVariant? = nil,
         color: MHButtonColor? = nil,
         action: @escaping () -> Void
     ) {
         self.title = title
+        self.isEnabled = isEnabled
         self.variant = variant
         self.color = color
         self.action = action
@@ -186,6 +193,7 @@ public struct MHActionArea<Extra: View>: View {
             size: .large,
             action: action.action
         )
+        .disabled(!action.isEnabled)
         .accessibilityIdentifier("MHActionArea.\(slot)")
     }
 
