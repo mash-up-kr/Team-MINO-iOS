@@ -21,6 +21,8 @@ struct RoomDetailSheet: View {
     @State private var sort: RoomDetailSort = .pick
     @State private var category: RoomDetailCategory = .all
     @State private var overlay: Overlay?
+    /// 케밥 메뉴의 실측 높이. 아래로 펼칠 공간이 없을 때 위로 뒤집는 판정에 쓴다.
+    @State private var menuHeight: CGFloat = 0
 
     // peek = 그래버 30 + 액션 row 60 + Header_Room 118, half = peek + 카드 2장
     private let peekFraction: CGFloat = 208.0 / 812.0
@@ -114,7 +116,9 @@ struct RoomDetailSheet: View {
                 if let anchor, let location = locations.first(where: { $0.id == menuLocationID }) {
                     let card = proxy[anchor]
                     locationMenu(location)
-                        .offset(x: card.maxX - Self.menuWidth, y: card.minY + kebabBottom)
+                        .offset(x: card.maxX - Self.menuWidth, y: menuOffsetY(card: card, in: proxy.size))
+                        // 첫 프레임은 실측 높이가 0 이라 뒤집기 판정 전 — 자리 잡기 전엔 그리지 않는다
+                        .opacity(menuHeight > 0 ? 1 : 0)
                 }
             }
         }
@@ -135,13 +139,23 @@ struct RoomDetailSheet: View {
     /// Figma `Menu/Menu` 폭(`1672:75163`).
     private static let menuWidth: CGFloat = 140
 
-    /// 카드 상단에서 케밥 아이콘 아래끝까지 — 카드 세로 여백 12 + 아이콘 높이(리스트 18 / 그리드 24).
+    /// 카드 상단에서 케밥 아이콘까지 — 카드 세로 여백 12 + 아이콘 높이(리스트 18 / 그리드 24).
+    private var kebabTop: CGFloat { 12 }
     private var kebabBottom: CGFloat { viewMode == .list ? 30 : 36 }
 
-    // 케밥 바로 아래에 우측 끝을 맞춰 펼친다.
+    /// 기본은 케밥 아래로 펼치고, 목록 콘텐츠 끝을 넘으면(하단 카드) 케밥 위로 뒤집는다.
+    /// 스크롤 콘텐츠가 시트 클립 안에 있어, 아래로만 펼치면 마지막 카드의 메뉴가 잘린 채 복구 불가가 된다.
+    private func menuOffsetY(card: CGRect, in container: CGSize) -> CGFloat {
+        let below = card.minY + kebabBottom
+        guard below + menuHeight > container.height else { return below }
+        return card.minY + kebabTop - menuHeight
+    }
+
+    // 케밥에 우측 끝을 맞춰 펼친다.
     private func locationMenu(_ location: RoomDetailLocation) -> some View {
         MHMenu(RoomDetailMenuCatalog.locationItems { select($0, at: location.id) })
             .frame(width: Self.menuWidth)
+            .onGeometryChange(for: CGFloat.self, of: \.size.height) { menuHeight = $0 }
             .accessibilityIdentifier("RoomDetail.locationMenu")
     }
 
