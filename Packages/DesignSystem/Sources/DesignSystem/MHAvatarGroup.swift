@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - Avatar Group
-
 /// 아바타 그룹 크기. Figma `size` = XSmall(24) / Small(32) — 그룹 전용 2종.
 ///
 /// 겹침(overlap)은 크기의 0.25배(XSmall 6 / Small 8), trailing 콘텐츠와의 간격은 XSmall 8 / Small 10.

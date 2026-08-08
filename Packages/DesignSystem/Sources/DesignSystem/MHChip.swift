@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - Chip
-
 /// 배경·테두리 스타일. `solid`(채운 배경) / `outlined`(테두리만).
 public enum MHChipVariant: Sendable { case solid, outlined }
 /// 크기 프리셋. 폰트·패딩·radius·아이콘 크기가 함께 정해진다.
