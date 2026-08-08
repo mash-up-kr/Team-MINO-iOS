@@ -34,6 +34,28 @@ enum RoomDetailViewMode: CaseIterable {
     case grid
 }
 
+/// 장소 카드 케밥(점 세 개) 메뉴의 항목. 시안 순서 = 공유 → 삭제 → 이동.
+enum RoomDetailMenuItemID: String, CaseIterable {
+    case shareLocation
+    case deleteLocation
+    case moveLocation
+
+    var title: String {
+        switch self {
+        case .shareLocation: "다른 방에 공유"
+        case .deleteLocation: "장소 삭제"
+        case .moveLocation: "장소 이동"
+        }
+    }
+}
+
+/// 시트가 자기 바깥으로 내보내는 요청. 진입 화면(`ProfileTabView`)이 받아 처리한다.
+/// 시트는 자기 안에서 딤을 동반한 모달을 띄울 수 없다 — `MHBottomSheet` 의 클립 경계 안이라 잘린다.
+enum RoomDetailOutput: Equatable {
+    case close
+    case shareLocation(RoomDetailLocation.ID)
+}
+
 /// 헤더 아래 카테고리 칩.
 enum RoomDetailCategory: String, CaseIterable, Identifiable {
     case all = "전체"
