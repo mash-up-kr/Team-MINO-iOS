@@ -98,9 +98,12 @@ struct RoomDetailSheet: View {
     }
 
     private var locationList: some View {
-        LazyVStack(spacing: 0) {
+        // LazyVStack 은 자식의 zIndex 를 무시해 아래 카드가 열린 메뉴 위로 그려진다(시뮬레이터 확인).
+        // 목 데이터 8건 수준이라 VStack 으로 두고, 서버 연동으로 목록이 길어지면 다시 본다.
+        VStack(spacing: 0) {
             ForEach(Array(locations.enumerated()), id: \.element.id) { index, location in
                 card(location, at: index)
+                    .zIndex(menuLocationID == location.id ? 1 : 0)
             }
         }
         .padding(.horizontal, 20)
