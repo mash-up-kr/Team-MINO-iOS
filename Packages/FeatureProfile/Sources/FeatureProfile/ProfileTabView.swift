@@ -6,6 +6,9 @@ import SwiftUI
 public struct ProfileTabView: View {
     private let coordinator: ProfileCoordinator
 
+    /// 공유 시트를 띄운 장소. 방 상세 시트는 `MHBottomSheet` 클립 경계 안이라 딤 모달을 자기 안에서 못 띄운다.
+    @State private var sharingLocation: RoomDetailLocation?
+
     public init(coordinator: ProfileCoordinator) {
         self.coordinator = coordinator
     }
@@ -36,6 +39,18 @@ public struct ProfileTabView: View {
                 }
             }
             .animation(.spring(duration: 0.3), value: coordinator.isRoomDetailPresented)
+            .sheet(item: $sharingLocation) { location in
+                RoomShareSheet(
+                    location: location,
+                    rooms: RoomShareRoom.samples,
+                    onClose: { sharingLocation = nil },
+                    onSubmit: { _ in sharingLocation = nil }
+                )
+                .presentationDetents([.height(RoomShareSheet.detentHeight)])
+                .presentationCornerRadius(20)
+                .presentationDragIndicator(.hidden)   // 그래버는 시안대로 시트 안에서 직접 그린다
+                .presentationBackground(.mhBackgroundElevatedNormal)
+            }
         }
     }
 
@@ -43,9 +58,8 @@ public struct ProfileTabView: View {
         switch output {
         case .close:
             coordinator.isRoomDetailPresented = false
-        // TODO: 다음 커밋에서 공유 시트를 띄운다.
-        case .shareLocation:
-            break
+        case .shareLocation(let id):
+            sharingLocation = RoomDetailLocation.samples.first { $0.id == id }
         }
     }
 }
