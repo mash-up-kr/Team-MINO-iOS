@@ -172,13 +172,9 @@ private struct RoomShareRoomCard: View {
 /// 방 커버 80×80. Figma 는 `Pink/95` 배경 위에 캐릭터 일러스트를 얹는데 레포에 그 에셋이 없어
 /// (`RoomDetailAvatar` 와 같은 관례로) 배경 + 플레이스홀더 아이콘으로 그린다.
 private struct RoomShareCover: View {
-    /// Figma `Atomic/Pink/95` (#FEECFB). 시맨틱 토큰이 없는 아토믹 색이라 값을 직접 쓴다
-    /// (`Color.mhAccentBackgroundPink` 는 #F553DA 로 훨씬 진하다).
-    private static let cover = Color(red: 0xFE / 255, green: 0xEC / 255, blue: 0xFB / 255)
-
     var body: some View {
         RoundedRectangle(cornerRadius: 18.286, style: .continuous)   // Figma radius md
-            .fill(Self.cover)
+            .fill(.mhPink95)                                          // Figma atomic `Pink/95`
             .frame(width: 80, height: 80)
             .overlay {
                 Image(.personFill)
