@@ -51,9 +51,12 @@ enum RoomDetailMenuItemID: String, CaseIterable {
 
 /// 시트가 자기 바깥으로 내보내는 요청. 진입 화면(`ProfileTabView`)이 받아 처리한다.
 /// 시트는 자기 안에서 딤을 동반한 모달을 띄울 수 없다 — `MHBottomSheet` 의 클립 경계 안이라 잘린다.
+///
+/// 장소는 식별자가 아니라 **값째** 싣는다. ID 만 보내면 받는 쪽이 자기 목록에서 재조회해야 하는데,
+/// 시트에 주입된 목록과 조회처가 갈라지는 순간(서버 연동·필터) 조회 실패가 무음으로 삼켜진다.
 enum RoomDetailOutput: Equatable {
     case close
-    case shareLocation(RoomDetailLocation.ID)
+    case shareLocation(RoomDetailLocation)
 }
 
 /// 헤더 아래 카테고리 칩.

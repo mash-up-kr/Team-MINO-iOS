@@ -88,8 +88,8 @@ public struct ProfileTabView: View {
         switch output {
         case .close:
             coordinator.isRoomDetailPresented = false
-        case .shareLocation(let id):
-            sharingLocation = RoomDetailLocation.samples.first { $0.id == id }
+        case .shareLocation(let location):
+            sharingLocation = location
         }
     }
 

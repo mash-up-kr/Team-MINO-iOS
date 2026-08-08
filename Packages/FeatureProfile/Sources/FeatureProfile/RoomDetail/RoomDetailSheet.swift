@@ -153,17 +153,17 @@ struct RoomDetailSheet: View {
 
     // 케밥에 우측 끝을 맞춰 펼친다.
     private func locationMenu(_ location: RoomDetailLocation) -> some View {
-        MHMenu(RoomDetailMenuCatalog.locationItems { select($0, at: location.id) })
+        MHMenu(RoomDetailMenuCatalog.locationItems { select($0, for: location) })
             .frame(width: Self.menuWidth)
             .onGeometryChange(for: CGFloat.self, of: \.size.height) { menuHeight = $0 }
             .accessibilityIdentifier("RoomDetail.locationMenu")
     }
 
-    private func select(_ item: RoomDetailMenuItemID, at locationID: RoomDetailLocation.ID) {
+    private func select(_ item: RoomDetailMenuItemID, for location: RoomDetailLocation) {
         overlay = nil
         switch item {
         case .shareLocation:
-            onOutput(.shareLocation(locationID))
+            onOutput(.shareLocation(location))
         // TODO: 시안이 확정되면 삭제·이동을 배선한다. 지금은 메뉴만 닫는다.
         case .deleteLocation, .moveLocation:
             break
