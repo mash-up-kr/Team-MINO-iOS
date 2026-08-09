@@ -6,10 +6,10 @@ import SwiftUI
 /// 딤과 시트를 여기서 각각 그리는 이유는 전환이 달라서다 — 시트는 아래에서 올라오고(`move`),
 /// 딤은 페이드한다(`opacity`). 두 시트가 교대할 때 딤은 그대로 유지돼 깜빡이지 않는다.
 ///
-/// 아직 flow 에 붙지 않아 Coordinator 대신 `makeStore` 를 받는다. 붙일 때 Coordinator 의
-/// `makeTutorialStore` 를 넘기면 된다(`RoomCreationUI.CreateRoomView` 와 같은 모양).
+/// Coordinator 대신 `makeStore` 클로저를 받는다 — 특정 Coordinator 타입을 알지 않아
+/// 진입점이 늘거나 이 화면을 `*UI` 로 내릴 때 그대로 쓸 수 있다.
 struct TutorialView: View {
-    let makeStore: () -> TutorialStore
+    let makeStore: @MainActor () -> TutorialStore
 
     @State private var store: TutorialStore?
 
