@@ -50,7 +50,7 @@ private struct RoomListLoadedView: View {
             Color.mhBackgroundNormalAlternative
                 .ignoresSafeArea()
 
-            MHBottomSheet(detent: $detent, lowFraction: 0.15, mediumFraction: 0.5) {
+            MHBottomSheet(detent: $detent, lowFraction: 0.25, mediumFraction: 0.5) {
                 RoomListContentView(
                     rooms: store.state.rooms.map(RoomListItem.init(from:)),
                     filterSelection: filterBinding
