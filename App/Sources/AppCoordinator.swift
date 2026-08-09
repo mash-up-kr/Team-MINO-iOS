@@ -13,7 +13,7 @@ final class AppCoordinator {
 
     init(deps: AppDependencies) {
         self.home = HomeCoordinator()
-        self.archive = ArchiveCoordinator()
+        self.archive = ArchiveCoordinator(deps: deps)
         self.profile = ProfileCoordinator()
     }
 }
