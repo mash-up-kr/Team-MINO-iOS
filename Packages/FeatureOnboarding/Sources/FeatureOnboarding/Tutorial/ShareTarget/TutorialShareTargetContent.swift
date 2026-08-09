@@ -112,11 +112,11 @@ struct TutorialShareTargetContent: View {
         HStack(spacing: 0) {
             actionItem(icon: .upload, title: "공유 대상", identifier: "shareTarget", isPrimary: true, action: onTapShareTarget)
             Spacer(minLength: 0)
-            actionItem(icon: .link, title: "링크 복사", identifier: "copyLink", isPrimary: false)
+            actionItem(icon: .link, title: "링크 복사", isPrimary: false)
             Spacer(minLength: 0)
-            actionItem(icon: .download, title: "다운로드", identifier: "download", isPrimary: false)
+            actionItem(icon: .download, title: "다운로드", isPrimary: false)
             Spacer(minLength: 0)
-            actionItem(icon: .bubble, title: "메시지", identifier: "message", isPrimary: false)
+            actionItem(icon: .bubble, title: "메시지", isPrimary: false)
         }
         .overlay(alignment: .topLeading) {
             // 첫 항목(공유 대상) 위 8pt 에 말풍선 바닥이 닿게 — top 가이드를 자기 바닥으로 옮겨 위로 밀어낸다.
@@ -137,30 +137,41 @@ struct TutorialShareTargetContent: View {
         }
     }
 
+    /// `identifier`·`action` 이 없으면 목업 장식이다 — 연락처 행과 같이 Button 을 만들지 않고
+    /// 접근성 트리에서도 감춘다. 눌리지도 않는 항목이 QA 매니페스트에 버튼으로 올라가면
+    /// 시나리오 작성자가 "누르면 뭔가 된다"로 읽는다.
+    @ViewBuilder
     private func actionItem(
         icon: MHIcon,
         title: String,
-        identifier: String,
+        identifier: String? = nil,
         isPrimary: Bool,
-        action: @escaping () -> Void = {}
+        action: (() -> Void)? = nil
     ) -> some View {
-        Button(action: action) {
-            VStack(spacing: 6) {
-                Image(icon)
-                    .resizable()
-                    .frame(width: 24, height: 24)
-                    .foregroundStyle(isPrimary ? Color.mhStaticWhite : Color.mhLabelNormal)
-                    .frame(width: 62, height: 62)
-                    .background(
-                        isPrimary ? Color.mhPrimaryNormal : Color.mhBackgroundNormalAlternative,
-                        in: Circle()
-                    )
-                Text(title)
-                    .mhTypography(isPrimary ? .label2Bold : .label2Medium)
-                    .foregroundStyle(Color.mhLabelNormal)
-            }
+        if let identifier, let action {
+            Button(action: action) { actionItemLabel(icon: icon, title: title, isPrimary: isPrimary) }
+                .accessibilityIdentifier("TutorialShareTarget.\(identifier)")
+        } else {
+            actionItemLabel(icon: icon, title: title, isPrimary: isPrimary)
+                .accessibilityHidden(true)
         }
-        .accessibilityIdentifier("TutorialShareTarget.\(identifier)")
+    }
+
+    private func actionItemLabel(icon: MHIcon, title: String, isPrimary: Bool) -> some View {
+        VStack(spacing: 6) {
+            Image(icon)
+                .resizable()
+                .frame(width: 24, height: 24)
+                .foregroundStyle(isPrimary ? Color.mhStaticWhite : Color.mhLabelNormal)
+                .frame(width: 62, height: 62)
+                .background(
+                    isPrimary ? Color.mhPrimaryNormal : Color.mhBackgroundNormalAlternative,
+                    in: Circle()
+                )
+            Text(title)
+                .mhTypography(isPrimary ? .label2Bold : .label2Medium)
+                .foregroundStyle(Color.mhLabelNormal)
+        }
     }
 }
 

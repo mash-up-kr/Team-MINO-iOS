@@ -84,15 +84,12 @@ struct TutorialSystemShareSheetContent: View {
             // 시스템 공유시트에 원래 있는 닫기 버튼. **튜토리얼 중에는 동작하지 않는다** —
             // 정해진 흐름을 끝까지 따라가야 해서 중간에 빠져나가는 경로를 두지 않는다.
             // 그리기는 하는 이유는 시스템 UI 목업이라 버튼이 없으면 어색해서다.
-            Button {} label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(Color(uiColor: .secondaryLabel))
-                    .frame(width: 30, height: 30)
-                    .background(Color(uiColor: .systemGray5), in: Circle())
-            }
-            .accessibilityLabel("닫기")
-            .accessibilityIdentifier("TutorialSystemSheet.close")
+            Image(systemName: "xmark")
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(Color(uiColor: .secondaryLabel))
+                .frame(width: 30, height: 30)
+                .background(Color(uiColor: .systemGray5), in: Circle())
+                .accessibilityHidden(true)
         }
         .padding(.horizontal, Layout.sidePadding)
         .frame(height: Layout.headerHeight)
@@ -129,13 +126,13 @@ struct TutorialSystemShareSheetContent: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Color.mhPrimaryNormal)
             }
-            appItem(name: "Messages", identifier: "messages") {
+            appItem(name: "Messages") {
                 systemAppTile(symbol: "message.fill", tint: Color(red: 0.29, green: 0.83, blue: 0.37))
             }
-            appItem(name: "Mail", identifier: "mail") {
+            appItem(name: "Mail") {
                 systemAppTile(symbol: "envelope.fill", tint: Color(red: 0.11, green: 0.51, blue: 0.95))
             }
-            appItem(name: "Notes", identifier: "notes") {
+            appItem(name: "Notes") {
                 notesTile
             }
         }
@@ -204,25 +201,36 @@ struct TutorialSystemShareSheetContent: View {
         .frame(width: Layout.itemWidth)
     }
 
+    /// `identifier`·`action` 이 없으면 목업 장식이다 — 연락처 행과 같이 Button 을 만들지 않고
+    /// 접근성 트리에서도 감춘다(눌리지 않는 항목을 QA 가 버튼으로 오인하지 않게).
+    @ViewBuilder
     private func appItem<Tile: View>(
         name: String,
-        identifier: String,
-        action: @escaping () -> Void = {},
+        identifier: String? = nil,
+        action: (() -> Void)? = nil,
         @ViewBuilder tile: () -> Tile
     ) -> some View {
-        Button(action: action) {
-            VStack(spacing: 8) {
-                tile()
-                    .frame(width: 70, height: 70)
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                Text(name)
-                    .font(.system(size: 11))
-                    .foregroundStyle(Color(uiColor: .label))
-                    .lineLimit(1)
-            }
+        if let identifier, let action {
+            Button(action: action) { appItemLabel(name: name, tile: tile) }
+                .frame(width: Layout.itemWidth)
+                .accessibilityIdentifier("TutorialSystemSheet.\(identifier)")
+        } else {
+            appItemLabel(name: name, tile: tile)
+                .frame(width: Layout.itemWidth)
+                .accessibilityHidden(true)
         }
-        .frame(width: Layout.itemWidth)
-        .accessibilityIdentifier("TutorialSystemSheet.\(identifier)")
+    }
+
+    private func appItemLabel<Tile: View>(name: String, @ViewBuilder tile: () -> Tile) -> some View {
+        VStack(spacing: 8) {
+            tile()
+                .frame(width: 70, height: 70)
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            Text(name)
+                .font(.system(size: 11))
+                .foregroundStyle(Color(uiColor: .label))
+                .lineLimit(1)
+        }
     }
 
     private func systemAppTile(symbol: String, tint: Color) -> some View {

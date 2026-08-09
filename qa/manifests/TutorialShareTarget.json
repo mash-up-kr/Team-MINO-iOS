@@ -1,7 +1,10 @@
 [
-  { "id": "TutorialShareTarget.tooltip", "kind": "text" },
-  { "id": "TutorialShareTarget.shareTarget", "kind": "button" },
-  { "id": "TutorialShareTarget.copyLink", "kind": "button" },
-  { "id": "TutorialShareTarget.download", "kind": "button" },
-  { "id": "TutorialShareTarget.message", "kind": "button" }
+  {
+    "id": "TutorialShareTarget.tooltip",
+    "kind": "text"
+  },
+  {
+    "id": "TutorialShareTarget.shareTarget",
+    "kind": "button"
+  }
 ]
