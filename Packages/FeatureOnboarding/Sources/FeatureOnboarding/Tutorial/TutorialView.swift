@@ -48,7 +48,7 @@ struct TutorialView: View {
                     .accessibilityAddTraits(.isModal)
             }
 
-            if store.state.step == .systemShareSheet {
+            if store.state.showsSystemShareSheet {
                 // 시트의 X 는 넘기지 않는다 — 튜토리얼 중에는 닫히지 않는다(기본값 = 무동작).
                 TutorialSystemShareSheetContent(onTapAppShare: { store.send(.tapAppShare) })
                     .transition(.move(edge: .bottom))

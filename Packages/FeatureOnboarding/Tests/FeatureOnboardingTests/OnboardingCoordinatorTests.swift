@@ -80,6 +80,8 @@ struct OnboardingCoordinatorTests {
         #expect(coord.makeProfileSetupStore() !== coord.makeProfileSetupStore())
         #expect(coord.makeCreateRoomStore() !== coord.makeCreateRoomStore())
         #expect(coord.makeInviteFriendsStore() !== coord.makeInviteFriendsStore())
+        // 튜토리얼은 넷 중 유일하게 단계를 들어, 캐시되면 다시 들어갈 때 이전 단계부터 시작한다.
+        #expect(coord.makeTutorialStore() !== coord.makeTutorialStore())
     }
 
     // 아래 3건은 make*Store 안의 observeNavigation 배선을 production Store 로 지난다.
@@ -132,6 +134,9 @@ struct OnboardingCoordinatorTests {
         let coord = OnboardingCoordinator()
 
         let store = coord.makeTutorialStore()
+        // reduce 가 단계를 가드하므로 마지막 단계까지 밟아야 didFinish 가 나간다
+        store.send(.tapShare)
+        store.send(.tapShareTarget)
         store.send(.tapAppShare)
 
         for _ in 0..<1000 where coord.path.isEmpty {
