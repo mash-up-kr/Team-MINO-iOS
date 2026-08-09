@@ -58,4 +58,15 @@ struct RoomListReducerTests {
         await store.send(.selectFilter(2)) { $0.filter = 2 }
         store.finish()
     }
+
+    @Test("L2 — 이미 rooms 가 있는 상태에서 재조회가 실패해도 기존 rooms 를 비우지 않는다")
+    func load_failure_afterPreviousSuccess_keepsExistingRooms() async {
+        // 재진입(pull-to-refresh 등) 시나리오: 첫 로드는 성공, 두 번째 로드가 실패해도
+        // loadFailed 가 rooms 를 건드리지 않아야 화면이 빈 리스트로 깜빡이지 않는다.
+        let store = makeStore(state: RoomListState(rooms: fixtureRooms))
+        // expect 클로저를 비워 두면 TestStore 가 "state 가 전혀 안 바뀜"을 단언한다(exhaustive 기본값).
+        // rooms 가 조금이라도 달라지면(예: 실수로 비워버리면) 이 send 단계에서 바로 실패한다.
+        await store.send(.loadFailed(.roomsFetchFailed))
+        store.finish()
+    }
 }
