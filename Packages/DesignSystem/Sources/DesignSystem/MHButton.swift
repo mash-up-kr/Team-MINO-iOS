@@ -255,6 +255,9 @@ private struct MHButtonStyleBody: View {
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: metric.cornerRadius))
+            // outlined 는 배경이 .clear 인데 `.background(_:)` 의 ShapeStyle 오버로드는 hit test 에
+            // 참여하지 않는다 — 이게 없으면 탭이 라벨 글자에만 걸리고 버튼 여백은 뒤로 통과한다.
+            .contentShape(RoundedRectangle(cornerRadius: metric.cornerRadius))
     }
 
     // Figma 인터랙션 오버레이(Label/Normal): Normal 0 → Hovered 0.08 → Focused 0.12 → Pressed 0.18(각 ×1.5).
