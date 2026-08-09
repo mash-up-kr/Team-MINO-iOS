@@ -10,7 +10,7 @@ struct TutorialShareGuideContent: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            TutorialTopNavigation(title: "튜토리얼", onTapSkip: onTapSkip)
+            MHTopNavigation(title: "튜토리얼", onSkip: onTapSkip)
 
             VStack(spacing: 30) {
                 titleBlock
