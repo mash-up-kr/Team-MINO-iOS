@@ -56,10 +56,6 @@ private final class TutorialShareItem: NSObject, UIActivityItemSource {
     func activityViewControllerLinkMetadata(_ controller: UIActivityViewController) -> LPLinkMetadata? {
         let metadata = LPLinkMetadata()
         metadata.title = "꾹을 찾아 눌러주세요!"
-        // 썸네일은 목업이 쓰던 이미지를 그대로 쓴다(디자인 확정 시 교체).
-        if let image = UIImage(named: "tutorialSharePreview", in: .module, with: nil) {
-            metadata.imageProvider = NSItemProvider(object: image)
-        }
         return metadata
     }
 }
