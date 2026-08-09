@@ -12,7 +12,7 @@ public struct ArchiveTabView: View {
     public var body: some View {
         @Bindable var coordinator = coordinator
         NavigationStack(path: $coordinator.path) {
-            RoomListView()
+            RoomListView(coordinator: coordinator)
                 .toolbar(.hidden, for: .navigationBar)
         }
     }

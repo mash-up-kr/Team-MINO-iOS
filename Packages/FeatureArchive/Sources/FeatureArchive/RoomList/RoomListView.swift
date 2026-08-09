@@ -1,4 +1,6 @@
 import DesignSystem
+import Domain
+import MVI
 import SwiftUI
 
 /// 방 리스트 바텀 시트 화면. Figma Frame 198(node 2236:45798) — 저장 탭 진입 화면.
@@ -7,19 +9,40 @@ import SwiftUI
 /// 헤더(타이틀 + 추가 버튼)·필터(``MHCategory``)는 시트 상단에 고정하고, 방 카드 목록만
 /// ``MHBottomSheetScrollView`` 로 스크롤한다.
 ///
-/// Store 는 붙이지 않는다(MARKUP 증분) — ``RoomListContentView`` 가 데이터를 입력으로 받는 순수 뷰라
-/// IMPL 이 이 자리에 `store.state`/`store.send` 를 그대로 끼워 넣을 수 있다.
+/// Store 는 ``ArchiveCoordinator`` 팩토리로 `.task` 에서 1회 lazy 생성한다(MemberHome 패턴).
+/// 진입 시 `.load` 로 방 목록을 불러오고, `store.state.rooms`(도메인 `Room`)를 표시 모델
+/// ``RoomListItem`` 으로 매핑해 순수 뷰 ``RoomListContentView`` 에 주입한다.
 struct RoomListView: View {
-    @State private var detent: MHBottomSheetDetent = .medium
-    @State private var filterSelection = 0
-    private let rooms: [RoomListItem]
+    private let coordinator: ArchiveCoordinator
+    @State private var store: RoomListStore?
 
-    /// - Parameter rooms: 표시할 방 목록. 기본값은 마크업 확인용 샘플(``RoomListItem/markupSamples``).
-    ///   IMPL 은 이 파라미터에 store 의 실제 데이터를 주입한다.
-    // TODO(IMPL): store 데이터로 교체 시 이 기본값 제거
-    init(rooms: [RoomListItem] = .markupSamples) {
-        self.rooms = rooms
+    init(coordinator: ArchiveCoordinator) {
+        self.coordinator = coordinator
     }
+
+    var body: some View {
+        content
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if let store {
+            RoomListLoadedView(store: store)
+        } else {
+            // store 없을 때만 실행 → 1회 생성 보장. 배경은 시트 뒤 중립 플레이스홀더 유지.
+            Color.mhBackgroundNormalAlternative
+                .ignoresSafeArea()
+                .task { store = coordinator.makeRoomListStore() }
+        }
+    }
+}
+
+// MARK: - RoomListLoadedView
+
+/// store 가 준비된 뒤의 실제 시트. store.state 를 읽어 그리고, 진입 시 `.load` 를 보낸다.
+private struct RoomListLoadedView: View {
+    let store: RoomListStore
+    @State private var detent: MHBottomSheetDetent = .medium
 
     var body: some View {
         ZStack {
@@ -28,10 +51,21 @@ struct RoomListView: View {
                 .ignoresSafeArea()
 
             MHBottomSheet(detent: $detent, lowFraction: 0.15, mediumFraction: 0.5) {
-                RoomListContentView(rooms: rooms, filterSelection: $filterSelection)
+                RoomListContentView(
+                    rooms: store.state.rooms.map(RoomListItem.init(from:)),
+                    filterSelection: filterBinding
+                )
             }
             .accessibilityIdentifier("RoomList.sheet")
         }
+        .task { store.send(.load) }
+    }
+
+    private var filterBinding: Binding<Int> {
+        Binding(
+            get: { store.state.filter },
+            set: { store.send(.selectFilter($0)) }
+        )
     }
 }
 
@@ -39,9 +73,7 @@ struct RoomListView: View {
 
 /// `MHBottomSheet` 콘텐츠. 헤더·필터는 고정, 카드 목록만 스크롤된다.
 ///
-/// Store 를 모르는 순수 뷰 — 데이터(`rooms`)와 필터 선택(`filterSelection`)을 입력으로만 받는다.
-/// IMPL 은 이 시그니처를 유지한 채 `rooms: store.state.rooms`, `filterSelection: $store.state.filter`
-/// (또는 `Binding` 어댑터)로 교체하면 된다.
+/// Store 를 모르는 순수 뷰 — 표시 모델(`rooms`)과 필터 선택(`filterSelection`)을 입력으로만 받는다.
 struct RoomListContentView: View {
     let rooms: [RoomListItem]
     @Binding var filterSelection: Int
@@ -98,9 +130,9 @@ struct RoomListContentView: View {
     }
 }
 
-// MARK: - RoomListItem
+// MARK: - RoomListItem (표시 모델)
 
-/// 마크업 로컬 표시 모델. Domain 엔티티가 아니다 — IMPL 이 실제 도메인 타입으로 매핑/교체한다.
+/// 마크업 표시 모델. 도메인 `Room` 을 카드가 그릴 값으로 변환한 것이다.
 struct RoomListItem: Identifiable, Equatable {
     let id: String
     let title: String
@@ -134,13 +166,49 @@ struct RoomListItem: Identifiable, Equatable {
     }
 }
 
+// MARK: - Room → RoomListItem 매핑
+
+extension RoomListItem {
+    /// 도메인 `Room` → 카드 표시 모델. 아바타 이미지는 아직 없어 개수만큼 `nil` 플레이스홀더로 채운다.
+    init(from room: Room) {
+        self.init(
+            id: room.id,
+            title: room.name,
+            memo: room.description,
+            placeCount: room.pinCount,
+            thumbnail: Self.thumbnail(for: room),
+            members: Array(repeating: nil, count: room.users.count)
+        )
+    }
+
+    private static func thumbnail(for room: Room) -> MHRoomThumbnailKind {
+        switch room.type {
+        case .personal:
+            return .myRoom
+        case .shared:
+            // TODO: 디자인의 hex↔색 매핑이 확정되면 `room.color` 를 사용한다.
+            //       지금은 id 안정 해시로 12색 중 하나를 결정론적으로 고른다.
+            let colors = MHRoomThumbnailColor.allCases
+            let index = abs(stableHash(room.id)) % colors.count
+            return .color(colors[index])
+        }
+    }
+}
+
+/// 실행마다 값이 달라지는 `String.hashValue` 대신 결정론적 해시(테스트·렌더 안정).
+private func stableHash(_ string: String) -> Int {
+    string.unicodeScalars.reduce(0) { ($0 &* 31) &+ Int($1.value) }
+}
+
+// MARK: - 마크업 프리뷰 샘플
+
 extension [RoomListItem] {
-    /// 마크업 확인용 정적 샘플. "내 장소" 카드는 Figma 정합 대상(memo 없음·아바타 1개·my-room 썸네일)이고,
-    /// 나머지는 리스트 성격을 보이기 위해 덧붙인 샘플(shared 방·색 썸네일·memo 있음)이다 — figma 정합 대상 아님.
+    /// 프리뷰용 정적 샘플. "내 장소"(my-room)·공유 방(색 썸네일) 혼합.
     static var markupSamples: [RoomListItem] {
         [
-            RoomListItem(title: "내 장소", placeCount: 0, thumbnail: .myRoom, members: [nil]),
+            RoomListItem(id: "me", title: "내 장소", placeCount: 0, thumbnail: .myRoom, members: [nil]),
             RoomListItem(
+                id: "food",
                 title: "우리 동네 맛집",
                 memo: "친구들이랑 같이 저장하는 곳",
                 placeCount: 12,
@@ -148,6 +216,7 @@ extension [RoomListItem] {
                 members: [nil, nil, nil]
             ),
             RoomListItem(
+                id: "cafe",
                 title: "가고싶은 카페",
                 memo: "분위기 좋은 카페 모음",
                 placeCount: 5,
@@ -158,20 +227,17 @@ extension [RoomListItem] {
     }
 }
 
-private extension RoomListItem {
-    init(
-        title: String,
-        memo: String? = nil,
-        placeCount: Int,
-        thumbnail: MHRoomThumbnailKind,
-        members: [Image?] = []
-    ) {
-        self.init(id: title, title: title, memo: memo, placeCount: placeCount, thumbnail: thumbnail, members: members)
-    }
-}
-
 // MARK: - Preview
 
-#Preview("RoomListView") {
-    RoomListView()
+#Preview("RoomList") {
+    struct Host: View {
+        @State private var filter = 0
+        var body: some View {
+            ZStack {
+                Color.mhBackgroundNormalAlternative.ignoresSafeArea()
+                RoomListContentView(rooms: .markupSamples, filterSelection: $filter)
+            }
+        }
+    }
+    return Host()
 }

@@ -10,10 +10,19 @@ let package = Package(
     dependencies: [
         .package(path: "../FlowCoordination"),
         .package(path: "../DesignSystem"),
+        .package(path: "../MVI"),
+        .package(path: "../Domain"),
     ],
     targets: [
-        .target(name: "FeatureArchive", dependencies: ["FlowCoordination", "DesignSystem"]),
-        .testTarget(name: "FeatureArchiveTests", dependencies: ["FeatureArchive"]),
+        .target(name: "FeatureArchive", dependencies: ["FlowCoordination", "DesignSystem", "MVI", "Domain"]),
+        .testTarget(
+            name: "FeatureArchiveTests",
+            dependencies: [
+                "FeatureArchive",
+                "Domain",
+                .product(name: "MVITestSupport", package: "MVI"),
+            ]
+        ),
     ],
     swiftLanguageModes: [.v6]
 )
