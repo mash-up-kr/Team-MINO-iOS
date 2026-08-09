@@ -14,14 +14,18 @@ struct TutorialView: View {
     @State private var store: TutorialStore?
 
     var body: some View {
-        if let store {
-            content(store)
-        } else {
-            // 마크업이 자체 상단 내비를 그려 로딩 표시가 자리를 밀지 않도록 빈 배경으로 자리만 잡는다.
-            Color.mhBackgroundNormalNormal
-                .ignoresSafeArea()
-                .task { store = makeStore() }
+        Group {
+            if let store {
+                content(store)
+            } else {
+                // 마크업이 자체 상단 내비를 그려 로딩 표시가 자리를 밀지 않도록 빈 배경으로 자리만 잡는다.
+                Color.mhBackgroundNormalNormal
+                    .ignoresSafeArea()
+                    .task { store = makeStore() }
+            }
         }
+        // 마크업이 자체 상단 내비바를 그린다 — 시스템 내비바를 두면 뒤로가기가 두 개로 보인다.
+        .toolbar(.hidden, for: .navigationBar)
     }
 
     private func content(_ store: TutorialStore) -> some View {

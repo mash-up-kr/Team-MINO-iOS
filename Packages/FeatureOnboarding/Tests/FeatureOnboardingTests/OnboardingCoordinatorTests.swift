@@ -30,16 +30,45 @@ struct OnboardingCoordinatorTests {
         #expect(coord.path == [.createRoom, .inviteFriends])
     }
 
-    @Test("complete nav 를 두 번 받아도 finish 는 1회만 발사된다")
-    func complete_fires_finish_once() {
+    @Test("complete nav → 튜토리얼로 push 한다 — 친구초대 건너뛰기의 목적지")
+    func complete_pushesTutorial() {
         let coord = OnboardingCoordinator()
-        var results: [OnboardingResult] = []
-        coord.finish.bind { results.append($0) }
 
         coord.handle(InviteFriendsNav.complete)
-        coord.handle(InviteFriendsNav.complete)
 
-        #expect(results == [.completed])
+        #expect(coord.path == [.tutorial])
+    }
+
+    @Test("didFinish nav → 완료 화면으로 push 한다 — 시스템 공유시트에서 우리 앱을 고른 뒤")
+    func didFinish_pushesTutorialComplete() {
+        let coord = OnboardingCoordinator()
+
+        coord.handle(TutorialNav.didFinish)
+
+        #expect(coord.path == [.tutorialComplete])
+    }
+
+    // 온보딩을 끝내고 나갈 지점(방 리스트)이 아직 없어 didSkip 은 아무 데도 보내지 않는다.
+    // finish 발사 경로가 생기면 이 테스트가 그 자리를 알려준다.
+    @Test("didSkip nav → 아직 목적지가 없어 path 가 변하지 않는다")
+    func didSkip_doesNotRoute() {
+        let coord = OnboardingCoordinator()
+
+        coord.handle(TutorialNav.didSkip)
+
+        #expect(coord.path.isEmpty)
+    }
+
+    @Test("배선 — 전체 경로: 프로필 저장 → 방 생성 → 친구초대 건너뛰기 → 튜토리얼 → 완료")
+    func fullPath_isWiredInOrder() {
+        let coord = OnboardingCoordinator()
+
+        coord.handle(ProfileSetupNav.goToCreateRoom)
+        coord.handle(CreateRoomNav.didCreateRoom)
+        coord.handle(InviteFriendsNav.complete)
+        coord.handle(TutorialNav.didFinish)
+
+        #expect(coord.path == [.createRoom, .inviteFriends, .tutorial, .tutorialComplete])
     }
 
     // NavigationStack 기본 동작 — pop 된 화면은 다시 push 될 때 빈 상태로 시작한다.
@@ -85,8 +114,29 @@ struct OnboardingCoordinatorTests {
         #expect(coord.path == [.inviteFriends])
     }
 
-    // NOTE(커버리지 공백): InviteFriends 화면은 navigate 하는 action 이 하나도 없어
-    // `makeInviteFriendsStore` 의 observeNavigation 배선을 Store 쪽에서 검증할 방법이 없다.
-    // 라우팅 자체는 위 `complete_fires_finish_once`(handle 직접 호출)가 계속 지킨다.
-    // 건너뛰기에 `.navigate(.complete)` 를 되살리면 배선 테스트도 함께 되돌린다.
+    @Test("배선 — InviteFriends Store 의 건너뛰기가 path 에 반영된다")
+    func inviteFriendsStore_isWiredToPath() async {
+        let coord = OnboardingCoordinator()
+
+        let store = coord.makeInviteFriendsStore()
+        store.send(.tapComplete)
+
+        for _ in 0..<1000 where coord.path.isEmpty {
+            await Task.yield()
+        }
+        #expect(coord.path == [.tutorial])
+    }
+
+    @Test("배선 — Tutorial Store 의 마지막 조작이 path 에 반영된다")
+    func tutorialStore_isWiredToPath() async {
+        let coord = OnboardingCoordinator()
+
+        let store = coord.makeTutorialStore()
+        store.send(.tapAppShare)
+
+        for _ in 0..<1000 where coord.path.isEmpty {
+            await Task.yield()
+        }
+        #expect(coord.path == [.tutorialComplete])
+    }
 }
