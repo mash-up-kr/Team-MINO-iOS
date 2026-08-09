@@ -46,6 +46,40 @@ struct TutorialReducerTests {
         store.finish()
     }
 
+    @Test("L1 — 공유대상 시트를 내리면 게시물 화면으로 돌아간다 — 다시 공유 버튼을 누를 수 있게")
+    func dismissShareTarget_returnsToShareGuide() async {
+        let store = TestStore(TutorialState(), reduce: tutorialReducer())
+
+        await store.send(.tapShare) {
+            $0.step = .shareTarget
+        }
+        await store.send(.dismissShareTarget) {
+            $0.step = .shareGuide
+        }
+        // 되돌아간 뒤 다시 진행할 수 있다
+        await store.send(.tapShare) {
+            $0.step = .shareTarget
+        }
+
+        store.finish()
+    }
+
+    @Test("L1 — 시스템 공유시트 단계에서 온 dismissShareTarget 은 무시된다 — 딤은 그때도 깔려 있다")
+    func dismissShareTarget_atSystemSheet_isIgnored() async {
+        let store = TestStore(TutorialState(), reduce: tutorialReducer())
+
+        await store.send(.tapShare) {
+            $0.step = .shareTarget
+        }
+        await store.send(.tapShareTarget) {
+            $0.step = .systemShareSheet
+        }
+        await store.send(.dismissShareTarget)
+
+        #expect(store.currentState.step == .systemShareSheet)
+        store.finish()
+    }
+
     @Test("L1 — 공유시트를 취소하면 공유대상 시트로 되돌아간다 — 다시 시도할 수 있게")
     func shareSheetCancelled_returnsToShareTarget() async {
         let store = TestStore(TutorialState(), reduce: tutorialReducer())

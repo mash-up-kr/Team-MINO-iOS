@@ -9,9 +9,14 @@ import SwiftUI
 /// Coordinator 대신 `makeStore` 클로저를 받는다 — 특정 Coordinator 타입을 알지 않아
 /// 진입점이 늘거나 이 화면을 `*UI` 로 내릴 때 그대로 쓸 수 있다.
 struct TutorialView: View {
+    /// 이만큼 아래로 끌면 시트를 내린다. 시스템 시트의 체감과 맞춘 값.
+    private static let dismissDragDistance: CGFloat = 100
+
     let makeStore: @MainActor () -> TutorialStore
 
     @State private var store: TutorialStore?
+    /// 공유대상 시트를 아래로 끄는 중의 이동량. 손을 떼면 자동으로 0 으로 돌아간다.
+    @GestureState private var shareTargetDrag: CGFloat = 0
 
     var body: some View {
         Group {
@@ -41,11 +46,26 @@ struct TutorialView: View {
             if store.state.step == .shareTarget || store.state.step == .systemShareSheet {
                 Color.mhMaterialDimmer
                     .ignoresSafeArea()
+                    // 시스템 공유시트가 떠 있을 때는 reduce 가 가드해 무시된다.
+                    .onTapGesture { store.send(.dismissShareTarget) }
                     .transition(.opacity)
             }
 
             if store.state.step == .shareTarget {
                 TutorialShareTargetContent(onTapShareTarget: { store.send(.tapShareTarget) })
+                    // 위로는 끌리지 않게 막는다 — 시트가 원래 자리보다 올라가면 딤이 아래에서 비친다.
+                    .offset(y: max(0, shareTargetDrag))
+                    .gesture(
+                        DragGesture()
+                            .updating($shareTargetDrag) { value, drag, _ in
+                                drag = value.translation.height
+                            }
+                            .onEnded { value in
+                                if value.translation.height > Self.dismissDragDistance {
+                                    store.send(.dismissShareTarget)
+                                }
+                            }
+                    )
                     .transition(.move(edge: .bottom))
                     .accessibilityAddTraits(.isModal)
             }
