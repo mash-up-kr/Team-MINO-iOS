@@ -27,8 +27,8 @@ enum TutorialAction: Equatable {
     case tapShare
     /// 공유 대상 시트에서 대상을 고름.
     case tapShareTarget
-    /// 시스템 공유시트에서 우리 앱을 고름 — 튜토리얼의 마지막 조작.
-    case tapAppShare
+    /// 시스템 공유시트가 닫힘. `completed` 는 공유 대상을 골랐는지(취소가 아닌지)다.
+    case shareSheetFinished(completed: Bool)
     case tapSkip
 }
 
@@ -56,10 +56,13 @@ func tutorialReducer() -> (inout TutorialState, TutorialAction) -> Effect<Tutori
             state.step = .systemShareSheet
             return .none
         // 완료 화면도 이 화면의 한 단계다 — 별도 라우트로 push 하면 2초 뒤 온보딩을 끝내는
-        // 타이머만을 위해 Store 를 하나 더 만들게 된다. 단계로 두면 중복 탭도 가드가 함께 막는다.
-        case .tapAppShare:
+        // 타이머만을 위해 Store 를 하나 더 만들게 된다. 단계로 두면 중복 호출도 가드가 함께 막는다.
+        //
+        // 취소하면 공유대상 시트로 되돌린다 — 시스템 공유시트는 우리가 다시 띄울 수단이 없어,
+        // 앞 단계로 보내야 사용자가 다시 시도할 수 있다.
+        case .shareSheetFinished(let completed):
             guard state.step == .systemShareSheet else { return .none }
-            state.step = .complete
+            state.step = completed ? .complete : .shareTarget
             return .none
         // 건너뛰기는 어느 단계에서든 나갈 수 있어야 해서 가드하지 않는다.
         case .tapSkip:

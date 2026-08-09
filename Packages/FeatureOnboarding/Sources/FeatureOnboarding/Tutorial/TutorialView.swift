@@ -28,6 +28,12 @@ struct TutorialView: View {
         .toolbar(.hidden, for: .navigationBar)
     }
 
+    /// 시스템 공유시트는 우리가 닫을 수 없다 — set 은 시트가 스스로 닫힐 때만 오고,
+    /// 그 결과는 `shareSheetFinished` 가 이미 받으므로 여기서는 무시한다.
+    private func showsSystemShareSheet(_ store: TutorialStore) -> Binding<Bool> {
+        Binding(get: { store.state.step == .systemShareSheet }, set: { _ in })
+    }
+
     private func content(_ store: TutorialStore) -> some View {
         ZStack(alignment: .bottom) {
             TutorialShareGuideContent(
@@ -50,13 +56,6 @@ struct TutorialView: View {
                     .accessibilityAddTraits(.isModal)
             }
 
-            if store.state.showsSystemShareSheet {
-                // 시트의 X 는 넘기지 않는다 — 튜토리얼 중에는 닫히지 않는다(기본값 = 무동작).
-                TutorialSystemShareSheetContent(onTapAppShare: { store.send(.tapAppShare) })
-                    .transition(.move(edge: .bottom))
-                    .accessibilityAddTraits(.isModal)
-            }
-
             // 완료 화면은 시트가 아니라 앞의 단계를 통째로 덮는다.
             if store.state.step == .complete {
                 TutorialCompleteContent()
@@ -65,6 +64,13 @@ struct TutorialView: View {
         }
         // reduce 는 순수해야 해서 withAnimation 을 넣을 수 없다 — 단계 변화를 뷰가 애니메이션한다.
         .animation(.easeInOut(duration: 0.3), value: store.state.step)
+        // 3단계는 목업이 아니라 실제 시스템 공유시트를 띄운다. 사용자가 시트에서 우리 앱을
+        // 한 번 눌러보게 하는 것이 이 단계의 목적이라, 우리가 그린 화면으로는 대체할 수 없다.
+        .sheet(isPresented: showsSystemShareSheet(store)) {
+            TutorialShareSheet { completed in
+                store.send(.shareSheetFinished(completed: completed))
+            }
+        }
     }
 }
 

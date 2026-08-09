@@ -29,8 +29,8 @@ struct TutorialReducerTests {
         store.finish()
     }
 
-    @Test("L1 — tapAppShare 는 완료 단계로 넘어간다 — 완료 화면도 이 화면 안에 있다")
-    func tapAppShare_movesToComplete() async {
+    @Test("L1 — 공유시트에서 대상을 고르고 닫히면 완료 단계로 넘어간다")
+    func shareSheetFinished_movesToComplete() async {
         let store = TestStore(TutorialState(), reduce: tutorialReducer())
 
         await store.send(.tapShare) {
@@ -39,15 +39,15 @@ struct TutorialReducerTests {
         await store.send(.tapShareTarget) {
             $0.step = .systemShareSheet
         }
-        await store.send(.tapAppShare) {
+        await store.send(.shareSheetFinished(completed: true)) {
             $0.step = .complete
         }
 
         store.finish()
     }
 
-    @Test("L1 — 마지막 조작을 두 번 해도 완료 단계에 머문다 — 중복 탭 차단")
-    func tapAppShare_twice_staysComplete() async {
+    @Test("L1 — 공유시트를 취소하면 공유대상 시트로 되돌아간다 — 다시 시도할 수 있게")
+    func shareSheetCancelled_returnsToShareTarget() async {
         let store = TestStore(TutorialState(), reduce: tutorialReducer())
 
         await store.send(.tapShare) {
@@ -56,11 +56,28 @@ struct TutorialReducerTests {
         await store.send(.tapShareTarget) {
             $0.step = .systemShareSheet
         }
-        await store.send(.tapAppShare) {
+        await store.send(.shareSheetFinished(completed: false)) {
+            $0.step = .shareTarget
+        }
+
+        store.finish()
+    }
+
+    @Test("L1 — 완료 뒤 같은 결과가 또 와도 완료 단계에 머문다 — 중복 차단")
+    func shareSheetFinished_twice_staysComplete() async {
+        let store = TestStore(TutorialState(), reduce: tutorialReducer())
+
+        await store.send(.tapShare) {
+            $0.step = .shareTarget
+        }
+        await store.send(.tapShareTarget) {
+            $0.step = .systemShareSheet
+        }
+        await store.send(.shareSheetFinished(completed: true)) {
             $0.step = .complete
         }
-        // 두 번째 탭은 가드에 걸려 단계를 다시 바꾸지 않는다
-        await store.send(.tapAppShare)
+        // 두 번째 결과는 가드에 걸려 단계를 다시 바꾸지 않는다
+        await store.send(.shareSheetFinished(completed: true))
 
         #expect(store.currentState.step == .complete)
         store.finish()
@@ -79,16 +96,16 @@ struct TutorialReducerTests {
     // 아래 3건은 뷰의 `.disabled` 와 별개로 reduce 가 단계를 지키는지 본다.
     // (`.disabled` 를 지워도 통과하던 공백이라 가드와 함께 넣었다)
 
-    @Test("L1 — 1단계에서 tapAppShare 가 들어와도 완료 단계로 뛰지 않는다")
-    func tapAppShare_beforeLastStep_doesNotComplete() async {
+    @Test("L1 — 1·2단계에서 공유시트 결과가 들어와도 완료 단계로 뛰지 않는다")
+    func shareSheetFinished_beforeLastStep_doesNotComplete() async {
         let store = TestStore(TutorialState(), reduce: tutorialReducer())
 
-        await store.send(.tapAppShare)
+        await store.send(.shareSheetFinished(completed: true))
 
         await store.send(.tapShare) {
             $0.step = .shareTarget
         }
-        await store.send(.tapAppShare)
+        await store.send(.shareSheetFinished(completed: true))
 
         #expect(store.currentState.step == .shareTarget)
         store.finish()
