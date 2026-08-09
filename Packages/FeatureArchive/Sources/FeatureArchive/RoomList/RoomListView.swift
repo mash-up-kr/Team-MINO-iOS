@@ -104,17 +104,24 @@ struct RoomListContentView: View {
     }
 
     // Figma Frame 304: h50, 좌우 padding 20, Category y=9 h32(size .medium).
+    //
+    // 개별 칩(전체/최근 저장 순/코멘트 순)은 `MHCategory`/`MHChip` 내부 Button 이라 화면단에서
+    // identifier 를 부여할 수 없다(DS 컴포넌트가 접두사·식별자 훅을 노출하지 않음) — AXe 는 칩의
+    // 기본 accessibility label(칩 텍스트, 예: "전체")로 탭한다. 선택 "상태"는 개별 칩에 trait/value 가
+    // 없어 읽을 수 없으므로, 컨테이너(`RoomList.filter`)에 현재 선택된 칩 텍스트를
+    // `accessibilityValue` 로 노출해 자동화가 선택 상태를 검증할 수 있게 한다.
     private var filter: some View {
         MHCategory(filterItems, selection: $filterSelection, variant: .normal, size: .medium, horizontalPadding: true)
             .frame(height: 50)
             .accessibilityIdentifier("RoomList.filter")
+            .accessibilityValue(filterItems[filterSelection])
     }
 
     // Figma Frame 460: 좌우 padding 20. 카드만 스크롤 영역(헤더·필터는 고정).
     private var cardList: some View {
         MHBottomSheetScrollView {
             VStack(spacing: 0) {
-                ForEach(Array(rooms.enumerated()), id: \.element.id) { index, room in
+                ForEach(rooms, id: \.id) { room in
                     MHRoomCard(
                         title: room.title,
                         memo: room.memo,
@@ -122,11 +129,13 @@ struct RoomListContentView: View {
                         thumbnail: room.thumbnail,
                         members: room.members
                     )
-                    .accessibilityIdentifier("RoomList.card.\(index)")
+                    // 도메인 안정 ID(room.id) 사용 — 배열 인덱스는 정렬/필터 시 다른 행을 가리키게 되므로 금지.
+                    .accessibilityIdentifier("RoomList.card.\(room.id)")
                 }
             }
             .padding(.horizontal, 20)
         }
+        .accessibilityIdentifier("RoomList.cardList")
     }
 }
 
