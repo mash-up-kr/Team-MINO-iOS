@@ -16,10 +16,6 @@ enum TutorialStep: Equatable {
 
 struct TutorialState: Equatable {
     var step: TutorialStep = .shareGuide
-
-    var showsSystemShareSheet: Bool {
-        step == .systemShareSheet
-    }
 }
 
 enum TutorialAction: Equatable {
