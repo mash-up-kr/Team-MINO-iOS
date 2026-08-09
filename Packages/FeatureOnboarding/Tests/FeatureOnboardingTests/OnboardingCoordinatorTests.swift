@@ -39,15 +39,6 @@ struct OnboardingCoordinatorTests {
         #expect(coord.path == [.tutorial])
     }
 
-    @Test("didFinish nav → 완료 화면으로 push 한다 — 시스템 공유시트에서 우리 앱을 고른 뒤")
-    func didFinish_pushesTutorialComplete() {
-        let coord = OnboardingCoordinator()
-
-        coord.handle(TutorialNav.didFinish)
-
-        #expect(coord.path == [.tutorialComplete])
-    }
-
     // 온보딩을 끝내고 나갈 지점(방 리스트)이 아직 없어 didSkip 은 아무 데도 보내지 않는다.
     // finish 발사 경로가 생기면 이 테스트가 그 자리를 알려준다.
     @Test("didSkip nav → 아직 목적지가 없어 path 가 변하지 않는다")
@@ -66,9 +57,9 @@ struct OnboardingCoordinatorTests {
         coord.handle(ProfileSetupNav.goToCreateRoom)
         coord.handle(CreateRoomNav.didCreateRoom)
         coord.handle(InviteFriendsNav.complete)
-        coord.handle(TutorialNav.didFinish)
 
-        #expect(coord.path == [.createRoom, .inviteFriends, .tutorial, .tutorialComplete])
+        // 튜토리얼 완료 화면은 라우트가 아니라 튜토리얼 화면 안의 단계다.
+        #expect(coord.path == [.createRoom, .inviteFriends, .tutorial])
     }
 
     // NavigationStack 기본 동작 — pop 된 화면은 다시 push 될 때 빈 상태로 시작한다.
@@ -129,19 +120,7 @@ struct OnboardingCoordinatorTests {
         #expect(coord.path == [.tutorial])
     }
 
-    @Test("배선 — Tutorial Store 의 마지막 조작이 path 에 반영된다")
-    func tutorialStore_isWiredToPath() async {
-        let coord = OnboardingCoordinator()
-
-        let store = coord.makeTutorialStore()
-        // reduce 가 단계를 가드하므로 마지막 단계까지 밟아야 didFinish 가 나간다
-        store.send(.tapShare)
-        store.send(.tapShareTarget)
-        store.send(.tapAppShare)
-
-        for _ in 0..<1000 where coord.path.isEmpty {
-            await Task.yield()
-        }
-        #expect(coord.path == [.tutorialComplete])
-    }
+    // NOTE(커버리지 공백): 튜토리얼에서 나가는 유일한 nav 인 didSkip 이 아직 목적지가 없어
+    // (`handle` 이 비어 있음) `makeTutorialStore` 의 observeNavigation 배선을 path 로 검증할
+    // 방법이 없다. 자동 전환 타이머와 함께 didFinish 가 들어오는 PR 에서 배선 테스트도 되살린다.
 }

@@ -24,11 +24,6 @@ public struct ProfileSetupView: View {
                         InviteFriendsView(makeStore: coordinator.makeInviteFriendsStore)
                     case .tutorial:
                         TutorialView(makeStore: coordinator.makeTutorialStore)
-                    case .tutorialComplete:
-                        // 조작 요소가 없는 화면이라 Store 를 두지 않았다 — 자동 전환 시간이
-                        // 정해지면 그때 Store 와 Effect 로 옮긴다.
-                        TutorialCompleteContent()
-                            .toolbar(.hidden, for: .navigationBar)
                     }
                 }
         }

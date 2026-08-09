@@ -10,17 +10,15 @@ enum TutorialStep: Equatable {
     case shareTarget
     /// 시스템 공유시트가 올라온 단계.
     case systemShareSheet
-    /// 마지막 조작까지 끝난 상태. 화면은 그대로 두고 완료 화면으로 넘어간다.
-    case finished
+    /// 완료 화면을 보여주는 단계.
+    case complete
 }
 
 struct TutorialState: Equatable {
     var step: TutorialStep = .shareGuide
 
-    /// 완료로 넘어간 뒤에도 마지막 시트를 그대로 둔다 — 완료 화면이 덮이는 동안 시트가 사라지면
-    /// 딤만 남은 화면이 잠깐 비친다.
     var showsSystemShareSheet: Bool {
-        step == .systemShareSheet || step == .finished
+        step == .systemShareSheet
     }
 }
 
@@ -35,8 +33,10 @@ enum TutorialAction: Equatable {
 }
 
 /// 목적지가 아니라 일어난 일로 이름 붙인다 — 튜토리얼을 끝낸 뒤 어디로 갈지는 flow 몫이다.
+///
+/// 완료 화면까지가 이 화면 안에서 끝나 나갈 일이 건너뛰기뿐이다. 완료 후 온보딩을 끝내는
+/// `didFinish` 는 자동 전환 타이머가 붙는 PR 에서 함께 들어온다.
 enum TutorialNav: Equatable, Sendable {
-    case didFinish
     case didSkip
 }
 
@@ -55,12 +55,12 @@ func tutorialReducer() -> (inout TutorialState, TutorialAction) -> Effect<Tutori
             guard state.step == .shareTarget else { return .none }
             state.step = .systemShareSheet
             return .none
-        // 완료를 step 으로 남겨 같은 단계에서의 중복 탭을 막는다 — 이게 없으면 빠르게 두 번 눌렀을 때
-        // didFinish 가 두 번 나가 완료 화면이 두 번 push 된다.
+        // 완료 화면도 이 화면의 한 단계다 — 별도 라우트로 push 하면 2초 뒤 온보딩을 끝내는
+        // 타이머만을 위해 Store 를 하나 더 만들게 된다. 단계로 두면 중복 탭도 가드가 함께 막는다.
         case .tapAppShare:
             guard state.step == .systemShareSheet else { return .none }
-            state.step = .finished
-            return .navigate(.didFinish)
+            state.step = .complete
+            return .none
         // 건너뛰기는 어느 단계에서든 나갈 수 있어야 해서 가드하지 않는다.
         case .tapSkip:
             return .navigate(.didSkip)

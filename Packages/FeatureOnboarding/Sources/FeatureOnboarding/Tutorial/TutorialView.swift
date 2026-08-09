@@ -54,6 +54,12 @@ struct TutorialView: View {
                     .transition(.move(edge: .bottom))
                     .accessibilityAddTraits(.isModal)
             }
+
+            // 완료 화면은 시트가 아니라 앞의 단계를 통째로 덮는다.
+            if store.state.step == .complete {
+                TutorialCompleteContent()
+                    .transition(.opacity)
+            }
         }
         // reduce 는 순수해야 해서 withAnimation 을 넣을 수 없다 — 단계 변화를 뷰가 애니메이션한다.
         .animation(.easeInOut(duration: 0.3), value: store.state.step)
