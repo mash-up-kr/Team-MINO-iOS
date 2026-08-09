@@ -44,23 +44,13 @@ private struct RoomListLoadedView: View {
     let store: RoomListStore
     @State private var detent: MHBottomSheetDetent = .medium
 
-    /// 시트 컨테이너 높이(safe 콘텐츠 영역). `background` 의 GeometryReader 로 측정한다 —
-    /// 레이아웃을 GeometryReader 로 감싸면 MHBottomSheet 내부의 safe-area/컨테이너 측정이 틀어져
-    /// 시트가 탭바 뒤로 밀리므로, 레이아웃은 그대로 두고 높이만 관측한다.
-    @State private var containerHeight: CGFloat = 0
-
-    /// peek(최저) 상태 높이 = 그래버(30) + 헤더(60). Figma `003-1-1 peek`(node 1604:100087) 기준.
-    /// low 를 고정 비율이 아니라 이 pt 를 컨테이너 높이로 나눈 값으로 줘서, 기기 크기와 무관하게
-    /// peek 이 항상 "그래버 + 헤더"만 보이도록 고정한다(비율 고정 시 큰 기기에서 peek 이 과하게 커짐).
-    private let peekHeight: CGFloat = 90
-
     var body: some View {
         ZStack {
             // 지도 미도입 — 시트 뒤를 채우는 중립 플레이스홀더 배경.
             Color.mhBackgroundNormalAlternative
                 .ignoresSafeArea()
 
-            MHBottomSheet(detent: $detent, lowFraction: lowFraction, mediumFraction: 0.5) {
+            MHBottomSheet(detent: $detent, lowFraction: 0.15, mediumFraction: 0.5) {
                 RoomListContentView(
                     rooms: store.state.rooms.map(RoomListItem.init(from:)),
                     filterSelection: filterBinding
@@ -68,20 +58,7 @@ private struct RoomListLoadedView: View {
             }
             .accessibilityIdentifier("RoomList.sheet")
         }
-        .background(
-            GeometryReader { proxy in
-                Color.clear.preference(key: SheetContainerHeightKey.self, value: proxy.size.height)
-            }
-        )
-        .onPreferenceChange(SheetContainerHeightKey.self) { containerHeight = $0 }
         .task { store.send(.load) }
-    }
-
-    /// peek 높이(pt)를 비율로 환산. `mediumFraction`(0.5) 아래로 클램프해 MHBottomSheet 의
-    /// `0 < low < medium` assert 를 항상 만족시킨다. 높이 측정 전(0)에는 기존 기본값으로 폴백.
-    private var lowFraction: CGFloat {
-        guard containerHeight > peekHeight else { return 0.15 }
-        return min(0.45, peekHeight / containerHeight)
     }
 
     private var filterBinding: Binding<Int> {
@@ -230,12 +207,6 @@ extension RoomListItem {
 /// 실행마다 값이 달라지는 `String.hashValue` 대신 결정론적 해시(테스트·렌더 안정).
 private func stableHash(_ string: String) -> Int {
     string.unicodeScalars.reduce(0) { ($0 &* 31) &+ Int($1.value) }
-}
-
-/// 시트 컨테이너 높이 관측용 PreferenceKey (`background` GeometryReader → `@State`).
-private struct SheetContainerHeightKey: PreferenceKey {
-    static var defaultValue: CGFloat { 0 }
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }
 
 // MARK: - 마크업 프리뷰 샘플
