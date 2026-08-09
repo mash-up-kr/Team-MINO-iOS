@@ -50,7 +50,8 @@ private struct RoomListLoadedView: View {
             Color.mhBackgroundNormalAlternative
                 .ignoresSafeArea()
 
-            MHBottomSheet(detent: $detent, lowFraction: 0.25, mediumFraction: 0.5) {
+            // low(peek) 는 그래버(30) + 헤더(60) = 90pt 만 보이게(Figma 003-1-1 peek). 하단 safe-area 는 MHBottomSheet 가 보정.
+            MHBottomSheet(detent: $detent, lowPeek: 112, mediumFraction: 0.5) {
                 RoomListContentView(
                     rooms: store.state.rooms.map(RoomListItem.init(from:)),
                     filterSelection: filterBinding
