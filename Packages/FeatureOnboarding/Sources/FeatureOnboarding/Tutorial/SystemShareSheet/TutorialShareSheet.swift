@@ -10,11 +10,20 @@ import UIKit
 /// > Figma(`2314:58969`)의 부제 "여러 앱 중 '꾹'을 찾아 눌러주세요." 와 셰브론은 넣을 수 없다.
 /// > `LPLinkMetadata` 에 부제 필드가 없고 그 자리는 `originalURL` 의 도메인이 자동으로 채운다.
 /// > 셰브론은 iCloud 공동작업 공유 전용이다.
+/// SwiftUI `.sheet` 로 감싸지 않고 UIKit 이 직접 present 한다 — `.sheet` 안에 넣으면
+/// 공유시트가 SwiftUI 시트 컨테이너에 갇혀 화면을 꽉 채운다. 시스템이 스스로 present 해야
+/// 콘텐츠 양에 맞는 높이로 뜬다(`sheetPresentationController.detents` 지정은 무시된다).
 struct TutorialShareSheet: UIViewControllerRepresentable {
+    let isPresented: Bool
     /// 시트가 닫힐 때. `completed` 는 사용자가 공유 대상을 골랐는지(취소가 아닌지)다.
     let onFinish: (_ completed: Bool) -> Void
 
-    func makeUIViewController(context: Context) -> UIActivityViewController {
+    func makeUIViewController(context: Context) -> UIViewController {
+        UIViewController()
+    }
+
+    func updateUIViewController(_ host: UIViewController, context: Context) {
+        guard isPresented, host.presentedViewController == nil else { return }
         let controller = UIActivityViewController(
             activityItems: [TutorialShareItem()],
             applicationActivities: nil
@@ -22,10 +31,8 @@ struct TutorialShareSheet: UIViewControllerRepresentable {
         controller.completionWithItemsHandler = { _, completed, _, _ in
             onFinish(completed)
         }
-        return controller
+        host.present(controller, animated: true)
     }
-
-    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
 }
 
 /// 공유시트 헤더(제목·썸네일)를 지정하기 위한 아이템.
