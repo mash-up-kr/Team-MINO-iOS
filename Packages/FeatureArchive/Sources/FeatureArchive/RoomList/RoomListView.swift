@@ -51,6 +51,10 @@ private struct RoomListLoadedView: View {
                 .ignoresSafeArea()
 
             // low(peek) 는 그래버(30) + 헤더(60) = 90pt 만 보이게(Figma 003-1-1 peek). 하단 safe-area 는 MHBottomSheet 가 보정.
+            // TODO(flicker): low→medium 전환 시 헤더 "+" 버튼(MHIconButton)이 4-5회 깜박임 — 다른 로컬에서 진단·수정 예정.
+            //   가설: 전환 스프링 중 greedy 카드 스크롤뷰가 펴지며 시트 콘텐츠가 반복 리렌더.
+            //   재현: detent 를 .low 로 시작해 .task 지연 후 .medium 자동전환 + simctl recordVideo → ffmpeg 프레임 추출.
+            //   관련: MHBottomSheet.swift .animation(value: detent) / MHBottomSheetScrollView offset preference.
             MHBottomSheet(detent: $detent, lowPeek: 112, mediumFraction: 0.5) {
                 RoomListContentView(
                     rooms: store.state.rooms.map(RoomListItem.init(from:)),

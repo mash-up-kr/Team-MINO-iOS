@@ -235,6 +235,9 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
                 .shadow(color: isFull ? .clear : sheetShadow.color, radius: sheetShadow.blur / 2,
                         x: sheetShadow.x, y: sheetShadow.y)
         }
+        // TODO(flicker): 이 detent 전환 스프링이 콘텐츠 서브트리까지 암시적으로 애니메이트하는 것으로 의심된다 —
+        //   방 리스트 low→medium 전환 시 헤더 "+" 버튼이 4-5회 깜박임. 별도 로컬에서 진단·수정 예정
+        //   (프레임 관측에 ffmpeg/AXe 필요). 후보: 애니메이션을 높이에 한정 / scroll offset preference churn 안정화.
         .animation(.spring(duration: 0.3), value: detent)
     }
 
