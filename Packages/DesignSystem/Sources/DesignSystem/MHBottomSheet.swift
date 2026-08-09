@@ -210,7 +210,9 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 .environment(\.mhSheetScrollEnabled, detent == .full)   // 스크롤은 full 에서만 (애플 지도 규칙)
         }
-        .frame(height: height)
+        // 상단(그래버) 고정. 기본 center 정렬이면 낮은 높이에서 콘텐츠가 넘칠 때 상하로 클립돼
+        // 그래버가 흰 시트 밖(위)으로 밀린다 — 항상 위를 기준으로 클립한다.
+        .frame(height: height, alignment: .top)
         .clipShape(sheetShape(isFull: isFull))
         .background {
             // 시트 표면(흰 면)은 콘텐츠 레이아웃과 분리해 safe area 로 확장한다 — 하단은 항상,
