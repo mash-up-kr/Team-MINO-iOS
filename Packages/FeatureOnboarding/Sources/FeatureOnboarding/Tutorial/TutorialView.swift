@@ -36,7 +36,9 @@ struct TutorialView: View {
             )
             .disabled(store.state.step != .shareGuide)
 
-            if store.state.step != .shareGuide {
+            // 시트가 떠 있는 동안만 딤을 깐다. `!= .shareGuide` 로 두면 완료 단계에도 남아,
+            // 완료 화면이 페이드인하는 동안 딤 걸린 앞 단계가 비쳐 보인다.
+            if store.state.step == .shareTarget || store.state.step == .systemShareSheet {
                 Color.mhMaterialDimmer
                     .ignoresSafeArea()
                     .transition(.opacity)
