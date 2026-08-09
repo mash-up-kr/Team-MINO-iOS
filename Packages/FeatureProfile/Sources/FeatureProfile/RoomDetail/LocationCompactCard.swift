@@ -4,7 +4,9 @@ import SwiftUI
 /// 리스트형 카드 — `MHLocationCard(layout: .compact)` 래핑. Figma `Card_Location A`.
 struct LocationCompactCard: View {
     let location: RoomDetailLocation
-    let onMore: () -> Void
+    var menuItems: [MHMenuItem] = []
+    var menuPlacement: MHLocationCardMenuPlacement = .below
+    var menuPresented: Binding<Bool>?
 
     var body: some View {
         MHLocationCard(
@@ -13,13 +15,15 @@ struct LocationCompactCard: View {
             commentCount: location.commentCount,
             members: [nil],
             layout: .compact,
-            moreButtonLabel: "\(location.name) 더보기",
-            onMore: onMore
+            menuItems: menuItems,
+            menuPlacement: menuPlacement,
+            menuPresented: menuPresented,
+            moreButtonLabel: "\(location.name) 더보기"
         )
     }
 }
 
 #Preview {
-    LocationCompactCard(location: RoomDetailLocation.samples[0]) {}
+    LocationCompactCard(location: RoomDetailLocation.samples[0])
         .padding(.horizontal, 20)
 }
