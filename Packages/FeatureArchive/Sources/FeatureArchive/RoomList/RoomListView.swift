@@ -238,7 +238,7 @@ extension RoomListItem {
             memo: room.description,
             placeCount: room.pinCount,
             thumbnail: Self.thumbnail(for: room),
-            members: Array(repeating: nil, count: room.users.count)
+            members: Array(repeating: nil, count: min(room.users.count, 5))
         )
     }
 
