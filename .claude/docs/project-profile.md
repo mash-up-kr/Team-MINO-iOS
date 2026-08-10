@@ -15,6 +15,7 @@
 ## 빌드 오라클 명령
 
 - **명령**: `xcodebuild build -project App/App.xcodeproj -scheme App -destination 'generic/platform=iOS Simulator'`
+- App 스킴이 `ShareExtension` 타깃을 의존으로 물고 있어 익스텐션도 함께 빌드된다. 익스텐션만 따로 돌릴 때는 `-scheme ShareExtension`.
 
 ## 테스트 명령
 
@@ -23,7 +24,7 @@
 | 대상 | 명령 |
 |---|---|
 | macOS 선언 패키지 (`MVI`·`FlowCoordination`·`Feature`·`Logging`) | `swift test --package-path Packages/<P>` |
-| iOS 전용 패키지 (`Core`·`Domain`·`Data`·`Networking`·`DesignSystem`·`FeatureOnboarding`·`RoomCreationUI`) | `xcodebuild test -scheme <P> -destination 'platform=iOS Simulator,id=<UDID>'` |
+| iOS 전용 패키지 (`Core`·`Domain`·`Data`·`Networking`·`DesignSystem`·`FeatureOnboarding`·`RoomCreationUI`·`ShareExtensionUI`) | `xcodebuild test -scheme <P> -destination 'platform=iOS Simulator,id=<UDID>'` |
 | 앱 통합 | `xcodebuild test -project App/App.xcodeproj -scheme App -destination 'platform=iOS Simulator,id=<UDID>'` |
 
 - **시뮬레이터 UDID 조회**: `xcrun simctl list devices available` — 이름 단독 지정은 동명 중복 위험이 있어 UDID 를 쓴다.

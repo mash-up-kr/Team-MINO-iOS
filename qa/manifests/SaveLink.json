@@ -1,0 +1,10 @@
+[
+  { "id": "SaveLink.sheet", "kind": "state" },
+  { "id": "SaveLink.linkPreview", "kind": "text" },
+  { "id": "SaveLink.closeButton", "kind": "button" },
+  { "id": "SaveLink.room.1", "kind": "button" },
+  { "id": "SaveLink.room.2", "kind": "button" },
+  { "id": "SaveLink.room.3", "kind": "button" },
+  { "id": "SaveLink.room.4", "kind": "button" },
+  { "id": "SaveLink.completionSnackbar", "kind": "state" }
+]
