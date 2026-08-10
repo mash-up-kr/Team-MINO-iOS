@@ -55,7 +55,9 @@ private struct RoomListLoadedView: View {
                 RoomListContentView(
                     rooms: store.state.rooms.map(RoomListItem.init(from:)),
                     showEmptyState: !store.state.rooms.contains { $0.type == .shared },
-                    filterSelection: filterBinding
+                    isFull: detent == .full,
+                    filterSelection: filterBinding,
+                    onClose: { withAnimation(.spring(duration: 0.3)) { detent = .medium } }
                 )
             }
             .accessibilityIdentifier("RoomList.sheet")
@@ -79,7 +81,9 @@ private struct RoomListLoadedView: View {
 struct RoomListContentView: View {
     let rooms: [RoomListItem]
     let showEmptyState: Bool
+    let isFull: Bool
     @Binding var filterSelection: Int
+    var onClose: (() -> Void)?
 
     private let filterItems = ["전체", "최근 저장 순", "코멘트 순"]
 
@@ -91,7 +95,7 @@ struct RoomListContentView: View {
         }
     }
 
-    // Figma Frame 303: h60, 좌우 padding 20, 세로중앙, justify-between.
+    // Figma: h60, px20. full 상태에서 "×" 닫기 버튼 추가(gap 8, Figma node 2661:156812).
     private var header: some View {
         HStack(spacing: 0) {
             Text("방 리스트")
@@ -99,8 +103,16 @@ struct RoomListContentView: View {
                 .foregroundStyle(.mhLabelStrong)
                 .accessibilityIdentifier("RoomList.title")
             Spacer()
-            MHIconButton(icon: .plus, accessibilityLabel: "방 추가") {}
-                .accessibilityIdentifier("RoomList.addButton")
+            HStack(spacing: 8) {
+                MHIconButton(icon: .plus, accessibilityLabel: "방 추가") {}
+                    .accessibilityIdentifier("RoomList.addButton")
+                if isFull {
+                    MHIconButton(icon: .close, accessibilityLabel: "시트 접기") {
+                        onClose?()
+                    }
+                    .accessibilityIdentifier("RoomList.closeButton")
+                }
+            }
         }
         .padding(.horizontal, 20)
         .frame(height: 60)
@@ -284,7 +296,7 @@ extension [RoomListItem] {
         var body: some View {
             ZStack {
                 Color.mhBackgroundNormalAlternative.ignoresSafeArea()
-                RoomListContentView(rooms: .markupSamples, showEmptyState: false, filterSelection: $filter)
+                RoomListContentView(rooms: .markupSamples, showEmptyState: false, isFull: false, filterSelection: $filter)
             }
         }
     }
@@ -300,6 +312,7 @@ extension [RoomListItem] {
                 RoomListContentView(
                     rooms: [RoomListItem(id: "me", title: "내 장소", placeCount: 0, thumbnail: .myRoom, members: [nil])],
                     showEmptyState: true,
+                    isFull: true,
                     filterSelection: $filter
                 )
             }
