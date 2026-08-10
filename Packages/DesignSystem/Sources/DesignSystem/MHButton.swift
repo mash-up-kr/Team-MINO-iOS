@@ -139,7 +139,7 @@ struct MHButtonSpec {
 
     var foreground: Color {
         switch (variant, color) {
-        case (.solid, .primary):     .mhStaticWhite
+        case (.solid, .primary):     .mhInverseLabel
         case (.solid, .assistive):   .mhLabelNeutral
         case (.outlined, _):         .mhLabelNormal
         case (.outlinedStrong, _):   .mhPrimaryNormal   // 강조 아웃라인 = 검정 텍스트
@@ -262,9 +262,10 @@ private struct MHButtonStyleBody: View {
 
     // Figma 인터랙션 오버레이(Label/Normal): Normal 0 → Hovered 0.08 → Focused 0.12 → Pressed 0.18(각 ×1.5).
     // iOS 는 Pressed 만 쓰므로 0.18 을 적용한다.
-    // 어두운 solid/primary 는 어두운 오버레이가 안 보여, 대비를 위해 밝은 오버레이로 스왑한다(Figma `Interaction/Strong` 노트: 색 교체 허용).
+    // solid/primary 는 배경이 Primary/Normal(라이트=검정, 다크=흰색)이라 오버레이도 반전해야 보인다.
+    // Inverse/Label 은 라이트=밝음/다크=어두움이라 양쪽 모드에서 대비가 유지된다.
     private var pressedOverlayColor: Color {
-        (spec.variant == .solid && spec.color == .primary) ? .mhStaticWhite : .mhLabelNormal
+        (spec.variant == .solid && spec.color == .primary) ? .mhInverseLabel : .mhLabelNormal
     }
 }
 
