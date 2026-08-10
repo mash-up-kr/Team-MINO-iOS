@@ -32,8 +32,9 @@ struct TutorialShareSheet: UIViewControllerRepresentable {
             onFinish(completed)
         }
         // iPad 는 공유시트를 popover 로 띄운다 — popover 는 sourceView·sourceItem·barButtonItem 중
-        // 하나를 앵커로 요구하고, 없으면 뜨는 위치가 정해지지 않는다(예전 iOS 는 예외로 죽었다).
-        // 이 시트를 연 것은 화면 밖의 단계 전이라 가리킬 뷰가 없어, 화살표 없이 화면 중앙에 띄운다.
+        // 하나를 앵커로 요구하고, 없으면 present 하는 순간 NSGenericException 으로 앱이 죽는다.
+        // 이 시트를 연 것은 화면 안의 버튼이 아니라 단계 전이라 가리킬 뷰가 없어,
+        // 화살표를 없애고 화면 중앙을 앵커로 잡는다.
         if let popover = controller.popoverPresentationController {
             popover.sourceView = host.view
             popover.sourceRect = CGRect(x: host.view.bounds.midX, y: host.view.bounds.midY, width: 0, height: 0)
