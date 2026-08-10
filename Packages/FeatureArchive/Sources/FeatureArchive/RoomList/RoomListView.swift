@@ -54,6 +54,7 @@ private struct RoomListLoadedView: View {
             MHBottomSheet(detent: $detent, lowPeek: 112, mediumFraction: 0.5) {
                 RoomListContentView(
                     rooms: store.state.rooms.map(RoomListItem.init(from:)),
+                    showEmptyState: !store.state.rooms.contains { $0.type == .shared },
                     filterSelection: filterBinding
                 )
             }
@@ -77,6 +78,7 @@ private struct RoomListLoadedView: View {
 /// Store 를 모르는 순수 뷰 — 표시 모델(`rooms`)과 필터 선택(`filterSelection`)을 입력으로만 받는다.
 struct RoomListContentView: View {
     let rooms: [RoomListItem]
+    let showEmptyState: Bool
     @Binding var filterSelection: Int
 
     private let filterItems = ["전체", "최근 저장 순", "코멘트 순"]
@@ -130,13 +132,50 @@ struct RoomListContentView: View {
                         thumbnail: room.thumbnail,
                         members: room.members
                     )
-                    // 도메인 안정 ID(room.id) 사용 — 배열 인덱스는 정렬/필터 시 다른 행을 가리키게 되므로 금지.
                     .accessibilityIdentifier("RoomList.card.\(room.id)")
+                }
+                if showEmptyState {
+                    emptyStateView
                 }
             }
             .padding(.horizontal, 20)
         }
         .accessibilityIdentifier("RoomList.cardList")
+    }
+
+    // Figma node 2236:45731 — 공동방이 없을 때 카드 아래에 보이는 빈 상태.
+    // Figma 에선 flex-1 + justify-center 로 남은 영역 중앙 정렬. 스크롤 뷰에서는
+    // GeometryReader 로 남은 높이를 재서 동일하게 수직 중앙을 잡는다.
+    private var emptyStateView: some View {
+        GeometryReader { proxy in
+            let contentHeight: CGFloat = 307   // 일러스트(149) + gap(24) + 텍스트(~70) + gap(24) + 버튼(40)
+            let topPadding = max(0, (proxy.size.height - contentHeight) / 2)
+
+            VStack(spacing: 24) {
+                Image("emptyRoomIllustration", bundle: .module)
+                    .accessibilityHidden(true)
+
+                VStack(spacing: 8) {
+                    Text("공동방을 생성해보세요!")
+                        .mhTypography(.title3Bold)
+                        .foregroundStyle(.mhPrimaryNormal)
+
+                    Text("\"저번에 말한 거기가 어디였지?\"\n더 이상 묻지 마세요.")
+                        .mhTypography(.label1NormalRegular)
+                        .foregroundStyle(.mhLabelAlternative)
+                        .multilineTextAlignment(.center)
+                }
+
+                MHButton("공동방 만들기", size: .medium, leadingIcon: .plus) {
+                    // TODO: 공동방 생성 플로우 연결
+                }
+                .accessibilityIdentifier("RoomList.createRoomButton")
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.top, topPadding)
+        }
+        .frame(height: 444)   // Figma 빈 상태 영역 높이(스크롤 영역 548 − 카드 ~104)
+        .accessibilityIdentifier("RoomList.emptyState")
     }
 }
 
@@ -245,7 +284,24 @@ extension [RoomListItem] {
         var body: some View {
             ZStack {
                 Color.mhBackgroundNormalAlternative.ignoresSafeArea()
-                RoomListContentView(rooms: .markupSamples, filterSelection: $filter)
+                RoomListContentView(rooms: .markupSamples, showEmptyState: false, filterSelection: $filter)
+            }
+        }
+    }
+    return Host()
+}
+
+#Preview("RoomList — Empty") {
+    struct Host: View {
+        @State private var filter = 0
+        var body: some View {
+            ZStack {
+                Color.mhBackgroundNormalAlternative.ignoresSafeArea()
+                RoomListContentView(
+                    rooms: [RoomListItem(id: "me", title: "내 장소", placeCount: 0, thumbnail: .myRoom, members: [nil])],
+                    showEmptyState: true,
+                    filterSelection: $filter
+                )
             }
         }
     }
