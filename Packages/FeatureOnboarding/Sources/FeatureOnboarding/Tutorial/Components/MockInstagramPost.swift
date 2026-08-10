@@ -129,13 +129,19 @@ struct MockInstagramPost<ShareAccessory: View>: View {
     }
 
     // 이 화면의 학습 대상. Figma `Menu/Resource/Action Area/Trailing Content/Icon Button`(36×36).
-    // MHIcon.send 는 외곽선인데 Figma 는 속이 채워진 종이비행기라, 원까지 포함된 벡터를 그대로 쓴다.
-    // SNS 앱을 흉내 내는 목업이라 색도 Figma 값 고정이다(틴트하지 않는다).
+    // 원형 배경은 아이콘 에셋에 굽지 않고 `Circle().fill()` 로 그린다 — DS 에 원형 아이콘 버튼
+    // 컴포넌트가 아직 없어 `MHAvatarStack` 의 + 버튼·`RoomDetailCircleIconButton` 도 같은 방식이다.
+    // 아이콘 20.25pt 는 Figma 벡터 실측값이다(32pt 버튼의 18pt 아이콘이 1.125배로 들어가 있다).
+    // SNS 앱을 흉내 내는 목업이라 색도 Figma 값 고정이다(DS 토큰으로 틴트하지 않는다).
     private var shareButton: some View {
         Button(action: onTapShare) {
-            Image("tutorialIconShare", bundle: .module)
+            Image(MHIcon.sendFill)
                 .resizable()
+                .scaledToFit()
+                .frame(width: 20.25, height: 20.25)
+                .foregroundStyle(.white)
                 .frame(width: 36, height: 36)
+                .background(Circle().fill(.black))
         }
         .accessibilityLabel("공유")
         .accessibilityIdentifier("TutorialShareGuide.shareButton")
