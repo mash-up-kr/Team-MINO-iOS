@@ -6,6 +6,7 @@ import RoomCreationUI
 public enum OnboardingRoute: Hashable {
     case createRoom
     case inviteFriends
+    case tutorial
 }
 
 /// 온보딩 종료 보고. 수집값(이름·컬러 등)은 동반하지 않는다 — plan/pr1/persistent/decisions.md 결정 B
@@ -44,6 +45,12 @@ public final class OnboardingCoordinator: Coordinator {
         return store
     }
 
+    func makeTutorialStore() -> TutorialStore {
+        let store = TutorialStore(TutorialState(), reduce: tutorialReducer())
+        store.observeNavigation { [weak self] in self?.handle($0) }
+        return store
+    }
+
     func makeInviteFriendsStore() -> InviteFriendsStore {
         let store = InviteFriendsStore(InviteFriendsState(), reduce: inviteFriendsReducer())
         store.observeNavigation { [weak self] in self?.handle($0) }
@@ -71,7 +78,16 @@ public final class OnboardingCoordinator: Coordinator {
     func handle(_ nav: InviteFriendsNav) {
         switch nav {
         case .complete:
-            finish(.completed)
+            push(.tutorial)
+        }
+    }
+
+    func handle(_ nav: TutorialNav) {
+        switch nav {
+        case .didSkip:
+            // 건너뛰기 목적지(방 리스트)가 온보딩 밖이라 비워둔다 — 온보딩을 끝내고 나갈
+            // 지점이 정해지면 finish(.completed) 로 이어진다.
+            break
         }
     }
 }

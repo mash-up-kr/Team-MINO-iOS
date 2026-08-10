@@ -22,6 +22,8 @@ public struct ProfileSetupView: View {
                         CreateRoomView(makeStore: coordinator.makeCreateRoomStore)
                     case .inviteFriends:
                         InviteFriendsView(makeStore: coordinator.makeInviteFriendsStore)
+                    case .tutorial:
+                        TutorialView(makeStore: coordinator.makeTutorialStore)
                     }
                 }
         }

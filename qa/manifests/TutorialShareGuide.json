@@ -1,0 +1,5 @@
+[
+  { "id": "TutorialShareGuide.title", "kind": "text" },
+  { "id": "TutorialShareGuide.tooltip", "kind": "text" },
+  { "id": "TutorialShareGuide.shareButton", "kind": "button" }
+]

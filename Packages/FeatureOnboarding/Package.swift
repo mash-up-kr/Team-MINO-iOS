@@ -16,7 +16,8 @@ let package = Package(
     targets: [
         .target(
             name: "FeatureOnboarding",
-            dependencies: ["FlowCoordination", "MVI", "DesignSystem", "RoomCreationUI"]
+            dependencies: ["FlowCoordination", "MVI", "DesignSystem", "RoomCreationUI"],
+            resources: [.process("Resources")]
         ),
         .testTarget(
             name: "FeatureOnboardingTests",

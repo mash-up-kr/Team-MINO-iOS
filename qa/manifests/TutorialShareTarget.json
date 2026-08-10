@@ -1,0 +1,10 @@
+[
+  {
+    "id": "TutorialShareTarget.tooltip",
+    "kind": "text"
+  },
+  {
+    "id": "TutorialShareTarget.shareTarget",
+    "kind": "button"
+  }
+]
