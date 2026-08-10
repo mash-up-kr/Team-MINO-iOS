@@ -14,7 +14,11 @@ let package = Package(
         .package(path: "../Domain"),
     ],
     targets: [
-        .target(name: "FeatureArchive", dependencies: ["FlowCoordination", "DesignSystem", "MVI", "Domain"]),
+        .target(
+            name: "FeatureArchive",
+            dependencies: ["FlowCoordination", "DesignSystem", "MVI", "Domain"],
+            resources: [.process("Resources")]
+        ),
         .testTarget(
             name: "FeatureArchiveTests",
             dependencies: [
