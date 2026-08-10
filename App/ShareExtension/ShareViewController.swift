@@ -69,11 +69,12 @@ final class ShareViewController: UIViewController {
         }
     }
 
-    /// 튜토리얼 전용 센티넬 URL 이면 연습 화면으로 보낸다.
+    /// 튜토리얼 전용 센티넬 URL 인지 가른다. 실제 처리는 호출부의 `case .tutorial` 이 한다.
     ///
-    /// 사용자가 이 주소를 다른 곳에서 공유해도 튜토리얼로 보이는 구멍이 있다. 본앱이 세우는
-    /// "튜토리얼 진행 중" 플래그를 함께 보면 막히는데, 그건 프로세스 간 공유 저장소(App Group)가
-    /// 필요해 미뤘다 — 튜토리얼 연동 PR 에서 함께 정한다.
+    /// 센티넬 URL 하나만 보므로, 사용자가 이 주소를 다른 곳에서 공유해도 튜토리얼로 친다.
+    /// 본앱이 세우는 "튜토리얼 진행 중" 플래그를 함께 보면 막히는데, 그건 프로세스 간
+    /// 공유 저장소(App Group)가 필요해 미뤘다 — 튜토리얼 연동 PR 에서 함께 정한다.
+    /// (그 사이 오인을 줄이려고 센티넬 경로를 실재할 수 없는 값으로 둔다 — `TutorialShare` 참조)
     private func classify(_ url: URL) -> ShareEntry {
         url == TutorialShare.sentinelURL ? .tutorial : .link(url)
     }

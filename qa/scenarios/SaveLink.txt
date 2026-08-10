@@ -19,5 +19,7 @@
 #   6. 호스트 앱(Safari)으로 돌아온다.
 #
 # 되돌아가기: SaveLink.closeButton 또는 딤 영역 탭으로 저장 없이 닫힌다.
-tap --id SaveLink.room.1
-tap --id SaveLink.room.2
+#
+# 실행 스텝이 없는 이유: 익스텐션은 호스트 앱과 별개 프로세스라 AXe 의 describe-ui 에
+#   우리 화면이 잡히지 않는다(익스텐션이 떠 있어도 호스트 앱만 보인다). 매니페스트의
+#   식별자는 XCUITest 를 붙일 때를 위해 남겨두고, 지금 검증은 위 수동 절차로만 한다.
