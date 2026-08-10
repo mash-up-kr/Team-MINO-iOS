@@ -60,6 +60,8 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
     private let mediumFraction: CGFloat
     /// 설정 시 low 높이를 비율 대신 "콘텐츠 pt + 하단 safe-area" 로 계산한다(그래버+헤더만 보이는 peek).
     private let lowPeek: CGFloat?
+    /// 설정 시 medium 높이를 비율 대신 "콘텐츠 pt + 하단 safe-area" 로 계산한다(카드 영역까지 보이는 half).
+    private let mediumPeek: CGFloat?
     private let contentID: ID?
     private let content: (ID?) -> Content
 
@@ -102,6 +104,7 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
         mediumFraction: CGFloat,
         erasedContentID: ID?,
         lowPeek: CGFloat? = nil,
+        mediumPeek: CGFloat? = nil,
         content: @escaping (ID?) -> Content
     ) {
         assert(0 < lowFraction && lowFraction < mediumFraction && mediumFraction < 1,
@@ -110,6 +113,7 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
         self.lowFraction = lowFraction
         self.mediumFraction = mediumFraction
         self.lowPeek = lowPeek
+        self.mediumPeek = mediumPeek
         self.contentID = erasedContentID
         self.content = content
         self._appliedLow = State(initialValue: lowFraction)
@@ -136,17 +140,22 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
 
     public var body: some View {
         GeometryReader { geometry in
-            // lowPeek 지정 시: 시트가 탭바 뒤로 깔리는 만큼(하단 safe-area)을 더해, 지정 pt 만큼이
-            // 탭바 위로 보이도록 비율 환산. medium 미만으로 클램프해 0 < low < medium 을 지킨다.
+            // lowPeek/mediumPeek 지정 시: 시트가 탭바 뒤로 깔리는 만큼(하단 safe-area)을 더해,
+            // 지정 pt 만큼이 탭바 위로 보이도록 비율 환산.
+            let effectiveMedium: CGFloat = {
+                guard let mediumPeek, geometry.size.height > 0 else { return appliedMedium }
+                let target = (mediumPeek + geometry.safeAreaInsets.bottom) / geometry.size.height
+                return max(0.1, min(0.99, target))
+            }()
             let effectiveLow: CGFloat = {
                 guard let lowPeek, geometry.size.height > 0 else { return appliedLow }
                 let target = (lowPeek + geometry.safeAreaInsets.bottom) / geometry.size.height
-                return max(0.05, min(appliedMedium - 0.01, target))
+                return max(0.05, min(effectiveMedium - 0.01, target))
             }()
             let layout = MHBottomSheetLayout(
                 containerHeight: geometry.size.height,
                 lowFraction: effectiveLow,
-                mediumFraction: appliedMedium
+                mediumFraction: effectiveMedium
             )
             let height = layout.clampedHeight(layout.height(of: detent) - dragTranslation)
             let isFull = height >= layout.height(of: .full)
@@ -326,6 +335,19 @@ public extension MHBottomSheet where ID == Never {
     ) {
         self.init(detent: detent, lowFraction: 0.15, mediumFraction: mediumFraction,
                   erasedContentID: nil, lowPeek: lowPeek, content: { _ in content() })
+    }
+
+    /// low·medium 모두 "콘텐츠 pt" 로 지정한다. 각각 하단 safe-area 를 내부에서 더해
+    /// 탭바 위로 지정 pt 만큼 온전히 보인다(기기 무관).
+    init(
+        detent: Binding<MHBottomSheetDetent>,
+        lowPeek: CGFloat,
+        mediumPeek: CGFloat,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
+        self.init(detent: detent, lowFraction: 0.15, mediumFraction: 0.5,
+                  erasedContentID: nil, lowPeek: lowPeek, mediumPeek: mediumPeek,
+                  content: { _ in content() })
     }
 }
 

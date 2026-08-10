@@ -44,14 +44,23 @@ private struct RoomListLoadedView: View {
     let store: RoomListStore
     @State private var detent: MHBottomSheetDetent = .medium
 
+    /// 디자인 정책 003-2: 공동방 1개 → 348pt, 2개 이상 → 380pt (바텀 네비 제외).
+    /// 공동방 0개(빈 상태)는 0.5 비율 유지.
+    private var mediumPeek: CGFloat {
+        let sharedCount = store.state.rooms.filter { $0.type == .shared }.count
+        switch sharedCount {
+        case 0: return 348
+        case 1: return 348
+        default: return 380
+        }
+    }
+
     var body: some View {
         ZStack {
-            // 지도 미도입 — 시트 뒤를 채우는 중립 플레이스홀더 배경.
             Color.mhBackgroundNormalAlternative
                 .ignoresSafeArea()
 
-            // low(peek) 는 그래버(30) + 헤더(60) = 90pt 만 보이게(Figma 003-1-1 peek). 하단 safe-area 는 MHBottomSheet 가 보정.
-            MHBottomSheet(detent: $detent, lowPeek: 112, mediumFraction: 0.5) {
+            MHBottomSheet(detent: $detent, lowPeek: 112, mediumPeek: mediumPeek) {
                 RoomListContentView(
                     rooms: store.state.rooms.map(RoomListItem.init(from:)),
                     showEmptyState: !store.state.rooms.contains { $0.type == .shared },
