@@ -34,7 +34,7 @@ enum MainTab: Int, CaseIterable {
 /// 탭바는 safeAreaInset 으로 붙여 콘텐츠가 기본으로 탭바에 가리지 않는다.
 struct MainTabView: View {
     private let coordinator: AppCoordinator
-    @State private var selectedTabID: Int = MainTab.home.rawValue
+    @State private var selectedTabID: Int = MainTab.save.rawValue
 
     init(coordinator: AppCoordinator) {
         self.coordinator = coordinator

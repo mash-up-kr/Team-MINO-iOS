@@ -44,16 +44,10 @@ private struct RoomListLoadedView: View {
     let store: RoomListStore
     @State private var detent: MHBottomSheetDetent = .medium
 
-    /// 디자인 정책 003-2: 공동방 1개 → 348pt, 2개 이상 → 380pt (바텀 네비 제외).
-    /// 공동방 0개(빈 상태)는 0.5 비율 유지.
-    private var mediumPeek: CGFloat {
-        let sharedCount = store.state.rooms.filter { $0.type == .shared }.count
-        switch sharedCount {
-        case 0: return 348
-        case 1: return 348
-        default: return 380
-        }
-    }
+    /// 디자인 정책(003-2): half 는 공동방 수와 무관하게 헤더+칩+개인방 카드 합산 높이(고정)를 유지한다
+    /// (바텀 네비 제외). 스펙 이상치는 그래버(30)+헤더(60)+칩(50)+카드(104)=244 이지만,
+    /// 실제 그래버 간격 영역이 더 커(~54) 카드가 탭바에 잘려 실측 보정값 268 을 쓴다(lowPeek 112 와 동일 논리).
+    private let mediumPeek: CGFloat = 268
 
     var body: some View {
         ZStack {
