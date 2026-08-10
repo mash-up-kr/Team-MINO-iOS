@@ -69,8 +69,10 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
     /// 취소 감지용 — 시스템이 제스처를 취소하면 onEnded 없이 이 값만 리셋된다
     @GestureState private var isDragging = false
 
-    /// 스크롤 콘텐츠가 맨 위인가. preference 경유라 최대 1 렌더 늦을 수 있음(실질 무해)
-    @State private var scrollIsAtTop = true
+    /// 스크롤 콘텐츠가 맨 위인가. 드래그 제스처 판정에만 쓰이고 렌더링엔 관여하지 않으므로
+    /// `@State` 가 아닌 참조 타입에 저장해 preference 갱신이 body 재평가를 유발하지 않게 한다
+    /// — detent 전환 스프링 중 KVO 가 재평가를 반복 유발하면 콘텐츠(버튼 등)가 깜박인다.
+    @State private var scrollRef = ScrollRef()
 
     /// full 에서 제스처가 맨 위에서 시작했는가 — 시작 시점에만 판정 (중간 시작 드래그는 끝까지 스크롤 전용)
     @State private var dragBeganAtTop: Bool?
@@ -173,8 +175,8 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
                     }
                 }
         }
-        .onPreferenceChange(MHSheetScrollAtTopKey.self) { [$scrollIsAtTop] value in
-            $scrollIsAtTop.wrappedValue = value
+        .onPreferenceChange(MHSheetScrollAtTopKey.self) { value in
+            scrollRef.isAtTop = value
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("MHBottomSheet.sheet")   // QA 자동화(AXe)용 — 시트 존재·상태 검증
@@ -267,8 +269,8 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
                     return
                 }
                 // full: 맨 위에서 "시작한" 제스처만 시트 드래그 (그 외는 리스트 스크롤)
-                if dragBeganAtTop == nil { dragBeganAtTop = scrollIsAtTop }
-                guard dragBeganAtTop == true, scrollIsAtTop else { return }
+                if dragBeganAtTop == nil { dragBeganAtTop = scrollRef.isAtTop }
+                guard dragBeganAtTop == true, scrollRef.isAtTop else { return }
                 dragTranslation = max(0, dy)   // 위 방향(음수)은 full 에 붙임 — 방향이 되돌아와도 연속 추적
             }
             .onEnded { value in
@@ -289,6 +291,15 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
                 }
             }
     }
+}
+
+// MARK: - ScrollRef (뷰 무효화 없는 스크롤 상태)
+
+/// `scrollIsAtTop` 을 `@State` Bool 로 갖고 있으면, preference 갱신마다 body 가 재평가된다.
+/// detent 전환 스프링 중 KVO 가 연속 발화하면 이 재평가가 콘텐츠 깜박임을 유발한다.
+/// 드래그 제스처 판정에만 쓰이므로 참조 타입에 저장해 뷰 무효화를 일으키지 않는다.
+private final class ScrollRef {
+    var isAtTop = true
 }
 
 // MARK: - 전환 연출이 필요 없는 화면용
