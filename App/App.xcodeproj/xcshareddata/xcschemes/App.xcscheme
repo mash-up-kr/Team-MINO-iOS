@@ -38,6 +38,16 @@
                ReferencedContainer = "container:../Packages/FeatureProfile">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "ShareExtensionUITests"
+               BuildableName = "ShareExtensionUITests"
+               BlueprintName = "ShareExtensionUITests"
+               ReferencedContainer = "container:../Packages/ShareExtensionUI">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction
