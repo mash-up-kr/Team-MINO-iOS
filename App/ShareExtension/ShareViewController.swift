@@ -34,8 +34,11 @@ final class ShareViewController: UIViewController {
 
     private func start() async {
         guard let url = await extractURL() else {
-            // URL 이 없으면 우리가 할 수 있는 게 없다. 호스트 앱에 취소로 알린다.
-            cancel(with: .noURL)
+            // 저장할 수 있는 링크가 없으면 우리가 할 수 있는 게 없다 — .tutorial 과 같이 조용히 닫는다.
+            // cancelRequest 를 쓰지 않는 이유: 넘긴 NSError 를 호스트가 자기 얼럿으로 띄울지,
+            // 어떤 문구로 띄울지를 우리가 통제할 수 없다. 사용자에게 보이는 결과는 어차피 둘 다
+            // "시트가 닫힌다" 로 같으므로, 남의 화면에 우리 에러가 새는 쪽을 피한다.
+            close()
             return
         }
 
@@ -122,16 +125,6 @@ final class ShareViewController: UIViewController {
         didFinish = true
         extensionContext?.completeRequest(returningItems: nil)
     }
-
-    private func cancel(with error: ShareExtensionError) {
-        guard !didFinish else { return }
-        didFinish = true
-        extensionContext?.cancelRequest(withError: error)
-    }
-}
-
-private enum ShareExtensionError: Error {
-    case noURL
 }
 
 private extension URL {
