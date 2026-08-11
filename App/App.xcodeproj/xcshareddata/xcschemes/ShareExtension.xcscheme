@@ -20,6 +20,20 @@
                ReferencedContainer = "container:App.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "5E1000000000000000000001"
+               BuildableName = "ShareExtension.appex"
+               BlueprintName = "ShareExtension"
+               ReferencedContainer = "container:App.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction
@@ -28,26 +42,6 @@
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
       shouldUseLaunchSchemeArgsEnv = "YES">
       <Testables>
-         <TestableReference
-            skipped = "NO">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "FeatureProfileTests"
-               BuildableName = "FeatureProfileTests"
-               BlueprintName = "FeatureProfileTests"
-               ReferencedContainer = "container:../Packages/FeatureProfile">
-            </BuildableReference>
-         </TestableReference>
-         <TestableReference
-            skipped = "NO">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "ShareExtensionUITests"
-               BuildableName = "ShareExtensionUITests"
-               BlueprintName = "ShareExtensionUITests"
-               ReferencedContainer = "container:../Packages/ShareExtensionUI">
-            </BuildableReference>
-         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction
@@ -59,14 +53,16 @@
       ignoresPersistentStateOnLaunch = "NO"
       debugDocumentVersioning = "YES"
       debugServiceExtension = "internal"
-      allowLocationSimulation = "YES">
+      allowLocationSimulation = "YES"
+      askForAppToLaunch = "Yes"
+      launchAutomaticallySubstyle = "2">
       <BuildableProductRunnable
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "93E9E330FC2CE7458D9C925F"
-            BuildableName = "Mino-iOS.app"
-            BlueprintName = "App"
+            BlueprintIdentifier = "5E1000000000000000000001"
+            BuildableName = "ShareExtension.appex"
+            BlueprintName = "ShareExtension"
             ReferencedContainer = "container:App.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -81,9 +77,9 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "93E9E330FC2CE7458D9C925F"
-            BuildableName = "Mino-iOS.app"
-            BlueprintName = "App"
+            BlueprintIdentifier = "5E1000000000000000000001"
+            BuildableName = "ShareExtension.appex"
+            BlueprintName = "ShareExtension"
             ReferencedContainer = "container:App.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
