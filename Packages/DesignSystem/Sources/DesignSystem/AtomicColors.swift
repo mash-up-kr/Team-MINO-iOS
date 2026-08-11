@@ -49,6 +49,8 @@ public extension ShapeStyle where Self == Color {
     /// Figma atomic `Violet/50` (#6541F2).
     static var mhViolet50: Color { Color(atomic: "Violet/50") }
 
+    /// Figma atomic `Pink/95` (#FEECFB).
+    static var mhPink95: Color { Color(atomic: "Pink/95") }
     /// Figma atomic `Pink/90` (#FED3F7).
     static var mhPink90: Color { Color(atomic: "Pink/90") }
     /// Figma atomic `Pink/60` (#FA73E3).
