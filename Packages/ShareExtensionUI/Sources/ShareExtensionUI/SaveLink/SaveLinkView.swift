@@ -3,9 +3,15 @@ import DesignSystem
 import SwiftUI
 
 // [Convention] .claude/docs/mvi-coordinator-di.md 5절 — Store 는 .task 에서 1회 lazy 생성
-//
-// Coordinator 대신 `makeStore` 클로저를 받는다: 익스텐션에는 Coordinator 가 없고
-// `ShareViewController` 가 Store 를 만들어 navigation 을 소비한다.
+
+/// 공유받은 링크를 방에 저장하는 바텀시트.
+///
+/// > **공유 화면 시안이 확정되기 전의 임시 마크업이다.** 흐름을 확인하려고 DS 컴포넌트로 조립해
+/// > 뒀을 뿐이라 간격·높이·탭 영역에 디자인 근거가 없다. 시안이 나오면 이 파일을 통째로
+/// > 교체한다 — `SaveLinkStore`(State/Action/reducer)와 테스트는 그대로 간다.
+///
+/// Coordinator 대신 `makeStore` 클로저를 받는다: 익스텐션에는 Coordinator 가 없고
+/// `ShareViewController` 가 Store 를 만들어 navigation 을 소비한다.
 public struct SaveLinkView: View {
     private let makeStore: @MainActor () -> SaveLinkStore
     @State private var store: SaveLinkStore?
@@ -16,7 +22,7 @@ public struct SaveLinkView: View {
 
     public var body: some View {
         ZStack(alignment: .bottom) {
-            // 익스텐션 루트는 투명하다 — 딤과 시트를 직접 그려야 시안의 바텀시트 모양이 나온다.
+            // 익스텐션 루트는 투명하다 — 바텀시트로 보이게 하려면 딤과 시트를 직접 그려야 한다.
             Color.mhMaterialDimmer
                 .ignoresSafeArea()
                 .onTapGesture { store?.send(.tapClose) }
