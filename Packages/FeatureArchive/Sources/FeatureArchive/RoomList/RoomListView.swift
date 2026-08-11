@@ -160,12 +160,11 @@ struct RoomListContentView: View {
     }
 
     // Figma node 2236:45731 — 공동방이 없을 때 카드 아래에 보이는 빈 상태.
-    // Figma 에선 flex-1 + justify-center 로 남은 영역 중앙 정렬. 스크롤 뷰에서는
-    // GeometryReader 로 남은 높이를 재서 동일하게 수직 중앙을 잡는다.
+    // Figma 에선 flex-1 + justify-center 로 남은 영역 중앙 정렬. 위아래 Spacer 로 남은
+    // 영역을 채워 수직 중앙을 잡되, minHeight 만 고정해 문구가 길어지면 잘리지 않고 늘어난다.
     private var emptyStateView: some View {
-        GeometryReader { proxy in
-            let contentHeight: CGFloat = 307   // 일러스트(149) + gap(24) + 텍스트(~70) + gap(24) + 버튼(40)
-            let topPadding = max(0, (proxy.size.height - contentHeight) / 2)
+        VStack(spacing: 0) {
+            Spacer(minLength: 24)
 
             VStack(spacing: 24) {
                 Image("emptyRoomIllustration", bundle: .module)
@@ -187,10 +186,11 @@ struct RoomListContentView: View {
                 }
                 .accessibilityIdentifier("RoomList.createRoomButton")
             }
-            .frame(maxWidth: .infinity)
-            .padding(.top, topPadding)
+
+            Spacer(minLength: 24)
         }
-        .frame(height: 444)   // Figma 빈 상태 영역 높이(스크롤 영역 548 − 카드 ~104)
+        .frame(maxWidth: .infinity)
+        .frame(minHeight: 444)   // Figma 빈 상태 영역 높이(스크롤 영역 548 − 카드 ~104), 내용이 길면 확장
         .accessibilityIdentifier("RoomList.emptyState")
     }
 }
