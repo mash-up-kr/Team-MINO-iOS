@@ -4,6 +4,7 @@ import Foundation
 /// 인프라(NetworkError 등) 오류는 Data 계층에서 이 타입으로 변환된다.
 public enum DomainError: Error, Equatable, Sendable {
     case memberNotFound
+    case roomsFetchFailed
     case unauthorized
     case unknown
 }

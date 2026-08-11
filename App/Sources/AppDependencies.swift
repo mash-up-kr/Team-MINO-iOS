@@ -1,19 +1,25 @@
+import Data
 import Domain
 import Feature
+import FeatureArchive
 
 /// 컴포지션 루트(Composition Root).
 /// 앱 타깃만이 구체 타입을 알고, 의존성 그래프를 손으로 조립한다.
-/// 각 Coordinator 의 deps 프로토콜(`MemberDeps` 등)을 이 한 타입이 준수한다.
-struct AppDependencies: MemberDeps {
+/// 각 Coordinator 의 deps 프로토콜(`MemberDeps`·`ArchiveDeps` 등)을 이 한 타입이 준수한다.
+struct AppDependencies: MemberDeps, ArchiveDeps {
     let fetchMember: FetchMemberUseCase
+    let fetchRooms: FetchRoomsUseCase
 
     init() {
         // 백엔드 미연결 단계 — 시범용 Stub UseCase 를 주입한다.
-        // 실제 API 준비 시 아래 한 줄을 교체한다 (import Networking, Data 추가):
+        // 실제 API 준비 시 아래 한 줄을 교체한다 (import Networking 추가):
         //   let client = URLSessionHTTPClient(baseURL: URL(string: "<real-base-url>")!)
         //   let repository = MemberRepositoryImpl(client: client)
         //   self.fetchMember = DefaultFetchMemberUseCase(repository: repository)
         self.fetchMember = StubFetchMemberUseCase()
+
+        // 방 목록: 실 API 미연결 → Mock Repository(하드코딩 JSON) 사용. 추후 RoomRepositoryImpl 로 교체.
+        self.fetchRooms = DefaultFetchRoomsUseCase(repository: MockRoomRepository())
     }
 }
 

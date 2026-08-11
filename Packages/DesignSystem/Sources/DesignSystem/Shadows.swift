@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 
 /// 그림자 잉크 `#171717`. Figma에서 라이트/다크 동일하게 고정이라 시맨틱 토큰이 아니다.
 private func shadowInk(_ opacity: Double) -> Color {

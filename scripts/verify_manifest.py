@@ -100,6 +100,12 @@ def main():
     else:
         target_paths = sorted(present.keys())
 
+    # 동적(템플릿) id 처리: `Prefix.<placeholder>` 는 방마다 값이 달라지는 런타임 보간 식별자다
+    # (소스: `"Prefix.\(room.id)"`). 리터럴 정확 매칭으론 잡히지 않으므로, `<` 앞 접두사가
+    # 문자열 리터럴 시작(`"Prefix`)으로 소스에 있는지로 검증한다.
+    def placeholder_prefix(ident):
+        return ident[: ident.index("<")] if ("<" in ident and ">" in ident) else None
+
     # ---- 1. 매니페스트 id 가 소스에 반영됐는가 ----
     swift_text = None  # 지연 로딩 (검사 대상 id 가 하나도 없으면 소스를 읽지 않는다)
     for mp in target_paths:
@@ -107,8 +113,16 @@ def main():
         if ids and swift_text is None:
             swift_text = "\n".join(p.read_text(encoding="utf-8", errors="ignore") for p in iter_swift(src_root))
         for ident in ids:
-            if f'"{ident}"' not in (swift_text or ""):
+            prefix = placeholder_prefix(ident)
+            if prefix is not None:
+                # 동적 id: 접두사가 문자열 리터럴 시작으로 존재하면 통과(예: `"RoomList.card.\(...`).
+                if not prefix or f'"{prefix}' not in (swift_text or ""):
+                    add(str(mp), f"동적 식별자 '{ident}' 의 접두사 `\"{prefix}` 가 어떤 .swift 소스에도 존재하지 않음")
+            elif f'"{ident}"' not in (swift_text or ""):
                 add(str(mp), f"식별자 '{ident}' 가 어떤 .swift 소스에도 `\"{ident}\"` 로 존재하지 않음")
+
+    # 동적 id 접두사 집합 — 시나리오가 구체 id(예: RoomList.card.food)를 써도 템플릿 접두사로 인정.
+    templated_prefixes = [p for p in (placeholder_prefix(i) for i in all_ids) if p]
 
     # ---- 2. 시나리오의 --id 가 (어느) 매니페스트에 등록됐는가 ----
     if scenarios_dir.is_dir():
@@ -116,7 +130,8 @@ def main():
             for i, line in enumerate(scenario.read_text(encoding="utf-8").splitlines(), start=1):
                 for m in ID_IN_SCENARIO.finditer(line):
                     selector = m.group(2)
-                    if selector not in all_ids:
+                    registered = selector in all_ids or any(selector.startswith(p) for p in templated_prefixes)
+                    if not registered:
                         add(f"{scenario}:{i}", f"시나리오의 --id '{selector}' 가 어떤 매니페스트에도 없음")
 
     if violations:

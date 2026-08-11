@@ -5,16 +5,18 @@ import FeatureProfile
 import SwiftUI
 
 /// 메인 탭 종류
-enum MainTab: CaseIterable {
-    case home
-    case save
-    case profile
+enum MainTab: Int, CaseIterable {
+    case home = 0
+    case save = 1
+    case notification = 2
+    case profile = 3
 
-    var title: String {
+    var tabBarItem: MHTabBarItem {
         switch self {
-        case .home: "홈"
-        case .save: "저장"
-        case .profile: "마이"
+        case .home: MHTabBarItem(id: rawValue, icon: .homeFill, label: "홈")
+        case .save: MHTabBarItem(id: rawValue, icon: .folderFill, label: "저장")
+        case .notification: MHTabBarItem(id: rawValue, icon: .bellFill, label: "알림")
+        case .profile: MHTabBarItem(id: rawValue, icon: .personCircleFill, label: "마이페이지")
         }
     }
 
@@ -22,21 +24,24 @@ enum MainTab: CaseIterable {
         switch self {
         case .home: "MainTab.tab.home"
         case .save: "MainTab.tab.save"
+        case .notification: "MainTab.tab.notification"
         case .profile: "MainTab.tab.profile"
         }
     }
 }
 
-/// 앱 루트 탭 화면. 홈/저장/마이 탭 콘텐츠와 커스텀 탭바를 담는다.
+/// 앱 루트 탭 화면. 홈/저장/알림/마이페이지 탭 콘텐츠와 MHTabBar 를 담는다.
 /// 탭바는 safeAreaInset 으로 붙여 콘텐츠가 기본으로 탭바에 가리지 않는다.
-/// 탭바 뒤까지 깔려야 하는 화면(지도 등)은 그 화면에서 ignoresSafeArea 로 opt-in 한다.
-/// 탭 아이콘 이미지는 추후 삽입 — 지금은 영역(24pt)만 표시한다.
 struct MainTabView: View {
     private let coordinator: AppCoordinator
-    @State private var selectedTab: MainTab = .home
+    @State private var selectedTabID: Int = MainTab.save.rawValue
 
     init(coordinator: AppCoordinator) {
         self.coordinator = coordinator
+    }
+
+    private var selectedTab: MainTab {
+        MainTab(rawValue: selectedTabID) ?? .home
     }
 
     /// 탭바 없이 화면 바닥까지 깔려야 하는 화면(방 상세 바텀시트 등)이 떠 있는가.
@@ -47,7 +52,12 @@ struct MainTabView: View {
     var body: some View {
         content
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                if !isFullBleedContentPresented { tabBar }
+                if !isFullBleedContentPresented {
+                    MHTabBar(
+                        items: MainTab.allCases.map(\.tabBarItem),
+                        selectedID: $selectedTabID
+                    )
+                }
             }
     }
 
@@ -55,54 +65,22 @@ struct MainTabView: View {
         switch selectedTab {
         case .home: HomeTabView(coordinator: coordinator.home)
         case .save: ArchiveTabView(coordinator: coordinator.archive)
+        case .notification: notificationPlaceholder
         case .profile: ProfileTabView(coordinator: coordinator.profile)
         }
     }
 
-    // MARK: - Tab Bar
-
-    private var tabBar: some View {
-        HStack(spacing: 0) {
-            ForEach(MainTab.allCases, id: \.self) { tab in
-                tabItem(tab)
-            }
+    /// 알림 탭 — 피쳐 모듈 생기기 전까지 빈 화면
+    private var notificationPlaceholder: some View {
+        VStack {
+            Spacer()
+            Text("알림")
+                .mhTypography(.body1NormalMedium)
+                .foregroundStyle(.mhLabelAlternative)
+            Spacer()
         }
-        .padding(.top, 10)   // Figma: Content py 8 + Container pt 2
-        .padding(.bottom, 8)
-        .frame(maxWidth: .infinity)
-        .background {
-            // Figma: Background/Normal/Normal 88% + backdrop blur
-            Color.mhBackgroundNormalNormal.opacity(0.88)
-                .background(.ultraThinMaterial)
-                .ignoresSafeArea(edges: .bottom)
-        }
-        .overlay(alignment: .top) {
-            Rectangle()
-                .fill(.mhLineNormalNeutral)
-                .frame(height: 0.5)
-        }
-    }
-
-    private func tabItem(_ tab: MainTab) -> some View {
-        let isSelected = selectedTab == tab
-        return Button {
-            selectedTab = tab
-        } label: {
-            VStack(spacing: 2) {
-                // 아이콘 자리 — 이미지 추후 삽입
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(isSelected ? .mhPrimaryNormal : .mhInteractionInactive)
-                    .frame(width: 24, height: 24)
-                Text(tab.title)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(isSelected ? .mhPrimaryNormal : .mhInteractionInactive)
-            }
-            .padding(.vertical, 4)
-            .frame(maxWidth: .infinity)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier(tab.accessibilityIdentifier)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.mhBackgroundNormalNormal)
     }
 }
 
