@@ -12,7 +12,7 @@ struct RoomDTOTests {
         type: String = "personal",
         name: String = "내 장소",
         description: String? = nil,
-        color: String = "#FEECFB",
+        color: String = "#FED3F7",
         ownerId: String = "u1",
         inviteCode: String = "CODE1",
         createdAt: String = "2026-08-01T09:00:00Z",
@@ -37,7 +37,7 @@ struct RoomDTOTests {
         #expect(room.type == .personal)
         #expect(room.name == "내 장소")
         #expect(room.description == nil)
-        #expect(room.color == "#FEECFB")
+        #expect(room.color == "#FED3F7")
         #expect(room.ownerId == "u1")
         #expect(room.inviteCode == "CODE1")
         #expect(room.pinCount == 0)

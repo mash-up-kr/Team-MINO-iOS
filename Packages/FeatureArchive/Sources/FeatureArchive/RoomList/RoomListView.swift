@@ -251,18 +251,11 @@ extension RoomListItem {
         case .personal:
             return .myRoom
         case .shared:
-            // TODO: 디자인의 hex↔색 매핑이 확정되면 `room.color` 를 사용한다.
-            //       지금은 id 안정 해시로 12색 중 하나를 결정론적으로 고른다.
-            let colors = MHRoomThumbnailColor.allCases
-            let index = abs(stableHash(room.id)) % colors.count
-            return .color(colors[index])
+            // 백엔드 `room.color`(방 생성 시 고른 색)를 hue 로 팔레트 12색에 매핑.
+            // 색을 못 뽑으면(무채색·형식오류) my-room 썸네일로 폴백.
+            return MHRoomThumbnailColor(roomColorHex: room.color).map { .color($0) } ?? .myRoom
         }
     }
-}
-
-/// 실행마다 값이 달라지는 `String.hashValue` 대신 결정론적 해시(테스트·렌더 안정).
-private func stableHash(_ string: String) -> Int {
-    string.unicodeScalars.reduce(0) { ($0 &* 31) &+ Int($1.value) }
 }
 
 // MARK: - 마크업 프리뷰 샘플

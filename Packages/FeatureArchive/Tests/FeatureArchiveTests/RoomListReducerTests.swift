@@ -6,12 +6,12 @@ import MVITestSupport
 
 private let fixtureRooms: [Room] = [
     Room(
-        id: "r1", type: .personal, name: "내 장소", description: nil, color: "#FEECFB",
+        id: "r1", type: .personal, name: "내 장소", description: nil, color: "#00BDDE",
         ownerId: "u1", inviteCode: "C1", createdAt: Date(timeIntervalSince1970: 0),
         pinCount: 0, memberCount: 1, users: []
     ),
     Room(
-        id: "r2", type: .shared, name: "우리 동네 맛집", description: "메모", color: "#FEF4E6",
+        id: "r2", type: .shared, name: "우리 동네 맛집", description: "메모", color: "#FFC06E",
         ownerId: "u1", inviteCode: "C2", createdAt: Date(timeIntervalSince1970: 0),
         pinCount: 3, memberCount: 2, users: []
     ),
