@@ -20,6 +20,11 @@ final class ShareViewController: UIViewController {
         case tutorial
     }
 
+    /// 종료를 한 번만 보낸다. `.dismiss` 를 만드는 경로가 둘(완료 후 자동 닫힘·사용자 닫기)이고,
+    /// navigation 은 AsyncStream 이라 둘 사이에 동기 배리어가 없다 — 시트가 걷히는 동안 닫기를
+    /// 한 번 더 누르면 completeRequest 가 두 번 불린다(Apple 이 정의하지 않은 동작).
+    private var didFinish = false
+
     override func viewDidLoad() {
         super.viewDidLoad()
         // 딤과 시트를 직접 그린다 — 루트가 불투명하면 뒤 화면이 가려져 바텀시트로 보이지 않는다.
@@ -30,7 +35,7 @@ final class ShareViewController: UIViewController {
     private func start() async {
         guard let url = await extractURL() else {
             // URL 이 없으면 우리가 할 수 있는 게 없다. 호스트 앱에 취소로 알린다.
-            extensionContext?.cancelRequest(withError: ShareExtensionError.noURL)
+            cancel(with: .noURL)
             return
         }
 
@@ -54,7 +59,9 @@ final class ShareViewController: UIViewController {
             .flatMap { $0.attachments ?? [] }
 
         for provider in providers where provider.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
-            if let url = await loadURL(from: provider) { return url }
+            // public.file-url 이 public.url 에 conform 해서 위 검사만으로는 파일 URL 도 통과한다.
+            // 웹 링크와 파일을 함께 첨부하는 앱에서 파일 쪽이 먼저 오면 file:/// 경로를 저장하게 된다.
+            if let url = await loadURL(from: provider), url.isWebLink { return url }
         }
         return nil
     }
@@ -111,10 +118,26 @@ final class ShareViewController: UIViewController {
     }
 
     private func close() {
+        guard !didFinish else { return }
+        didFinish = true
         extensionContext?.completeRequest(returningItems: nil)
+    }
+
+    private func cancel(with error: ShareExtensionError) {
+        guard !didFinish else { return }
+        didFinish = true
+        extensionContext?.cancelRequest(withError: error)
     }
 }
 
 private enum ShareExtensionError: Error {
     case noURL
+}
+
+private extension URL {
+    /// 우리가 저장할 수 있는 링크인지. activation rule 이 웹 URL 만 받으므로 같은 기준을 코드에서도 지킨다.
+    var isWebLink: Bool {
+        guard let scheme = scheme?.lowercased() else { return false }
+        return scheme == "http" || scheme == "https"
+    }
 }
