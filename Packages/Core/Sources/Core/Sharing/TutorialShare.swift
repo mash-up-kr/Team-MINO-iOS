@@ -15,8 +15,8 @@ public enum TutorialShare {
     ///
     /// - 실제로 존재할 수 없는 경로를 쓴다. 사용자가 우연히 이 페이지를 열어 공유하면
     ///   저장 화면 대신 아무 일도 안 일어난 것처럼 닫히기 때문이다
-    ///   (`kkuk.app` 은 응답하는 도메인이라 `/tutorial` 같은 평범한 경로는 위험하다).
+    ///   (`gguk.app` 은 응답하는 도메인이라 `/tutorial` 같은 평범한 경로는 위험하다).
     /// - `https` 여야 한다. 익스텐션의 activation rule 이
     ///   `NSExtensionActivationSupportsWebURLWithMaxCount` 라 커스텀 스킴은 공유시트에 뜨지 않는다.
-    public static let sentinelURL = URL(string: "https://kkuk.app/__tutorial-practice__")!
+    public static let sentinelURL = URL(string: "https://gguk.app/__tutorial-practice__")!
 }
