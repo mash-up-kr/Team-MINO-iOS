@@ -24,6 +24,7 @@ public struct DeeplinkParser: Sendable {
 
         switch scheme {
         case "https":
+            // 경로는 RFC 상 대소문자를 구분해 그대로 넘긴다 — host 를 첫 세그먼트로 쓰는 아래 분기와 갈리는 지점이다.
             guard components.host?.lowercased() == configuration.host else { return nil }
             return pathSegments
         case configuration.scheme:

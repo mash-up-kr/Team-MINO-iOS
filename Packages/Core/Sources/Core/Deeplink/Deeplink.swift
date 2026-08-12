@@ -3,7 +3,6 @@ import Foundation
 /// 앱이 외부에서 열릴 수 있는 목적지의 전부.
 /// 진입 경로(웹 링크·custom scheme·푸시)가 달라도 목적지 표현은 이 타입 하나로 모은다.
 public enum Deeplink: Equatable, Sendable {
-    /// 공동방 초대 — 초대 코드로 방에 참여한다.
     case invite(code: String)
 }
 
@@ -23,15 +22,15 @@ extension Deeplink {
     init?(segments: [String]) {
         switch segments.first {
         case Self.inviteSegment:
-            guard segments.count == 2, Self.isValidCode(segments[1]) else { return nil }
+            guard segments.count == 2, Self.isValidSegment(segments[1]) else { return nil }
             self = .invite(code: segments[1])
         default:
             return nil
         }
     }
 
-    /// 경로 구분자(`/`)가 섞이면 세그먼트가 쪼개져 왕복이 깨지므로 양쪽에서 함께 막는다.
-    static func isValidCode(_ code: String) -> Bool {
-        code.nilIfEmpty != nil && !code.contains { $0.isWhitespace || $0 == "/" }
+    /// 공백·경로 구분자(`/`)가 섞이면 세그먼트가 쪼개지거나 인코딩이 갈려 왕복이 깨지므로 양쪽에서 함께 막는다.
+    static func isValidSegment(_ segment: String) -> Bool {
+        !segment.isEmpty && !segment.contains { $0.isWhitespace || $0 == "/" }
     }
 }
