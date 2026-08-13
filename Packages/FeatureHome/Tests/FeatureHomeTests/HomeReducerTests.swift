@@ -67,6 +67,26 @@ struct HomeReducerTests {
         // → exhaustive=false 로 pending 무시, pins 로드는 pinsLoaded 테스트에서 별도 검증
     }
 
+    @Test("L2 — load 는 개인방을 먼저, 그다음 공동방 순서로 반영한다(데이터 순서 무관)")
+    func load_ordersPersonalFirst() async {
+        let personal = Room(
+            id: "0", type: .personal, name: "내 장소", description: nil,
+            color: "#00BDDE", ownerId: "owner-1", inviteCode: "MYROOM",
+            createdAt: fixtureDate, pinCount: 0, memberCount: 1, users: []
+        )
+        // 데이터는 공동방이 먼저, 개인방이 뒤에 오도록 준다 → 리듀서가 개인방을 맨 앞으로 재정렬해야 한다.
+        let store = makeStore(StubFetchRooms(result: .success(fixtureRooms + [personal])))
+        store.exhaustive = false   // .loaded 가 트리거하는 .pinsLoaded(mock)는 무시
+        await store.send(.load) {
+            $0.isLoading = true
+            $0.errorMessage = nil
+        }
+        await store.receive(.loaded(fixtureRooms + [personal])) {
+            $0.rooms = [personal] + fixtureRooms   // 개인방 맨 앞, 공동방은 준 순서 유지
+            $0.isLoading = false
+        }
+    }
+
     @Test("L2 — load 실패 시 errorMessage 를 채우고 로딩을 끈다")
     func load_failure() async {
         let store = makeStore(StubFetchRooms(result: .failure(.unknown)))
@@ -267,5 +287,71 @@ struct HomeReducerTests {
         #expect(store.currentState.pins.dropFirst(3).allSatisfy { $0.roomID == "2" })
         #expect(store.currentState.currentRoom?.id == "2")
         store.finish()
+    }
+
+    // MARK: - 방 선택 바텀 시트
+
+    @Test("L1 — tapRoomBadge 는 방 선택 시트를 연다")
+    func tapRoomBadge_presents() async {
+        let store = makeStore(state: HomeState(rooms: fixtureRooms))
+        await store.send(.tapRoomBadge) { $0.isRoomListPresented = true }
+        store.finish()
+    }
+
+    @Test("L1 — dismissRoomList 는 시트를 닫는다")
+    func dismissRoomList_dismisses() async {
+        let store = makeStore(state: HomeState(rooms: fixtureRooms, isRoomListPresented: true))
+        await store.send(.dismissRoomList) { $0.isRoomListPresented = false }
+        store.finish()
+    }
+
+    @Test("L2 — selectRoom 은 해당 방 첫 카드로 전환하고 시트를 닫으며 변경 툴팁을 세운다")
+    func selectRoom_switchesAndToasts() async {
+        // 방1(index 0,1,2) + 방2(3,4), 현재 방1의 두 번째 카드
+        let store = makeStore(
+            state: HomeState(rooms: fixtureRooms, pins: multiRoomPins(), currentCardIndex: 1, isRoomListPresented: true)
+        )
+        await store.send(.selectRoom("2")) {
+            $0.currentCardIndex = 3                 // 방2 구간 시작
+            $0.isRoomListPresented = false
+            $0.changedRoomToast = "데이트 코스"       // 툴팁은 뷰에서 "…방이에요" 를 붙인다
+        }
+        store.finish()
+    }
+
+    @Test("L1 — dismissRoomToast 는 같은 방 툴팁을 숨긴다")
+    func dismissRoomToast_hides() async {
+        let store = makeStore(state: HomeState(rooms: fixtureRooms, changedRoomToast: "민방"))
+        await store.send(.dismissRoomToast("민방")) { $0.changedRoomToast = nil }
+        store.finish()
+    }
+
+    @Test("L1 — dismissRoomToast 는 다른 방으로 바뀌었으면 툴팁을 지우지 않는다")
+    func dismissRoomToast_ignoresStaleName() async {
+        // 방을 바꿔 툴팁이 "데이트 코스"인데, 이전 방("민방") 타이머의 dismiss 가 뒤늦게 도착한 상황
+        let store = makeStore(state: HomeState(rooms: fixtureRooms, changedRoomToast: "데이트 코스"))
+        await store.send(.dismissRoomToast("민방"))   // 상태 변화 없음 — 새 방 툴팁 유지
+        store.finish()
+    }
+
+    @Test("L1 — tapCreateRoom 은 시트를 닫고 goToCreateRoom 으로 navigate 한다")
+    func tapCreateRoom_dismissesAndNavigates() async {
+        let store = makeStore(state: HomeState(rooms: fixtureRooms, isRoomListPresented: true))
+        await store.send(.tapCreateRoom) { $0.isRoomListPresented = false }
+        store.receiveNavigation(.goToCreateRoom)
+        store.finish()
+    }
+
+    // MARK: - 방 이름 표기
+
+    @Test("공동방은 표기 이름에 '방'을 붙이고, 개인방(내 장소)은 붙이지 않는다")
+    func homeDisplayName_suffixByType() {
+        let personal = Room(
+            id: "0", type: .personal, name: "내 장소", description: nil,
+            color: "#00BDDE", ownerId: "owner-1", inviteCode: "MYROOM",
+            createdAt: fixtureDate, pinCount: 0, memberCount: 1, users: []
+        )
+        #expect(fixtureRooms[0].homeDisplayName == "맛집 탐방방")   // 공동방
+        #expect(personal.homeDisplayName == "내 장소")             // 개인방 — 접미사 없음
     }
 }

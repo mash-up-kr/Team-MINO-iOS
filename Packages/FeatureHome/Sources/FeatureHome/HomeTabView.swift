@@ -1,5 +1,6 @@
 import DesignSystem
 import FlowCoordination
+import RoomCreationUI
 import SwiftUI
 
 /// 홈 탭 진입 View. NavigationStack 을 Coordinator 에 바인딩한다.
@@ -18,10 +19,19 @@ public struct HomeTabView: View {
 
     public var body: some View {
         @Bindable var coordinator = coordinator
-        let showMore = store.map(shouldShowMoreButton) ?? false
+        let showMore = (store.map(shouldShowMoreButton) ?? false) && coordinator.path.isEmpty
         ZStack(alignment: .bottom) {
             NavigationStack(path: $coordinator.path) {
                 content
+                    .navigationDestination(for: HomeRoute.self) { route in
+                        switch route {
+                        case .createRoom:
+                            // 방 리스트 시트에서 진입 → 건너뛰기 없음(showsSkip: false)
+                            // CreateRoomView 가 내비바를 숨겨 엣지 백스와이프가 꺼지므로 되살린다.
+                            CreateRoomView(makeStore: coordinator.makeCreateRoomStore, showsSkip: false)
+                                .enablesBackSwipe()
+                        }
+                    }
             }
             // 애니메이션은 버튼 서브트리에만 건다 — ZStack 전체에 걸면 버튼이 뜨는 순간
             // 같은 트랜잭션에서 바뀐 카드 덱 레이아웃까지 재애니메이션돼 덱이 흔들린다.
@@ -43,7 +53,7 @@ public struct HomeTabView: View {
     /// 현재 방에 2개 이하 남았을 때 뜨는 플로팅 CTA. 탭바 위(safe area)에 뜨도록 스택 바깥에 배치.
     @ViewBuilder
     private var moreButton: some View {
-        if let store, shouldShowMoreButton(store) {
+        if let store, coordinator.path.isEmpty, shouldShowMoreButton(store) {
             MHButton(
                 "이 방 장소 더 보기",
                 variant: .solid,

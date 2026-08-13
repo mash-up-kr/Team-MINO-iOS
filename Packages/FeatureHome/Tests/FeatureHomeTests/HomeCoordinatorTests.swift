@@ -1,4 +1,5 @@
 import Domain
+import RoomCreationUI
 import Testing
 @testable import FeatureHome
 
@@ -17,10 +18,18 @@ struct HomeCoordinatorTests {
         #expect(HomeCoordinator(deps: StubDeps()).path.isEmpty)
     }
 
-    @Test("goToCreateRoom 은 아직 no-op — path 가 변하지 않는다")
-    func handleCreateRoom_noop() {
+    @Test("goToCreateRoom 은 방 만들기 화면을 push 한다")
+    func handleGoToCreateRoom_pushes() {
         let coordinator = HomeCoordinator(deps: StubDeps())
         coordinator.handle(.goToCreateRoom)
+        #expect(coordinator.path == [.createRoom])
+    }
+
+    @Test("방 만들기에서 didCreateRoom 은 홈으로 pop 한다")
+    func handleCreateRoomNav_popsHome() {
+        let coordinator = HomeCoordinator(deps: StubDeps())
+        coordinator.handle(.goToCreateRoom)
+        coordinator.handle(CreateRoomNav.didCreateRoom)
         #expect(coordinator.path.isEmpty)
     }
 }

@@ -15,6 +15,10 @@ public struct HomeState: Equatable {
     public var currentCardIndex: Int
     /// 방별 "더 보기" 재생성 배치 번호(roomID → 배치). mock 이 매번 새 식별자를 찍어 이전 카드와 겹치지 않게 한다.
     public var pinBatches: [String: Int]
+    /// 방 선택 바텀 시트 표시 여부 (뱃지·캐릭터 탭으로 열림).
+    public var isRoomListPresented: Bool
+    /// 방 변경 직후 뜨는 툴팁에 표시할 방 이름 (nil = 숨김). 5초 후 자동으로 nil 이 된다.
+    public var changedRoomToast: String?
 
     public init(
         rooms: [Room] = [],
@@ -23,7 +27,9 @@ public struct HomeState: Equatable {
         selectedFilter: Int = 0,
         pins: [Pin] = [],
         currentCardIndex: Int = 0,
-        pinBatches: [String: Int] = [:]
+        pinBatches: [String: Int] = [:],
+        isRoomListPresented: Bool = false,
+        changedRoomToast: String? = nil
     ) {
         self.rooms = rooms
         self.isLoading = isLoading
@@ -32,6 +38,8 @@ public struct HomeState: Equatable {
         self.pins = pins
         self.currentCardIndex = currentCardIndex
         self.pinBatches = pinBatches
+        self.isRoomListPresented = isRoomListPresented
+        self.changedRoomToast = changedRoomToast
     }
 
     /// 방이 하나도 없으면 빈상태 A (로딩 중에도 로고 유지)
@@ -67,6 +75,15 @@ public enum HomeAction: Equatable {
     case tapMore(PinID)
     /// 카드 덱 하단 "이 방 장소 더 보기" 버튼 탭 (동작 미정 — 팀 논의 후 결정)
     case tapMorePlaces
+    /// 방 뱃지·캐릭터 탭 → 방 선택 바텀 시트 열기
+    case tapRoomBadge
+    /// 방 선택 바텀 시트 닫기 (스와이프 dismiss 포함)
+    case dismissRoomList
+    /// 바텀 시트에서 방 선택 → 해당 방으로 즉시 전환
+    case selectRoom(String)
+    /// 방 변경 툴팁 숨기기 (선택 5초 후 자동 발생). 연관값은 이 타이머가 세운 방 이름 —
+    /// 5초가 도는 사이 다른 방으로 바꾸면 이전 타이머가 새 방 툴팁을 지우지 않도록 방어한다.
+    case dismissRoomToast(String)
 }
 
 public enum HomeNav: Equatable, Sendable {
@@ -74,6 +91,13 @@ public enum HomeNav: Equatable, Sendable {
 }
 
 public typealias HomeStore = Store<HomeState, HomeAction, HomeNav>
+
+// MARK: - 방 이름 표기
+
+extension Room {
+    /// 홈 표기용 이름 — 공동방은 "…방", 개인방("내 장소")은 이름 그대로. (Figma: 방 리스트·뱃지)
+    var homeDisplayName: String { type == .shared ? "\(name)방" : name }
+}
 
 /// 순수 reduce. UseCase 는 Effect.run 안에서만 사용한다.
 public func homeReducer(
@@ -97,10 +121,14 @@ public func homeReducer(
             }
 
         case .loaded(let rooms):
-            state.rooms = rooms
+            // 홈은 개인방(personal, "내 장소")을 먼저, 그다음 공동방(shared)을 보여준다 — 데이터 순서와
+            // 무관하게 항상 이 순서. 공동방 내부 순서는 서버가 준 순서를 그대로 유지(클라 정렬 없음).
+            // 뱃지·카드덱·방리스트가 모두 이 order 를 따른다(방리스트에서 개인방이 "방 만들기" 우측 고정).
+            let ordered = rooms.filter { $0.type == .personal } + rooms.filter { $0.type == .shared }
+            state.rooms = ordered
             state.isLoading = false
             return .run { send in
-                let pins = makeMockPins(for: rooms)
+                let pins = makeMockPins(for: ordered)
                 send(.pinsLoaded(pins))
             }
 
@@ -114,6 +142,7 @@ public func homeReducer(
             return .none
 
         case .tapCreateRoom:
+            state.isRoomListPresented = false
             return .navigate(.goToCreateRoom)
 
         case .pinsLoaded(let pins):
@@ -151,6 +180,32 @@ public func homeReducer(
             let end = state.pins[start...].firstIndex(where: { $0.roomID != room.id }) ?? state.pins.count
             state.pins.replaceSubrange(start..<end, with: regenerated)
             state.currentCardIndex = start
+            return .none
+
+        case .tapRoomBadge:
+            state.isRoomListPresented = true
+            return .none
+
+        case .dismissRoomList:
+            state.isRoomListPresented = false
+            return .none
+
+        case .selectRoom(let roomID):
+            // 정책: 방 클릭 시 해당 방으로 바로 적용 + 시트 닫기 + 변경 툴팁.
+            // 툴팁의 5초 표시 시간은 뷰(페이드 애니메이션과 함께)가 관리하고, 여기서는 상태만 세운다.
+            state.isRoomListPresented = false
+            if let start = state.pins.firstIndex(where: { $0.roomID == roomID }) {
+                state.currentCardIndex = start
+            }
+            state.changedRoomToast = state.rooms.first { $0.id == roomID }?.name
+            return .none
+
+        case .dismissRoomToast(let name):
+            // 이 타이머가 세운 그 방 툴팁일 때만 숨긴다. 5초가 도는 사이 방을 바꾸면
+            // 이전 타이머의 dismiss 가 뒤늦게 도착해 새 방 툴팁을 지우는 걸 막는다.
+            if state.changedRoomToast == name {
+                state.changedRoomToast = nil
+            }
             return .none
         }
     }

@@ -44,18 +44,31 @@ struct MainTabView: View {
         MainTab(rawValue: selectedTabID) ?? .home
     }
 
-    /// 탭바 없이 화면 바닥까지 깔려야 하는 화면(방 상세 바텀시트 등)이 떠 있는가.
+    /// 탭바 없이 화면 바닥까지 깔려야 하는 화면(방 상세 바텀시트 · 공동방 만들기 등)이 떠 있는가.
     private var isFullBleedContentPresented: Bool {
         coordinator.profile.isRoomDetailPresented
+            || coordinator.home.isFullBleedContentPresented
     }
 
     var body: some View {
         content
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 if !isFullBleedContentPresented {
+                    // 방 리스트 시트가 뜨면 탭바를 자리에 둔 채 페이드아웃(제거하지 않음 → reflow·깜빡임 없음).
+                    // 탭바가 투명해지면 그 뒤에 깔린 홈 콘텐츠 딤(ignoresSafeArea)이 비쳐 탭바 자리도 딤 처리된다.
                     MHTabBar(
                         items: MainTab.allCases.map(\.tabBarItem),
                         selectedID: $selectedTabID
+                    )
+                    .opacity(coordinator.home.isRoomListPresented ? 0 : 1)
+                    .allowsHitTesting(!coordinator.home.isRoomListPresented)
+                    // 딤은 시트가 뜨는 순간 빠르게 걸리고(0.1), 닫힐 땐 기존 속도로 풀린다(0.3).
+                    // 닫힘까지 빠르게 하면 탭바가 시트보다 먼저 복귀해 깜빡일 수 있어 켜지는 쪽만 앞당긴다.
+                    .animation(
+                        coordinator.home.isRoomListPresented
+                            ? .easeOut(duration: 0.1)
+                            : .easeInOut(duration: 0.3),
+                        value: coordinator.home.isRoomListPresented
                     )
                 }
             }
