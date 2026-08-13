@@ -28,9 +28,8 @@ enum TutorialAction: Equatable {
     case tapShareTarget
     /// 공유대상 시트를 내림(딤 탭 또는 아래로 드래그).
     case dismissShareTarget
-    /// 시스템 공유시트가 닫힘. `completed` 는 **우리 익스텐션(꾹)을 골랐는지**다 —
-    /// 다른 앱을 고르거나 시트를 닫으면 false 로 온다(`TutorialShareSheet.isOurShareExtension`).
-    case shareSheetFinished(completed: Bool)
+    /// 시스템 공유시트가 닫힘.
+    case shareSheetFinished(didChooseOurApp: Bool)
     case tapSkip
     /// 완료 화면을 보여준 시간이 지났다 — 자동 전환 타이머가 되돌린다.
     case completeTimerElapsed
@@ -68,8 +67,8 @@ func tutorialReducer(
             guard state.step == .shareTarget else { return .none }
             state.step = .shareGuide
             return .none
-        case .shareSheetFinished(let completed):
-            return reduceShareSheetFinished(completed, to: &state, autoAdvanceDelay: autoAdvanceDelay)
+        case .shareSheetFinished(let didChooseOurApp):
+            return reduceShareSheetFinished(didChooseOurApp, to: &state, autoAdvanceDelay: autoAdvanceDelay)
         // 완료 단계에서 걸린 타이머만 유효하다 — 단계 순서가 바뀌어 엉뚱한 시점에 도착하면 무시한다.
         case .completeTimerElapsed:
             guard state.step == .complete else { return .none }
@@ -83,14 +82,14 @@ func tutorialReducer(
 
 /// 시스템 공유시트 결과를 단계에 반영하고, 완주면 자동 전환 타이머를 건다.
 private func reduceShareSheetFinished(
-    _ completed: Bool,
+    _ didChooseOurApp: Bool,
     to state: inout TutorialState,
     autoAdvanceDelay: Duration
 ) -> Effect<TutorialAction, TutorialNav> {
     guard state.step == .systemShareSheet else { return .none }
-    // 꾹을 고르지 않았으면(다른 앱·취소) 공유대상 시트로 되돌린다 — 시스템 공유시트는 우리가
-    // 다시 띄울 수단이 없어, 앞 단계로 보내야 사용자가 다시 시도할 수 있다.
-    guard completed else {
+    // 꾹을 고르지 않았으면 공유대상 시트로 되돌린다 — 시스템 공유시트는 우리가 다시 띄울
+    // 수단이 없어, 앞 단계로 보내야 사용자가 다시 시도할 수 있다.
+    guard didChooseOurApp else {
         state.step = .shareTarget
         return .none
     }

@@ -16,9 +16,8 @@ import UIKit
 /// 콘텐츠 양에 맞는 높이로 뜬다(`sheetPresentationController.detents` 지정은 무시된다).
 struct TutorialShareSheet: UIViewControllerRepresentable {
     let isPresented: Bool
-    /// 시트가 닫힐 때. `completed` 는 사용자가 **우리 익스텐션(꾹)을 골랐는지**다 —
-    /// 다른 앱을 골랐거나 시트를 그냥 닫으면 false 다(`isOurShareExtension` 참조).
-    let onFinish: (_ completed: Bool) -> Void
+    /// 시트가 닫힐 때.
+    let onFinish: (_ didChooseOurApp: Bool) -> Void
 
     /// 사용자가 **우리 익스텐션**을 골랐는지. `completed` 만 보면 안 된다 —
     /// Copy·메시지·미리 알림 무엇을 골라도 성공하면 true 라, "꾹을 찾아 눌러보게 한다"는
@@ -46,6 +45,7 @@ struct TutorialShareSheet: UIViewControllerRepresentable {
             applicationActivities: nil
         )
         controller.completionWithItemsHandler = { activityType, completed, _, _ in
+            // 시스템의 completed(액티비티가 성공했는가)와 우리 기준이 갈리는 지점.
             onFinish(completed && Self.isOurShareExtension(activityType))
         }
         // iPad 는 공유시트를 popover 로 띄운다 — popover 는 sourceView·sourceItem·barButtonItem 중

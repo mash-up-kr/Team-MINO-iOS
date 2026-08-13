@@ -40,7 +40,7 @@ struct TutorialReducerTests {
         await store.send(.tapShareTarget) {
             $0.step = .systemShareSheet
         }
-        await store.send(.shareSheetFinished(completed: true)) {
+        await store.send(.shareSheetFinished(didChooseOurApp: true)) {
             $0.step = .complete
         }
         await store.receive(.completeTimerElapsed)
@@ -93,7 +93,7 @@ struct TutorialReducerTests {
         await store.send(.tapShareTarget) {
             $0.step = .systemShareSheet
         }
-        await store.send(.shareSheetFinished(completed: false)) {
+        await store.send(.shareSheetFinished(didChooseOurApp: false)) {
             $0.step = .shareTarget
         }
 
@@ -111,11 +111,11 @@ struct TutorialReducerTests {
         await store.send(.tapShareTarget) {
             $0.step = .systemShareSheet
         }
-        await store.send(.shareSheetFinished(completed: true)) {
+        await store.send(.shareSheetFinished(didChooseOurApp: true)) {
             $0.step = .complete
         }
         // 두 번째 결과는 가드에 걸려 단계를 다시 바꾸지 않는다
-        await store.send(.shareSheetFinished(completed: true))
+        await store.send(.shareSheetFinished(didChooseOurApp: true))
 
         #expect(store.currentState.step == .complete)
         // 타이머는 한 번만 걸렸다 — 두 번 걸렸다면 finish 가 미처리 effect 로 잡는다
@@ -141,12 +141,12 @@ struct TutorialReducerTests {
     func shareSheetFinished_beforeLastStep_doesNotComplete() async {
         let store = TestStore(TutorialState(), reduce: tutorialReducer())
 
-        await store.send(.shareSheetFinished(completed: true))
+        await store.send(.shareSheetFinished(didChooseOurApp: true))
 
         await store.send(.tapShare) {
             $0.step = .shareTarget
         }
-        await store.send(.shareSheetFinished(completed: true))
+        await store.send(.shareSheetFinished(didChooseOurApp: true))
 
         #expect(store.currentState.step == .shareTarget)
         store.finish()
