@@ -25,7 +25,8 @@ enum TutorialAction: Equatable {
     case tapShareTarget
     /// 공유대상 시트를 내림(딤 탭 또는 아래로 드래그).
     case dismissShareTarget
-    /// 시스템 공유시트가 닫힘. `completed` 는 공유 대상을 골랐는지(취소가 아닌지)다.
+    /// 시스템 공유시트가 닫힘. `completed` 는 **우리 익스텐션(꾹)을 골랐는지**다 —
+    /// 다른 앱을 고르거나 시트를 닫으면 false 로 온다(`TutorialShareSheet.isOurShareExtension`).
     case shareSheetFinished(completed: Bool)
     case tapSkip
     /// 완료 화면을 보여준 시간이 지났다 — 자동 전환 타이머가 되돌린다.
@@ -87,8 +88,8 @@ private func applyShareSheetResult(
     autoAdvanceDelay: Duration
 ) -> Effect<TutorialAction, TutorialNav> {
     guard state.step == .systemShareSheet else { return .none }
-    // 취소하면 공유대상 시트로 되돌린다 — 시스템 공유시트는 우리가 다시 띄울 수단이 없어,
-    // 앞 단계로 보내야 사용자가 다시 시도할 수 있다.
+    // 꾹을 고르지 않았으면(다른 앱·취소) 공유대상 시트로 되돌린다 — 시스템 공유시트는 우리가
+    // 다시 띄울 수단이 없어, 앞 단계로 보내야 사용자가 다시 시도할 수 있다.
     guard completed else {
         state.step = .shareTarget
         return .none
