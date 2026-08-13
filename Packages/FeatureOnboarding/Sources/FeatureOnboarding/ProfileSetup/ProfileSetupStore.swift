@@ -30,8 +30,10 @@ enum ProfileSetupAction: Equatable {
     case tapSave
 }
 
+/// 목적지가 아니라 일어난 일로 이름 붙인다 — 저장 뒤 어디로 갈지는 진입 경로마다 다르다
+/// (일반 온보딩은 공동방 생성으로, 초대로 들어왔으면 튜토리얼로 간다).
 enum ProfileSetupNav: Equatable, Sendable {
-    case goToCreateRoom
+    case didSave
 }
 
 typealias ProfileSetupStore = Store<ProfileSetupState, ProfileSetupAction, ProfileSetupNav>
@@ -51,7 +53,7 @@ func profileSetupReducer() -> (inout ProfileSetupState, ProfileSetupAction) -> E
         case .tapSave:
             // 뷰의 .disabled 는 UI 레이어 방어라 뷰가 바뀌면 뚫린다 — 전환 조건은 여기서도 지킨다.
             guard state.isSaveEnabled else { return .none }
-            return .navigate(.goToCreateRoom)
+            return .navigate(.didSave)
         }
     }
 }

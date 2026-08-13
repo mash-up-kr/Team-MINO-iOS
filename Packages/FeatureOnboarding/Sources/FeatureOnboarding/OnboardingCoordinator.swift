@@ -10,8 +10,13 @@ public enum OnboardingRoute: Hashable {
 }
 
 /// 온보딩 종료 보고. 수집값(이름·컬러 등)은 동반하지 않는다 — plan/pr1/persistent/decisions.md 결정 B
+///
+/// 초대 코드만 예외로 동반한다 — 부모가 어느 방을 열지 이 값 없이는 알 수 없다.
+/// 두 case 로 나눠 부모가 초대 착지를 빠뜨리면 switch 누락으로 잡히게 한다
+/// (`completed(inviteCode: String?)` 로 두면 옵셔널을 조용히 무시해도 컴파일이 통과한다).
 public enum OnboardingResult: Equatable, Sendable {
     case completed
+    case completedWithInvite(code: String)
 }
 
 /// 온보딩 flow 1회당 **새 인스턴스**를 만들어 쓴다.
@@ -27,7 +32,15 @@ public final class OnboardingCoordinator: Coordinator {
     public var cover: Never? = nil
     public let finish = FlowFinish<OnboardingResult>()
 
-    public init() {}
+    /// 초대 링크로 들어왔다면 그 방의 초대 코드.
+    ///
+    /// 링크 문법 검증은 시스템 경계(`Core.DeeplinkParser`)가 이미 했으므로 여기서 다시 보지 않는다.
+    /// 1회 실행분 입력이라 생성자에 둔다 — 대기 중인 딥링크를 온보딩이 훔쳐보는 API 는 필요 없다.
+    private let inviteCode: String?
+
+    public init(inviteCode: String? = nil) {
+        self.inviteCode = inviteCode
+    }
 
     // Store 를 캐시하지 않는다 — NavigationStack 기본 동작을 그대로 따르기 위해서다.
     // pop 되면 그 화면의 뷰와 @State Store 가 함께 버려지고, 다시 push 하면 빈 상태로 시작한다.
@@ -59,8 +72,10 @@ public final class OnboardingCoordinator: Coordinator {
 
     func handle(_ nav: ProfileSetupNav) {
         switch nav {
-        case .goToCreateRoom:
-            push(.createRoom)
+        case .didSave:
+            // 초대로 들어왔으면 공동방 생성·친구초대를 건너뛰고 곧장 튜토리얼로 간다 —
+            // 이미 초대받은 방이 있어 방을 만들고 친구를 부르는 두 스텝이 무의미하다.
+            push(inviteCode == nil ? .createRoom : .tutorial)
         }
     }
 
@@ -85,9 +100,13 @@ public final class OnboardingCoordinator: Coordinator {
     func handle(_ nav: TutorialNav) {
         switch nav {
         // 건너뛰기와 완주의 목적지가 같다 — 둘 다 온보딩을 끝내고 나간다.
-        // 어디로 보낼지는 결과를 받는 부모가 정한다.
+        // 어디로 보낼지(방 리스트 vs 초대받은 방)는 결과를 받는 부모가 정한다.
         case .didSkip, .didFinish:
-            finish(.completed)
+            if let inviteCode {
+                finish(.completedWithInvite(code: inviteCode))
+            } else {
+                finish(.completed)
+            }
         }
     }
 }

@@ -4,6 +4,9 @@ import Testing
 
 @MainActor
 struct OnboardingCoordinatorTests {
+    /// 초대 링크로 들어온 경우를 만드는 코드값. 값 자체는 의미 없고 유무만 경로를 바꾼다.
+    private static let inviteCode = "AB12"
+
     @Test("생성 직후 path 는 비어 있다")
     func path_isEmpty_initially() {
         let coord = OnboardingCoordinator()
@@ -11,20 +14,29 @@ struct OnboardingCoordinatorTests {
         #expect(coord.path.isEmpty)
     }
 
-    @Test("goToCreateRoom nav → path 에 createRoom 이 push 된다")
+    @Test("didSave nav → path 에 createRoom 이 push 된다")
     func navigate_pushes_createRoom() {
         let coord = OnboardingCoordinator()
 
-        coord.handle(ProfileSetupNav.goToCreateRoom)
+        coord.handle(ProfileSetupNav.didSave)
 
         #expect(coord.path == [.createRoom])
+    }
+
+    @Test("초대로 들어왔으면 didSave nav 가 공동방 생성·친구초대를 건너뛰고 튜토리얼로 간다")
+    func navigate_withInvite_skipsRoomCreation() {
+        let coord = OnboardingCoordinator(inviteCode: Self.inviteCode)
+
+        coord.handle(ProfileSetupNav.didSave)
+
+        #expect(coord.path == [.tutorial])
     }
 
     @Test("didCreateRoom nav → path 에 createRoom, inviteFriends 가 순서대로 push 된다")
     func navigate_pushes_inviteFriends() {
         let coord = OnboardingCoordinator()
 
-        coord.handle(ProfileSetupNav.goToCreateRoom)
+        coord.handle(ProfileSetupNav.didSave)
         coord.handle(CreateRoomNav.didCreateRoom)
 
         #expect(coord.path == [.createRoom, .inviteFriends])
@@ -39,8 +51,32 @@ struct OnboardingCoordinatorTests {
         #expect(coord.path == [.tutorial])
     }
 
-    @Test("didSkip nav → 온보딩을 끝낸다 — 건너뛰기도 완주와 목적지가 같다")
-    func didSkip_finishesOnboarding() {
+    // MARK: - 온보딩 종료
+
+    @Test("didFinish nav → 온보딩을 완주로 끝낸다")
+    func didFinish_finishesAsCompleted() {
+        let coord = OnboardingCoordinator()
+        var captured: OnboardingResult?
+        coord.finish.bind { captured = $0 }
+
+        coord.handle(TutorialNav.didFinish)
+
+        #expect(captured == .completed)
+    }
+
+    @Test("초대로 들어왔으면 완주 결과에 초대 코드가 실린다 — 부모가 그 방을 열 수 있게")
+    func didFinish_withInvite_carriesCode() {
+        let coord = OnboardingCoordinator(inviteCode: Self.inviteCode)
+        var captured: OnboardingResult?
+        coord.finish.bind { captured = $0 }
+
+        coord.handle(TutorialNav.didFinish)
+
+        #expect(captured == .completedWithInvite(code: Self.inviteCode))
+    }
+
+    @Test("didSkip nav → 완주와 같은 결과로 온보딩을 끝낸다 — 건너뛰기도 목적지가 같다")
+    func didSkip_finishesLikeCompletion() {
         let coord = OnboardingCoordinator()
         var captured: OnboardingResult?
         coord.finish.bind { captured = $0 }
@@ -50,16 +86,18 @@ struct OnboardingCoordinatorTests {
         #expect(captured == .completed)
     }
 
-    @Test("didFinish nav → 완주로 온보딩을 끝낸다")
-    func didFinish_finishesOnboarding() {
-        let coord = OnboardingCoordinator()
+    @Test("초대로 들어와 튜토리얼을 건너뛰어도 초대 코드가 실린다")
+    func didSkip_withInvite_carriesCode() {
+        let coord = OnboardingCoordinator(inviteCode: Self.inviteCode)
         var captured: OnboardingResult?
         coord.finish.bind { captured = $0 }
 
-        coord.handle(TutorialNav.didFinish)
+        coord.handle(TutorialNav.didSkip)
 
-        #expect(captured == .completed)
+        #expect(captured == .completedWithInvite(code: Self.inviteCode))
     }
+
+    // MARK: - 전체 경로
 
     @Test("배선 — 전체 경로: 프로필 저장 → 방 생성 → 친구초대 건너뛰기 → 튜토리얼 → 완료")
     func fullPath_isWiredInOrder() {
@@ -67,7 +105,7 @@ struct OnboardingCoordinatorTests {
         var captured: OnboardingResult?
         coord.finish.bind { captured = $0 }
 
-        coord.handle(ProfileSetupNav.goToCreateRoom)
+        coord.handle(ProfileSetupNav.didSave)
         coord.handle(CreateRoomNav.didCreateRoom)
         coord.handle(InviteFriendsNav.complete)
 
@@ -76,6 +114,19 @@ struct OnboardingCoordinatorTests {
 
         coord.handle(TutorialNav.didFinish)
         #expect(captured == .completed)
+    }
+
+    @Test("배선 — 초대 경로: 프로필 저장 → 튜토리얼 → 초대받은 방으로 종료")
+    func invitePath_skipsTwoStepsAndCarriesCode() {
+        let coord = OnboardingCoordinator(inviteCode: Self.inviteCode)
+        var captured: OnboardingResult?
+        coord.finish.bind { captured = $0 }
+
+        coord.handle(ProfileSetupNav.didSave)
+        #expect(coord.path == [.tutorial])
+
+        coord.handle(TutorialNav.didFinish)
+        #expect(captured == .completedWithInvite(code: Self.inviteCode))
     }
 
     // NavigationStack 기본 동작 — pop 된 화면은 다시 push 될 때 빈 상태로 시작한다.
@@ -91,7 +142,7 @@ struct OnboardingCoordinatorTests {
         #expect(coord.makeTutorialStore() !== coord.makeTutorialStore())
     }
 
-    // 아래 3건은 make*Store 안의 observeNavigation 배선을 production Store 로 지난다.
+    // 아래 4건은 make*Store 안의 observeNavigation 배선을 production Store 로 지난다.
     // handle 직접 호출 테스트는 이 배선이 끊겨도 통과하므로 별도로 둔다.
     // 폴링 대기는 StoreTests 선례를 따른다(회귀 시 hang 없이 유한 종료).
 
@@ -107,6 +158,20 @@ struct OnboardingCoordinatorTests {
             await Task.yield()
         }
         #expect(coord.path == [.createRoom])
+    }
+
+    @Test("배선 — 초대로 들어왔을 때 ProfileSetup Store 의 tapSave 가 튜토리얼로 보낸다")
+    func profileSetupStore_withInvite_isWiredToTutorial() async {
+        let coord = OnboardingCoordinator(inviteCode: Self.inviteCode)
+
+        let store = coord.makeProfileSetupStore()
+        store.send(.nameChanged("민호"))
+        store.send(.tapSave)
+
+        for _ in 0..<1000 where coord.path.isEmpty {
+            await Task.yield()
+        }
+        #expect(coord.path == [.tutorial])
     }
 
     @Test("배선 — CreateRoom Store 의 tapCreate 가 path 에 반영된다")

@@ -107,8 +107,8 @@ struct ProfileSetupReducerTests {
         store.finish()
     }
 
-    @Test("L2 — 저장 가능한 이름이면 tapSave 가 goToCreateRoom 으로 navigate 한다")
-    func tapSave_whenSaveEnabled_navigatesToCreateRoom() async {
+    @Test("L2 — 저장 가능한 이름이면 tapSave 가 didSave 를 알린다")
+    func tapSave_whenSaveEnabled_notifiesDidSave() async {
         let store = TestStore(ProfileSetupState(), reduce: profileSetupReducer())
 
         await store.send(.nameChanged("민호")) {
@@ -116,7 +116,7 @@ struct ProfileSetupReducerTests {
         }
 
         await store.send(.tapSave)
-        store.receiveNavigation(.goToCreateRoom)
+        store.receiveNavigation(.didSave)
 
         store.finish()
     }
