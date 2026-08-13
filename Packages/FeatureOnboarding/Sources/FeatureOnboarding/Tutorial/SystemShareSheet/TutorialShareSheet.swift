@@ -16,7 +16,8 @@ import UIKit
 /// 콘텐츠 양에 맞는 높이로 뜬다(`sheetPresentationController.detents` 지정은 무시된다).
 struct TutorialShareSheet: UIViewControllerRepresentable {
     let isPresented: Bool
-    /// 시트가 닫힐 때. `completed` 는 사용자가 공유 대상을 골랐는지(취소가 아닌지)다.
+    /// 시트가 닫힐 때. `completed` 는 사용자가 **우리 익스텐션(꾹)을 골랐는지**다 —
+    /// 다른 앱을 골랐거나 시트를 그냥 닫으면 false 다(`isOurShareExtension` 참조).
     let onFinish: (_ completed: Bool) -> Void
 
     /// 사용자가 **우리 익스텐션**을 골랐는지. `completed` 만 보면 안 된다 —
@@ -26,6 +27,9 @@ struct TutorialShareSheet: UIViewControllerRepresentable {
     /// 익스텐션의 activityType 은 그 번들 ID 이고, 익스텐션 번들 ID 는 앱 번들 ID 를 접두사로 갖는다
     /// (`com.mashup.teamMino` / `com.mashup.teamMino.ShareExtension`). 문자열을 박지 않고
     /// 앱 번들 ID 에서 유도해 번들 ID 가 바뀌어도 따라가게 한다.
+    ///
+    /// 두 타깃의 번들 ID 를 따로 바꿔 이 접두사 관계가 깨지면 꾹을 골라도 false 가 되어
+    /// 튜토리얼을 완주할 수 없게 된다(건너뛰기만 남는다) — 번들 ID 를 손볼 때 함께 확인한다.
     private static func isOurShareExtension(_ activityType: UIActivity.ActivityType?) -> Bool {
         // appID 가 없으면(있을 수 없지만) 빈 문자열 접두사로 전부 통과하는 구멍이 생기므로 guard 로 막는다.
         guard let appID = Bundle.main.bundleIdentifier, let activityType else { return false }
