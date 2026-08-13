@@ -1,3 +1,4 @@
+import Core
 import LinkPresentation
 import SwiftUI
 import UIKit
@@ -48,18 +49,20 @@ struct TutorialShareSheet: UIViewControllerRepresentable {
 ///
 /// `UIActivityItemSource` 를 쓰지 않고 문자열만 넘기면 헤더에 그 문자열이 그대로 노출된다.
 private final class TutorialShareItem: NSObject, UIActivityItemSource {
-    // 실제로 공유될 값. 고른 앱으로 전달되지만 튜토리얼에서는 쓰이지 않는다.
-    private let placeholder = "꾹"
+    /// 실제로 공유될 값. **문자열이 아니라 웹 URL 이어야 한다** — 우리 익스텐션의 activation rule 이
+    /// `NSExtensionActivationSupportsWebURLWithMaxCount` 라, 문자열을 넘기면 시트에서 "꾹" 이 걸러진다.
+    /// 이 센티넬을 받은 익스텐션은 저장 화면을 띄우지 않고 조용히 닫는다(`ShareViewController.classify`).
+    private let sharedURL = TutorialShare.sentinelURL
 
     func activityViewControllerPlaceholderItem(_ controller: UIActivityViewController) -> Any {
-        placeholder
+        sharedURL
     }
 
     func activityViewController(
         _ controller: UIActivityViewController,
         itemForActivityType activityType: UIActivity.ActivityType?
     ) -> Any? {
-        placeholder
+        sharedURL
     }
 
     func activityViewControllerLinkMetadata(_ controller: UIActivityViewController) -> LPLinkMetadata? {

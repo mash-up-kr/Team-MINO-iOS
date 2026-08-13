@@ -12,11 +12,12 @@ let package = Package(
         .package(path: "../MVI"),
         .package(path: "../DesignSystem"),
         .package(path: "../RoomCreationUI"),
+        .package(path: "../Core"),
     ],
     targets: [
         .target(
             name: "FeatureOnboarding",
-            dependencies: ["FlowCoordination", "MVI", "DesignSystem", "RoomCreationUI"],
+            dependencies: ["FlowCoordination", "MVI", "DesignSystem", "RoomCreationUI", "Core"],
             resources: [.process("Resources")]
         ),
         .testTarget(
