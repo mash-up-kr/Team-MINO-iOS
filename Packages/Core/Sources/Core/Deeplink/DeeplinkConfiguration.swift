@@ -5,7 +5,7 @@ import Foundation
 public struct DeeplinkConfiguration: Equatable, Sendable {
     /// 인앱 브라우저가 웹으로 열어버렸을 때 앱으로 되돌리는 custom scheme (예: `gguk`).
     public let scheme: String
-    /// Universal Link 호스트 (예: `gguk.app`).
+    /// Universal Link 호스트 (예: `gguk.org`).
     ///
     /// > 정확히 이 호스트만 받는다. AASA 에 `www` 나 서브도메인을 함께 거는지 아직 정해지지 않았는데,
     /// > 걸어놓고 여기 없으면 OS 는 앱을 열어주고 파서는 nil 을 내 **앱이 뜬 채 아무 일도 안 일어난다**

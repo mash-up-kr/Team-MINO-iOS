@@ -11,7 +11,7 @@ public enum Deeplink: Equatable, Sendable {
 /// 읽기(파서)와 쓰기(빌더)가 같은 문법을 쓰도록 양방향을 한곳에 둔다.
 /// 나뉘어 있으면 "우리가 만든 링크를 우리 앱이 못 읽는" 상태가 조용히 생긴다.
 extension Deeplink {
-    static let inviteSegment = "invite"
+    static let inviteSegment = "r"
 
     var segments: [String] {
         switch self {
