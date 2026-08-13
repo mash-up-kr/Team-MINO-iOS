@@ -39,20 +39,33 @@ struct OnboardingCoordinatorTests {
         #expect(coord.path == [.tutorial])
     }
 
-    // 온보딩을 끝내고 나갈 지점(방 리스트)이 아직 없어 didSkip 은 아무 데도 보내지 않는다.
-    // finish 발사 경로가 생기면 이 테스트가 그 자리를 알려준다.
-    @Test("didSkip nav → 아직 목적지가 없어 path 가 변하지 않는다")
-    func didSkip_doesNotRoute() {
+    @Test("didSkip nav → 온보딩을 끝낸다 — 건너뛰기도 완주와 목적지가 같다")
+    func didSkip_finishesOnboarding() {
         let coord = OnboardingCoordinator()
+        var captured: OnboardingResult?
+        coord.finish.bind { captured = $0 }
 
         coord.handle(TutorialNav.didSkip)
 
-        #expect(coord.path.isEmpty)
+        #expect(captured == .completed)
+    }
+
+    @Test("didFinish nav → 완주로 온보딩을 끝낸다")
+    func didFinish_finishesOnboarding() {
+        let coord = OnboardingCoordinator()
+        var captured: OnboardingResult?
+        coord.finish.bind { captured = $0 }
+
+        coord.handle(TutorialNav.didFinish)
+
+        #expect(captured == .completed)
     }
 
     @Test("배선 — 전체 경로: 프로필 저장 → 방 생성 → 친구초대 건너뛰기 → 튜토리얼 → 완료")
     func fullPath_isWiredInOrder() {
         let coord = OnboardingCoordinator()
+        var captured: OnboardingResult?
+        coord.finish.bind { captured = $0 }
 
         coord.handle(ProfileSetupNav.goToCreateRoom)
         coord.handle(CreateRoomNav.didCreateRoom)
@@ -60,6 +73,9 @@ struct OnboardingCoordinatorTests {
 
         // 튜토리얼 완료 화면은 라우트가 아니라 튜토리얼 화면 안의 단계다.
         #expect(coord.path == [.createRoom, .inviteFriends, .tutorial])
+
+        coord.handle(TutorialNav.didFinish)
+        #expect(captured == .completed)
     }
 
     // NavigationStack 기본 동작 — pop 된 화면은 다시 push 될 때 빈 상태로 시작한다.
@@ -120,7 +136,20 @@ struct OnboardingCoordinatorTests {
         #expect(coord.path == [.tutorial])
     }
 
-    // NOTE(커버리지 공백): 튜토리얼에서 나가는 유일한 nav 인 didSkip 이 아직 목적지가 없어
-    // (`handle` 이 비어 있음) `makeTutorialStore` 의 observeNavigation 배선을 path 로 검증할
-    // 방법이 없다. 자동 전환 타이머와 함께 didFinish 가 들어오는 PR 에서 배선 테스트도 되살린다.
+    // 완주(didFinish)가 아니라 건너뛰기로 배선을 지난다 — 완주 경로는 자동 전환 타이머를 기다려야 해서
+    // 배선 검증에는 값이 없다(타이머 자체는 TutorialReducerTests 가 지연 0 으로 본다).
+    @Test("배선 — Tutorial Store 의 건너뛰기가 finish 로 이어진다")
+    func tutorialStore_isWiredToFinish() async {
+        let coord = OnboardingCoordinator()
+        var captured: OnboardingResult?
+        coord.finish.bind { captured = $0 }
+
+        let store = coord.makeTutorialStore()
+        store.send(.tapSkip)
+
+        for _ in 0..<1000 where captured == nil {
+            await Task.yield()
+        }
+        #expect(captured == .completed)
+    }
 }

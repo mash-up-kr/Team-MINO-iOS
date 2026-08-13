@@ -84,10 +84,10 @@ public final class OnboardingCoordinator: Coordinator {
 
     func handle(_ nav: TutorialNav) {
         switch nav {
-        case .didSkip:
-            // 건너뛰기 목적지(방 리스트)가 온보딩 밖이라 비워둔다 — 온보딩을 끝내고 나갈
-            // 지점이 정해지면 finish(.completed) 로 이어진다.
-            break
+        // 건너뛰기와 완주의 목적지가 같다 — 둘 다 온보딩을 끝내고 나간다.
+        // 어디로 보낼지는 결과를 받는 부모가 정한다.
+        case .didSkip, .didFinish:
+            finish(.completed)
         }
     }
 }
