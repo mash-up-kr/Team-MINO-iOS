@@ -42,6 +42,16 @@ struct OnboardingCoordinatorTests {
         #expect(coord.path == [.createRoom, .inviteFriends])
     }
 
+    @Test("didSkip nav → 친구초대까지 건너뛰고 튜토리얼로 push 한다 — 만든 방이 없어 초대할 것도 없다")
+    func createRoomDidSkip_pushesTutorial() {
+        let coord = OnboardingCoordinator()
+
+        coord.handle(ProfileSetupNav.didSave)
+        coord.handle(CreateRoomNav.didSkip)
+
+        #expect(coord.path == [.createRoom, .tutorial])
+    }
+
     @Test("complete nav → 튜토리얼로 push 한다 — 친구초대 건너뛰기의 목적지")
     func complete_pushesTutorial() {
         let coord = OnboardingCoordinator()
@@ -186,6 +196,19 @@ struct OnboardingCoordinatorTests {
             await Task.yield()
         }
         #expect(coord.path == [.inviteFriends])
+    }
+
+    @Test("배선 — CreateRoom Store 의 건너뛰기가 path 에 반영된다")
+    func createRoomStore_skip_isWiredToPath() async {
+        let coord = OnboardingCoordinator()
+
+        let store = coord.makeCreateRoomStore()
+        store.send(.tapSkip)   // 건너뛰기는 이름 입력 없이도 통과한다
+
+        for _ in 0..<1000 where coord.path.isEmpty {
+            await Task.yield()
+        }
+        #expect(coord.path == [.tutorial])
     }
 
     @Test("배선 — InviteFriends Store 의 건너뛰기가 path 에 반영된다")

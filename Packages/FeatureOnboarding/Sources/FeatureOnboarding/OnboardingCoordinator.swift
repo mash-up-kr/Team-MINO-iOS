@@ -83,10 +83,9 @@ public final class OnboardingCoordinator: Coordinator {
         switch nav {
         case .didCreateRoom:
             push(.inviteFriends)
+        // 방을 만들지 않았으면 초대할 방도 없어 친구초대까지 함께 건너뛴다.
         case .didSkip:
-            // 건너뛰기 목적지가 기획에 없어 비워둔다 — 추측으로 넘기지 않는다.
-            // (Figma Flow 2 는 "생성 안 하면 다음 접속에 유도"라 건너뛴 사실을 남겨야 하는데 저장할 곳이 없다)
-            break
+            push(.tutorial)
         }
     }
 
