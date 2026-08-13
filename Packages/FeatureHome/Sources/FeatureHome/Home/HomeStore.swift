@@ -1,5 +1,4 @@
 import Domain
-import Foundation
 import MVI
 
 /// 홈 진입 화면 상태.
@@ -13,8 +12,8 @@ public struct HomeState: Equatable {
     public var pins: [Pin]
     /// 현재 맨 앞 카드 인덱스
     public var currentCardIndex: Int
-    /// 방별 "더 보기" 재생성 배치 번호(roomID → 배치). mock 이 매번 새 식별자를 찍어 이전 카드와 겹치지 않게 한다.
-    public var pinBatches: [String: Int]
+    /// 방별 "더 보기" 페이지 커서(roomID → page). 더 보기마다 +1 해 UseCase 에 넘긴다(다음 페이지 조회).
+    public var roomPages: [String: Int]
     /// 방 선택 바텀 시트 표시 여부 (뱃지·캐릭터 탭으로 열림).
     public var isRoomListPresented: Bool
     /// 방 변경 직후 뜨는 툴팁에 표시할 방 이름 (nil = 숨김). 5초 후 자동으로 nil 이 된다.
@@ -30,7 +29,7 @@ public struct HomeState: Equatable {
         selectedFilter: Int = 0,
         pins: [Pin] = [],
         currentCardIndex: Int = 0,
-        pinBatches: [String: Int] = [:],
+        roomPages: [String: Int] = [:],
         isRoomListPresented: Bool = false,
         changedRoomToast: String? = nil,
         selectedRoomID: String? = nil
@@ -41,7 +40,7 @@ public struct HomeState: Equatable {
         self.selectedFilter = selectedFilter
         self.pins = pins
         self.currentCardIndex = currentCardIndex
-        self.pinBatches = pinBatches
+        self.roomPages = roomPages
         self.isRoomListPresented = isRoomListPresented
         self.changedRoomToast = changedRoomToast
         self.selectedRoomID = selectedRoomID
@@ -87,6 +86,8 @@ public enum HomeAction: Equatable {
     case selectFilter(Int)
     case tapCreateRoom
     case pinsLoaded([Pin])
+    /// "이 방 장소 더 보기" 결과 — 해당 방 구간을 이 핀들로 교체한다.
+    case morePlacesLoaded(roomID: String, pins: [Pin])
     case swipeForward
     case swipeBackward
     case tapCard(PinID)
@@ -116,16 +117,17 @@ extension Room {
     var homeDisplayName: String { type == .shared ? "\(name)방" : name }
 }
 
-/// 순수 reduce. UseCase 는 Effect.run 안에서만 사용한다.
+/// 순수 reduce. UseCase(fetchRooms·fetchPins)는 Effect.run 안에서만 사용한다.
 public func homeReducer(
-    fetchRooms: FetchRoomsUseCase
+    fetchRooms: FetchRoomsUseCase,
+    fetchPins: FetchPinsUseCase
 ) -> (inout HomeState, HomeAction) -> Effect<HomeAction, HomeNav> {
     { state, action in
         switch action {
         case .load:
             state.isLoading = true
             state.errorMessage = nil
-            state.pinBatches = [:]
+            state.roomPages = [:]
             return .run { send in
                 do {
                     let rooms = try await fetchRooms.execute()
@@ -146,16 +148,26 @@ public func homeReducer(
             // isLoading 은 여기서 끄지 않는다 — 핀까지 로드돼야 표시할 카드 유무가 정해지므로,
             // pinsLoaded 에서 끈다. (여기서 끄면 핀 도착 전 빈 상태+CTA 가 한 프레임 깜빡인다)
             return .run { send in
-                let pins = makeMockPins(for: ordered)
-                send(.pinsLoaded(pins))
+                do {
+                    send(.pinsLoaded(try await fetchPins.execute(rooms: ordered)))
+                } catch let error as DomainError {
+                    send(.loadFailed(error))
+                } catch {
+                    send(.loadFailed(.unknown))
+                }
             }
 
         case .loadFailed(let error):
             state.isLoading = false
+            // TODO: 에러 UI 미구현 — errorMessage 는 로컬 DomainError 케이스명("unknown" 등)이라 사용자 노출 불가이고,
+            //   현재 화면(로딩/빈상태/덱 분기)은 이 값을 읽지 않아 실패 시 빈 화면이 된다. 에러 표시 정책(재시도 등)
+            //   확정 시 사용자향 메시지로 교체하고 contentBody 에 실패 분기를 추가한다.
             state.errorMessage = "\(error)"
             return .none
 
         case .selectFilter(let index):
+            // TODO: 필터 로직 미정 — 클라 정렬(pins 재정렬) vs 서버 재조회 중 결정 후 구현.
+            //   지금은 선택 인덱스(UI 상태)만 들고, showsEmptyState/정렬 판정은 여기에 안 엮여 있다.
             state.selectedFilter = index
             return .none
 
@@ -167,6 +179,19 @@ public func homeReducer(
             state.pins = pins
             state.currentCardIndex = 0
             state.isLoading = false   // 핀까지 도착 → 이제 카드 유무가 확정돼 로딩 종료
+            return .none
+
+        case .morePlacesLoaded(let roomID, let newPins):
+            // "더 보기" 결과를 해당 방 구간에만 splice 하고 그 방 첫 카드로 이동. 다른 방 구간은 그대로.
+            // 결과가 비면(페이지 소진) 기존 카드를 지우지 않는다 — 안 그러면 그 방 덱이 통째로 사라진다.
+            guard !newPins.isEmpty else { return .none }
+            guard let start = state.pins.firstIndex(where: { $0.roomID == roomID }) else { return .none }
+            let end = state.pins[start...].firstIndex(where: { $0.roomID != roomID }) ?? state.pins.count
+            state.pins.replaceSubrange(start..<end, with: newPins)
+            // FIXME(백엔드 연동): 실 API 지연 중 사용자가 다른 방으로 이동하면, 뒤늦게 온 이 응답이
+            //   currentCardIndex 를 roomID 방으로 도로 끌고 간다(레이스). 실물 계약 확인 후
+            //   "현재 방이 아직 roomID 일 때만 인덱스 리셋"(또는 in-flight Task 취소)으로 정리한다.
+            state.currentCardIndex = start
             return .none
 
         case .swipeForward:
@@ -182,21 +207,28 @@ public func homeReducer(
             return .none
 
         case .tapCard:
+            // TODO: 카드 탭 동작 미정(장소 상세 진입 등) — 팀 논의 후 Nav 를 추가한다.
             return .none
 
         case .tapMorePlaces:
-            // 정책: "더 보기" 탭 → 현재 카드가 속한 방의 카드만 새 배치로 재생성하고 그 방의 첫 카드로 이동.
-            // 다른 방 구간은 그대로 둔다. mock 은 배치 번호로 식별자를 새로 찍어(이전 카드와 id 겹침 없음)
-            // 풀을 회전시켜 다른 순서로 보여준다. 실제 UseCase 는 이미 본 장소를 빼고 다음 10개를 받아온다.
+            // 정책: "더 보기" 탭 → 현재 카드가 속한 방의 다음 페이지를 받아 그 방 구간만 교체하고 그 방 첫 카드로 이동.
+            // page 커서를 +1 해 UseCase 에 넘기고(mock 은 풀 회전, 실제는 이미 본 장소 뺀 다음 10개), 결과는
+            // morePlacesLoaded 로 되돌려 받아 splice 한다 — 데이터 합성은 Effect.run 안에서만(reduce 순수 유지).
+            // TODO: "더 보기" 소진(페이지 끝) 시 동작 미정 — 팀 논의 후 결정.
+            // FIXME(백엔드 연동): page 커서를 fetch 전에 올려서, 실패해도 전진한다(다음 성공이 한 페이지 건너뜀).
+            //   실 API 계약(page 번호 vs cursor 토큰, "다음 있음" 여부 응답) 확인 후 "성공 시에만 커서 확정"
+            //   (실패 시 .morePlacesFailed 로 롤백)으로 정리한다. 목은 throw 안 해 지금은 무해.
             guard let room = state.currentRoom else { return .none }
-            let batch = (state.pinBatches[room.id] ?? 0) + 1
-            state.pinBatches[room.id] = batch
-            let regenerated = makeMockPins(for: room, batch: batch)
-            guard let start = state.pins.firstIndex(where: { $0.roomID == room.id }) else { return .none }
-            let end = state.pins[start...].firstIndex(where: { $0.roomID != room.id }) ?? state.pins.count
-            state.pins.replaceSubrange(start..<end, with: regenerated)
-            state.currentCardIndex = start
-            return .none
+            let page = (state.roomPages[room.id] ?? 0) + 1
+            state.roomPages[room.id] = page
+            return .run { send in
+                do {
+                    let pins = try await fetchPins.execute(room: room, page: page)
+                    send(.morePlacesLoaded(roomID: room.id, pins: pins))
+                } catch {
+                    // 더 보기 실패는 조용히 무시(기존 카드 유지). 에러 UI 정책 확정 시 처리 추가.
+                }
+            }
 
         case .tapRoomBadge:
             state.isRoomListPresented = true
@@ -225,47 +257,5 @@ public func homeReducer(
             }
             return .none
         }
-    }
-}
-
-// MARK: - Mock 데이터 (뷰 구현 우선, 후속 PR에서 UseCase 교체)
-
-/// 모든 방의 카드를 방 순서대로 이어붙인 평면 배열. 앞 방 카드를 다 넘기면 다음 방 카드로 이어진다.
-private func makeMockPins(for rooms: [Room]) -> [Pin] {
-    rooms.flatMap { makeMockPins(for: $0, batch: 0) }
-}
-
-private func makeMockPins(for room: Room?, batch: Int = 0) -> [Pin] {
-    guard let room else { return [] }
-    let now = Date.now
-    let categories: [PinCategory] = [
-        .popularAmongFriends, .manyStories, .savedByMany, .worthVisiting,
-        .popularAmongFriends, .savedByMany, .manyStories, .worthVisiting,
-        .popularAmongFriends, .savedByMany,
-    ]
-    let places: [(String, String)] = [
-        ("레이어스튜디오 10", "서울 성동구 상원4길 10"),
-        ("카페 온더플랜", "서울 마포구 연남로1길 39"),
-        ("을지다락", "서울 중구 을지로3가 301-19"),
-        ("성수연방", "서울 성동구 연무장5가길 7"),
-        ("피크닉 성수", "서울 성동구 서울숲2길 17-2"),
-        ("도어투성수", "서울 성동구 성수이로 113"),
-        ("라운드어바웃", "서울 마포구 양화로 162"),
-        ("아보카도빌", "서울 용산구 회나무로13가길 53"),
-        ("클럽 에스프레소", "서울 종로구 율곡로 83"),
-        ("무드등 서울", "서울 강남구 선릉로 157길 5"),
-    ]
-    let count = places.count
-    // 배치마다 풀을 회전시켜 다른 카드처럼 보이게 하고, id 에 배치 번호를 넣어 이전 배치와 겹치지 않게 한다.
-    return (0..<count).map { i in
-        let src = (i + batch) % count
-        return Pin(
-            id: PinID("pin-\(room.id)-\(batch)-\(i)"),
-            roomID: room.id,
-            category: categories[src],
-            title: places[src].0,
-            address: places[src].1,
-            createdAt: now.addingTimeInterval(Double(-i) * 86400)
-        )
     }
 }

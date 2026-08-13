@@ -40,13 +40,29 @@ private struct StubFetchRooms: FetchRoomsUseCase {
     }
 }
 
+/// 핀 조회 스텁 — 초기 로드(`all`)와 "더 보기"(`more`)를 각각 제어해 결과를 결정적으로 단언한다.
+private struct StubFetchPins: FetchPinsUseCase {
+    var all: [Pin] = []
+    var more: [Pin] = []
+    func execute(rooms: [Room]) async throws -> [Pin] { all }
+    func execute(room: Room, page: Int) async throws -> [Pin] { more }
+}
+
+/// 핀 조회가 항상 실패하는 스텁 — 실패 경로(로드 실패 라우팅 / 더 보기 무시)를 검증한다.
+private struct ThrowingFetchPins: FetchPinsUseCase {
+    var error: DomainError = .unknown
+    func execute(rooms: [Room]) async throws -> [Pin] { throw error }
+    func execute(room: Room, page: Int) async throws -> [Pin] { throw error }
+}
+
 @MainActor
 struct HomeReducerTests {
     private func makeStore(
-        _ useCase: FetchRoomsUseCase = StubFetchRooms(),
+        _ fetchRooms: FetchRoomsUseCase = StubFetchRooms(),
+        fetchPins: FetchPinsUseCase = StubFetchPins(),
         state: HomeState = HomeState()
     ) -> TestStore<HomeState, HomeAction, HomeNav> {
-        TestStore(state, reduce: homeReducer(fetchRooms: useCase))
+        TestStore(state, reduce: homeReducer(fetchRooms: fetchRooms, fetchPins: fetchPins))
     }
 
     // MARK: - Load
@@ -93,6 +109,24 @@ struct HomeReducerTests {
         await store.send(.load) {
             $0.isLoading = true
             $0.errorMessage = nil
+        }
+        await store.receive(.loadFailed(.unknown)) {
+            $0.isLoading = false
+            $0.errorMessage = "unknown"
+        }
+        store.finish()
+    }
+
+    @Test("L2 — 방은 성공해도 핀 조회가 실패하면 loadFailed 로 흘러 로딩을 끈다")
+    func load_pinsFailure() async {
+        // rooms 는 성공, pins 조회만 실패 → 리듀서가 .loaded 뒤 pins 에러를 loadFailed 로 라우팅
+        let store = makeStore(StubFetchRooms(), fetchPins: ThrowingFetchPins())
+        await store.send(.load) {
+            $0.isLoading = true
+            $0.errorMessage = nil
+        }
+        await store.receive(.loaded(fixtureRooms)) {
+            $0.rooms = fixtureRooms   // 방은 반영, 로딩은 아직(핀 대기)
         }
         await store.receive(.loadFailed(.unknown)) {
             $0.isLoading = false
@@ -210,21 +244,23 @@ struct HomeReducerTests {
         store.finish()
     }
 
-    @Test("L1 — tapMorePlaces 는 이전 배치를 제외한 새 카드 10개를 재생성하고 인덱스를 0 으로 리셋한다")
+    @Test("L2 — tapMorePlaces 는 page 를 올려 fetchPins 를 호출하고, 결과로 현재 방 구간을 교체하며 인덱스를 리셋한다")
     func tapMorePlaces_regenerates() async {
+        let morePins = (0..<10).map { i in
+            Pin(id: PinID("more-1-\(i)"), roomID: "1", category: .savedByMany,
+                title: "새 장소 \(i)", address: "주소", createdAt: fixtureDate)
+        }
         let store = makeStore(
+            fetchPins: StubFetchPins(more: morePins),
             state: HomeState(rooms: fixtureRooms, pins: fixturePins, currentCardIndex: 2)
         )
-        store.exhaustive = false   // 재생성 pins 는 mock(createdAt: .now)이라 정확 값 예측 불가
-        let previousIDs = Set(fixturePins.map(\.id))
-
-        await store.send(.tapMorePlaces)
-
-        #expect(store.currentState.pinBatches["1"] == 1)
-        #expect(store.currentState.currentCardIndex == 0)
-        #expect(store.currentState.pins.count == 10)
-        // "이전꺼 제외" — 재생성된 카드의 식별자는 이전 배치와 겹치지 않는다
-        #expect(store.currentState.pins.allSatisfy { !previousIDs.contains($0.id) })
+        // send: page 커서만 오른다(데이터 교체는 morePlacesLoaded 응답에서)
+        await store.send(.tapMorePlaces) { $0.roomPages["1"] = 1 }
+        // receive: 방1 구간(fixturePins 3장 전부) → 새 10장으로 교체, 인덱스 0
+        await store.receive(.morePlacesLoaded(roomID: "1", pins: morePins)) {
+            $0.pins = morePins
+            $0.currentCardIndex = 0
+        }
         store.finish()
     }
 
@@ -281,22 +317,50 @@ struct HomeReducerTests {
         store.finish()
     }
 
-    @Test("L1 — tapMorePlaces 는 현재 방 구간만 새 배치로 교체하고 그 방 첫 카드로 리셋한다")
+    @Test("L2 — tapMorePlaces 는 현재 방(방2) 구간만 교체하고 방1 은 그대로 두며 그 방 첫 카드로 리셋한다")
     func tapMorePlaces_replacesOnlyCurrentRoomSlice() async {
-        // index 4 = 방2 카드 → 방2 구간만 재생성
-        let store = makeStore(state: HomeState(rooms: fixtureRooms, pins: multiRoomPins(), currentCardIndex: 4))
-        store.exhaustive = false
-
-        await store.send(.tapMorePlaces)
-
-        #expect(store.currentState.pinBatches["2"] == 1)
-        #expect(store.currentState.pinBatches["1"] == nil)          // 방1 은 건드리지 않음
-        #expect(store.currentState.currentCardIndex == 3)           // 방2 구간 시작
-        #expect(store.currentState.pins.count == 13)               // 방1 3장 유지 + 방2 새 10장
-        #expect(store.currentState.pins.prefix(3).allSatisfy { $0.roomID == "1" })
-        #expect(store.currentState.pins.dropFirst(3).allSatisfy { $0.roomID == "2" })
+        let base = multiRoomPins()   // 방1 3장(index 0..2) + 방2 2장(3..4)
+        let morePins = (0..<10).map { i in
+            Pin(id: PinID("more-2-\(i)"), roomID: "2", category: .savedByMany,
+                title: "새 장소 \(i)", address: "주소", createdAt: fixtureDate)
+        }
+        // index 4 = 방2 카드 → 방2 구간만 교체
+        let store = makeStore(
+            fetchPins: StubFetchPins(more: morePins),
+            state: HomeState(rooms: fixtureRooms, pins: base, currentCardIndex: 4)
+        )
+        await store.send(.tapMorePlaces) { $0.roomPages["2"] = 1 }
+        await store.receive(.morePlacesLoaded(roomID: "2", pins: morePins)) {
+            $0.pins = Array(base.prefix(3)) + morePins   // 방1 3장 유지 + 방2 새 10장
+            $0.currentCardIndex = 3                       // 방2 구간 시작
+        }
+        #expect(store.currentState.roomPages["1"] == nil)   // 방1 page 는 건드리지 않음
         #expect(store.currentState.currentRoom?.id == "2")
         store.finish()
+    }
+
+    @Test("L1 — morePlacesLoaded 가 빈 결과면 덱을 지우지 않는다(페이지 소진 방어)")
+    func morePlacesLoaded_emptyKeepsDeck() async {
+        // 실 API 가 "더 이상 없음"으로 [] 를 주면 그 방 구간이 통째로 사라지던 회귀 방어.
+        let store = makeStore(state: HomeState(rooms: fixtureRooms, pins: fixturePins, currentCardIndex: 2))
+        await store.send(.morePlacesLoaded(roomID: "1", pins: []))   // 변화 없음
+        store.finish()
+        #expect(store.currentState.pins == fixturePins)
+        #expect(store.currentState.currentCardIndex == 2)
+    }
+
+    @Test("L2 — tapMorePlaces 는 핀 조회 실패 시 덱을 훼손하지 않는다(기존 카드 유지)")
+    func tapMorePlaces_failureKeepsDeck() async {
+        let store = makeStore(
+            fetchPins: ThrowingFetchPins(),
+            state: HomeState(rooms: fixtureRooms, pins: fixturePins, currentCardIndex: 2)
+        )
+        // send: page 커서는 전진한다(현재 동작 — 실패 롤백은 tapMorePlaces 의 FIXME 참조)
+        await store.send(.tapMorePlaces) { $0.roomPages["1"] = 1 }
+        // 실패는 조용히 무시 → morePlacesLoaded 미도착, pins·인덱스 그대로
+        store.finish()
+        #expect(store.currentState.pins == fixturePins)
+        #expect(store.currentState.currentCardIndex == 2)
     }
 
     // MARK: - 방 선택 바텀 시트

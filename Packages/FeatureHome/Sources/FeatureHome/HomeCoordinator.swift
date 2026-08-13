@@ -47,7 +47,7 @@ public final class HomeCoordinator: Coordinator {
     public func makeHomeStore() -> HomeStore {
         let store = HomeStore(
             HomeState(),
-            reduce: homeReducer(fetchRooms: deps.fetchRooms)
+            reduce: homeReducer(fetchRooms: deps.fetchRooms, fetchPins: deps.fetchPins)
         )
         store.observeNavigation { [weak self] in self?.handle($0) }
         homeStore = store

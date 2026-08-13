@@ -5,10 +5,16 @@ import Testing
 
 private struct StubDeps: HomeDeps {
     var fetchRooms: FetchRoomsUseCase = StubFetchRooms()
+    var fetchPins: FetchPinsUseCase = StubFetchPins()
 }
 
 private struct StubFetchRooms: FetchRoomsUseCase {
     func execute() async throws -> [Room] { [] }
+}
+
+private struct StubFetchPins: FetchPinsUseCase {
+    func execute(rooms: [Room]) async throws -> [Pin] { [] }
+    func execute(room: Room, page: Int) async throws -> [Pin] { [] }
 }
 
 @MainActor

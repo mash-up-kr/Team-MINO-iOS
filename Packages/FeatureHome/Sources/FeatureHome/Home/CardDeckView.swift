@@ -18,13 +18,32 @@ struct CardDeckView: View {
     @State private var shiftProgress: CGFloat = 0
     /// 좌스와이프 시 이전 카드 복귀 진행도 (0=우상단, 1=center)
     @State private var returnProgress: CGFloat = 0
+    /// 컨테이너 실측 폭(스크린 폭). GeometryReader 로 주입받는다 —
+    /// `UIScreen.main.bounds` 는 iOS 16+ deprecated 이고 멀티윈도우/회전/iPad 에서 부정확하다.
+    @State private var containerWidth: CGFloat = 0
 
     private let visibleCount = 5
-    private var baseCardWidth: CGFloat {
-        UIScreen.main.bounds.width - 40
+    private var baseCardWidth: CGFloat { max(0, containerWidth - Metric.cardHorizontalInset) }
+    private var screenWidth: CGFloat { containerWidth }
+
+    // MARK: - 상수 (레이아웃 · 애니메이션 매직 넘버 일원화)
+
+    private enum Metric {
+        static let cardHorizontalInset: CGFloat = 40   // 카드 좌우 여백(20 × 2)
+        static let depthStep: CGFloat = 20             // 뒤 카드 1단계당 폭 축소·y 이동량
     }
-    private var screenWidth: CGFloat {
-        UIScreen.main.bounds.width
+
+    private enum Anim {
+        static let springDuration: TimeInterval = 0.2      // fling·복귀·제자리 스프링
+        static let dragMinimum: CGFloat = 10               // DragGesture 최소 인식 거리
+        static let backwardDragRange: CGFloat = 200        // 좌드래그 → returnProgress(0…1) 정규화 폭
+        static let forwardFlingThreshold: CGFloat = 100    // predictedEnd 로 다음 카드 넘김 판정 임계
+        static let backwardFlingThreshold: CGFloat = 100   // predictedEnd 로 이전 카드 복귀 판정 임계(부호 반대)
+        static let backwardProgressThreshold: CGFloat = 0.3 // 좌스와이프 확정 진행도
+        static let flingRotation: Double = 20              // 카드가 날아갈 때 회전각(부호는 방향)
+        static let dragRotationDivisor: Double = 30        // 드래그 중 회전 = -dragOffset / 이 값
+        static let verticalDragFactor: CGFloat = 0.4       // 드래그 시 위로 뜨는 정도 = dragOffset × 이 값
+        static let flyUpFactor: CGFloat = 0.4              // 날아갈 때 위로 = screenWidth × 이 값
     }
 
     var body: some View {
@@ -36,11 +55,11 @@ struct CardDeckView: View {
                 let isTop = stackIndex == visibleCards.count - 1
                 let depth = visibleCards.count - 1 - stackIndex
                 let effectiveDepth = isTop ? CGFloat(depth) + returnProgress : max(0, CGFloat(depth) - shiftProgress + returnProgress)
-                let cardWidth = baseCardWidth - effectiveDepth * 20
+                let cardWidth = baseCardWidth - effectiveDepth * Metric.depthStep
 
                 cardView(pin: pin)
                     .frame(width: cardWidth)
-                    .offset(y: effectiveDepth * -20)
+                    .offset(y: effectiveDepth * -Metric.depthStep)
                     .opacity(interpolatedOpacity(for: depth, isTop: isTop) * depthFade(effectiveDepth))
                     .zIndex(Double(stackIndex))
                     .offset(x: isTop ? dragOffset + flingXOffset : 0, y: isTop ? dragYOffset + flingYOffset : 0)
@@ -56,19 +75,31 @@ struct CardDeckView: View {
                     .frame(width: baseCardWidth)
                     .offset(
                         x: screenWidth * (1 - returnProgress),
-                        y: -screenWidth * 0.4 * (1 - returnProgress)
+                        y: -screenWidth * Anim.flyUpFactor * (1 - returnProgress)
                     )
-                    .rotationEffect(.degrees(-20 * Double(1 - returnProgress)))
+                    .rotationEffect(.degrees(-Anim.flingRotation * Double(1 - returnProgress)))
                     .zIndex(Double(visibleCount + 1))
                     .allowsHitTesting(false)
             }
         }
         .frame(maxWidth: .infinity)
+        .background(widthReader)   // 컨테이너 실측 폭 주입(UIScreen.main 대체)
+    }
+
+    /// 컨테이너 폭을 측정해 `containerWidth` 에 넣는 투명 리더. 레이아웃엔 영향 없다.
+    private var widthReader: some View {
+        GeometryReader { geo in
+            Color.clear.onChange(of: geo.size.width, initial: true) { _, width in
+                containerWidth = width
+            }
+        }
     }
 
     // MARK: - 카드 데이터
 
     private var visibleCards: [Pin] {
+        // 폭이 측정되기 전(첫 레이아웃 패스)엔 그리지 않아 0-폭 카드 깜빡임을 막는다.
+        guard containerWidth > 0 else { return [] }
         // +1장 추가로 렌더 → depthFade로 투명 상태에서 시작, 앞으로 당겨지면 페이드인
         let renderCount = visibleCount + 1
         let end = min(currentIndex + renderCount, pins.count)
@@ -131,18 +162,18 @@ struct CardDeckView: View {
 
     private var dragYOffset: CGFloat {
         guard dragOffset > 0 else { return 0 }
-        return -dragOffset * 0.4
+        return -dragOffset * Anim.verticalDragFactor
     }
 
     private var topRotation: Double {
         guard dragOffset > 0 else { return flingRotation }
-        return -Double(dragOffset) / 30.0 + flingRotation
+        return -Double(dragOffset) / Anim.dragRotationDivisor + flingRotation
     }
 
     // MARK: - 스와이프 제스처
 
     private var swipeGesture: some Gesture {
-        DragGesture(minimumDistance: 10)
+        DragGesture(minimumDistance: Anim.dragMinimum)
             .onChanged { value in
                 let dx = value.translation.width
                 if dx >= 0 {
@@ -152,7 +183,7 @@ struct CardDeckView: View {
                 } else if currentIndex > 0 {
                     // 좌측 드래그 — 현재 카드 고정, 이전 카드 등장
                     dragOffset = 0
-                    returnProgress = min(1, abs(dx) / 200)
+                    returnProgress = min(1, abs(dx) / Anim.backwardDragRange)
                 }
             }
             .onEnded { value in
@@ -160,18 +191,18 @@ struct CardDeckView: View {
 
                 if returnProgress > 0 {
                     // 좌스와이프 판정
-                    if predicted < -100 || returnProgress > 0.3 {
+                    if predicted < -Anim.backwardFlingThreshold || returnProgress > Anim.backwardProgressThreshold {
                         completeBackward()
                     } else {
-                        withAnimation(.spring(duration: 0.2)) {
+                        withAnimation(.spring(duration: Anim.springDuration)) {
                             returnProgress = 0
                         }
                     }
-                } else if predicted > 100, currentIndex < pins.count - 1 {
+                } else if predicted > Anim.forwardFlingThreshold, currentIndex < pins.count - 1 {
                     performFlingForward()
                 } else {
                     // 마지막 카드이거나 충분히 밀지 않음 → 제자리로. 마지막 카드는 넘길 수 없어 화면에 고정된다.
-                    withAnimation(.spring(duration: 0.2)) {
+                    withAnimation(.spring(duration: Anim.springDuration)) {
                         dragOffset = 0
                     }
                 }
@@ -186,10 +217,10 @@ struct CardDeckView: View {
         // 카드가 날아가는 동안 히트테스트가 꺼져 다음 스와이프가 막힌다(잠금 시간 ≈ 이 애니메이션 길이).
         // 인덱스 전진이 completion 에서 일어나 그 전엔 잠금을 못 푸므로, 빠른 연속 스와이프 누락을 줄이려
         // fling·shift 를 하나의 0.2s 로 합쳐 잠금 창을 최대한 짧게 한다.
-        withAnimation(.spring(duration: 0.2)) {
+        withAnimation(.spring(duration: Anim.springDuration)) {
             flingXOffset = screenWidth
-            flingYOffset = -screenWidth * 0.4
-            flingRotation = -20
+            flingYOffset = -screenWidth * Anim.flyUpFactor
+            flingRotation = -Anim.flingRotation
             shiftProgress = 1.0
         } completion: {
             dragOffset = 0
@@ -207,7 +238,7 @@ struct CardDeckView: View {
     private func completeBackward() {
         isFlingAnimating = true
 
-        withAnimation(.spring(duration: 0.2)) {
+        withAnimation(.spring(duration: Anim.springDuration)) {
             returnProgress = 1
         } completion: {
             // returnProgress=1 시 덱이 이미 1칸 밀린 상태 → 인덱스 변경 후 위치 일치
