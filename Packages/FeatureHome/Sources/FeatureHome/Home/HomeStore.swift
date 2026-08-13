@@ -19,6 +19,9 @@ public struct HomeState: Equatable {
     public var isRoomListPresented: Bool
     /// 방 변경 직후 뜨는 툴팁에 표시할 방 이름 (nil = 숨김). 5초 후 자동으로 nil 이 된다.
     public var changedRoomToast: String?
+    /// 방 리스트에서 명시적으로 고른 방 (nil = 미선택). 표시할 카드가 없을 때(빈 방들) 현재 방을 정하는 근거 —
+    /// 카드가 있을 땐 덱의 맨 앞 카드가 현재 방을 정하므로 이 값은 쓰이지 않는다.
+    public var selectedRoomID: String?
 
     public init(
         rooms: [Room] = [],
@@ -29,7 +32,8 @@ public struct HomeState: Equatable {
         currentCardIndex: Int = 0,
         pinBatches: [String: Int] = [:],
         isRoomListPresented: Bool = false,
-        changedRoomToast: String? = nil
+        changedRoomToast: String? = nil,
+        selectedRoomID: String? = nil
     ) {
         self.rooms = rooms
         self.isLoading = isLoading
@@ -40,16 +44,30 @@ public struct HomeState: Equatable {
         self.pinBatches = pinBatches
         self.isRoomListPresented = isRoomListPresented
         self.changedRoomToast = changedRoomToast
+        self.selectedRoomID = selectedRoomID
     }
 
-    /// 방이 하나도 없으면 빈상태 A (로딩 중에도 로고 유지)
-    public var isEmpty: Bool { rooms.isEmpty }
+    /// 홈 빈 상태(일러스트 + "공동방 만들기" CTA)를 보여줄지. 정책: 로딩이 끝났고, 현재 정렬 기준으로
+    /// 표시할 카드가 0장이면(방·공동방 유무 무관) 빈 상태다 — "방이 0개일 때"가 아니라 "볼 장소가 0일 때".
+    /// (PRD [SCR-003] Flow F / [SYS-009] Flow C). CTA 는 공동방 유무와 무관하게 항상 노출한다
+    /// (팀 정책 결정 — 공동방 있으면 유도를 끄는 Flow D 와는 다름).
+    /// 정렬 필터 후속 PR: 이 판정은 `pins`(현재 전체) → 필터된 표시 집합 기준으로 바뀐다. [[showsRoomIdentity]] 는 계속 원본.
+    public var showsEmptyState: Bool { !isLoading && pins.isEmpty }
 
-    /// 현재 맨 앞 카드가 속한 방. 카드를 넘겨 다음 방 구간으로 들어가면 이 값도 그 방으로 바뀐다.
+    /// 홈 상단 방 정체성(방 칩·마스코트)을 노출할지. **표시할 장소가 있거나(정렬 무관) 공동방이 하나라도
+    /// 있으면** 노출한다 → 오직 개인방만 있고 그마저 비었을 때만 로고(GGUK)·마스코트를 숨긴다.
+    /// (공동방이 있으면 방이 비어도 방 리스트로 전환할 수 있어야 하므로 칩·마스코트를 유지한다)
+    /// 빈 상태 본문([[showsEmptyState]]) 노출과는 독립 — 방 칩·마스코트를 띄운 채 empty state 를 보일 수 있다.
+    public var showsRoomIdentity: Bool { !pins.isEmpty || rooms.contains { $0.type == .shared } }
+
+    /// 현재 방(뱃지·방 리스트 선택 표시의 기준). 카드가 있으면 맨 앞 카드가 속한 방(넘기면 그 방으로 바뀜),
+    /// 카드가 없으면(빈 방들) 방 리스트에서 고른 방(selectedRoomID) — 없으면 첫 방(내 장소).
     public var currentRoom: Room? {
-        guard pins.indices.contains(currentCardIndex) else { return rooms.first }
-        let roomID = pins[currentCardIndex].roomID
-        return rooms.first { $0.id == roomID } ?? rooms.first
+        if pins.indices.contains(currentCardIndex) {
+            let roomID = pins[currentCardIndex].roomID
+            return rooms.first { $0.id == roomID } ?? rooms.first
+        }
+        return rooms.first { $0.id == selectedRoomID } ?? rooms.first
     }
 
     /// 현재 맨 앞 카드가 속한 방에서 (현재 카드 포함) 아직 넘기지 않은 카드 수.
@@ -72,7 +90,6 @@ public enum HomeAction: Equatable {
     case swipeForward
     case swipeBackward
     case tapCard(PinID)
-    case tapMore(PinID)
     /// 카드 덱 하단 "이 방 장소 더 보기" 버튼 탭 (동작 미정 — 팀 논의 후 결정)
     case tapMorePlaces
     /// 방 뱃지·캐릭터 탭 → 방 선택 바텀 시트 열기
@@ -126,7 +143,8 @@ public func homeReducer(
             // 뱃지·카드덱·방리스트가 모두 이 order 를 따른다(방리스트에서 개인방이 "방 만들기" 우측 고정).
             let ordered = rooms.filter { $0.type == .personal } + rooms.filter { $0.type == .shared }
             state.rooms = ordered
-            state.isLoading = false
+            // isLoading 은 여기서 끄지 않는다 — 핀까지 로드돼야 표시할 카드 유무가 정해지므로,
+            // pinsLoaded 에서 끈다. (여기서 끄면 핀 도착 전 빈 상태+CTA 가 한 프레임 깜빡인다)
             return .run { send in
                 let pins = makeMockPins(for: ordered)
                 send(.pinsLoaded(pins))
@@ -148,6 +166,7 @@ public func homeReducer(
         case .pinsLoaded(let pins):
             state.pins = pins
             state.currentCardIndex = 0
+            state.isLoading = false   // 핀까지 도착 → 이제 카드 유무가 확정돼 로딩 종료
             return .none
 
         case .swipeForward:
@@ -163,9 +182,6 @@ public func homeReducer(
             return .none
 
         case .tapCard:
-            return .none
-
-        case .tapMore:
             return .none
 
         case .tapMorePlaces:
@@ -194,6 +210,7 @@ public func homeReducer(
             // 정책: 방 클릭 시 해당 방으로 바로 적용 + 시트 닫기 + 변경 툴팁.
             // 툴팁의 5초 표시 시간은 뷰(페이드 애니메이션과 함께)가 관리하고, 여기서는 상태만 세운다.
             state.isRoomListPresented = false
+            state.selectedRoomID = roomID   // 카드가 없어도(빈 방) 현재 방으로 반영되도록 명시 기록
             if let start = state.pins.firstIndex(where: { $0.roomID == roomID }) {
                 state.currentCardIndex = start
             }

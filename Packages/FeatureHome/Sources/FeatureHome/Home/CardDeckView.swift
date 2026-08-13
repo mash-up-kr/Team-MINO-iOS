@@ -9,7 +9,6 @@ struct CardDeckView: View {
     let onSwipeForward: () -> Void
     let onSwipeBackward: () -> Void
     let onTapCard: (PinID) -> Void
-    let onTapMore: (PinID) -> Void
 
     @State private var dragOffset: CGFloat = 0
     @State private var isFlingAnimating = false
@@ -92,10 +91,21 @@ struct CardDeckView: View {
             badgeColor: badge.color,
             title: pin.title,
             address: pin.address,
-            images: []
-        ) {
-            onTapMore(pin.id)
-        }
+            images: [],
+            menuItems: moreMenuItems(for: pin)
+        )
+    }
+
+    /// 카드 더보기(⋮) 메뉴 — Figma `Menu/Menu`. 항목 동작은 후속 작업이라 지금은 자리(TODO)만 잡는다.
+    private func moreMenuItems(for pin: Pin) -> [MHMenuItem] {
+        [
+            MHMenuItem("다른 방 저장") {
+                // TODO: 다른 방에 저장 — 002-4-1 방 변경 바텀시트로 저장 진행
+            },
+            MHMenuItem("장소 가리기") {
+                // TODO: 장소 가리기 — 이 장소를 덱에서 숨김
+            },
+        ]
     }
 
     // MARK: - 스택 시각 효과

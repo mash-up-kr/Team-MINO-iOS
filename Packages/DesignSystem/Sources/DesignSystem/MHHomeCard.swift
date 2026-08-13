@@ -19,7 +19,10 @@ public struct MHHomeCard: View {
     private let title: String
     private let address: String
     private let images: [Image]
+    private let menuItems: [MHMenuItem]
     private let onMore: (() -> Void)?
+
+    @State private var menuPresented = false
 
     public init(
         avatar: Image?,
@@ -28,6 +31,7 @@ public struct MHHomeCard: View {
         title: String,
         address: String,
         images: [Image],
+        menuItems: [MHMenuItem] = [],
         onMore: (() -> Void)? = nil
     ) {
         self.avatar = avatar
@@ -36,6 +40,7 @@ public struct MHHomeCard: View {
         self.title = title
         self.address = address
         self.images = images
+        self.menuItems = menuItems
         self.onMore = onMore
     }
 
@@ -59,6 +64,8 @@ public struct MHHomeCard: View {
         .frame(maxWidth: .infinity, alignment: .top)
         .background(RoundedRectangle(cornerRadius: 24).fill(Color.mhBackgroundNormalNormal))
         .overlay(RoundedRectangle(cornerRadius: 24).strokeBorder(.mhBackgroundNormalAlternative, lineWidth: 1))
+        .overlay { dismissScrim }                          // 메뉴 바깥 탭 감지(메뉴 아래 레이어)
+        .overlay(alignment: .topTrailing) { menuOverlay }  // ⋮ 에 앵커된 더보기 메뉴(스크림 위)
     }
 
     private var info: some View {
@@ -80,7 +87,13 @@ public struct MHHomeCard: View {
     }
 
     private var moreButton: some View {
-        Button { onMore?() } label: {
+        Button {
+            if menuItems.isEmpty {
+                onMore?()
+            } else {
+                withAnimation(.easeOut(duration: 0.12)) { menuPresented.toggle() }
+            }
+        } label: {
             Image(MHIcon.moreVertical)
                 .resizable().scaledToFit()
                 .frame(width: 18, height: 18)
@@ -89,6 +102,44 @@ public struct MHHomeCard: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(MHHomeCardMoreStyle())
+    }
+
+    // 메뉴 바깥을 탭하면 닫는 투명 스크림(레이아웃 영향 없음). 메뉴는 이 위에 별도 오버레이로 얹힌다.
+    @ViewBuilder private var dismissScrim: some View {
+        if menuPresented, !menuItems.isEmpty {
+            Color.clear
+                .frame(width: 10000, height: 10000)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    withAnimation(.easeOut(duration: 0.12)) { menuPresented = false }
+                }
+        }
+    }
+
+    // ⋮ 에 앵커된 더보기 메뉴(Figma `Menu/Menu`, node 2862:175604). Menu/Menu 는 흰 카드 위아래로 투명 패딩 8pt 를
+    // 가지므로, 카드만 그리는 MHMenu 에 vertical 8 을 씌워 재현하고 우상단 실측 오프셋으로 카드에 앵커한다.
+    // 선택 시 액션 실행 후 자동으로 닫힌다.
+    @ViewBuilder private var menuOverlay: some View {
+        if menuPresented, !menuItems.isEmpty {
+            MHMenu(closableMenuItems)
+                .frame(width: 140)
+                .padding(.vertical, 8)
+                .offset(x: -25.42, y: 47.12)
+                .transition(.opacity)
+        }
+    }
+
+    // 원본 항목의 액션 뒤에 "메뉴 닫기"를 덧붙인 사본(선택하면 닫히도록).
+    private var closableMenuItems: [MHMenuItem] {
+        menuItems.map { item in
+            MHMenuItem(
+                item.label, caption: item.caption, trailing: item.trailing,
+                isActive: item.isActive, isDisabled: item.isDisabled
+            ) {
+                item.action()
+                menuPresented = false
+            }
+        }
     }
 
     private var imageGrid: some View {

@@ -61,7 +61,7 @@ struct HomeReducerTests {
         }
         await store.receive(.loaded(fixtureRooms)) {
             $0.rooms = fixtureRooms
-            $0.isLoading = false
+            // isLoading 은 여기서 안 꺼진다 — 핀까지 로드돼야(pinsLoaded) 로딩 종료
         }
         // .loaded 가 트리거하는 .pinsLoaded 는 mock 핀이라 정확한 값 예측 불가
         // → exhaustive=false 로 pending 무시, pins 로드는 pinsLoaded 테스트에서 별도 검증
@@ -83,7 +83,7 @@ struct HomeReducerTests {
         }
         await store.receive(.loaded(fixtureRooms + [personal])) {
             $0.rooms = [personal] + fixtureRooms   // 개인방 맨 앞, 공동방은 준 순서 유지
-            $0.isLoading = false
+            // isLoading 은 pinsLoaded 에서 꺼진다
         }
     }
 
@@ -103,22 +103,38 @@ struct HomeReducerTests {
 
     // MARK: - Empty state
 
-    @Test("rooms 가 비어있으면 isEmpty 가 true")
-    func isEmpty_true() {
-        let state = HomeState(rooms: [], isLoading: false)
-        #expect(state.isEmpty)
+    @Test("표시할 카드가 0장이면 showsEmptyState 가 true (방·공동방 유무 무관)")
+    func showsEmptyState_true_whenNoPins() {
+        // 방(개인방)은 있지만 볼 장소가 0 → 빈 상태
+        let state = HomeState(rooms: fixtureRooms, isLoading: false, pins: [])
+        #expect(state.showsEmptyState)
     }
 
-    @Test("rooms 가 있으면 isEmpty 가 false")
-    func isEmpty_false() {
-        let state = HomeState(rooms: fixtureRooms)
-        #expect(!state.isEmpty)
+    @Test("표시할 카드가 있으면 showsEmptyState 가 false")
+    func showsEmptyState_false_whenHasPins() {
+        let state = HomeState(rooms: fixtureRooms, pins: fixturePins)
+        #expect(!state.showsEmptyState)
     }
 
-    @Test("로딩 중이어도 rooms 가 비어있으면 isEmpty 가 true")
-    func isEmpty_true_during_loading() {
-        let state = HomeState(rooms: [], isLoading: true)
-        #expect(state.isEmpty)
+    @Test("로딩 중이면 카드가 0장이어도 showsEmptyState 가 false (로딩 우선)")
+    func showsEmptyState_false_whileLoading() {
+        let state = HomeState(isLoading: true, pins: [])
+        #expect(!state.showsEmptyState)
+    }
+
+    @Test("showsRoomIdentity — 개인방만 비면 false(로고·마스코트 숨김), 공동방 있거나 장소 있으면 true(방 칩·마스코트)")
+    func showsRoomIdentity_rules() {
+        let personal = Room(
+            id: "0", type: .personal, name: "내 장소", description: nil,
+            color: "#00BDDE", ownerId: "o", inviteCode: "MY",
+            createdAt: fixtureDate, pinCount: 0, memberCount: 1, users: []
+        )
+        // 개인방만 있고 비었음 → 로고(GGUK)·마스코트 숨김
+        #expect(!HomeState(rooms: [personal], pins: []).showsRoomIdentity)
+        // 공동방이 있으면 내 장소·공동방 모두 비었어도 → 방 칩·마스코트 유지(방 리스트 전환 가능)
+        #expect(HomeState(rooms: [personal] + fixtureRooms, pins: []).showsRoomIdentity)
+        // 표시할 장소가 있으면 → 방 칩·마스코트
+        #expect(HomeState(rooms: fixtureRooms, pins: fixturePins).showsRoomIdentity)
     }
 
     // MARK: - Filter
@@ -144,12 +160,13 @@ struct HomeReducerTests {
 
     // MARK: - Card Deck
 
-    @Test("L1 — pinsLoaded 는 pins 를 세팅하고 인덱스를 0 으로 리셋한다")
+    @Test("L1 — pinsLoaded 는 pins·인덱스를 세팅하고 로딩을 끝낸다")
     func pinsLoaded() async {
-        let store = makeStore(state: HomeState(currentCardIndex: 5))
+        let store = makeStore(state: HomeState(isLoading: true, currentCardIndex: 5))
         await store.send(.pinsLoaded(fixturePins)) {
             $0.pins = fixturePins
             $0.currentCardIndex = 0
+            $0.isLoading = false   // 핀 도착 시점에 로딩 종료(빈 상태 깜빡임 방지)
         }
         store.finish()
     }
@@ -190,13 +207,6 @@ struct HomeReducerTests {
     func tapCard_noop() async {
         let store = makeStore(state: HomeState(pins: fixturePins))
         await store.send(.tapCard(PinID("pin-0")))
-        store.finish()
-    }
-
-    @Test("L1 — tapMore 는 상태를 변경하지 않는다")
-    func tapMore_noop() async {
-        let store = makeStore(state: HomeState(pins: fixturePins))
-        await store.send(.tapMore(PinID("pin-0")))
         store.finish()
     }
 
@@ -314,8 +324,25 @@ struct HomeReducerTests {
         await store.send(.selectRoom("2")) {
             $0.currentCardIndex = 3                 // 방2 구간 시작
             $0.isRoomListPresented = false
+            $0.selectedRoomID = "2"
             $0.changedRoomToast = "데이트 코스"       // 툴팁은 뷰에서 "…방이에요" 를 붙인다
         }
+        store.finish()
+    }
+
+    @Test("L2 — 카드가 없어도(빈 방) selectRoom 이 현재 방을 바꾼다 (뱃지·방리스트 선택 반영)")
+    func selectRoom_withNoPins_updatesCurrentRoom() async {
+        // 모든 방이 비어 pins 가 없는 상태 — 예전엔 currentRoom 이 항상 첫 방(내 장소)에 고정됐다.
+        let store = makeStore(
+            state: HomeState(rooms: fixtureRooms, pins: [], isRoomListPresented: true)
+        )
+        #expect(store.currentState.currentRoom?.id == fixtureRooms.first?.id)   // 선택 전: 첫 방
+        await store.send(.selectRoom("2")) {
+            $0.isRoomListPresented = false
+            $0.selectedRoomID = "2"                 // 카드가 없어 currentCardIndex 는 그대로
+            $0.changedRoomToast = "데이트 코스"
+        }
+        #expect(store.currentState.currentRoom?.id == "2")   // 선택 후: 고른 방이 현재 방
         store.finish()
     }
 

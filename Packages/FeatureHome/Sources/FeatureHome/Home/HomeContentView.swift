@@ -12,7 +12,9 @@ struct HomeContentView: View {
         ZStack(alignment: .topTrailing) {
             mainContent
             roomListDim          // 방 리스트 열릴 때 — 마스코트 아래(홈 콘텐츠만 덮는다)
-            mascotCharacter      // 딤 위 — 밝게 유지 (Figma: 마스코트는 딤에서 제외)
+            if store.state.showsRoomIdentity {
+                mascotCharacter  // 딤 위 — 밝게 유지. 개인방만 있고 비었을 때만 숨김 (Figma 002-6-1)
+            }
             roomChangeTooltip
         }
         .animation(.easeInOut(duration: 0.5), value: store.state.changedRoomToast)
@@ -71,18 +73,8 @@ struct HomeContentView: View {
         )
     }
 
-    @ViewBuilder
+    // 헤더·필터바는 항상 공통으로 그리고, 본문만 로딩 / 빈 상태 / 카드 덱으로 분기한다.
     private var mainContent: some View {
-        if store.state.isEmpty {
-            emptyStateContent
-        } else {
-            dataContent
-        }
-    }
-
-    // MARK: - 데이터 있을 때 (로딩 중에도 헤더·필터바 레이아웃 유지)
-
-    private var dataContent: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
                 .padding(.top, 32)
@@ -92,27 +84,32 @@ struct HomeContentView: View {
                 .padding(.top, 32)
                 .padding(.horizontal, 20)
 
-            if store.state.isLoading {
-                Spacer()
-                ProgressView()
-                    .frame(maxWidth: .infinity)
-                    .accessibilityIdentifier("Home.state.loading")
-                Spacer()
-            } else if !store.state.pins.isEmpty {
-                CardDeckView(
-                    pins: store.state.pins,
-                    currentIndex: store.state.currentCardIndex,
-                    onSwipeForward: { store.send(.swipeForward) },
-                    onSwipeBackward: { store.send(.swipeBackward) },
-                    onTapCard: { store.send(.tapCard($0)) },
-                    onTapMore: { store.send(.tapMore($0)) }
-                )
-                .padding(.top, 112)   // 앞 카드 고정 위치. 풀 덱일 때 뒤 카드 최상단이 필터 32pt 아래(112−80)에 오도록
-                .accessibilityIdentifier("Home.cardDeck")
-                Spacer()
-            } else {
-                Spacer()
-            }
+            contentBody
+        }
+    }
+
+    /// 정책: 로딩이 끝나고 현재 정렬 기준으로 표시할 카드가 0장이면(방·공동방 유무 무관) 빈 상태를 띄운다.
+    @ViewBuilder
+    private var contentBody: some View {
+        if store.state.isLoading {
+            Spacer()
+            ProgressView()
+                .frame(maxWidth: .infinity)
+                .accessibilityIdentifier("Home.state.loading")
+            Spacer()
+        } else if store.state.showsEmptyState {
+            emptyStateBody
+        } else {
+            CardDeckView(
+                pins: store.state.pins,
+                currentIndex: store.state.currentCardIndex,
+                onSwipeForward: { store.send(.swipeForward) },
+                onSwipeBackward: { store.send(.swipeBackward) },
+                onTapCard: { store.send(.tapCard($0)) }
+            )
+            .padding(.top, 112)   // 앞 카드 고정 위치. 풀 덱일 때 뒤 카드 최상단이 필터 32pt 아래(112−80)에 오도록
+            .accessibilityIdentifier("Home.cardDeck")
+            Spacer()
         }
     }
 
@@ -120,12 +117,14 @@ struct HomeContentView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if let room = store.state.currentRoom {
+            if store.state.showsRoomIdentity, let room = store.state.currentRoom {
                 MHContentBadge(room.homeDisplayName, size: .medium)   // 공동방 "…방" / 개인방 이름 그대로
                     .contentShape(Rectangle())
                     .onTapGesture { store.send(.tapRoomBadge) }   // 정책: 뱃지 탭 → 방 선택 바텀 시트
                     .accessibilityIdentifier("Home.roomBadge")
             } else {
+                // 개인방만 있고 비었을 때만 방 칩 대신 로고. (Figma 002-6-1)
+                // 공동방이 있거나(빈 방이어도) 표시할 장소가 있으면 위 방 칩이 유지된다.
                 Text("GGUK")
                     .mhTypography(.heading1Bold)
                     .foregroundStyle(.mhPrimaryNormal)
@@ -153,56 +152,47 @@ struct HomeContentView: View {
         .accessibilityIdentifier("Home.filterBar")
     }
 
-    // MARK: - 빈상태 A (방 없음)
+    // MARK: - 빈 상태 본문 (표시할 카드 0장)
 
-    private var emptyStateContent: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            header
-                .padding(.top, 32)
-                .padding(.horizontal, 20)
-
-            filterBar
-                .padding(.top, 32)
-                .padding(.horizontal, 20)
-
-            // 일러스트 + 카피 + CTA (헤더로부터 58pt)
-            VStack(spacing: 20) {
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color.mhBackgroundNormalAlternative)
-                    .frame(width: 249, height: 249)
-                    .overlay {
-                        Text("이미지 교체 예정")
-                            .mhTypography(.body2NormalMedium)
-                            .foregroundStyle(.mhLabelAlternative)
-                    }
-                    .accessibilityIdentifier("Home.emptyState.illustration")
-
-                VStack(spacing: 0) {
-                    Text("\"저번에 말한 거기가 어디였지?\"")
-                        .mhTypography(.label1NormalRegular)
-                        .foregroundStyle(.mhPrimaryNormal)
-
-                    Text("더 이상 묻지 말고, 친구와 함께 장소를 저장해 보세요.")
-                        .mhTypography(.label1NormalRegular)
-                        .foregroundStyle(.mhPrimaryNormal)
+    /// 일러스트 + 카피 + "공동방 만들기" CTA. 헤더·필터는 mainContent 가 공통으로 그린다.
+    /// CTA 는 공동방 유무와 무관하게 항상 노출한다(팀 정책 — PRD [SYS-009] Flow D 와는 다름).
+    private var emptyStateBody: some View {
+        VStack(spacing: 20) {
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.mhFillNormal)   // 실제 일러스트 교체 전 placeholder — 화면 배경(alternative)과 구분되는 색
+                .frame(width: 249, height: 249)   // Figma(2809:138533): 249×249, 중앙 정렬
+                .overlay {
+                    Text("이미지 교체 예정")
+                        .mhTypography(.body2NormalMedium)
+                        .foregroundStyle(.mhLabelAlternative)
                 }
-                .multilineTextAlignment(.center)
-                .accessibilityIdentifier("Home.emptyState.copy")
+                .accessibilityIdentifier("Home.emptyState.illustration")
 
-                MHButton(
-                    "공동방 만들기",
-                    variant: .solid,
-                    color: .primary,
-                    size: .medium,
-                    leadingIcon: .plus
-                ) {
-                    store.send(.tapCreateRoom)
-                }
-                .accessibilityIdentifier("Home.emptyState.createRoomButton")
+            VStack(spacing: 0) {
+                Text("\"저번에 말한 거기가 어디였지?\"")
+                    .mhTypography(.label1NormalRegular)
+                    .foregroundStyle(.mhPrimaryNormal)
+
+                Text("더 이상 묻지 말고, 친구와 함께 장소를 저장해 보세요.")
+                    .mhTypography(.label1NormalRegular)
+                    .foregroundStyle(.mhPrimaryNormal)
             }
-            .frame(maxWidth: .infinity)
-            .padding(.top, 58)
+            .multilineTextAlignment(.center)
+            .accessibilityIdentifier("Home.emptyState.copy")
+
+            MHButton(
+                "공동방 만들기",
+                variant: .solid,
+                color: .primary,
+                size: .medium,
+                leadingIcon: .plus
+            ) {
+                store.send(.tapCreateRoom)
+            }
+            .accessibilityIdentifier("Home.emptyState.createRoomButton")
         }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 58)
     }
 
     // MARK: - 마스코트 캐릭터
