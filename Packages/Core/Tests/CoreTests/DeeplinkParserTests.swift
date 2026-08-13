@@ -16,12 +16,71 @@ struct DeeplinkParserTests {
         #expect(parser.parse(URL(string: "gguk://invite/AB12")!) == .invite(code: "AB12"))
     }
 
-    @Test("스킴·호스트 대소문자는 무시한다", arguments: [
+    @Test("스킴·호스트·목적지 이름의 대소문자는 무시한다 — 두 진입 경로가 같은 규칙을 쓴다", arguments: [
         "HTTPS://GGUK.APP/invite/AB12",
+        "https://GGUK.APP/INVITE/AB12",
         "GGUK://INVITE/AB12"
     ])
-    func ignoresSchemeAndHostCase(_ raw: String) {
+    func ignoresSchemeHostAndRouteCase(_ raw: String) {
         #expect(parser.parse(URL(string: raw)!) == .invite(code: "AB12"))
+    }
+
+    @Test("초대 코드의 대소문자는 보존한다 — 서버가 구분하는지 모르므로 뭉개지 않는다")
+    func preservesCodeCase() {
+        #expect(parser.parse(URL(string: "gguk://invite/aB12")!) == .invite(code: "aB12"))
+    }
+
+    @Test("설정의 스킴·호스트는 대소문자를 정규화해 받는다")
+    func normalizesConfiguration() {
+        let parser = DeeplinkParser(configuration: DeeplinkConfiguration(scheme: "GGUK", host: "GGUK.APP"))
+
+        #expect(parser.parse(URL(string: "gguk://invite/AB12")!) == .invite(code: "AB12"))
+    }
+
+    @Test("쿼리·프래그먼트가 붙어도 목적지는 그대로다 — 공유 경로에서 utm 이 붙는다", arguments: [
+        "https://gguk.app/invite/AB12?utm_source=kakao",
+        "https://gguk.app/invite/AB12#section"
+    ])
+    func ignoresQueryAndFragment(_ raw: String) {
+        #expect(parser.parse(URL(string: raw)!) == .invite(code: "AB12"))
+    }
+
+    // 퍼센트 인코딩은 쪼갠 뒤에 푼다. 이 단언들이 없으면 목적지가 늘어 세그먼트 수 가드가 느슨해지는 순간
+    // %2F 가 조용히 통과로 바뀐다 — 회귀가 눈에 띄지 않는 종류다.
+    @Test("인코딩으로 세그먼트 경계나 코드 내용을 조작할 수 없다", arguments: [
+        "https://gguk.app/invite/AB%2F12",          // %2F 로 세그먼트를 쪼개려는 시도
+        "https://gguk.app/invite/AB%2012",          // 공백
+        "https://gguk.app/invite/AB%0012",          // NUL
+        "https://gguk.app/invite/AB%E2%80%8B12",    // zero-width space — 화면에서 AB12 와 구별되지 않는다
+        "https://gguk.app/invite/%E2%80%AEAB12"    // RTL override
+    ])
+    func rejectsEncodedTampering(_ raw: String) {
+        #expect(parser.parse(URL(string: raw)!) == nil)
+    }
+
+    @Test("코드 길이 상한을 넘으면 버린다")
+    func rejectsOversizedCode() {
+        let long = String(repeating: "A", count: Deeplink.maxSegmentLength + 1)
+
+        #expect(parser.parse(URL(string: "gguk://invite/\(long)")!) == nil)
+    }
+
+    @Test("경로 형태의 흔한 변형은 받아준다", arguments: [
+        "https://gguk.app/invite/AB12/",        // 후행 슬래시
+        "https://gguk.app//invite//AB12",       // 빈 세그먼트
+        "https://gguk.app:8443/invite/AB12"    // 포트
+    ])
+    func acceptsCommonPathVariants(_ raw: String) {
+        #expect(parser.parse(URL(string: raw)!) == .invite(code: "AB12"))
+    }
+
+    // AASA 에 www 를 거는지 미정이라, 지금 판정을 고정만 해둔다. 넓히기로 하면 이 단언을 뒤집는다.
+    @Test("호스트가 정확히 일치하지 않으면 버린다", arguments: [
+        "https://www.gguk.app/invite/AB12",     // www — AASA 결정에 따라 뒤집힐 수 있다
+        "https://gguk.app./invite/AB12"        // FQDN 후행 점
+    ])
+    func rejectsHostVariants(_ raw: String) {
+        #expect(parser.parse(URL(string: raw)!) == nil)
     }
 
     @Test("우리 것이 아닌 URL 은 버린다", arguments: [
