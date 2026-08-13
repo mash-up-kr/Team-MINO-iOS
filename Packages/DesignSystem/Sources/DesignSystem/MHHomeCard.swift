@@ -84,21 +84,30 @@ public struct MHHomeCard: View {
             Image(MHIcon.moreVertical)
                 .resizable().scaledToFit()
                 .frame(width: 18, height: 18)
-                .foregroundStyle(.mhLabelAlternative)
-                .frame(width: 32, height: 32)
-                .background(Circle().fill(Color.mhBackgroundNormalAlternative))
+                .foregroundStyle(.mhLabelNormal)   // Figma node 2598:97055 — Label/Normal
+                .frame(width: 32, height: 32)      // 배경 원 없이 아이콘만(32 히트영역)
+                .contentShape(Rectangle())
         }
         .buttonStyle(MHHomeCardMoreStyle())
     }
 
     private var imageGrid: some View {
         HStack(spacing: 8) {
-            ForEach(Array(images.prefix(2).enumerated()), id: \.offset) { _, image in
-                image
-                    .resizable().scaledToFill()
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 184)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
+            if images.isEmpty {
+                ForEach(0..<2, id: \.self) { _ in
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color.mhBackgroundNormalAlternative)
+                        .frame(maxWidth: .infinity)
+                        .aspectRatio(147.5 / 184, contentMode: .fit)
+                }
+            } else {
+                ForEach(Array(images.prefix(2).enumerated()), id: \.offset) { _, image in
+                    image
+                        .resizable().scaledToFill()
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 184)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                }
             }
         }
     }

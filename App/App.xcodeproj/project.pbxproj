@@ -34,7 +34,7 @@
 		35D426C5753A372F270C6E9D /* Networking */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Networking; path = ../Packages/Networking; sourceTree = SOURCE_ROOT; };
 		FAB1000000000000000000F1 /* Logging */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Logging; path = ../Packages/Logging; sourceTree = SOURCE_ROOT; };
 		3698F892C87398A1AB1FF12E /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
-		49D88A349FD70A9153DD2C03 /* App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = App.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		49D88A349FD70A9153DD2C03 /* Mino-iOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Mino-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		4B8003BACE60BD969B4B0C47 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		7855DC05D6AAAB6FF9B75F8C /* Data */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Data; path = ../Packages/Data; sourceTree = SOURCE_ROOT; };
 		9385F6DBBC00D51067BF0767 /* Domain */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Domain; path = ../Packages/Domain; sourceTree = SOURCE_ROOT; };
@@ -154,7 +154,7 @@
 		E9C3DB3EC6D7655028A9C0D3 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				49D88A349FD70A9153DD2C03 /* App.app */,
+				49D88A349FD70A9153DD2C03 /* Mino-iOS.app */,
 				5E1000000000000000000007 /* ShareExtension.appex */,
 			);
 			name = Products;
@@ -208,7 +208,7 @@
 				2FEFAD4646D1EBA99E6E7E08 /* Core */,
 			);
 			productName = App;
-			productReference = 49D88A349FD70A9153DD2C03 /* App.app */;
+			productReference = 49D88A349FD70A9153DD2C03 /* Mino-iOS.app */;
 			productType = "com.apple.product-type.application";
 		};
 		5E1000000000000000000001 /* ShareExtension */ = {

@@ -131,4 +131,9 @@ public extension Image {
     init(_ icon: MHIcon) {
         self.init(icon.rawValue, bundle: .module)
     }
+
+    /// DesignSystem 번들의 멀티컬러 이미지를 로드한다. 마스코트 등 단색이 아닌 에셋에 쓴다.
+    init(dsImage name: String) {
+        self.init(name, bundle: .module)
+    }
 }

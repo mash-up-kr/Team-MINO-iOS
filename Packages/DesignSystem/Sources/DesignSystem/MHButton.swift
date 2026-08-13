@@ -211,6 +211,22 @@ public extension View {
     }
 }
 
+// MARK: - Pill shape (Figma Alternative Action 등 rounded-999 버튼)
+
+private struct MHButtonPillShapeKey: EnvironmentKey { static let defaultValue = false }
+extension EnvironmentValues {
+    var mhButtonPillShape: Bool {
+        get { self[MHButtonPillShapeKey.self] }
+        set { self[MHButtonPillShapeKey.self] = newValue }
+    }
+}
+public extension View {
+    /// 하위 `MHButton` 의 cornerRadius 를 pill(Capsule) 로 바꾼다.
+    func mhButtonPillShape(_ pill: Bool = true) -> some View {
+        environment(\.mhButtonPillShape, pill)
+    }
+}
+
 // MARK: - ButtonStyle (배경·테두리·press 오버레이)
 
 struct MHButtonStyle: ButtonStyle {
@@ -230,13 +246,17 @@ private struct MHButtonStyleBody: View {
     let isIconOnly: Bool
     let configuration: ButtonStyle.Configuration
     @Environment(\.mhButtonFillWidth) private var fillWidth
+    @Environment(\.mhButtonPillShape) private var pillShape
 
     var body: some View {
         let metric = spec.size.metric
         let bg = isEnabled ? spec.background : spec.disabledBackground
         let fg = isEnabled ? spec.foreground : spec.disabledForeground
         let stroke = isEnabled ? spec.border : spec.disabledBorder
-
+        // pill 이면 Capsule, 아니면 size 별 고정 라운드. clip·contentShape 가 같은 모양을 공유한다.
+        let buttonShape: AnyShape = pillShape
+            ? AnyShape(Capsule())
+            : AnyShape(RoundedRectangle(cornerRadius: metric.cornerRadius))
         configuration.label
             .foregroundStyle(fg)
             .padding(.horizontal, isIconOnly ? 0 : metric.hPadding)  // icon-only 는 정사각 frame 이 패딩을 만든다
@@ -250,14 +270,19 @@ private struct MHButtonStyleBody: View {
                 }
             }
             .overlay {
+                // 테두리는 strokeBorder(InsettableShape) 라 pill/rounded 를 각각 그린다 — AnyShape 는 InsettableShape 가 아니다.
                 if let stroke {
-                    RoundedRectangle(cornerRadius: metric.cornerRadius).strokeBorder(stroke, lineWidth: 1)
+                    if pillShape {
+                        Capsule().strokeBorder(stroke, lineWidth: 1)
+                    } else {
+                        RoundedRectangle(cornerRadius: metric.cornerRadius).strokeBorder(stroke, lineWidth: 1)
+                    }
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: metric.cornerRadius))
+            .clipShape(buttonShape)
             // outlined 는 배경이 .clear 인데 `.background(_:)` 의 ShapeStyle 오버로드는 hit test 에
             // 참여하지 않는다 — 이게 없으면 탭이 라벨 글자에만 걸리고 버튼 여백은 뒤로 통과한다.
-            .contentShape(RoundedRectangle(cornerRadius: metric.cornerRadius))
+            .contentShape(buttonShape)
     }
 
     // Figma 인터랙션 오버레이(Label/Normal): Normal 0 → Hovered 0.08 → Focused 0.12 → Pressed 0.18(각 ×1.5).

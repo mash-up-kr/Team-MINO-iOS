@@ -2,11 +2,12 @@ import Data
 import Domain
 import Feature
 import FeatureArchive
+import FeatureHome
 
 /// 컴포지션 루트(Composition Root).
 /// 앱 타깃만이 구체 타입을 알고, 의존성 그래프를 손으로 조립한다.
-/// 각 Coordinator 의 deps 프로토콜(`MemberDeps`·`ArchiveDeps` 등)을 이 한 타입이 준수한다.
-struct AppDependencies: MemberDeps, ArchiveDeps {
+/// 각 Coordinator 의 deps 프로토콜(`MemberDeps`·`HomeDeps`·`ArchiveDeps` 등)을 이 한 타입이 준수한다.
+struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps {
     let fetchMember: FetchMemberUseCase
     let fetchRooms: FetchRoomsUseCase
 

@@ -12,7 +12,7 @@ final class AppCoordinator {
     let profile: ProfileCoordinator
 
     init(deps: AppDependencies) {
-        self.home = HomeCoordinator()
+        self.home = HomeCoordinator(deps: deps)
         self.archive = ArchiveCoordinator(deps: deps)
         self.profile = ProfileCoordinator()
     }
