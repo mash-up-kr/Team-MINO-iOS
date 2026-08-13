@@ -11,6 +11,9 @@ enum TutorialStep: Equatable {
     /// 시스템 공유시트가 올라온 단계.
     case systemShareSheet
     /// 완료 화면을 보여주는 단계.
+    ///
+    /// 완료 화면도 이 화면의 한 단계다 — 별도 라우트로 push 하면 잠시 뒤 온보딩을 끝내는
+    /// 타이머만을 위해 Store 를 하나 더 만들게 된다. 단계로 두면 중복 호출도 가드가 함께 막는다.
     case complete
 }
 
@@ -66,7 +69,7 @@ func tutorialReducer(
             state.step = .shareGuide
             return .none
         case .shareSheetFinished(let completed):
-            return applyShareSheetResult(completed, to: &state, autoAdvanceDelay: autoAdvanceDelay)
+            return reduceShareSheetFinished(completed, to: &state, autoAdvanceDelay: autoAdvanceDelay)
         // 완료 단계에서 걸린 타이머만 유효하다 — 단계 순서가 바뀌어 엉뚱한 시점에 도착하면 무시한다.
         case .completeTimerElapsed:
             guard state.step == .complete else { return .none }
@@ -78,11 +81,8 @@ func tutorialReducer(
     }
 }
 
-/// 시스템 공유시트 결과를 단계에 반영한다. 완료면 자동 전환 타이머까지 건다.
-///
-/// 완료 화면도 이 화면의 한 단계다 — 별도 라우트로 push 하면 잠시 뒤 온보딩을 끝내는
-/// 타이머만을 위해 Store 를 하나 더 만들게 된다. 단계로 두면 중복 호출도 가드가 함께 막는다.
-private func applyShareSheetResult(
+/// 시스템 공유시트 결과를 단계에 반영하고, 완주면 자동 전환 타이머를 건다.
+private func reduceShareSheetFinished(
     _ completed: Bool,
     to state: inout TutorialState,
     autoAdvanceDelay: Duration

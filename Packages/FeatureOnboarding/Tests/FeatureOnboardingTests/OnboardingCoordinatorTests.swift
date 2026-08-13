@@ -152,9 +152,16 @@ struct OnboardingCoordinatorTests {
         #expect(coord.makeTutorialStore() !== coord.makeTutorialStore())
     }
 
-    // 아래 4건은 make*Store 안의 observeNavigation 배선을 production Store 로 지난다.
+    // 아래 5건은 make*Store 안의 observeNavigation 배선을 production Store 로 지난다.
     // handle 직접 호출 테스트는 이 배선이 끊겨도 통과하므로 별도로 둔다.
-    // 폴링 대기는 StoreTests 선례를 따른다(회귀 시 hang 없이 유한 종료).
+
+    /// 구독 Task 가 결과를 전달할 때까지 기다린다. 상한을 두어 회귀 시 hang 없이 끝난다
+    /// (StoreTests 선례).
+    private func waitUntil(_ isDone: () -> Bool) async {
+        for _ in 0..<1000 where !isDone() {
+            await Task.yield()
+        }
+    }
 
     @Test("배선 — ProfileSetup Store 의 tapSave 가 path 에 반영된다")
     func profileSetupStore_isWiredToPath() async {
@@ -164,9 +171,7 @@ struct OnboardingCoordinatorTests {
         store.send(.nameChanged("민호"))   // reduce 가 저장 조건을 가드하므로 유효한 이름을 먼저 넣는다
         store.send(.tapSave)
 
-        for _ in 0..<1000 where coord.path.isEmpty {
-            await Task.yield()
-        }
+        await waitUntil { !coord.path.isEmpty }
         #expect(coord.path == [.createRoom])
     }
 
@@ -178,9 +183,7 @@ struct OnboardingCoordinatorTests {
         store.send(.nameChanged("민호"))
         store.send(.tapSave)
 
-        for _ in 0..<1000 where coord.path.isEmpty {
-            await Task.yield()
-        }
+        await waitUntil { !coord.path.isEmpty }
         #expect(coord.path == [.tutorial])
     }
 
@@ -192,9 +195,7 @@ struct OnboardingCoordinatorTests {
         store.send(.roomNameChanged("민호야 잘하자"))   // reduce 가 생성 조건을 가드하므로 이름을 먼저 넣는다
         store.send(.tapCreate)
 
-        for _ in 0..<1000 where coord.path.isEmpty {
-            await Task.yield()
-        }
+        await waitUntil { !coord.path.isEmpty }
         #expect(coord.path == [.inviteFriends])
     }
 
@@ -205,9 +206,7 @@ struct OnboardingCoordinatorTests {
         let store = coord.makeCreateRoomStore()
         store.send(.tapSkip)   // 건너뛰기는 이름 입력 없이도 통과한다
 
-        for _ in 0..<1000 where coord.path.isEmpty {
-            await Task.yield()
-        }
+        await waitUntil { !coord.path.isEmpty }
         #expect(coord.path == [.tutorial])
     }
 
@@ -218,9 +217,7 @@ struct OnboardingCoordinatorTests {
         let store = coord.makeInviteFriendsStore()
         store.send(.tapComplete)
 
-        for _ in 0..<1000 where coord.path.isEmpty {
-            await Task.yield()
-        }
+        await waitUntil { !coord.path.isEmpty }
         #expect(coord.path == [.tutorial])
     }
 
@@ -235,9 +232,7 @@ struct OnboardingCoordinatorTests {
         let store = coord.makeTutorialStore()
         store.send(.tapSkip)
 
-        for _ in 0..<1000 where captured == nil {
-            await Task.yield()
-        }
+        await waitUntil { captured != nil }
         #expect(captured == .completed)
     }
 }

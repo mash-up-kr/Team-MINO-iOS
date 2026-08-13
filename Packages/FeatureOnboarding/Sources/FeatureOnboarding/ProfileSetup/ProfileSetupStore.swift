@@ -1,3 +1,4 @@
+import Core
 import MVI
 
 // [Convention] .claude/docs/mvi-coordinator-di.md 5절 — 화면 = Store 1개 = 폴더 1개, State/Action/Nav/reducer 한 파일
@@ -14,7 +15,7 @@ struct ProfileSetupState: Equatable {
 
     /// 앞뒤 공백을 뺀 이름이 최소 길이를 넘어야 저장할 수 있다 — ProfileSetupContent 의 `isSaveEnabled` 계약.
     var isSaveEnabled: Bool {
-        name.trimmingCharacters(in: .whitespacesAndNewlines).count >= ProfileSetupLimit.minimumNameLength
+        name.trimmed.count >= ProfileSetupLimit.minimumNameLength
     }
 
     /// 지울 것이 있으면 지울 수 있다 — 저장과 조건이 다르다(저장 최소 길이에 못 미치는 1글자도 지움 대상).

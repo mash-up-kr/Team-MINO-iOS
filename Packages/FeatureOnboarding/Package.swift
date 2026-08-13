@@ -8,16 +8,16 @@ let package = Package(
         .library(name: "FeatureOnboarding", targets: ["FeatureOnboarding"]),
     ],
     dependencies: [
+        .package(path: "../Core"),
         .package(path: "../FlowCoordination"),
         .package(path: "../MVI"),
         .package(path: "../DesignSystem"),
         .package(path: "../RoomCreationUI"),
-        .package(path: "../Core"),
     ],
     targets: [
         .target(
             name: "FeatureOnboarding",
-            dependencies: ["FlowCoordination", "MVI", "DesignSystem", "RoomCreationUI", "Core"],
+            dependencies: ["Core", "FlowCoordination", "MVI", "DesignSystem", "RoomCreationUI"],
             resources: [.process("Resources")]
         ),
         .testTarget(

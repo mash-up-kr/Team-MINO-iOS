@@ -24,9 +24,8 @@ struct TutorialShareSheet: UIViewControllerRepresentable {
     /// Copy·메시지·미리 알림 무엇을 골라도 성공하면 true 라, "꾹을 찾아 눌러보게 한다"는
     /// 이 단계의 목적이 무너진다(false 는 시트를 그냥 닫았을 때뿐이다).
     ///
-    /// 익스텐션의 activityType 은 그 번들 ID 이고, 익스텐션 번들 ID 는 앱 번들 ID 를 접두사로 갖는다
-    /// (`com.mashup.teamMino` / `com.mashup.teamMino.ShareExtension`). 문자열을 박지 않고
-    /// 앱 번들 ID 에서 유도해 번들 ID 가 바뀌어도 따라가게 한다.
+    /// 익스텐션의 activityType 은 그 번들 ID 이고, 앱 번들 ID 를 접두사로 갖는다
+    /// (`com.mashup.teamMino` / `com.mashup.teamMino.ShareExtension`).
     ///
     /// 두 타깃의 번들 ID 를 따로 바꿔 이 접두사 관계가 깨지면 꾹을 골라도 false 가 되어
     /// 튜토리얼을 완주할 수 없게 된다(건너뛰기만 남는다) — 번들 ID 를 손볼 때 함께 확인한다.

@@ -73,7 +73,6 @@ public final class OnboardingCoordinator: Coordinator {
     func handle(_ nav: ProfileSetupNav) {
         switch nav {
         case .didSave:
-            // 초대로 들어왔으면 공동방 생성·친구초대를 건너뛰고 곧장 튜토리얼로 간다 —
             // 이미 초대받은 방이 있어 방을 만들고 친구를 부르는 두 스텝이 무의미하다.
             push(inviteCode == nil ? .createRoom : .tutorial)
         }
@@ -98,7 +97,6 @@ public final class OnboardingCoordinator: Coordinator {
 
     func handle(_ nav: TutorialNav) {
         switch nav {
-        // 건너뛰기와 완주의 목적지가 같다 — 둘 다 온보딩을 끝내고 나간다.
         // 어디로 보낼지(방 리스트 vs 초대받은 방)는 결과를 받는 부모가 정한다.
         case .didSkip, .didFinish:
             if let inviteCode {

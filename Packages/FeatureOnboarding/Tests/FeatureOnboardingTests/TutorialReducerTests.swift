@@ -170,7 +170,8 @@ struct TutorialReducerTests {
 
     @Test("L1 — 완료 단계가 아닐 때 도착한 자동 전환 타이머는 무시된다")
     func completeTimerElapsed_beforeComplete_isIgnored() async {
-        let store = TestStore(TutorialState(), reduce: tutorialReducer(autoAdvanceDelay: .zero))
+        // 완료 단계가 아니라 타이머가 걸리지 않으므로 지연을 줄일 필요가 없다
+        let store = TestStore(TutorialState(), reduce: tutorialReducer())
 
         await store.send(.completeTimerElapsed)
 
