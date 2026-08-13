@@ -67,7 +67,7 @@ func tutorialReducer(
             return .none
         case .shareSheetFinished(let completed):
             return applyShareSheetResult(completed, to: &state, autoAdvanceDelay: autoAdvanceDelay)
-        // 완료 단계에서 걸린 타이머만 유효하다 — 건너뛰기로 화면을 떠난 뒤 도착한 타이머는 무시한다.
+        // 완료 단계에서 걸린 타이머만 유효하다 — 단계 순서가 바뀌어 엉뚱한 시점에 도착하면 무시한다.
         case .completeTimerElapsed:
             guard state.step == .complete else { return .none }
             return .navigate(.didFinish)
@@ -97,6 +97,9 @@ private func applyShareSheetResult(
     state.step = .complete
     return .run { send in
         try? await Task.sleep(for: autoAdvanceDelay)
+        // 취소됐으면 보내지 않는다 — `try?` 가 CancellationError 를 삼켜서, 이 가드가 없으면
+        // 화면을 떠나며 취소된 타이머가 곧바로 온보딩을 끝내버린다.
+        guard !Task.isCancelled else { return }
         send(.completeTimerElapsed)
     }
 }
