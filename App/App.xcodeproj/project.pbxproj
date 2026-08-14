@@ -312,7 +312,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "yizihn.com.iOS-mini-fig";
+				PRODUCT_BUNDLE_IDENTIFIER = com.mashup.teamMino;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -388,7 +388,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "yizihn.com.iOS-mini-fig";
+				PRODUCT_BUNDLE_IDENTIFIER = com.mashup.teamMino;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -471,7 +471,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "yizihn.com.iOS-mini-fig.ShareExtension";
+				PRODUCT_BUNDLE_IDENTIFIER = com.mashup.teamMino.ShareExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -490,7 +490,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "yizihn.com.iOS-mini-fig.ShareExtension";
+				PRODUCT_BUNDLE_IDENTIFIER = com.mashup.teamMino.ShareExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
