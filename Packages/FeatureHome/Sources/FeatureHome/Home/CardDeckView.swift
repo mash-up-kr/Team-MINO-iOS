@@ -22,24 +22,15 @@ struct CardDeckView: View {
     /// `UIScreen.main.bounds` 는 iOS 16+ deprecated 이고 멀티윈도우/회전/iPad 에서 부정확하다.
     @State private var containerWidth: CGFloat = 0
 
-    private let visibleCount = 5
-    private var baseCardWidth: CGFloat { max(0, containerWidth - Metric.cardHorizontalInset) }
+    private var baseCardWidth: CGFloat { CardDeckLayout.baseCardWidth(containerWidth: containerWidth) }
     private var screenWidth: CGFloat { containerWidth }
 
-    // MARK: - 상수 (레이아웃 · 애니메이션 매직 넘버 일원화)
-
-    private enum Metric {
-        static let cardHorizontalInset: CGFloat = 40   // 카드 좌우 여백(20 × 2)
-        static let depthStep: CGFloat = 20             // 뒤 카드 1단계당 폭 축소·y 이동량
-    }
+    // MARK: - 상수 (뷰 전용 애니메이션 값. 레이아웃·제스처 판정 상수·순수 계산은 CardDeckLayout)
 
     private enum Anim {
         static let springDuration: TimeInterval = 0.2      // fling·복귀·제자리 스프링
         static let dragMinimum: CGFloat = 10               // DragGesture 최소 인식 거리
         static let backwardDragRange: CGFloat = 200        // 좌드래그 → returnProgress(0…1) 정규화 폭
-        static let forwardFlingThreshold: CGFloat = 100    // predictedEnd 로 다음 카드 넘김 판정 임계
-        static let backwardFlingThreshold: CGFloat = 100   // predictedEnd 로 이전 카드 복귀 판정 임계(부호 반대)
-        static let backwardProgressThreshold: CGFloat = 0.3 // 좌스와이프 확정 진행도
         static let flingRotation: Double = 20              // 카드가 날아갈 때 회전각(부호는 방향)
         static let dragRotationDivisor: Double = 30        // 드래그 중 회전 = -dragOffset / 이 값
         static let verticalDragFactor: CGFloat = 0.4       // 드래그 시 위로 뜨는 정도 = dragOffset × 이 값
@@ -54,13 +45,13 @@ struct CardDeckView: View {
             ForEach(Array(visibleCards.enumerated()), id: \.element.id) { stackIndex, pin in
                 let isTop = stackIndex == visibleCards.count - 1
                 let depth = visibleCards.count - 1 - stackIndex
-                let effectiveDepth = isTop ? CGFloat(depth) + returnProgress : max(0, CGFloat(depth) - shiftProgress + returnProgress)
-                let cardWidth = baseCardWidth - effectiveDepth * Metric.depthStep
+                let effectiveDepth = CardDeckLayout.effectiveDepth(depth: depth, isTop: isTop, shiftProgress: shiftProgress, returnProgress: returnProgress)
+                let cardWidth = CardDeckLayout.cardWidth(containerWidth: containerWidth, effectiveDepth: effectiveDepth)
 
                 cardView(pin: pin)
                     .frame(width: cardWidth)
-                    .offset(y: effectiveDepth * -Metric.depthStep)
-                    .opacity(interpolatedOpacity(for: depth, isTop: isTop) * depthFade(effectiveDepth))
+                    .offset(y: effectiveDepth * -CardDeckLayout.depthStep)
+                    .opacity(CardDeckLayout.interpolatedOpacity(depth: depth, isTop: isTop, shiftProgress: shiftProgress) * CardDeckLayout.depthFade(effectiveDepth))
                     .zIndex(Double(stackIndex))
                     .offset(x: isTop ? dragOffset + flingXOffset : 0, y: isTop ? dragYOffset + flingYOffset : 0)
                     .rotationEffect(isTop ? .degrees(topRotation) : .zero)
@@ -78,7 +69,7 @@ struct CardDeckView: View {
                         y: -screenWidth * Anim.flyUpFactor * (1 - returnProgress)
                     )
                     .rotationEffect(.degrees(-Anim.flingRotation * Double(1 - returnProgress)))
-                    .zIndex(Double(visibleCount + 1))
+                    .zIndex(Double(CardDeckLayout.visibleCount + 1))
                     .allowsHitTesting(false)
             }
         }
@@ -100,11 +91,7 @@ struct CardDeckView: View {
     private var visibleCards: [Pin] {
         // 폭이 측정되기 전(첫 레이아웃 패스)엔 그리지 않아 0-폭 카드 깜빡임을 막는다.
         guard containerWidth > 0 else { return [] }
-        // +1장 추가로 렌더 → depthFade로 투명 상태에서 시작, 앞으로 당겨지면 페이드인
-        let renderCount = visibleCount + 1
-        let end = min(currentIndex + renderCount, pins.count)
-        guard currentIndex < end else { return [] }
-        return Array(pins[currentIndex..<end].reversed())
+        return Array(pins[CardDeckLayout.visibleRange(currentIndex: currentIndex, pinCount: pins.count)].reversed())
     }
 
     private var previousPin: Pin? {
@@ -139,25 +126,6 @@ struct CardDeckView: View {
         ]
     }
 
-    // MARK: - 스택 시각 효과
-
-    private static let opacityValues: [Double] = [1.0, 0.98, 0.90, 0.80, 0.70]
-
-    private func interpolatedOpacity(for depth: Int, isTop: Bool) -> Double {
-        guard !isTop else { return Self.opacityValues[0] }
-        let from = Self.opacityValues[min(depth, Self.opacityValues.count - 1)]
-        let targetDepth = max(0, depth - 1)
-        let to = Self.opacityValues[min(targetDepth, Self.opacityValues.count - 1)]
-        return from + (to - from) * Double(shiftProgress)
-    }
-
-    /// 카드가 최대 visible depth(4)를 넘어가면 페이드 아웃
-    private func depthFade(_ effectiveDepth: CGFloat) -> Double {
-        let maxDepth = CGFloat(visibleCount - 1)
-        guard effectiveDepth > maxDepth else { return 1 }
-        return max(0, Double(1 - (effectiveDepth - maxDepth)))
-    }
-
     // MARK: - 드래그 연동
 
     private var dragYOffset: CGFloat {
@@ -187,23 +155,22 @@ struct CardDeckView: View {
                 }
             }
             .onEnded { value in
-                let predicted = value.predictedEndTranslation.width
-
-                if returnProgress > 0 {
-                    // 좌스와이프 판정
-                    if predicted < -Anim.backwardFlingThreshold || returnProgress > Anim.backwardProgressThreshold {
-                        completeBackward()
-                    } else {
-                        withAnimation(.spring(duration: Anim.springDuration)) {
-                            returnProgress = 0
-                        }
-                    }
-                } else if predicted > Anim.forwardFlingThreshold, currentIndex < pins.count - 1 {
+                // "무엇을 할지" 판정은 순수 함수(CardDeckLayout)로 분리하고, 여기선 그 결과에 애니메이션만 건다.
+                switch CardDeckLayout.swipeOutcome(
+                    predicted: value.predictedEndTranslation.width,
+                    returnProgress: returnProgress,
+                    currentIndex: currentIndex,
+                    pinCount: pins.count
+                ) {
+                case .forward:
                     performFlingForward()
-                } else {
+                case .backward:
+                    completeBackward()
+                case .snapBack:
                     // 마지막 카드이거나 충분히 밀지 않음 → 제자리로. 마지막 카드는 넘길 수 없어 화면에 고정된다.
                     withAnimation(.spring(duration: Anim.springDuration)) {
                         dragOffset = 0
+                        returnProgress = 0
                     }
                 }
             }
