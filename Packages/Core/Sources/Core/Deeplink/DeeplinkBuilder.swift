@@ -17,6 +17,7 @@ public struct DeeplinkBuilder: Sendable {
     /// 인앱 브라우저(카카오톡 등)가 Universal Link 를 삼켰을 때 앱으로 되돌리는 링크.
     public func appURL(for deeplink: Deeplink) -> URL? {
         // 파서의 custom scheme 분기와 짝 — 첫 세그먼트가 host 자리에 온다.
+        // host 는 Foundation 이 punycode 로 바꾸므로(`가나다` → `xn--o39a40go4b`) ASCII 라우트만 와야 한다.
         guard let segments = urlSafeSegments(of: deeplink), let host = segments.first else { return nil }
         return makeURL(scheme: configuration.scheme, host: host, segments: Array(segments.dropFirst()))
     }

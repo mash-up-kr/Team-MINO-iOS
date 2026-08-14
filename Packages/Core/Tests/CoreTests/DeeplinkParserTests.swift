@@ -77,7 +77,8 @@ struct DeeplinkParserTests {
     // AASA 에 www 를 거는지 미정이라, 지금 판정을 고정만 해둔다. 넓히기로 하면 이 단언을 뒤집는다.
     @Test("호스트가 정확히 일치하지 않으면 버린다", arguments: [
         "https://www.gguk.org/r/AB12",     // www — AASA 결정에 따라 뒤집힐 수 있다
-        "https://gguk.org./r/AB12"        // FQDN 후행 점
+        "https://gguk.org./r/AB12",       // FQDN 후행 점
+        "https://gguk%2Eorg/r/AB12"       // 인코딩된 점 — 디코드된 host 로 비교하면 통과해버린다
     ])
     func rejectsHostVariants(_ raw: String) {
         #expect(parser.parse(URL(string: raw)!) == nil)

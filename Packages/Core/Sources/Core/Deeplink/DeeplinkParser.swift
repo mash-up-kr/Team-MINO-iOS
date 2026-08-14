@@ -27,7 +27,9 @@ public struct DeeplinkParser: Sendable {
 
         switch scheme {
         case "https":
-            guard components.host?.lowercased() == configuration.host else { return nil }
+            // 호스트도 인코딩된 원문으로 본다 — `host` 는 디코드된 값이라 `gguk%2Eorg` 가
+            // `gguk.org` 로 풀려 통과한다(세그먼트를 쪼갠 뒤 푸는 것과 같은 이유다).
+            guard components.percentEncodedHost?.lowercased() == configuration.host else { return nil }
             return decodedSegments(of: components.percentEncodedPath)
         case configuration.scheme:
             // gguk://r/AB12 는 host="r", path="/AB12" 로 쪼개진다 — host 가 첫 세그먼트다.
