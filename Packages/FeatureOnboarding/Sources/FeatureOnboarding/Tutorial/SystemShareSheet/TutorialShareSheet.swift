@@ -26,12 +26,15 @@ struct TutorialShareSheet: UIViewControllerRepresentable {
     /// 익스텐션의 activityType 은 그 번들 ID 이고, 앱 번들 ID 를 접두사로 갖는다
     /// (`com.mashup.teamMino` / `com.mashup.teamMino.ShareExtension`).
     ///
+    /// 점까지 붙여 비교한다 — 점이 없으면 `com.mashup.teamMinoPro` 처럼 앱 ID 로 시작하기만 하는
+    /// 남의 번들도 통과한다.
+    ///
     /// 두 타깃의 번들 ID 를 따로 바꿔 이 접두사 관계가 깨지면 꾹을 골라도 false 가 되어
     /// 튜토리얼을 완주할 수 없게 된다(건너뛰기만 남는다) — 번들 ID 를 손볼 때 함께 확인한다.
     private static func isOurShareExtension(_ activityType: UIActivity.ActivityType?) -> Bool {
         // appID 가 없으면(있을 수 없지만) 빈 문자열 접두사로 전부 통과하는 구멍이 생기므로 guard 로 막는다.
         guard let appID = Bundle.main.bundleIdentifier, let activityType else { return false }
-        return activityType.rawValue.hasPrefix(appID)
+        return activityType.rawValue.hasPrefix(appID + ".")
     }
 
     func makeUIViewController(context: Context) -> UIViewController {

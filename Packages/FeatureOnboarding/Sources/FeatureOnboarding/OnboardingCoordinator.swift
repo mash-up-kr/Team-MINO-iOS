@@ -1,3 +1,4 @@
+import Core
 import FlowCoordination
 import Observation
 import RoomCreationUI
@@ -39,7 +40,9 @@ public final class OnboardingCoordinator: Coordinator {
     private let inviteCode: String?
 
     public init(inviteCode: String? = nil) {
-        self.inviteCode = inviteCode
+        // 빈 값은 초대로 보지 않는다 — 빈 문자열이 흘러들면 방 생성을 건너뛴 채
+        // 열 수 없는 방 코드로 끝나는데, 그 오작동이 조용해서 배선 실수를 못 잡는다.
+        self.inviteCode = inviteCode?.nilIfEmpty
     }
 
     // Store 를 캐시하지 않는다 — NavigationStack 기본 동작을 그대로 따르기 위해서다.

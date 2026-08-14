@@ -32,6 +32,22 @@ struct OnboardingCoordinatorTests {
         #expect(coord.path == [.tutorial])
     }
 
+    @Test("빈 초대 코드는 초대로 보지 않는다 — 열 수 없는 방으로 조용히 끝나는 것을 막는다")
+    func blankInviteCode_isNotTreatedAsInvite() {
+        var captured: OnboardingResult?
+
+        for blank in ["", " ", "\n"] {
+            let coord = OnboardingCoordinator(inviteCode: blank)
+            coord.finish.bind { captured = $0 }
+
+            coord.handle(ProfileSetupNav.didSave)
+            #expect(coord.path == [.createRoom])
+
+            coord.handle(TutorialNav.didFinish)
+            #expect(captured == .completed)
+        }
+    }
+
     @Test("didCreateRoom nav → path 에 createRoom, inviteFriends 가 순서대로 push 된다")
     func navigate_pushes_inviteFriends() {
         let coord = OnboardingCoordinator()
