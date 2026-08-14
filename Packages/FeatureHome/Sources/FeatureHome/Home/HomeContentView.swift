@@ -21,6 +21,9 @@ struct HomeContentView: View {
         .animation(.easeInOut(duration: 0.3), value: store.state.isRoomListPresented)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Color.mhBackgroundNormalAlternative)
+        // 카드 더보기 메뉴를 화면 최상위에 호스팅 — 카드가 발행한 앵커에 스크림+메뉴를 얹는다
+        // (콘텐츠 크기 카드가 못 만드는 화면 전체 바깥탭 스크림을 화면 레벨에서 정확한 z-order 로 그린다).
+        .mhHomeCardMenuHost()
         .task { store.send(.load) }
         .task(id: store.state.changedRoomToast) {
             // 방 변경 툴팁은 5초 뒤 사라진다(정책). 새 툴팁이 뜨면 id 가 바뀌어 타이머가 재시작된다.

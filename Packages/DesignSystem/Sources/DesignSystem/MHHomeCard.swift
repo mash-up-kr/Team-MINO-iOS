@@ -64,8 +64,18 @@ public struct MHHomeCard: View {
         .frame(maxWidth: .infinity, alignment: .top)
         .background(RoundedRectangle(cornerRadius: 24).fill(Color.mhBackgroundNormalNormal))
         .overlay(RoundedRectangle(cornerRadius: 24).strokeBorder(.mhBackgroundNormalAlternative, lineWidth: 1))
-        .overlay { dismissScrim }                          // 메뉴 바깥 탭 감지(메뉴 아래 레이어)
-        .overlay(alignment: .topTrailing) { menuOverlay }  // ⋮ 에 앵커된 더보기 메뉴(스크림 위)
+        // 더보기 메뉴는 카드 overlay 로 그리지 않는다 — 콘텐츠 크기인 카드는 바깥탭 dismiss 스크림을
+        // 화면 전체로 펼칠 수 없기 때문(overlay 는 카드 크기를 제안). 대신 카드 위치(앵커)와 메뉴 내용을
+        // preference 로 발행하고, 화면을 채우는 조상의 `mhHomeCardMenuHost()` 가 최상위에 스크림+메뉴를 렌더한다.
+        .anchorPreference(key: MHHomeCardMenuKey.self, value: .bounds) { anchor in
+            menuPresented && !menuItems.isEmpty
+                ? MHHomeCardMenuPresentation(
+                    anchor: anchor,
+                    items: closableMenuItems,
+                    dismiss: { withAnimation(.easeOut(duration: 0.12)) { menuPresented = false } }
+                )
+                : nil
+        }
     }
 
     private var info: some View {
@@ -104,32 +114,7 @@ public struct MHHomeCard: View {
         .buttonStyle(MHHomeCardMoreStyle())
     }
 
-    // 메뉴 바깥을 탭하면 닫는 투명 스크림(레이아웃 영향 없음). 메뉴는 이 위에 별도 오버레이로 얹힌다.
-    @ViewBuilder private var dismissScrim: some View {
-        if menuPresented, !menuItems.isEmpty {
-            Color.clear
-                .frame(width: 10000, height: 10000)
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    withAnimation(.easeOut(duration: 0.12)) { menuPresented = false }
-                }
-        }
-    }
-
-    // ⋮ 에 앵커된 더보기 메뉴(Figma `Menu/Menu`, node 2862:175604). Menu/Menu 는 흰 카드 위아래로 투명 패딩 8pt 를
-    // 가지므로, 카드만 그리는 MHMenu 에 vertical 8 을 씌워 재현하고 우상단 실측 오프셋으로 카드에 앵커한다.
-    // 선택 시 액션 실행 후 자동으로 닫힌다.
-    @ViewBuilder private var menuOverlay: some View {
-        if menuPresented, !menuItems.isEmpty {
-            MHMenu(closableMenuItems)
-                .frame(width: 140)
-                .padding(.vertical, 8)
-                .offset(x: -25.42, y: 47.12)
-                .transition(.opacity)
-        }
-    }
-
-    // 원본 항목의 액션 뒤에 "메뉴 닫기"를 덧붙인 사본(선택하면 닫히도록).
+    // 원본 항목의 액션 뒤에 "메뉴 닫기"를 덧붙인 사본(선택하면 닫히도록). 호스트(mhHomeCardMenuHost)가 렌더한다.
     private var closableMenuItems: [MHMenuItem] {
         menuItems.map { item in
             MHMenuItem(
@@ -160,6 +145,63 @@ public struct MHHomeCard: View {
                         .clipShape(RoundedRectangle(cornerRadius: 16))
                 }
             }
+        }
+    }
+}
+
+// MARK: - 더보기 메뉴 화면 레벨 호스팅
+
+// Figma `Menu/Menu` 실측 — 앵커(카드 우상단) 기준 메뉴 크기·오프셋.
+private enum MHHomeCardMenuMetrics {
+    static let width: CGFloat = 140
+    static let verticalPadding: CGFloat = 8
+    static let anchorInsetX: CGFloat = 25.42    // 카드 우측 끝에서 안쪽으로
+    static let anchorOffsetY: CGFloat = 47.12   // 카드 상단에서 아래로
+}
+
+/// `MHHomeCard` 가 발행하는 더보기 메뉴 표시 정보. `mhHomeCardMenuHost()` 가 화면 최상위에 렌더한다.
+struct MHHomeCardMenuPresentation {
+    let anchor: Anchor<CGRect>
+    let items: [MHMenuItem]
+    let dismiss: () -> Void
+}
+
+// 하위 카드 중 '열린' 카드 하나가 자기 표시 정보를 발행한다(닫힌 카드는 nil → 최신 non-nil 유지).
+struct MHHomeCardMenuKey: PreferenceKey {
+    // 값(클로저 포함)이 non-Sendable 이라 strict concurrency 가 static 을 막지만, 상수 nil 이라 공유 가변 상태가 없다.
+    nonisolated(unsafe) static let defaultValue: MHHomeCardMenuPresentation? = nil
+    static func reduce(value: inout MHHomeCardMenuPresentation?, nextValue: () -> MHHomeCardMenuPresentation?) {
+        value = nextValue() ?? value
+    }
+}
+
+public extension View {
+    /// 화면을 채우는 조상에 붙여, 하위 `MHHomeCard` 의 더보기 메뉴를 **화면 최상위**에 띄운다.
+    ///
+    /// 콘텐츠 크기인 카드의 overlay 로는 바깥탭 dismiss 스크림을 화면 전체로 펼칠 수 없어(overlay 는
+    /// 카드 크기를 제안), 메뉴·스크림 렌더를 화면 레벨로 올린다. z-order(스크림 위=콘텐츠, 스크림 아래=메뉴)와
+    /// 바깥탭 닫기를 정확히 관리하며, 매직 넘버 스크림 없이 화면을 덮는다.
+    func mhHomeCardMenuHost() -> some View {
+        overlayPreferenceValue(MHHomeCardMenuKey.self) { presentation in
+            GeometryReader { proxy in
+                if let presentation {
+                    let card = proxy[presentation.anchor]
+                    ZStack(alignment: .topLeading) {
+                        Color.clear
+                            .contentShape(Rectangle())
+                            .onTapGesture { presentation.dismiss() }   // 카드 밖 어디를 눌러도 닫힘
+                        MHMenu(presentation.items)
+                            .frame(width: MHHomeCardMenuMetrics.width)
+                            .padding(.vertical, MHHomeCardMenuMetrics.verticalPadding)
+                            .offset(
+                                x: card.maxX - MHHomeCardMenuMetrics.width - MHHomeCardMenuMetrics.anchorInsetX,
+                                y: card.minY + MHHomeCardMenuMetrics.anchorOffsetY
+                            )
+                            .transition(.opacity)
+                    }
+                }
+            }
+            .ignoresSafeArea()   // 스크림이 카드 밖 화면 전체를 덮게 — 매직 넘버 프레임 대체
         }
     }
 }
