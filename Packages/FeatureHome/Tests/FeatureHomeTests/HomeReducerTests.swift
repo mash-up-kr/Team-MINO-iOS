@@ -389,7 +389,7 @@ struct HomeReducerTests {
             $0.currentCardIndex = 3                 // 방2 구간 시작
             $0.isRoomListPresented = false
             $0.selectedRoomID = "2"
-            $0.changedRoomToast = "데이트 코스"       // 툴팁은 뷰에서 "…방이에요" 를 붙인다
+            $0.changedRoomToastID = "2"             // 식별은 id — 툴팁 표기("데이트 코스방이에요")는 뷰가 이 id 로 파생
         }
         store.finish()
     }
@@ -404,24 +404,43 @@ struct HomeReducerTests {
         await store.send(.selectRoom("2")) {
             $0.isRoomListPresented = false
             $0.selectedRoomID = "2"                 // 카드가 없어 currentCardIndex 는 그대로
-            $0.changedRoomToast = "데이트 코스"
+            $0.changedRoomToastID = "2"
         }
         #expect(store.currentState.currentRoom?.id == "2")   // 선택 후: 고른 방이 현재 방
         store.finish()
     }
 
-    @Test("L1 — dismissRoomToast 는 같은 방 툴팁을 숨긴다")
+    @Test("L1 — dismissRoomToast 는 같은 방(id 일치) 툴팁을 숨긴다")
     func dismissRoomToast_hides() async {
-        let store = makeStore(state: HomeState(rooms: fixtureRooms, changedRoomToast: "민방"))
-        await store.send(.dismissRoomToast("민방")) { $0.changedRoomToast = nil }
+        let store = makeStore(state: HomeState(rooms: fixtureRooms, changedRoomToastID: "1"))
+        await store.send(.dismissRoomToast("1")) { $0.changedRoomToastID = nil }
         store.finish()
     }
 
-    @Test("L1 — dismissRoomToast 는 다른 방으로 바뀌었으면 툴팁을 지우지 않는다")
-    func dismissRoomToast_ignoresStaleName() async {
-        // 방을 바꿔 툴팁이 "데이트 코스"인데, 이전 방("민방") 타이머의 dismiss 가 뒤늦게 도착한 상황
-        let store = makeStore(state: HomeState(rooms: fixtureRooms, changedRoomToast: "데이트 코스"))
-        await store.send(.dismissRoomToast("민방"))   // 상태 변화 없음 — 새 방 툴팁 유지
+    @Test("L1 — dismissRoomToast 는 다른 방(id 불일치)으로 바뀌었으면 툴팁을 지우지 않는다")
+    func dismissRoomToast_ignoresStaleID() async {
+        // 방을 바꿔 툴팁이 방2 를 가리키는데, 이전 방(방1) 타이머의 dismiss 가 뒤늦게 도착한 상황
+        let store = makeStore(state: HomeState(rooms: fixtureRooms, changedRoomToastID: "2"))
+        await store.send(.dismissRoomToast("1"))   // 상태 변화 없음 — 새 방 툴팁 유지
+        store.finish()
+    }
+
+    @Test("L1 — 이름이 같은 방들도 id 로 구분해 stale 타이머가 남의 툴팁을 지우지 않는다")
+    func dismissRoomToast_distinguishesSameNamedRoomsByID() async {
+        // 같은 이름("모임")의 서로 다른 방 두 개 — 이름 기반이었다면 stale dismiss 가 오작동했을 케이스.
+        let sameName = [
+            Room(id: "a", type: .shared, name: "모임", description: nil,
+                 color: "#FF6B6B", ownerId: "o", inviteCode: "A",
+                 createdAt: fixtureDate, pinCount: 0, memberCount: 1, users: []),
+            Room(id: "b", type: .shared, name: "모임", description: nil,
+                 color: "#4ECDC4", ownerId: "o", inviteCode: "B",
+                 createdAt: fixtureDate, pinCount: 0, memberCount: 1, users: []),
+        ]
+        // 현재 툴팁은 방 "b" 를 가리킴. 이전 방 "a" 타이머의 뒤늦은 dismiss 가 도착.
+        let store = makeStore(state: HomeState(rooms: sameName, changedRoomToastID: "b"))
+        await store.send(.dismissRoomToast("a"))   // 이름은 같지만 id 가 달라 무시(이름 기반이면 잘못 지웠을 것)
+        #expect(store.currentState.changedRoomToastID == "b")
+        await store.send(.dismissRoomToast("b")) { $0.changedRoomToastID = nil }   // 같은 id 는 정상 숨김
         store.finish()
     }
 

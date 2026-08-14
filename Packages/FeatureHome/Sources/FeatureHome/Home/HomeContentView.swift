@@ -17,7 +17,7 @@ struct HomeContentView: View {
             }
             roomChangeTooltip
         }
-        .animation(.easeInOut(duration: 0.5), value: store.state.changedRoomToast)
+        .animation(.easeInOut(duration: 0.5), value: store.state.changedRoomToastID)
         .animation(.easeInOut(duration: 0.3), value: store.state.isRoomListPresented)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Color.mhBackgroundNormalAlternative)
@@ -25,13 +25,13 @@ struct HomeContentView: View {
         // (콘텐츠 크기 카드가 못 만드는 화면 전체 바깥탭 스크림을 화면 레벨에서 정확한 z-order 로 그린다).
         .mhHomeCardMenuHost()
         .task { store.send(.load) }
-        .task(id: store.state.changedRoomToast) {
-            // 방 변경 툴팁은 5초 뒤 사라진다(정책). 새 툴팁이 뜨면 id 가 바뀌어 타이머가 재시작된다.
-            // dismiss 는 이 타이머가 세운 방 이름을 실어 보낸다 — 5초 경계에서 방을 바꾸면
-            // 이전 타이머의 dismiss 가 새 방 툴팁을 지우지 않도록 reducer 가 이름으로 방어한다.
-            guard let name = store.state.changedRoomToast else { return }
+        .task(id: store.state.changedRoomToastID) {
+            // 방 변경 툴팁은 5초 뒤 사라진다(정책). 새 툴팁이 뜨면 방 id 가 바뀌어 타이머가 재시작된다.
+            // dismiss 는 이 타이머가 세운 방 id 를 실어 보낸다 — 5초 경계에서 방을 바꾸면
+            // 이전 타이머의 dismiss 가 새 방 툴팁을 지우지 않도록 reducer 가 id 로 방어한다.
+            guard let roomID = store.state.changedRoomToastID else { return }
             try? await Task.sleep(for: .seconds(5))
-            store.send(.dismissRoomToast(name))
+            store.send(.dismissRoomToast(roomID))
         }
         .sheet(isPresented: roomListBinding) {
             // 시스템 시트 컨테이너/슬라이드 애니메이션은 그대로 쓰되, 시스템 딤(스크림)만 제거한다.
@@ -211,7 +211,9 @@ struct HomeContentView: View {
     /// 상단 우측 고정 배치로 디자인 좌표(화살표 ≈ 상단, 마스코트 왼쪽 가장자리)에 맞춘다.
     @ViewBuilder
     private var roomChangeTooltip: some View {
-        if let name = store.state.changedRoomToast {
+        // 식별은 id, 표시 문구는 그 id 로 rooms 에서 방 이름을 파생한다(화면 출력은 이전과 동일).
+        if let roomID = store.state.changedRoomToastID,
+           let name = store.state.rooms.first(where: { $0.id == roomID })?.name {
             MHTooltip("\(name)방이에요.", position: .left)   // 표기: 방 이름 + "방이에요"
                 .fixedSize()
                 // Figma(node 2809-144332): 툴팁 top 을 뱃지 행 top 에 맞추고(header 의 top 패딩과 동일한 32),

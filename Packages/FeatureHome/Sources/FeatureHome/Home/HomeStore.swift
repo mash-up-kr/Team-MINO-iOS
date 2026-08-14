@@ -16,8 +16,9 @@ public struct HomeState: Equatable {
     public var roomPages: [String: Int]
     /// 방 선택 바텀 시트 표시 여부 (뱃지·캐릭터 탭으로 열림).
     public var isRoomListPresented: Bool
-    /// 방 변경 직후 뜨는 툴팁에 표시할 방 이름 (nil = 숨김). 5초 후 자동으로 nil 이 된다.
-    public var changedRoomToast: String?
+    /// 방 변경 직후 뜨는 툴팁이 가리키는 방의 id (nil = 숨김). 5초 후 자동으로 nil 이 된다.
+    /// 표시 문구(방 이름)는 뷰가 이 id 로 rooms 에서 파생한다 — 이름이 같은 방도 안정적으로 식별하려 id 로 든다.
+    public var changedRoomToastID: String?
     /// 방 리스트에서 명시적으로 고른 방 (nil = 미선택). 표시할 카드가 없을 때(빈 방들) 현재 방을 정하는 근거 —
     /// 카드가 있을 땐 덱의 맨 앞 카드가 현재 방을 정하므로 이 값은 쓰이지 않는다.
     public var selectedRoomID: String?
@@ -31,7 +32,7 @@ public struct HomeState: Equatable {
         currentCardIndex: Int = 0,
         roomPages: [String: Int] = [:],
         isRoomListPresented: Bool = false,
-        changedRoomToast: String? = nil,
+        changedRoomToastID: String? = nil,
         selectedRoomID: String? = nil
     ) {
         self.rooms = rooms
@@ -42,7 +43,7 @@ public struct HomeState: Equatable {
         self.currentCardIndex = currentCardIndex
         self.roomPages = roomPages
         self.isRoomListPresented = isRoomListPresented
-        self.changedRoomToast = changedRoomToast
+        self.changedRoomToastID = changedRoomToastID
         self.selectedRoomID = selectedRoomID
     }
 
@@ -99,7 +100,7 @@ public enum HomeAction: Equatable {
     case dismissRoomList
     /// 바텀 시트에서 방 선택 → 해당 방으로 즉시 전환
     case selectRoom(String)
-    /// 방 변경 툴팁 숨기기 (선택 5초 후 자동 발생). 연관값은 이 타이머가 세운 방 이름 —
+    /// 방 변경 툴팁 숨기기 (선택 5초 후 자동 발생). 연관값은 이 타이머가 세운 방의 id —
     /// 5초가 도는 사이 다른 방으로 바꾸면 이전 타이머가 새 방 툴팁을 지우지 않도록 방어한다.
     case dismissRoomToast(String)
 }
@@ -246,14 +247,15 @@ public func homeReducer(
             if let start = state.pins.firstIndex(where: { $0.roomID == roomID }) {
                 state.currentCardIndex = start
             }
-            state.changedRoomToast = state.rooms.first { $0.id == roomID }?.name
+            state.changedRoomToastID = roomID   // 식별은 id 로 — 표시 이름은 뷰가 이 id 로 파생한다
             return .none
 
-        case .dismissRoomToast(let name):
-            // 이 타이머가 세운 그 방 툴팁일 때만 숨긴다. 5초가 도는 사이 방을 바꾸면
+        case .dismissRoomToast(let roomID):
+            // 이 타이머가 세운 그 방 툴팁일 때만(id 일치) 숨긴다. 5초가 도는 사이 방을 바꾸면
             // 이전 타이머의 dismiss 가 뒤늦게 도착해 새 방 툴팁을 지우는 걸 막는다.
-            if state.changedRoomToast == name {
-                state.changedRoomToast = nil
+            // id 로 비교하므로 이름이 같은 방들끼리도 정확히 구분된다.
+            if state.changedRoomToastID == roomID {
+                state.changedRoomToastID = nil
             }
             return .none
         }
