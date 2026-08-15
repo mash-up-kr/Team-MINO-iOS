@@ -167,7 +167,7 @@ struct SaveLinkReducerTests {
         await store.send(.toggleRoom("1"))
 
         #expect(store.currentState.selectedRoomIDs.isEmpty)
-        #expect(store.currentState.isChecked("1"))   // 체크는 유지된다
+        #expect(store.currentState.checkedRoomIDs == ["1"])   // 체크는 유지된다
         store.finish()
     }
 

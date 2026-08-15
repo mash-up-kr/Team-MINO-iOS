@@ -64,10 +64,8 @@ public struct SaveLinkState: Equatable {
 
     public var canSubmit: Bool { !selectedRoomIDs.isEmpty && !isSaving && !isSaved }
 
-    /// 체크 표시 여부 — 이미 저장된 방도 체크로 보인다(Figma 스펙 시트 2번).
-    public func isChecked(_ roomID: String) -> Bool {
-        savedRoomIDs.contains(roomID) || selectedRoomIDs.contains(roomID)
-    }
+    /// 체크로 보이는 방 — 이미 저장된 방도 체크 상태다(Figma 스펙 시트 2번).
+    public var checkedRoomIDs: Set<String> { savedRoomIDs.union(selectedRoomIDs) }
 }
 
 public enum SaveLinkAction: Equatable {
