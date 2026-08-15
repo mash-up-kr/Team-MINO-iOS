@@ -27,9 +27,16 @@ final class ShareViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        // 딤과 시트를 직접 그린다 — 루트가 불투명하면 뒤 화면이 가려져 바텀시트로 보이지 않는다.
+        // 시트만 그린다 — 루트가 불투명하면 뒤 화면이 가려져 바텀시트로 보이지 않는다
+        // (뒤 화면을 실제로 비추는 건 viewDidAppear 의 컨테이너 투명화).
         view.backgroundColor = .clear
         Task { await start() }
+    }
+
+    /// 루트 뷰를 직접 만든다 — 컨테이너 투명화를 **뷰가 window 에 붙는 순간**에 걸기 위해서다.
+    /// `viewWillAppear` 에서 걸면 등장 애니메이션 첫 프레임에 회색 판이 한 번 비친다.
+    override func loadView() {
+        view = TransparentRootView()
     }
 
     private func start() async {
@@ -94,7 +101,9 @@ final class ShareViewController: UIViewController {
     private func makeSaveLinkStore(url: URL) -> SaveLinkStore {
         let store = SaveLinkStore(
             // TODO: 방 목록 API 가 붙으면 조회 결과로 바꾼다.
-            SaveLinkState(link: SharedLinkPreview(url: url), rooms: SharedRoom.samples),
+            //   savedRoomIDs(이미 이 링크가 들어 있는 방)도 그 응답에서 온다 — 지금은 시안의
+            //   "체크된 채 비활성" 상태를 보이게 표본 하나를 지정한다.
+            SaveLinkState(link: SharedLinkPreview(url: url), rooms: SharedRoom.samples, savedRoomIDs: ["2"]),
             reduce: saveLinkReducer(.stub)   // TODO: 저장 API 가 붙으면 UseCase 주입으로 교체
         )
         store.observeNavigation { [weak self] nav in
@@ -132,5 +141,33 @@ private extension URL {
     var isWebLink: Bool {
         guard let scheme = scheme?.lowercased() else { return false }
         return scheme == "http" || scheme == "https"
+    }
+}
+
+/// 익스텐션 컨테이너를 투명하게 만들어 **호스트 화면이 시트 뒤로 비치게** 하는 루트 뷰.
+///
+/// 자기 배경만 `.clear` 로 둬서는 부족하다 — 시스템이 익스텐션 뷰 뒤에 깔아 두는 컨테이너(와
+/// window)가 불투명해서 밝은 판이 대신 보인다. 시안의 회색은 "기존 화면 위에 시트가 올라온다"는
+/// 표시일 뿐 우리가 그릴 딤이 아니므로, 그 판을 걷어낸다.
+///
+/// window 진입 시점과 레이아웃마다 다시 거는 이유: 시스템이 등장 애니메이션 도중 컨테이너 배경을
+/// 되칠하는 경우가 있어, 한 번만 걸면 올라오는 동안 회색이 스친다.
+private final class TransparentRootView: UIView {
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        clearContainerBackground()
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        clearContainerBackground()
+    }
+
+    private func clearContainerBackground() {
+        for ancestor in sequence(first: self, next: { $0.superview }) {
+            ancestor.backgroundColor = .clear
+            ancestor.isOpaque = false
+        }
+        window?.backgroundColor = .clear
     }
 }
