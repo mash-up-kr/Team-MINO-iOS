@@ -127,6 +127,9 @@ public func saveLinkReducer(
             return .navigate(.dismiss)
 
         case .tapClose:
+            // 저장 중에는 닫지 않는다 — 닫기는 익스텐션 종료(completeRequest)로 이어져
+            // 진행 중인 저장 Task 가 잘린다.
+            guard !state.isSaving else { return .none }
             return .navigate(.dismiss)
         }
     }

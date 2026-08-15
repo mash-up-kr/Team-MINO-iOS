@@ -158,6 +158,23 @@ struct SaveLinkReducerTests {
         store.finish()
     }
 
+    @Test("L2 — 저장 중에는 시트 밖을 눌러도 닫히지 않는다")
+    func tapClose_whileSaving_isIgnored() async {
+        let store = Self.makeStore()
+
+        await store.send(.toggleRoom("1")) { $0.selectedRoomIDs = ["1"] }
+        await store.send(.tapSave) { $0.isSaving = true }
+        await store.send(.tapClose)   // navigation 이 나가면 finish() 에서 걸린다
+
+        await store.receive(.saveFinished) {
+            $0.isSaving = false
+            $0.isSaved = true
+        }
+        await store.receive(.completionShown)
+        store.receiveNavigation(.dismiss)
+        store.finish()
+    }
+
     // MARK: - 이미 저장된 방 (Figma 스펙 시트 2번 — 체크된 채 비활성)
 
     @Test("L1 — 이미 저장된 방은 토글되지 않는다")
