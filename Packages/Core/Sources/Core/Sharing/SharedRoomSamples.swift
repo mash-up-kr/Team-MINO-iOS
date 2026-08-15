@@ -8,5 +8,6 @@ public extension SharedRoom {
         SharedRoom(id: "2", name: "성수 카페 투어", memo: "주말에 가볼 곳", placeCount: 8),
         SharedRoom(id: "3", name: "제주도 여행", placeCount: 24),
         SharedRoom(id: "4", name: "회사 근처 점심", memo: "12시 웨이팅 없는 곳", placeCount: 5),
+        SharedRoom(id: "5", name: "언젠가 가야지", memo: "저장만 하고 안 간 곳들", placeCount: 3),
     ]
 }

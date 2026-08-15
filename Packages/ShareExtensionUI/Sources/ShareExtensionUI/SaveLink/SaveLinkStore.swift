@@ -49,16 +49,25 @@ public struct SaveLinkDependencies: Sendable {
 public struct SaveLinkState: Equatable {
     public var link: SharedLinkPreview
     public var rooms: [SharedRoom]
+    /// 이 링크가 이미 들어 있는 방. 체크된 채 비활성이고 `selectedRoomIDs` 와 섞이지 않는다 —
+    /// 섞으면 "이미 저장된 방만 있는" 상태에서 저장 버튼이 켜진다(Figma 013-1-2 는 비활성).
+    public var savedRoomIDs: Set<String>
     public var selectedRoomIDs: Set<String> = []
     public var isSaving = false
     public var isSaved = false
 
-    public init(link: SharedLinkPreview, rooms: [SharedRoom]) {
+    public init(link: SharedLinkPreview, rooms: [SharedRoom], savedRoomIDs: Set<String> = []) {
         self.link = link
         self.rooms = rooms
+        self.savedRoomIDs = savedRoomIDs
     }
 
     public var canSubmit: Bool { !selectedRoomIDs.isEmpty && !isSaving && !isSaved }
+
+    /// 체크 표시 여부 — 이미 저장된 방도 체크로 보인다(Figma 스펙 시트 2번).
+    public func isChecked(_ roomID: String) -> Bool {
+        savedRoomIDs.contains(roomID) || selectedRoomIDs.contains(roomID)
+    }
 }
 
 public enum SaveLinkAction: Equatable {
@@ -86,6 +95,8 @@ public func saveLinkReducer(
         case .toggleRoom(let id):
             // 저장이 시작된 뒤 선택이 바뀌면 화면과 실제 저장 대상이 어긋난다.
             guard !state.isSaving, !state.isSaved else { return .none }
+            // 이미 저장된 방은 끌 수 없다 — 뷰가 체크박스를 비활성으로 그리지만, 뷰를 고치면 뚫린다.
+            guard !state.savedRoomIDs.contains(id) else { return .none }
             if state.selectedRoomIDs.contains(id) {
                 state.selectedRoomIDs.remove(id)
             } else {
