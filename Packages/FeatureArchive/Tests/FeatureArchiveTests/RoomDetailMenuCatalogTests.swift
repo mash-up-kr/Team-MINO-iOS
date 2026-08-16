@@ -1,5 +1,5 @@
 import Testing
-@testable import FeatureProfile
+@testable import FeatureArchive
 
 /// 장소 케밥 메뉴의 항목 구성. View 밖 순수 함수라 라벨·순서·선택 전달을 결정적으로 검증한다.
 struct RoomDetailMenuCatalogTests {
