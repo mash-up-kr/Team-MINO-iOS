@@ -6,6 +6,7 @@ import Testing
 private struct StubDeps: HomeDeps {
     var fetchRooms: FetchRoomsUseCase = StubFetchRooms()
     var fetchPins: FetchPinsUseCase = StubFetchPins()
+    var lastViewedRoom: LastViewedRoomUseCase = StubLastViewedRoom()
 }
 
 private struct StubFetchRooms: FetchRoomsUseCase {
@@ -15,6 +16,11 @@ private struct StubFetchRooms: FetchRoomsUseCase {
 private struct StubFetchPins: FetchPinsUseCase {
     func execute(rooms: [Room]) async throws -> [Pin] { [] }
     func execute(room: Room, page: Int) async throws -> [Pin] { [] }
+}
+
+private struct StubLastViewedRoom: LastViewedRoomUseCase {
+    func load() async -> String? { nil }
+    func save(roomID: String) async {}
 }
 
 @MainActor

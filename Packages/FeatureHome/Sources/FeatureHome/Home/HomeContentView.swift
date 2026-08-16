@@ -279,7 +279,11 @@ struct HomeMascotView: View {
                     createdAt: .now, pinCount: 3, memberCount: 2, users: []
                 ),
             ]),
-            reduce: homeReducer(fetchRooms: PreviewFetchRooms(), fetchPins: PreviewFetchPins())
+            reduce: homeReducer(
+                fetchRooms: PreviewFetchRooms(),
+                fetchPins: PreviewFetchPins(),
+                lastViewedRoom: PreviewLastViewedRoom()
+            )
         )
     )
 }
@@ -288,7 +292,11 @@ struct HomeMascotView: View {
     HomeContentView(
         store: HomeStore(
             HomeState(),
-            reduce: homeReducer(fetchRooms: PreviewFetchRooms(), fetchPins: PreviewFetchPins())
+            reduce: homeReducer(
+                fetchRooms: PreviewFetchRooms(),
+                fetchPins: PreviewFetchPins(),
+                lastViewedRoom: PreviewLastViewedRoom()
+            )
         )
     )
 }
@@ -296,6 +304,12 @@ struct HomeMascotView: View {
 /// 프리뷰 전용 UseCase. load 액션을 보내도 빈 배열을 반환한다.
 private struct PreviewFetchRooms: FetchRoomsUseCase {
     func execute() async throws -> [Room] { [] }
+}
+
+/// 프리뷰 전용 — 마지막으로 본 방 기록 없음(항상 최초 실행처럼 첫 방부터).
+private struct PreviewLastViewedRoom: LastViewedRoomUseCase {
+    func load() async -> String? { nil }
+    func save(roomID: String) async {}
 }
 
 /// 프리뷰 전용 핀 UseCase. 빈 배열을 반환한다(카드 덱 없이 셸만 확인).

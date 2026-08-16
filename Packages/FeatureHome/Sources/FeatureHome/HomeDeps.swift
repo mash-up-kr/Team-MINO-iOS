@@ -4,4 +4,5 @@ import Domain
 public protocol HomeDeps {
     var fetchRooms: FetchRoomsUseCase { get }
     var fetchPins: FetchPinsUseCase { get }
+    var lastViewedRoom: LastViewedRoomUseCase { get }
 }

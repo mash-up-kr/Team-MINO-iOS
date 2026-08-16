@@ -48,6 +48,17 @@ private struct StubFetchPins: FetchPinsUseCase {
     func execute(room: Room, page: Int) async throws -> [Pin] { more }
 }
 
+/// 마지막으로 본 방 스파이 — 저장된 값을 돌려주고(load), 기록 호출(save)을 모은다.
+private actor SpyLastViewedRoom: LastViewedRoomUseCase {
+    private let stored: String?
+    private(set) var saved: [String] = []
+
+    init(stored: String? = nil) { self.stored = stored }
+
+    func load() async -> String? { stored }
+    func save(roomID: String) async { saved.append(roomID) }
+}
+
 /// 핀 조회가 항상 실패하는 스텁 — 실패 경로(로드 실패 라우팅 / 더 보기 무시)를 검증한다.
 private struct ThrowingFetchPins: FetchPinsUseCase {
     var error: DomainError = .unknown
@@ -60,9 +71,15 @@ struct HomeReducerTests {
     private func makeStore(
         _ fetchRooms: FetchRoomsUseCase = StubFetchRooms(),
         fetchPins: FetchPinsUseCase = StubFetchPins(),
+        lastViewedRoom: LastViewedRoomUseCase = SpyLastViewedRoom(),
         state: HomeState = HomeState()
     ) -> TestStore<HomeState, HomeAction, HomeNav> {
-        TestStore(state, reduce: homeReducer(fetchRooms: fetchRooms, fetchPins: fetchPins))
+        TestStore(
+            state,
+            reduce: homeReducer(
+                fetchRooms: fetchRooms, fetchPins: fetchPins, lastViewedRoom: lastViewedRoom
+            )
+        )
     }
 
     // MARK: - Load
@@ -194,14 +211,99 @@ struct HomeReducerTests {
 
     // MARK: - Card Deck
 
-    @Test("L1 — pinsLoaded 는 pins·인덱스를 세팅하고 로딩을 끝낸다")
+    @Test("L1 — pinsLoaded 는 pins·인덱스를 세팅하고 로딩을 끝낸다 (최초 실행 = 첫 방부터)")
     func pinsLoaded() async {
         let store = makeStore(state: HomeState(isLoading: true, currentCardIndex: 5))
-        await store.send(.pinsLoaded(fixturePins)) {
+        await store.send(.pinsLoaded(pins: fixturePins, startRoomID: nil)) {
             $0.pins = fixturePins
             $0.currentCardIndex = 0
             $0.isLoading = false   // 핀 도착 시점에 로딩 종료(빈 상태 깜빡임 방지)
         }
+        store.finish()
+    }
+
+    // MARK: - 재실행 시 이어 보기 (정책 3)
+
+    @Test("L1 — pinsLoaded 는 마지막으로 본 방이 있으면 그 방 첫 카드부터 시작한다")
+    func pinsLoaded_startsAtLastViewedRoom() async {
+        let store = makeStore(state: HomeState(rooms: fixtureRooms, isLoading: true))
+        await store.send(.pinsLoaded(pins: multiRoomPins(), startRoomID: "2")) {
+            $0.pins = multiRoomPins()
+            $0.currentCardIndex = 3     // 방2 구간 시작
+            $0.selectedRoomID = "2"
+            $0.isLoading = false
+        }
+        #expect(store.currentState.currentRoom?.id == "2")
+        store.finish()
+    }
+
+    @Test("L1 — 마지막으로 본 방에 카드가 없으면(삭제·스루) 첫 방부터 시작한다")
+    func pinsLoaded_fallsBackWhenLastRoomHasNoCards() async {
+        let store = makeStore(state: HomeState(rooms: fixtureRooms, isLoading: true))
+        await store.send(.pinsLoaded(pins: multiRoomPins(), startRoomID: "없는-방")) {
+            $0.pins = multiRoomPins()
+            $0.currentCardIndex = 0     // selectedRoomID 도 그대로 nil
+            $0.isLoading = false
+        }
+        store.finish()
+    }
+
+    @Test("L2 — load 는 마지막으로 본 방을 함께 읽어 pinsLoaded 에 실어 보낸다")
+    func load_carriesLastViewedRoom() async {
+        let pins = multiRoomPins()
+        let store = makeStore(
+            fetchPins: StubFetchPins(all: pins),
+            lastViewedRoom: SpyLastViewedRoom(stored: "2"),
+            state: HomeState()
+        )
+        await store.send(.load) {
+            $0.isLoading = true
+            $0.errorMessage = nil
+        }
+        await store.receive(.loaded(fixtureRooms)) { $0.rooms = fixtureRooms }
+        await store.receive(.pinsLoaded(pins: pins, startRoomID: "2")) {
+            $0.pins = pins
+            $0.currentCardIndex = 3
+            $0.selectedRoomID = "2"
+            $0.isLoading = false
+        }
+        store.finish()
+    }
+
+    @Test("L2 — 방이 바뀔 때만 마지막으로 본 방을 기록한다 (같은 방 안 이동은 기록 안 함)")
+    func persistsLastViewedRoomOnlyOnRoomChange() async {
+        let spy = SpyLastViewedRoom()
+        // 방1(0,1,2) + 방2(3,4), 방1 첫 카드에서 시작
+        let store = makeStore(
+            lastViewedRoom: spy,
+            state: HomeState(rooms: fixtureRooms, pins: multiRoomPins(), currentCardIndex: 0)
+        )
+        await store.send(.swipeForward) { $0.currentCardIndex = 1 }   // 방1 안 이동
+        #expect(await spy.saved.isEmpty)
+
+        await store.send(.swipeForward) { $0.currentCardIndex = 2 }
+        await store.send(.swipeForward) { $0.currentCardIndex = 3 }   // 방2 진입
+        #expect(await spy.saved == ["2"])
+
+        await store.send(.swipeBackward) { $0.currentCardIndex = 2 }  // 방1 복귀
+        #expect(await spy.saved == ["2", "1"])
+        store.finish()
+    }
+
+    @Test("L2 — 방 리스트에서 방을 고르면 그 방을 마지막으로 본 방으로 기록한다")
+    func persistsLastViewedRoomOnSelect() async {
+        let spy = SpyLastViewedRoom()
+        let store = makeStore(
+            lastViewedRoom: spy,
+            state: HomeState(rooms: fixtureRooms, pins: multiRoomPins(), isRoomListPresented: true)
+        )
+        await store.send(.selectRoom("2")) {
+            $0.currentCardIndex = 3
+            $0.isRoomListPresented = false
+            $0.selectedRoomID = "2"
+            $0.changedRoomToastID = "2"
+        }
+        #expect(await spy.saved == ["2"])
         store.finish()
     }
 

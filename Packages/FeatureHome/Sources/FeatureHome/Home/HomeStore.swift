@@ -94,7 +94,8 @@ public enum HomeAction: Equatable {
     case loadFailed(DomainError)
     case selectFilter(Int)
     case tapCreateRoom
-    case pinsLoaded([Pin])
+    /// 초기 로드 결과 — 핀 목록과, 이어 볼 방(마지막으로 본 방) id. 최초 실행이면 startRoomID 가 nil.
+    case pinsLoaded(pins: [Pin], startRoomID: String?)
     /// "이 방 장소 더 보기" 결과 — 해당 방 구간을 이 핀들로 교체한다.
     case morePlacesLoaded(roomID: String, pins: [Pin])
     case swipeForward
@@ -133,10 +134,22 @@ extension Room {
     static let personalHomeName = "내 장소"
 }
 
-/// 순수 reduce. UseCase(fetchRooms·fetchPins)는 Effect.run 안에서만 사용한다.
+/// 현재 방이 바뀌었을 때만 "마지막으로 본 방"을 기록한다(정책 3 — 재실행 시 이어 보기).
+/// 결과 action 이 없는 단발 부수효과라 Effect.run 의 send 를 쓰지 않는다.
+private func persistIfRoomChanged(
+    from previous: String?,
+    to state: HomeState,
+    using useCase: LastViewedRoomUseCase
+) -> Effect<HomeAction, HomeNav> {
+    guard let roomID = state.currentRoom?.id, roomID != previous else { return .none }
+    return .run { _ in await useCase.save(roomID: roomID) }
+}
+
+/// 순수 reduce. UseCase(fetchRooms·fetchPins·lastViewedRoom)는 Effect.run 안에서만 사용한다.
 public func homeReducer(
     fetchRooms: FetchRoomsUseCase,
-    fetchPins: FetchPinsUseCase
+    fetchPins: FetchPinsUseCase,
+    lastViewedRoom: LastViewedRoomUseCase
 ) -> (inout HomeState, HomeAction) -> Effect<HomeAction, HomeNav> {
     { state, action in
         switch action {
@@ -165,7 +178,10 @@ public func homeReducer(
             // pinsLoaded 에서 끈다. (여기서 끄면 핀 도착 전 빈 상태+CTA 가 한 프레임 깜빡인다)
             return .run { send in
                 do {
-                    send(.pinsLoaded(try await fetchPins.execute(rooms: ordered)))
+                    // 정책: 재실행 시 마지막으로 보던 방부터 이어 본다 — 핀과 함께 병렬로 받아 한 액션으로 되돌린다.
+                    async let pins = fetchPins.execute(rooms: ordered)
+                    async let startRoomID = lastViewedRoom.load()
+                    send(.pinsLoaded(pins: try await pins, startRoomID: await startRoomID))
                 } catch let error as DomainError {
                     send(.loadFailed(error))
                 } catch {
@@ -191,9 +207,15 @@ public func homeReducer(
             state.isRoomListPresented = false
             return .navigate(.goToCreateRoom)
 
-        case .pinsLoaded(let pins):
+        case .pinsLoaded(let pins, let startRoomID):
             state.pins = pins
-            state.currentCardIndex = 0
+            // 마지막으로 본 방에 카드가 있으면 그 방부터, 없으면(최초 실행·방 삭제·그 방이 비어 스루됨) 첫 방부터.
+            if let startRoomID, let start = pins.firstIndex(where: { $0.roomID == startRoomID }) {
+                state.currentCardIndex = start
+                state.selectedRoomID = startRoomID
+            } else {
+                state.currentCardIndex = 0
+            }
             state.isLoading = false   // 핀까지 도착 → 이제 카드 유무가 확정돼 로딩 종료
             return .none
 
@@ -212,16 +234,18 @@ public func homeReducer(
 
         case .swipeForward:
             // 마지막 카드에서 한 번 더 넘기면 인덱스가 덱 밖(pins.count)으로 나가 소진 화면이 된다(002-3).
+            let roomBeforeForward = state.currentRoom?.id
             if state.currentCardIndex < state.pins.count {
                 state.currentCardIndex += 1
             }
-            return .none
+            return persistIfRoomChanged(from: roomBeforeForward, to: state, using: lastViewedRoom)
 
         case .swipeBackward:
+            let roomBeforeBackward = state.currentRoom?.id
             if state.currentCardIndex > 0 {
                 state.currentCardIndex -= 1
             }
-            return .none
+            return persistIfRoomChanged(from: roomBeforeBackward, to: state, using: lastViewedRoom)
 
         case .tapCard:
             // TODO: 카드 탭 동작 미정(장소 상세 진입 등) — 팀 논의 후 Nav 를 추가한다.
@@ -258,13 +282,14 @@ public func homeReducer(
         case .selectRoom(let roomID):
             // 정책: 방 클릭 시 해당 방으로 바로 적용 + 시트 닫기 + 변경 툴팁.
             // 툴팁의 5초 표시 시간은 뷰(페이드 애니메이션과 함께)가 관리하고, 여기서는 상태만 세운다.
+            let roomBeforeSelect = state.currentRoom?.id
             state.isRoomListPresented = false
             state.selectedRoomID = roomID   // 카드가 없어도(빈 방) 현재 방으로 반영되도록 명시 기록
             if let start = state.pins.firstIndex(where: { $0.roomID == roomID }) {
                 state.currentCardIndex = start
             }
             state.changedRoomToastID = roomID   // 식별은 id 로 — 표시 이름은 뷰가 이 id 로 파생한다
-            return .none
+            return persistIfRoomChanged(from: roomBeforeSelect, to: state, using: lastViewedRoom)
 
         case .dismissRoomToast(let roomID):
             // 이 타이머가 세운 그 방 툴팁일 때만(id 일치) 숨긴다. 5초가 도는 사이 방을 바꾸면
