@@ -7,10 +7,16 @@ public struct RoomListState: Equatable {
     public var rooms: [Room]
     /// 선택된 필터 칩 인덱스(전체/최근 저장 순/코멘트 순). 정렬 로직은 미구현(UI 상태만).
     public var filter: Int
+    /// 상단 필터바 좌측 드롭다운에서 고른 방 인덱스. 0 = "전체", 이후는 `rooms` 순서와 1:1.
+    public var roomFilter: Int
+    /// 상단 필터바 우측 카테고리 칩 인덱스(전체/카페/음식점). 필터링 로직은 미구현(UI 상태만).
+    public var categoryFilter: Int
 
-    public init(rooms: [Room] = [], filter: Int = 0) {
+    public init(rooms: [Room] = [], filter: Int = 0, roomFilter: Int = 0, categoryFilter: Int = 0) {
         self.rooms = rooms
         self.filter = filter
+        self.roomFilter = roomFilter
+        self.categoryFilter = categoryFilter
     }
 }
 
@@ -19,6 +25,8 @@ public enum RoomListAction: Equatable {
     case loaded([Room])            // Response Action (성공)
     case loadFailed(DomainError)   // Response Action (실패)
     case selectFilter(Int)
+    case selectRoomFilter(Int)
+    case selectCategory(Int)
 }
 
 /// 이번 PR 은 화면 전환이 없다(카드 탭·"+" 인터랙션 비활성) → 빈 Nav.
@@ -51,6 +59,14 @@ public func roomListReducer(
             return .none
         case .selectFilter(let index):
             state.filter = index   // TODO: 필터별 정렬 로직(최근 저장 순/코멘트 순) 후속 PR
+            return .none
+        case .selectRoomFilter(let index):
+            state.roomFilter = index   // TODO: 선택한 방으로 지도 마커·카드 목록 좁히기 후속 PR
+            return .none
+        case .selectCategory(let index):
+            // TODO: 카테고리 필터링 후속 PR. 현재 Domain.PinCategory 는 디자인의
+            // 카페/음식점과 매핑되지 않아(worthVisiting 등) UI 상태만 둔다.
+            state.categoryFilter = index
             return .none
         }
     }

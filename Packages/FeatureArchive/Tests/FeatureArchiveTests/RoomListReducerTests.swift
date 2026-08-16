@@ -59,6 +59,22 @@ struct RoomListReducerTests {
         store.finish()
     }
 
+    @Test("L1 — selectRoomFilter 는 roomFilter 만 갱신한다")
+    func selectRoomFilter() async {
+        // 상단 필터바 좌측 드롭다운(방 선택). 시트 안 정렬 필터(filter)와 독립이어야 한다 —
+        // expect 클로저가 roomFilter 만 적으므로, filter 까지 바뀌면 exhaustive 단언이 실패한다.
+        let store = makeStore(state: RoomListState(rooms: fixtureRooms, filter: 2))
+        await store.send(.selectRoomFilter(1)) { $0.roomFilter = 1 }
+        store.finish()
+    }
+
+    @Test("L1 — selectCategory 는 categoryFilter 만 갱신한다")
+    func selectCategory() async {
+        let store = makeStore(state: RoomListState(rooms: fixtureRooms, filter: 2))
+        await store.send(.selectCategory(2)) { $0.categoryFilter = 2 }
+        store.finish()
+    }
+
     @Test("L2 — 이미 rooms 가 있는 상태에서 재조회가 실패해도 기존 rooms 를 비우지 않는다")
     func load_failure_afterPreviousSuccess_keepsExistingRooms() async {
         // 재진입(pull-to-refresh 등) 시나리오: 첫 로드는 성공, 두 번째 로드가 실패해도

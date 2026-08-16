@@ -4,9 +4,10 @@ import MVI
 import SwiftUI
 
 /// 방 리스트 바텀 시트 화면. Figma Frame 198(node 2236:45798) — 저장 탭 진입 화면.
+/// peek 상태는 Figma `003-1-1 peek`(node 1604:100087).
 ///
-/// 지도 위에 겹쳐 뜨는 비모달 시트(`MHBottomSheet`)로, 지도가 아직 없어 뒤는 중립 배경으로 채운다.
-/// 헤더(타이틀 + 추가 버튼)·필터(``MHCategory``)는 시트 상단에 고정하고, 방 카드 목록만
+/// 배경 지도(``ArchiveMapLayer``) 위에 상단 필터바(``MHFilterBar``)와 비모달 시트(`MHBottomSheet`)가
+/// 겹쳐 뜬다. 헤더(타이틀 + 추가 버튼)·필터(``MHCategory``)는 시트 상단에 고정하고, 방 카드 목록만
 /// ``MHBottomSheetScrollView`` 로 스크롤한다.
 ///
 /// Store 는 ``ArchiveCoordinator`` 팩토리로 `.task` 에서 1회 lazy 생성한다(MemberHome 패턴).
@@ -29,9 +30,8 @@ struct RoomListView: View {
         if let store {
             RoomListLoadedView(store: store)
         } else {
-            // store 없을 때만 실행 → 1회 생성 보장. 배경은 시트 뒤 중립 플레이스홀더 유지.
-            Color.mhBackgroundNormalAlternative
-                .ignoresSafeArea()
+            // store 없을 때만 실행 → 1회 생성 보장. 배경은 로드 후와 같은 지도라 전환이 튀지 않는다.
+            ArchiveMapLayer()
                 .task { store = coordinator.makeRoomListStore() }
         }
     }
@@ -51,8 +51,20 @@ private struct RoomListLoadedView: View {
 
     var body: some View {
         ZStack {
-            Color.mhBackgroundNormalAlternative
-                .ignoresSafeArea()
+            ArchiveMapLayer()
+
+            // Figma `Chip_Room`(node 2387:121989) — 지도 위, 시트 아래 레이어. 상단 safe area 바로 밑에 붙는다.
+            // MHFilterBar 가 padding(top 20 / bottom 12 / horizontal 20)을 내장하므로 화면단에서 더하지 않는다.
+            VStack(spacing: 0) {
+                MHFilterBar(
+                    sortOptions: roomOptions,
+                    selectedSort: roomFilterBinding,
+                    categories: Self.categories,
+                    selectedCategory: categoryBinding
+                )
+                .accessibilityIdentifier("RoomList.filterBar")
+                Spacer(minLength: 0)
+            }
 
             // low(peek) 는 그래버(30) + 헤더(60) 만, medium 은 카드 영역까지 — 둘 다 콘텐츠 pt 기반(MHBottomSheet 가 하단 safe-area 보정).
             MHBottomSheet(detent: $detent, lowPeek: 112, mediumPeek: mediumPeek) {
@@ -73,6 +85,30 @@ private struct RoomListLoadedView: View {
         Binding(
             get: { store.state.filter },
             set: { store.send(.selectFilter($0)) }
+        )
+    }
+
+    // MARK: - 상단 필터바
+
+    /// 디자인에서 보이는 카테고리 3종. 가로 스크롤 칩이라 항목이 늘 수 있으나, 확장은 데이터가 붙을 때 함께 정한다.
+    private static let categories = ["전체", "카페", "음식점"]
+
+    /// 좌측 드롭다운 = 방 선택(node 이름 `Chip_Room`). 첫 항목은 방 전체를 뜻하는 "전체".
+    private var roomOptions: [String] {
+        ["전체"] + store.state.rooms.map(\.name)
+    }
+
+    private var roomFilterBinding: Binding<Int> {
+        Binding(
+            get: { min(store.state.roomFilter, roomOptions.count - 1) },   // 방 목록이 줄어도 인덱스가 범위를 벗어나지 않게
+            set: { store.send(.selectRoomFilter($0)) }
+        )
+    }
+
+    private var categoryBinding: Binding<Int> {
+        Binding(
+            get: { store.state.categoryFilter },
+            set: { store.send(.selectCategory($0)) }
         )
     }
 }
