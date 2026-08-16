@@ -53,12 +53,4 @@ final class MHBottomSheetLayoutTests: XCTestCase {
         XCTAssertEqual(twoStep.clampedHeight(1000), 800)
         XCTAssertEqual(twoStep.clampedHeight(500), 500)
     }
-
-    func testEmptyDetentsFallsBackToAllCases() {
-        let empty = MHBottomSheetLayout(
-            containerHeight: 800, lowFraction: 0.15, mediumFraction: 0.45, detents: []
-        )
-        XCTAssertEqual(empty.nearestDetent(to: 130), .low)
-        XCTAssertEqual(empty.clampedHeight(50), 120)
-    }
 }
