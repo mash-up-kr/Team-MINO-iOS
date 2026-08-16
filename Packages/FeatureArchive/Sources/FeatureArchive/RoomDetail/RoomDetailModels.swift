@@ -25,7 +25,8 @@ extension RoomDetailLocation {
     /// `Pin` 에는 코멘트 수·사진 수가 없다. 시안이 요구하는 자리는 있으므로 상수로 채운다.
     // TODO: Pin 에 코멘트 수·사진 수가 생기면 매핑으로 교체한다.
     private static let placeholderCommentCount = 0
-    private static let placeholderPhotoCount = 1
+    /// 카드형(`004-1-3_카드형`)은 썸네일 2장을 나란히 놓는다 — `MHLocationCard(.expanded)` 가 배열 길이대로 나열한다.
+    private static let placeholderPhotoCount = 2
 
     init(from pin: Pin) {
         self.init(
