@@ -20,7 +20,6 @@ enum PlaceDetailNav: Equatable, Sendable {
 
 typealias PlaceDetailStore = Store<PlaceDetailState, PlaceDetailAction, PlaceDetailNav>
 
-/// 코멘트는 아직 서버 모델이 없어 화면 상태로만 쌓인다 — 엔티티가 생기면 UseCase 주입으로 교체한다.
 func placeDetailReducer(
     pin: Pin,
     makeCommentID: @escaping () -> String = { UUID().uuidString }

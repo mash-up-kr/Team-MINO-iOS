@@ -1,7 +1,6 @@
 import DesignSystem
 import SwiftUI
 
-/// 장소 사진 캐러셀(스펙 ⑨). 사진 데이터가 아직 없어 개수만큼 플레이스홀더를 깐다.
 struct PlaceDetailPhotoCarousel: View {
     let count: Int
 

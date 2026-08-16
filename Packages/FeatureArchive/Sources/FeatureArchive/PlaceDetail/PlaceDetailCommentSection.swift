@@ -1,7 +1,6 @@
 import DesignSystem
 import SwiftUI
 
-/// 코멘트 목록(없으면 빈 상태)과 입력·등록 영역.
 struct PlaceDetailCommentSection: View {
     let comments: [PlaceDetailComment]
     @Binding var draft: String
@@ -75,7 +74,6 @@ struct PlaceDetailCommentSection: View {
         )
     }
 
-    // `MHActionArea` 는 주 버튼을 전체 폭으로 그려 시안(우측 hug)과 어긋난다 — 버튼만 가져다 쓴다.
     private var submitRow: some View {
         MHButton("등록", size: .large, action: onSubmit)
             .disabled(trimmedDraft.isEmpty)

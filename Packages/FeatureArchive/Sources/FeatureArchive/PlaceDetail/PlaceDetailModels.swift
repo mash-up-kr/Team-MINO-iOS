@@ -22,8 +22,6 @@ extension PlaceDetailPlace {
 }
 
 enum PlaceDetailSaveAge {
-    /// 저장한 날이 1일째. 경과 시간이 아니라 달력 날짜 차이로 세어, 어제 밤에 저장했으면
-    /// 24시간이 안 지났어도 오늘은 2일째가 된다.
     static func days(since createdAt: Date, now: Date, calendar: Calendar = .current) -> Int {
         let from = calendar.startOfDay(for: createdAt)
         let to = calendar.startOfDay(for: now)
@@ -38,7 +36,6 @@ struct PlaceDetailComment: Identifiable, Equatable {
     let body: String
 
     static let bodyLimit = 200
-    /// 로그인 사용자 정보가 아직 없어 내가 단 코멘트는 이 이름으로 표시한다.
     static let localAuthorName = "나"
 }
 
@@ -68,7 +65,6 @@ extension PlaceDetailComment {
 }
 
 enum PlaceDetailExternalMap {
-    /// 핀에 좌표가 없어 주소 문자열 검색으로 지도 앱을 연다.
     static func url(forAddress address: String) -> URL? {
         let query = address.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty,
