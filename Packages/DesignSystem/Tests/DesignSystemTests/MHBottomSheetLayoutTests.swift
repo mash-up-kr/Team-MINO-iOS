@@ -35,4 +35,30 @@ final class MHBottomSheetLayoutTests: XCTestCase {
         XCTAssertEqual(layout.nearestDetent(to: -100), .low, "범위 밖 아래는 low")
         XCTAssertEqual(layout.nearestDetent(to: 2000), .full, "범위 밖 위는 full")
     }
+
+    // MARK: - 단계를 좁힌 시트 (medium·full 2단)
+
+    private let twoStep = MHBottomSheetLayout(
+        containerHeight: 800, lowFraction: 0.15, mediumFraction: 0.45, detents: [.medium, .full]
+    )
+
+    func testNearestDetentSkipsExcludedDetent() {
+        XCTAssertEqual(twoStep.nearestDetent(to: 130), .medium, "low 는 후보에서 빠져 medium 으로 붙는다")
+        XCTAssertEqual(twoStep.nearestDetent(to: 579), .medium)
+        XCTAssertEqual(twoStep.nearestDetent(to: 581), .full)
+    }
+
+    func testClampedHeightUsesLowestUsableDetent() {
+        XCTAssertEqual(twoStep.clampedHeight(50), 360, "medium 아래로 못 내려간다")
+        XCTAssertEqual(twoStep.clampedHeight(1000), 800)
+        XCTAssertEqual(twoStep.clampedHeight(500), 500)
+    }
+
+    func testEmptyDetentsFallsBackToAllCases() {
+        let empty = MHBottomSheetLayout(
+            containerHeight: 800, lowFraction: 0.15, mediumFraction: 0.45, detents: []
+        )
+        XCTAssertEqual(empty.nearestDetent(to: 130), .low)
+        XCTAssertEqual(empty.clampedHeight(50), 120)
+    }
 }
