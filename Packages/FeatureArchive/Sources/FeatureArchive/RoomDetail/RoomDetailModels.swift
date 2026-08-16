@@ -1,8 +1,10 @@
+import Domain
 import Foundation
 
-/// 방 상세 시트가 그리는 장소 한 건. 서버 연동 전까지 쓰는 화면 전용 표시 모델.
+/// 방 상세 시트가 그리는 장소 한 건. 도메인 `Pin` 을 카드가 그릴 값으로 변환한 화면 표시 모델.
 struct RoomDetailLocation: Identifiable, Equatable {
-    let id: UUID = UUID()
+    /// `Pin.id` 를 그대로 쓴다 — 정렬이 바뀌어도 같은 장소는 같은 식별자여서 열린 메뉴가 엉뚱한 카드로 옮겨가지 않는다.
+    let id: String
     let name: String
     let address: String
     let commentCount: Int
@@ -15,6 +17,39 @@ struct RoomDetailRoom: Equatable {
     let memo: String
     let locationCountText: String
     let memberCount: Int
+}
+
+// MARK: - 도메인 → 표시 모델
+
+extension RoomDetailLocation {
+    /// `Pin` 에는 코멘트 수·사진 수가 없다. 시안이 요구하는 자리는 있으므로 상수로 채운다.
+    // TODO: Pin 에 코멘트 수·사진 수가 생기면 매핑으로 교체한다.
+    private static let placeholderCommentCount = 0
+    private static let placeholderPhotoCount = 1
+
+    init(from pin: Pin) {
+        self.init(
+            id: pin.id.value,
+            name: pin.title,
+            address: pin.address,
+            commentCount: Self.placeholderCommentCount,
+            photoCount: Self.placeholderPhotoCount
+        )
+    }
+}
+
+extension RoomDetailRoom {
+    /// 시안 상한 표기("999+개"). 넘어가면 자릿수가 헤더를 밀어낸다.
+    private static let countCap = 999
+
+    init(from room: Room) {
+        self.init(
+            title: room.name,
+            memo: room.description ?? "",
+            locationCountText: room.pinCount > Self.countCap ? "\(Self.countCap)+개" : "\(room.pinCount)개",
+            memberCount: room.users.count
+        )
+    }
 }
 
 /// 툴바 좌측 드롭다운의 정렬 기준.
@@ -80,8 +115,9 @@ extension RoomDetailRoom {
 }
 
 extension RoomDetailLocation {
-    static let samples: [RoomDetailLocation] = (0..<8).map { _ in
+    static let samples: [RoomDetailLocation] = (0..<8).map { index in
         RoomDetailLocation(
+            id: "sample-\(index)",
             name: "레이어스튜디오 10",
             address: "서울 성동구 상원4길 10",
             commentCount: 1000,
