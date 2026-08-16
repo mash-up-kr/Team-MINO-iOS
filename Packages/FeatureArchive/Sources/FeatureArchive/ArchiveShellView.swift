@@ -16,11 +16,20 @@ struct ArchiveShellView: View {
     @State private var roomListStore: RoomListStore?
     @State private var detailStore: RoomDetailStore?
 
+    /// 시트 dismiss 가 끝난 뒤 띄울 토스트. 닫힘과 같은 프레임에 띄우면
+    /// 내려가는 시트가 토스트 자리를 덮어 초반이 가려진 채 시작한다.
+    @State private var pendingToast: String?
+    @State private var toastMessage: String?
+    /// 토스트 발사 횟수. 자동 소멸 타이머의 수명을 문구가 아니라 이 값에 묶는다 —
+    /// 같은 문구로 두 번 뜨면 문구를 id 로 쓴 타이머는 재시작하지 않는다.
+    @State private var toastToken = 0
+
     init(coordinator: ArchiveCoordinator) {
         self.coordinator = coordinator
     }
 
     var body: some View {
+        @Bindable var coordinator = coordinator
         ZStack {
             ArchiveMapLayer()
 
@@ -28,7 +37,10 @@ struct ArchiveShellView: View {
                 filterBar(roomList: roomListStore)
                 sheet(roomList: roomListStore)
             }
+
+            toast
         }
+        .animation(.easeInOut(duration: 0.2), value: toastMessage)
         // store 생성과 최초 로드를 시트가 아니라 껍데기에서 1회만 한다 — 시트 내용은 단계 전환으로
         // 재생성될 수 있어, 콘텐츠 쪽에 두면 되돌아올 때마다 방 목록을 다시 부른다.
         .task {
@@ -38,6 +50,58 @@ struct ArchiveShellView: View {
             store.send(.load)
         }
         .task(id: coordinator.selectedRoom?.id) { syncDetailStore() }
+        .sheet(item: $coordinator.sharingLocation, onDismiss: showPendingToast) { location in
+            RoomShareSheet(
+                location: location,
+                rooms: shareRooms,
+                onClose: { coordinator.sharingLocation = nil },
+                onSubmit: { _ in
+                    pendingToast = "공유가 완료됐습니다."
+                    coordinator.sharingLocation = nil
+                }
+            )
+            .presentationDetents([.height(RoomShareSheet.detentHeight)])
+            .presentationCornerRadius(20)
+            .presentationDragIndicator(.hidden)   // 그래버는 시안대로 시트 안에서 직접 그린다
+            .presentationBackground(.mhBackgroundElevatedNormal)
+        }
+    }
+
+    // MARK: - 공유 시트 · 토스트
+
+    private var shareRooms: [RoomShareRoom] {
+        roomListStore?.state.rooms.map(RoomShareRoom.init(from:)) ?? []
+    }
+
+    private func showPendingToast() {
+        guard let pendingToast else { return }
+        toastMessage = pendingToast
+        toastToken += 1
+        self.pendingToast = nil
+    }
+
+    // 시안 `1672:73661` — 하단에서 102(= 홈 인디케이터 34 + 68), 좌우 20.
+    @ViewBuilder private var toast: some View {
+        if let toastMessage {
+            VStack {
+                Spacer()
+                MHSnackbar(title: toastMessage, icon: .checkThick)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 68)
+            }
+            .allowsHitTesting(false)
+            .transition(.opacity)
+            .task(id: toastToken) {
+                // 취소를 삼키면 안 된다. try? 로 받으면 새 토스트가 이 task 를 취소했을 때
+                // sleep 이 즉시 반환하고, 이어지는 nil 대입이 **방금 뜬 토스트**를 지운다.
+                let token = toastToken
+                do { try await Task.sleep(for: .seconds(2)) } catch { return }
+                // catch 는 sleep 재개 전 취소만 잡는다. 재개 후 같은 틱에 새 토스트가 뜨는
+                // 좁은 창은 토큰 비교로 막는다 — 낡은 타이머는 최신 토스트를 지우면 안 된다.
+                guard token == toastToken else { return }
+                self.toastMessage = nil
+            }
+        }
     }
 
     // MARK: - 단계 전환
