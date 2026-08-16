@@ -7,4 +7,6 @@ import Domain
 /// reduce 는 Repository 가 아니라 **UseCase** 만 받는다(Clean Architecture 규칙).
 public protocol ArchiveDeps {
     var fetchRooms: FetchRoomsUseCase { get }
+    /// 방 상세가 그 방에 저장된 장소를 불러올 때 쓴다.
+    var fetchPins: FetchPinsUseCase { get }
 }
