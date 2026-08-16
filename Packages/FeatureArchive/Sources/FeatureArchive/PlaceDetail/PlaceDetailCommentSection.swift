@@ -77,13 +77,11 @@ struct PlaceDetailCommentSection: View {
 
     // `MHActionArea` 는 주 버튼을 전체 폭으로 그려 시안(우측 hug)과 어긋난다 — 버튼만 가져다 쓴다.
     private var submitRow: some View {
-        HStack(spacing: 0) {
-            Spacer(minLength: 0)
-            MHButton("등록", size: .large, action: onSubmit)
-                .disabled(trimmedDraft.isEmpty)
-                .accessibilityIdentifier("PlaceDetail.submitComment")
-        }
-        .padding(20)
+        MHButton("등록", size: .large, action: onSubmit)
+            .disabled(trimmedDraft.isEmpty)
+            .accessibilityIdentifier("PlaceDetail.submitComment")
+            .frame(maxWidth: .infinity, alignment: .trailing)
+            .padding(20)
     }
 }
 
