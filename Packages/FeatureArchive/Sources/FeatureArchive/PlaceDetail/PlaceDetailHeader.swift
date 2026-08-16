@@ -108,7 +108,6 @@ struct PlaceDetailHeader: View {
             .padding(.horizontal, 20)
         }
         .frame(height: isCollapsed ? 52 : 64)
-        .scrollDisabled(true)
     }
 }
 
