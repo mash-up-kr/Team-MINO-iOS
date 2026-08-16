@@ -16,10 +16,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         Log.bootstrap(OSLogger(minimumLevel: .warning))
         #endif
 
-        // GoogleMaps SDK 초기화. 키는 Info.plist(GMSApiKey ← 빌드 세팅 GOOGLE_MAPS_API_KEY)에서 읽는다.
-        // 미발급이면 빈 문자열 → configure 미실행, 지도 자리에 플레이스홀더 표시(크래시 없음).
-        let mapsAPIKey = Bundle.main.object(forInfoDictionaryKey: "GMSApiKey") as? String ?? ""
-        MapService.configure(apiKey: mapsAPIKey)
+        MapService.configure(apiKey: Bundle.main.object(forInfoDictionaryKey: "GMSApiKey") as? String ?? "")
 
         return true
     }
