@@ -23,6 +23,12 @@ private let fixtureRoom = Room(
     pinCount: 3, memberCount: 2, users: []
 )
 
+private let fixturePin = Pin(
+    id: PinID("p1"), roomID: fixtureRoom.id, category: .worthVisiting,
+    title: "레이어스튜디오 10", address: "서울 성동구 상원4길 10",
+    createdAt: Date(timeIntervalSince1970: 0)
+)
+
 @MainActor
 struct ArchiveCoordinatorTests {
     private func makeCoordinator() -> ArchiveCoordinator {
@@ -53,6 +59,41 @@ struct ArchiveCoordinatorTests {
         coordinator.handle(.openRoomDetail(fixtureRoom))
         coordinator.handle(RoomDetailNav.close)
         #expect(coordinator.selectedRoom == nil)
+    }
+
+    @Test("openPlaceDetail 은 고른 핀을 장소 상세 단계로 올린다")
+    func openPlaceDetail() {
+        let coordinator = makeCoordinator()
+        coordinator.handle(.openRoomDetail(fixtureRoom))
+        coordinator.handle(RoomDetailNav.openPlaceDetail(fixturePin))
+        #expect(coordinator.selectedPin == fixturePin)
+    }
+
+    @Test("장소 상세를 닫으면 방 상세 단계로 되돌린다")
+    func closePlaceDetail() {
+        let coordinator = makeCoordinator()
+        coordinator.handle(.openRoomDetail(fixtureRoom))
+        coordinator.handle(RoomDetailNav.openPlaceDetail(fixturePin))
+        coordinator.handle(PlaceDetailNav.close)
+        #expect(coordinator.selectedPin == nil)
+        #expect(coordinator.selectedRoom == fixtureRoom)
+    }
+
+    @Test("방 상세를 닫으면 열려 있던 장소 상세도 함께 정리한다")
+    func closeRoomDetail_clearsPlace() {
+        let coordinator = makeCoordinator()
+        coordinator.handle(.openRoomDetail(fixtureRoom))
+        coordinator.handle(RoomDetailNav.openPlaceDetail(fixturePin))
+        coordinator.handle(RoomDetailNav.close)
+        #expect(coordinator.selectedPin == nil)
+    }
+
+    @Test("장소 상세의 공유도 같은 공유 시트로 넘어간다")
+    func sharePlaceDetail() {
+        let coordinator = makeCoordinator()
+        let location = RoomDetailLocation(from: fixturePin)
+        coordinator.handle(PlaceDetailNav.share(location))
+        #expect(coordinator.sharingLocation == location)
     }
 
     @Test("shareLocation 은 공유할 장소를 껍데기에 넘긴다")

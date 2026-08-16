@@ -93,6 +93,9 @@ struct RoomDetailView: View {
         VStack(spacing: 0) {
             ForEach(Array(locations.enumerated()), id: \.element.id) { index, location in
                 card(location, at: index)
+                    .contentShape(Rectangle())
+                    .onTapGesture { store.send(.tapLocation(location.id)) }
+                    .accessibilityIdentifier("RoomDetail.locationCard.\(location.id)")
                     .zIndex(menuLocationID == location.id ? 1 : 0)
             }
         }

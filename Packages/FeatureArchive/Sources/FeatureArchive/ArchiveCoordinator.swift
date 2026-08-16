@@ -19,6 +19,8 @@ public final class ArchiveCoordinator: Coordinator {
 
     public private(set) var selectedRoom: Room?
 
+    public private(set) var selectedPin: Pin?
+
     public var isRoomDetailPresented: Bool { selectedRoom != nil }
 
     var sharingLocation: RoomDetailLocation?
@@ -47,6 +49,15 @@ public final class ArchiveCoordinator: Coordinator {
         return store
     }
 
+    func makePlaceDetailStore(pin: Pin, now: Date = Date()) -> PlaceDetailStore {
+        let store = PlaceDetailStore(
+            PlaceDetailState(place: PlaceDetailPlace(from: pin, now: now)),
+            reduce: placeDetailReducer(pin: pin)
+        )
+        store.observeNavigation { [weak self] in self?.handle($0) }
+        return store
+    }
+
     // MARK: - Effect Routing
 
     func handle(_ nav: RoomListNav) {
@@ -60,7 +71,19 @@ public final class ArchiveCoordinator: Coordinator {
         switch nav {
         case .close:
             selectedRoom = nil
+            selectedPin = nil
         case .shareLocation(let location):
+            sharingLocation = location
+        case .openPlaceDetail(let pin):
+            selectedPin = pin
+        }
+    }
+
+    func handle(_ nav: PlaceDetailNav) {
+        switch nav {
+        case .close:
+            selectedPin = nil
+        case .share(let location):
             sharingLocation = location
         }
     }
