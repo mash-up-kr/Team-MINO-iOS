@@ -14,6 +14,13 @@ struct MHBottomSheetLayout: Equatable {
     let containerHeight: CGFloat
     let lowFraction: CGFloat      // 0 < low < medium < 1 (init 의 assert 가 보장)
     let mediumFraction: CGFloat
+    /// 이 시트가 쓰는 단계. 빠진 단계는 스냅 후보에서 빠지고 드래그 한계도 남은 단계 기준이 된다.
+    var detents: [MHBottomSheetDetent] = MHBottomSheetDetent.allCases
+
+    /// 빈 배열이 들어오면(호출자 실수) 3단 전부로 되돌린다 — 시트가 높이를 못 잡는 것보단 낫다.
+    private var usableDetents: [MHBottomSheetDetent] {
+        detents.isEmpty ? MHBottomSheetDetent.allCases : detents
+    }
 
     func height(of detent: MHBottomSheetDetent) -> CGFloat {
         switch detent {
@@ -24,11 +31,13 @@ struct MHBottomSheetLayout: Equatable {
     }
 
     func clampedHeight(_ height: CGFloat) -> CGFloat {
-        min(max(height, self.height(of: .low)), self.height(of: .full))
+        let bounds = usableDetents.map { self.height(of: $0) }
+        guard let lower = bounds.min(), let upper = bounds.max() else { return height }
+        return min(max(height, lower), upper)
     }
 
     func nearestDetent(to height: CGFloat) -> MHBottomSheetDetent {
-        MHBottomSheetDetent.allCases.min {
+        usableDetents.min {
             abs(self.height(of: $0) - height) < abs(self.height(of: $1) - height)
         } ?? .medium
     }
@@ -62,6 +71,8 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
     private let lowPeek: CGFloat?
     /// 설정 시 medium 높이를 비율 대신 "콘텐츠 pt + 하단 safe-area" 로 계산한다(카드 영역까지 보이는 half).
     private let mediumPeek: CGFloat?
+    /// 이 시트가 쓰는 단계. 2단(half·full)만 쓰는 화면은 `[.medium, .full]` 처럼 좁혀 준다.
+    private let detents: [MHBottomSheetDetent]
     private let contentID: ID?
     private let content: (ID?) -> Content
 
@@ -105,15 +116,18 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
         erasedContentID: ID?,
         lowPeek: CGFloat? = nil,
         mediumPeek: CGFloat? = nil,
+        detents: [MHBottomSheetDetent] = MHBottomSheetDetent.allCases,
         content: @escaping (ID?) -> Content
     ) {
         assert(0 < lowFraction && lowFraction < mediumFraction && mediumFraction < 1,
                "0 < lowFraction < mediumFraction < 1 이어야 한다")
+        assert(!detents.isEmpty, "detents 는 최소 1단계여야 한다")
         self._detent = detent
         self.lowFraction = lowFraction
         self.mediumFraction = mediumFraction
         self.lowPeek = lowPeek
         self.mediumPeek = mediumPeek
+        self.detents = detents
         self.contentID = erasedContentID
         self.content = content
         self._appliedLow = State(initialValue: lowFraction)
@@ -155,7 +169,8 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
             let layout = MHBottomSheetLayout(
                 containerHeight: geometry.size.height,
                 lowFraction: effectiveLow,
-                mediumFraction: effectiveMedium
+                mediumFraction: effectiveMedium,
+                detents: detents
             )
             let height = layout.clampedHeight(layout.height(of: detent) - dragTranslation)
             let isFull = height >= layout.height(of: .full)
@@ -337,16 +352,19 @@ public extension MHBottomSheet where ID == Never {
                   erasedContentID: nil, lowPeek: lowPeek, content: { _ in content() })
     }
 
-    /// low·medium 모두 "콘텐츠 pt" 로 지정한다. 각각 하단 safe-area 를 내부에서 더해
+    /// low·medium 을 "콘텐츠 pt" 로 지정한다. 각각 하단 safe-area 를 내부에서 더해
     /// 탭바 위로 지정 pt 만큼 온전히 보인다(기기 무관).
+    /// - Parameter detents: 이 시트가 쓰는 단계. 2단(half·full)만 쓰는 화면은 `[.medium, .full]` 로 좁히고
+    ///   `lowPeek` 을 생략한다 — low 를 뺀 단계는 스냅 후보에서 빠지고 드래그도 그 아래로 내려가지 않는다.
     init(
         detent: Binding<MHBottomSheetDetent>,
-        lowPeek: CGFloat,
+        lowPeek: CGFloat? = nil,
         mediumPeek: CGFloat,
+        detents: [MHBottomSheetDetent] = MHBottomSheetDetent.allCases,
         @ViewBuilder content: @escaping () -> Content
     ) {
         self.init(detent: detent, lowFraction: 0.15, mediumFraction: 0.5,
-                  erasedContentID: nil, lowPeek: lowPeek, mediumPeek: mediumPeek,
+                  erasedContentID: nil, lowPeek: lowPeek, mediumPeek: mediumPeek, detents: detents,
                   content: { _ in content() })
     }
 }
