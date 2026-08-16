@@ -282,7 +282,8 @@ struct HomeMascotView: View {
             reduce: homeReducer(
                 fetchRooms: PreviewFetchRooms(),
                 fetchPins: PreviewFetchPins(),
-                lastViewedRoom: PreviewLastViewedRoom()
+                lastViewedRoom: PreviewLastViewedRoom(),
+                homeGuide: PreviewHomeGuide()
             )
         )
     )
@@ -295,7 +296,8 @@ struct HomeMascotView: View {
             reduce: homeReducer(
                 fetchRooms: PreviewFetchRooms(),
                 fetchPins: PreviewFetchPins(),
-                lastViewedRoom: PreviewLastViewedRoom()
+                lastViewedRoom: PreviewLastViewedRoom(),
+                homeGuide: PreviewHomeGuide()
             )
         )
     )
@@ -310,6 +312,12 @@ private struct PreviewFetchRooms: FetchRoomsUseCase {
 private struct PreviewLastViewedRoom: LastViewedRoomUseCase {
     func load() async -> String? { nil }
     func save(roomID: String) async {}
+}
+
+/// 프리뷰 전용 — 가이드는 이미 본 것으로 둬 프리뷰를 가리지 않는다.
+private struct PreviewHomeGuide: HomeGuideUseCase {
+    func hasSeen() async -> Bool { true }
+    func markSeen() async {}
 }
 
 /// 프리뷰 전용 핀 UseCase. 빈 배열을 반환한다(카드 덱 없이 셸만 확인).

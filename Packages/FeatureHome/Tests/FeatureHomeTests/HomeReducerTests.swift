@@ -48,6 +48,17 @@ private struct StubFetchPins: FetchPinsUseCase {
     func execute(room: Room, page: Int) async throws -> [Pin] { more }
 }
 
+/// 홈 가이드 스파이 — 이미 본 상태를 주입하고, 기록(markSeen) 호출을 센다.
+private actor SpyHomeGuide: HomeGuideUseCase {
+    private let seen: Bool
+    private(set) var markedSeen = 0
+
+    init(seen: Bool = true) { self.seen = seen }
+
+    func hasSeen() async -> Bool { seen }
+    func markSeen() async { markedSeen += 1 }
+}
+
 /// 마지막으로 본 방 스파이 — 저장된 값을 돌려주고(load), 기록 호출(save)을 모은다.
 private actor SpyLastViewedRoom: LastViewedRoomUseCase {
     private let stored: String?
@@ -72,12 +83,16 @@ struct HomeReducerTests {
         _ fetchRooms: FetchRoomsUseCase = StubFetchRooms(),
         fetchPins: FetchPinsUseCase = StubFetchPins(),
         lastViewedRoom: LastViewedRoomUseCase = SpyLastViewedRoom(),
+        homeGuide: HomeGuideUseCase = SpyHomeGuide(seen: true),   // 기본은 "이미 본" — 가이드 없는 흐름
         state: HomeState = HomeState()
     ) -> TestStore<HomeState, HomeAction, HomeNav> {
         TestStore(
             state,
             reduce: homeReducer(
-                fetchRooms: fetchRooms, fetchPins: fetchPins, lastViewedRoom: lastViewedRoom
+                fetchRooms: fetchRooms,
+                fetchPins: fetchPins,
+                lastViewedRoom: lastViewedRoom,
+                homeGuide: homeGuide
             )
         )
     }
@@ -219,6 +234,47 @@ struct HomeReducerTests {
             $0.currentCardIndex = 0
             $0.isLoading = false   // 핀 도착 시점에 로딩 종료(빈 상태 깜빡임 방지)
         }
+        store.finish()
+    }
+
+    // MARK: - 홈 사용 가이드 (정책 1)
+
+    @Test("L2 — 최초 진입(가이드 미표기 + 카드 있음)이면 가이드를 띄우고 그 시점에 1회 표기를 기록한다")
+    func guide_showsOnceOnFirstEntry() async {
+        let guide = SpyHomeGuide(seen: false)
+        let store = makeStore(homeGuide: guide, state: HomeState(isLoading: true))
+        await store.send(.pinsLoaded(pins: fixturePins, startRoomID: nil)) {
+            $0.pins = fixturePins
+            $0.currentCardIndex = 0
+            $0.isLoading = false
+        }
+        await store.receive(.showGuide) { $0.isGuidePresented = true }
+        #expect(await guide.markedSeen == 1)
+        store.finish()
+    }
+
+    @Test("L2 — 이미 본 가이드는 다시 띄우지 않는다")
+    func guide_doesNotShowWhenSeen() async {
+        let store = makeStore(homeGuide: SpyHomeGuide(seen: true), state: HomeState(isLoading: true))
+        await store.send(.pinsLoaded(pins: fixturePins, startRoomID: nil)) {
+            $0.pins = fixturePins
+            $0.currentCardIndex = 0
+            $0.isLoading = false
+        }
+        store.finish()   // showGuide 미수신 — 잔여 effect 없음
+    }
+
+    @Test("L2 — 카드가 0장이면(빈 상태) 스와이프 가이드를 띄우지 않는다")
+    func guide_doesNotShowWithoutCards() async {
+        let store = makeStore(homeGuide: SpyHomeGuide(seen: false), state: HomeState(isLoading: true))
+        await store.send(.pinsLoaded(pins: [], startRoomID: nil)) { $0.isLoading = false }
+        store.finish()
+    }
+
+    @Test("L1 — dismissGuide 는 가이드를 닫는다 (X 버튼)")
+    func guide_dismisses() async {
+        let store = makeStore(state: HomeState(isGuidePresented: true))
+        await store.send(.dismissGuide) { $0.isGuidePresented = false }
         store.finish()
     }
 

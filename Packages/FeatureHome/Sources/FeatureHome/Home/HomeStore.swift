@@ -19,6 +19,8 @@ public struct HomeState: Equatable {
     /// 방 변경 직후 뜨는 툴팁이 가리키는 방의 id (nil = 숨김). 5초 후 자동으로 nil 이 된다.
     /// 표시 문구(방 이름)는 뷰가 이 id 로 rooms 에서 파생한다 — 이름이 같은 방도 안정적으로 식별하려 id 로 든다.
     public var changedRoomToastID: String?
+    /// 홈 사용 가이드(좌우 스와이프 안내) 표시 여부. 최초 진입 1회만 뜬다(Figma 「홈 사용 가이드」).
+    public var isGuidePresented: Bool
     /// 방 리스트에서 명시적으로 고른 방 (nil = 미선택). 표시할 카드가 없을 때(빈 방들) 현재 방을 정하는 근거 —
     /// 카드가 있을 땐 덱의 맨 앞 카드가 현재 방을 정하므로 이 값은 쓰이지 않는다.
     public var selectedRoomID: String?
@@ -33,6 +35,7 @@ public struct HomeState: Equatable {
         roomPages: [String: Int] = [:],
         isRoomListPresented: Bool = false,
         changedRoomToastID: String? = nil,
+        isGuidePresented: Bool = false,
         selectedRoomID: String? = nil
     ) {
         self.rooms = rooms
@@ -44,6 +47,7 @@ public struct HomeState: Equatable {
         self.roomPages = roomPages
         self.isRoomListPresented = isRoomListPresented
         self.changedRoomToastID = changedRoomToastID
+        self.isGuidePresented = isGuidePresented
         self.selectedRoomID = selectedRoomID
     }
 
@@ -103,6 +107,10 @@ public enum HomeAction: Equatable {
     case tapCard(PinID)
     /// 카드 덱 하단 "이 방 장소 더 보기" 버튼 탭 (동작 미정 — 팀 논의 후 결정)
     case tapMorePlaces
+    /// 홈 사용 가이드를 띄운다 — 아직 안 보여준 최초 진입일 때만 도착하는 응답 action.
+    case showGuide
+    /// 가이드 X 버튼 탭 → 닫기
+    case dismissGuide
     /// 방 뱃지·캐릭터 탭 → 방 선택 바텀 시트 열기
     case tapRoomBadge
     /// 방 선택 바텀 시트 닫기 (스와이프 dismiss 포함)
@@ -149,7 +157,8 @@ private func persistIfRoomChanged(
 public func homeReducer(
     fetchRooms: FetchRoomsUseCase,
     fetchPins: FetchPinsUseCase,
-    lastViewedRoom: LastViewedRoomUseCase
+    lastViewedRoom: LastViewedRoomUseCase,
+    homeGuide: HomeGuideUseCase
 ) -> (inout HomeState, HomeAction) -> Effect<HomeAction, HomeNav> {
     { state, action in
         switch action {
@@ -217,7 +226,11 @@ public func homeReducer(
                 state.currentCardIndex = 0
             }
             state.isLoading = false   // 핀까지 도착 → 이제 카드 유무가 확정돼 로딩 종료
-            return .none
+            // 정책: 홈 사용 가이드는 최초 진입 1회. 넘길 카드가 있을 때만 띄운다(빈 상태에선 안내가 무의미).
+            guard !pins.isEmpty else { return .none }
+            return .run { send in
+                if await homeGuide.hasSeen() == false { send(.showGuide) }
+            }
 
         case .morePlacesLoaded(let roomID, let newPins):
             // "더 보기" 결과를 해당 방 구간에만 splice 하고 그 방 첫 카드로 이동. 다른 방 구간은 그대로.
@@ -270,6 +283,16 @@ public func homeReducer(
                     // 더 보기 실패는 조용히 무시(기존 카드 유지). 에러 UI 정책 확정 시 처리 추가.
                 }
             }
+
+        case .showGuide:
+            state.isGuidePresented = true
+            // "단 1회"를 보장하려고 닫을 때가 아니라 띄우는 시점에 기록한다 —
+            // 탭 전환으로 화면이 다시 만들어져도(store 재생성 → load 재실행) 두 번 뜨지 않는다.
+            return .run { _ in await homeGuide.markSeen() }
+
+        case .dismissGuide:
+            state.isGuidePresented = false
+            return .none
 
         case .tapRoomBadge:
             state.isRoomListPresented = true

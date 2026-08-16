@@ -12,6 +12,7 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps {
     let fetchRooms: FetchRoomsUseCase
     let fetchPins: FetchPinsUseCase
     let lastViewedRoom: LastViewedRoomUseCase
+    let homeGuide: HomeGuideUseCase
 
     init() {
         // 백엔드 미연결 단계 — 시범용 Stub UseCase 를 주입한다.
@@ -31,6 +32,9 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps {
         self.lastViewedRoom = DefaultLastViewedRoomUseCase(
             repository: UserDefaultsLastViewedRoomRepository()
         )
+
+        // 홈 사용 가이드 1회 표기 플래그도 같은 이유로 UserDefaults.
+        self.homeGuide = DefaultHomeGuideUseCase(repository: UserDefaultsHomeGuideRepository())
     }
 }
 
