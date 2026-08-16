@@ -5,10 +5,6 @@ import Foundation
 /// 튜토리얼이 이 URL 을 공유하면 익스텐션은 저장하지 않고 바로 닫는다
 /// (축하 화면은 본앱의 튜토리얼 완료 단계가 그린다).
 ///
-/// > **아직 본앱 쪽 대응이 없다.** `TutorialShareSheet` 는 문자열 "꾹" 을 넘기고 있어
-/// > 공유시트에 익스텐션이 뜨지 않는다 — activation rule 이 웹 URL 만 받기 때문이다.
-/// > 튜토리얼 연동 PR 에서 그쪽을 이 값으로 바꾼다.
-///
 /// 본앱(FeatureOnboarding)과 익스텐션이 같은 값을 봐야 해서 둘 다 링크하는 Core 에 둔다.
 public enum TutorialShare {
     /// 튜토리얼 전용 센티넬 URL.

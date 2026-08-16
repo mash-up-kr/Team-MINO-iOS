@@ -1,3 +1,4 @@
+import Core
 import LinkPresentation
 import SwiftUI
 import UIKit
@@ -15,8 +16,26 @@ import UIKit
 /// 콘텐츠 양에 맞는 높이로 뜬다(`sheetPresentationController.detents` 지정은 무시된다).
 struct TutorialShareSheet: UIViewControllerRepresentable {
     let isPresented: Bool
-    /// 시트가 닫힐 때. `completed` 는 사용자가 공유 대상을 골랐는지(취소가 아닌지)다.
-    let onFinish: (_ completed: Bool) -> Void
+    /// 시트가 닫힐 때.
+    let onFinish: (_ didChooseOurApp: Bool) -> Void
+
+    /// 사용자가 **우리 익스텐션**을 골랐는지. `completed` 만 보면 안 된다 —
+    /// Copy·메시지·미리 알림 무엇을 골라도 성공하면 true 라, "꾹을 찾아 눌러보게 한다"는
+    /// 이 단계의 목적이 무너진다(false 는 시트를 그냥 닫았을 때뿐이다).
+    ///
+    /// 익스텐션의 activityType 은 그 번들 ID 이고, 앱 번들 ID 를 접두사로 갖는다
+    /// (`com.mashup.teamMino` / `com.mashup.teamMino.ShareExtension`).
+    ///
+    /// 점까지 붙여 비교한다 — 점이 없으면 `com.mashup.teamMinoPro` 처럼 앱 ID 로 시작하기만 하는
+    /// 남의 번들도 통과한다.
+    ///
+    /// 두 타깃의 번들 ID 를 따로 바꿔 이 접두사 관계가 깨지면 꾹을 골라도 false 가 되어
+    /// 튜토리얼을 완주할 수 없게 된다(건너뛰기만 남는다) — 번들 ID 를 손볼 때 함께 확인한다.
+    private static func isOurShareExtension(_ activityType: UIActivity.ActivityType?) -> Bool {
+        // appID 가 없으면(있을 수 없지만) 빈 문자열 접두사로 전부 통과하는 구멍이 생기므로 guard 로 막는다.
+        guard let appID = Bundle.main.bundleIdentifier, let activityType else { return false }
+        return activityType.rawValue.hasPrefix(appID + ".")
+    }
 
     func makeUIViewController(context: Context) -> UIViewController {
         UIViewController()
@@ -28,8 +47,9 @@ struct TutorialShareSheet: UIViewControllerRepresentable {
             activityItems: [TutorialShareItem()],
             applicationActivities: nil
         )
-        controller.completionWithItemsHandler = { _, completed, _, _ in
-            onFinish(completed)
+        controller.completionWithItemsHandler = { activityType, completed, _, _ in
+            // 시스템의 completed(액티비티가 성공했는가)와 우리 기준이 갈리는 지점.
+            onFinish(completed && Self.isOurShareExtension(activityType))
         }
         // iPad 는 공유시트를 popover 로 띄운다 — popover 는 sourceView·sourceItem·barButtonItem 중
         // 하나를 앵커로 요구하고, 없으면 present 하는 순간 NSGenericException 으로 앱이 죽는다.
@@ -48,18 +68,20 @@ struct TutorialShareSheet: UIViewControllerRepresentable {
 ///
 /// `UIActivityItemSource` 를 쓰지 않고 문자열만 넘기면 헤더에 그 문자열이 그대로 노출된다.
 private final class TutorialShareItem: NSObject, UIActivityItemSource {
-    // 실제로 공유될 값. 고른 앱으로 전달되지만 튜토리얼에서는 쓰이지 않는다.
-    private let placeholder = "꾹"
+    /// 실제로 공유될 값. **문자열이 아니라 웹 URL 이어야 한다** — 우리 익스텐션의 activation rule 이
+    /// `NSExtensionActivationSupportsWebURLWithMaxCount` 라, 문자열을 넘기면 시트에서 "꾹" 이 걸러진다.
+    /// 이 센티넬을 받은 익스텐션은 저장 화면을 띄우지 않고 조용히 닫는다(`ShareViewController.classify`).
+    private let sharedURL = TutorialShare.sentinelURL
 
     func activityViewControllerPlaceholderItem(_ controller: UIActivityViewController) -> Any {
-        placeholder
+        sharedURL
     }
 
     func activityViewController(
         _ controller: UIActivityViewController,
         itemForActivityType activityType: UIActivity.ActivityType?
     ) -> Any? {
-        placeholder
+        sharedURL
     }
 
     func activityViewControllerLinkMetadata(_ controller: UIActivityViewController) -> LPLinkMetadata? {

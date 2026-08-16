@@ -81,8 +81,8 @@ struct TutorialView: View {
         // 3단계는 목업이 아니라 실제 시스템 공유시트를 띄운다. 사용자가 시트에서 우리 앱을
         // 한 번 눌러보게 하는 것이 이 단계의 목적이라, 우리가 그린 화면으로는 대체할 수 없다.
         .background {
-            TutorialShareSheet(isPresented: store.state.step == .systemShareSheet) { completed in
-                store.send(.shareSheetFinished(completed: completed))
+            TutorialShareSheet(isPresented: store.state.step == .systemShareSheet) { didChooseOurApp in
+                store.send(.shareSheetFinished(didChooseOurApp: didChooseOurApp))
             }
         }
     }

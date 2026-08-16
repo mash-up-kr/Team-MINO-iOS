@@ -1,3 +1,4 @@
+import Core
 import FlowCoordination
 import Observation
 import RoomCreationUI
@@ -10,8 +11,13 @@ public enum OnboardingRoute: Hashable {
 }
 
 /// 온보딩 종료 보고. 수집값(이름·컬러 등)은 동반하지 않는다 — plan/pr1/persistent/decisions.md 결정 B
+///
+/// 초대 코드만 예외로 동반한다 — 부모가 어느 방을 열지 이 값 없이는 알 수 없다.
+/// 두 case 로 나눠 부모가 초대 착지를 빠뜨리면 switch 누락으로 잡히게 한다
+/// (`completed(inviteCode: String?)` 로 두면 옵셔널을 조용히 무시해도 컴파일이 통과한다).
 public enum OnboardingResult: Equatable, Sendable {
     case completed
+    case completedWithInvite(code: String)
 }
 
 /// 온보딩 flow 1회당 **새 인스턴스**를 만들어 쓴다.
@@ -27,7 +33,17 @@ public final class OnboardingCoordinator: Coordinator {
     public var cover: Never? = nil
     public let finish = FlowFinish<OnboardingResult>()
 
-    public init() {}
+    /// 초대 링크로 들어왔다면 그 방의 초대 코드.
+    ///
+    /// 링크 문법 검증은 시스템 경계(`Core.DeeplinkParser`)가 이미 했으므로 여기서 다시 보지 않는다.
+    /// 1회 실행분 입력이라 생성자에 둔다 — 대기 중인 딥링크를 온보딩이 훔쳐보는 API 는 필요 없다.
+    private let inviteCode: String?
+
+    public init(inviteCode: String? = nil) {
+        // 빈 값은 초대로 보지 않는다 — 빈 문자열이 흘러들면 방 생성을 건너뛴 채
+        // 열 수 없는 방 코드로 끝나는데, 그 오작동이 조용해서 배선 실수를 못 잡는다.
+        self.inviteCode = inviteCode?.nilIfEmpty
+    }
 
     // Store 를 캐시하지 않는다 — NavigationStack 기본 동작을 그대로 따르기 위해서다.
     // pop 되면 그 화면의 뷰와 @State Store 가 함께 버려지고, 다시 push 하면 빈 상태로 시작한다.
@@ -59,8 +75,9 @@ public final class OnboardingCoordinator: Coordinator {
 
     func handle(_ nav: ProfileSetupNav) {
         switch nav {
-        case .goToCreateRoom:
-            push(.createRoom)
+        case .didSave:
+            // 이미 초대받은 방이 있어 방을 만들고 친구를 부르는 두 스텝이 무의미하다.
+            push(inviteCode == nil ? .createRoom : .tutorial)
         }
     }
 
@@ -68,10 +85,9 @@ public final class OnboardingCoordinator: Coordinator {
         switch nav {
         case .didCreateRoom:
             push(.inviteFriends)
+        // 방을 만들지 않았으면 초대할 방도 없어 친구초대까지 함께 건너뛴다.
         case .didSkip:
-            // 건너뛰기 목적지가 기획에 없어 비워둔다 — 추측으로 넘기지 않는다.
-            // (Figma Flow 2 는 "생성 안 하면 다음 접속에 유도"라 건너뛴 사실을 남겨야 하는데 저장할 곳이 없다)
-            break
+            push(.tutorial)
         }
     }
 
@@ -84,10 +100,13 @@ public final class OnboardingCoordinator: Coordinator {
 
     func handle(_ nav: TutorialNav) {
         switch nav {
-        case .didSkip:
-            // 건너뛰기 목적지(방 리스트)가 온보딩 밖이라 비워둔다 — 온보딩을 끝내고 나갈
-            // 지점이 정해지면 finish(.completed) 로 이어진다.
-            break
+        // 어디로 보낼지(방 리스트 vs 초대받은 방)는 결과를 받는 부모가 정한다.
+        case .didSkip, .didFinish:
+            if let inviteCode {
+                finish(.completedWithInvite(code: inviteCode))
+            } else {
+                finish(.completed)
+            }
         }
     }
 }
