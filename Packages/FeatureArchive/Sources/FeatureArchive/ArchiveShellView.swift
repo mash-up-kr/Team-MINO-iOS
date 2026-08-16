@@ -165,10 +165,11 @@ struct ArchiveShellView: View {
     ///
     /// - 방 리스트: peek 은 그래버(30)+헤더(60), half 는 카드 영역까지. 스펙 이상치는 244 지만
     ///   실제 그래버 간격 영역이 더 커(~54) 카드가 탭바에 잘려 실측 보정값 268 을 쓴다.
-    /// - 방 상세: 시안 높이(peek 208 / half 439)에서 하단 인디케이터 34 를 뺀 값.
-    ///   peek 은 그래버 + 액션 row(70) + `Header_Room`(118) 까지 보인다.
+    /// - 방 상세: 시안 비율(peek 208/812 = 25.6%, half 439/812 = 54.1%)에 시뮬레이터 실측으로 맞춘 값.
+    ///   `MHBottomSheet` 이 safe-area 안쪽 높이로 비율을 환산해 지정값보다 68pt 크게 나오므로 그만큼 뺐다.
+    ///   peek 은 그래버 + 액션 row + `Header_Room` 까지 보인다.
     private var peek: (low: CGFloat, medium: CGFloat) {
-        detailStore == nil ? (112, 268) : (174, 405)
+        detailStore == nil ? (112, 268) : (156, 405)
     }
 
     // MARK: - 바인딩
