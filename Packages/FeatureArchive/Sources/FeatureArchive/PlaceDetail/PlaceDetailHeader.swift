@@ -1,7 +1,6 @@
 import DesignSystem
 import SwiftUI
 
-/// 시트 상단 고정 영역. 스크롤을 내리면 공유자·주소가 빠지고 제목 한 줄로 접힌다(스펙 ⑬).
 struct PlaceDetailHeader: View {
     let place: PlaceDetailPlace
     let isCollapsed: Bool
@@ -81,7 +80,6 @@ struct PlaceDetailHeader: View {
             .accessibilityIdentifier("PlaceDetail.close")
     }
 
-    // 시안은 가로 스크롤 없이 잘려 있지만, 버튼 3개(약 396pt)가 화면 폭을 넘어 스크롤로 둔다.
     private var actionRow: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {

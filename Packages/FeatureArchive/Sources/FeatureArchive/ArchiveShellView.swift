@@ -23,7 +23,7 @@ struct ArchiveShellView: View {
             ArchiveMapLayer()
 
             if let roomListStore {
-                if placeStore == nil {   // 장소 상세엔 정렬·카테고리 바가 없다
+                if placeStore == nil {
                     filterBar(roomList: roomListStore)
                 }
                 sheet(roomList: roomListStore)
@@ -98,7 +98,6 @@ struct ArchiveShellView: View {
         withAnimation(.spring(duration: 0.3)) { detent = .medium }
     }
 
-    /// 장소 상세는 진입도 복귀도 half 로 맞춘다(스펙 ④) — 방 상세와 달리 높이를 승계하지 않는다.
     private func syncPlaceStore() {
         if let pin = coordinator.selectedPin {
             placeStore = coordinator.makePlaceDetailStore(pin: pin)

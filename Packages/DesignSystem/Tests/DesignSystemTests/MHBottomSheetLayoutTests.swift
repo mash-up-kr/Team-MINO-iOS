@@ -36,8 +36,6 @@ final class MHBottomSheetLayoutTests: XCTestCase {
         XCTAssertEqual(layout.nearestDetent(to: 2000), .full, "범위 밖 위는 full")
     }
 
-    // MARK: - 단계를 좁힌 시트 (medium·full 2단)
-
     private let twoStep = MHBottomSheetLayout(
         containerHeight: 800, lowFraction: 0.15, mediumFraction: 0.45, detents: [.medium, .full]
     )

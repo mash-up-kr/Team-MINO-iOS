@@ -14,7 +14,6 @@ struct MHBottomSheetLayout: Equatable {
     let containerHeight: CGFloat
     let lowFraction: CGFloat      // 0 < low < medium < 1 (init 의 assert 가 보장)
     let mediumFraction: CGFloat
-    /// 이 시트가 쓰는 단계. 빠진 단계는 스냅 후보에서 빠지고 드래그 한계도 남은 단계 기준이 된다.
     var detents: [MHBottomSheetDetent] = MHBottomSheetDetent.allCases
 
     func height(of detent: MHBottomSheetDetent) -> CGFloat {
@@ -66,7 +65,6 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
     private let lowPeek: CGFloat?
     /// 설정 시 medium 높이를 비율 대신 "콘텐츠 pt + 하단 safe-area" 로 계산한다(카드 영역까지 보이는 half).
     private let mediumPeek: CGFloat?
-    /// 이 시트가 쓰는 단계. 2단(half·full)만 쓰는 화면은 `[.medium, .full]` 처럼 좁혀 준다.
     private let detents: [MHBottomSheetDetent]
     private let contentID: ID?
     private let content: (ID?) -> Content
