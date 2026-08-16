@@ -12,7 +12,6 @@ private let fixtureRoom = Room(
     pinCount: 3, memberCount: 2, users: []
 )
 
-/// 0·10·20 일 전 3건. 10일 전까지가 "최근 14일" 안이다.
 private let fixturePins: [Pin] = [0, 10, 20].map { daysAgo in
     Pin(
         id: PinID("p\(daysAgo)"),
@@ -47,7 +46,6 @@ struct RoomDetailReducerTests {
         TestStore(state, reduce: roomDetailReducer(useCase: useCase, room: fixtureRoom, now: { fixtureNow }))
     }
 
-    /// 정렬을 적용한 뒤의 표시 목록.
     private func locations(_ sort: RoomDetailSort) -> [RoomDetailLocation] {
         RoomDetailSorting.apply(sort, to: fixturePins, now: fixtureNow).map(RoomDetailLocation.init(from:))
     }
@@ -82,7 +80,6 @@ struct RoomDetailReducerTests {
     @Test("L2 — 이미 목록이 있는 상태에서 재조회가 실패해도 기존 목록을 비우지 않는다")
     func load_failure_keepsExistingLocations() async {
         let store = makeStore(state: loadedState())
-        // expect 를 비워 두면 TestStore 가 "state 가 전혀 안 바뀜"을 단언한다(exhaustive 기본값).
         await store.send(.loadFailed(.unknown))
         store.finish()
     }
@@ -94,7 +91,6 @@ struct RoomDetailReducerTests {
             $0.sort = .latest
             $0.locations = locations(.latest)
         }
-        // 20일 전 핀은 14일 밖이라 빠진다 — 정렬이 실제로 걸렸는지 개수로 확인한다.
         #expect(store.currentState.locations.count == 2)
         store.finish()
     }

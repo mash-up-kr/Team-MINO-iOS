@@ -1,6 +1,5 @@
 import Domain
 
-/// 공유 대상으로 고를 수 있는 방 한 건. 도메인 `Room` 을 시트가 그릴 값으로 변환한 표시 모델.
 struct RoomShareRoom: Identifiable, Equatable {
     let id: String
     let name: String

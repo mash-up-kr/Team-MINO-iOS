@@ -3,11 +3,6 @@ import Domain
 import MVI
 import SwiftUI
 
-/// 방 리스트 시트 내용. Figma Frame 198(node 2236:45798) — 저장 탭 진입 화면.
-///
-/// 지도·상단 필터바·시트 프레임은 ``ArchiveShellView`` 가 소유한다 — 이 뷰는 시트 안만 그린다.
-/// `store.state.rooms`(도메인 `Room`)를 표시 모델 ``RoomListItem`` 으로 매핑해
-/// 순수 뷰 ``RoomListContentView`` 에 주입한다.
 struct RoomListView: View {
     let store: RoomListStore
     let isFull: Bool
@@ -24,8 +19,6 @@ struct RoomListView: View {
         )
     }
 
-    /// 표시 모델은 id 만 돌려주므로 도메인 `Room` 을 여기서 되찾아 보낸다 —
-    /// 방 상세가 헤더(제목·메모·장소 수·멤버)를 로딩 없이 그리려면 방 전체가 필요하다.
     private func selectRoom(_ id: RoomListItem.ID) {
         guard let room = store.state.rooms.first(where: { $0.id == id }) else { return }
         store.send(.tapRoom(room))
@@ -111,8 +104,6 @@ struct RoomListContentView: View {
                         thumbnail: room.thumbnail,
                         members: room.members
                     )
-                    // MHRoomCard 는 탭 액션을 노출하지 않는다 — DS 를 건드리지 않고 여기서 붙인다.
-                    // 여백까지 눌리도록 contentShape 를 주고, 자동화·VoiceOver 가 버튼으로 읽도록 trait 를 얹는다.
                     .contentShape(Rectangle())
                     .onTapGesture { onSelectRoom?(room.id) }
                     .accessibilityAddTraits(.isButton)

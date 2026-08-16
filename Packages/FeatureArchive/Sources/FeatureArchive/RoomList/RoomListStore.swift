@@ -28,7 +28,6 @@ public enum RoomListAction: Equatable {
     case tapRoom(Room)
 }
 
-/// 방 상세는 별도 화면이 아니라 같은 껍데기(지도·필터바·시트)의 다음 단계다 — 시트 내용만 바뀐다.
 public enum RoomListNav: Equatable, Sendable {
     case openRoomDetail(Room)
 }

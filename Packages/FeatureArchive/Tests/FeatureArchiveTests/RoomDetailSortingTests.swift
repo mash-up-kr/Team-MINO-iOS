@@ -3,11 +3,9 @@ import Testing
 import Domain
 @testable import FeatureArchive
 
-/// 정렬 규칙(Figma `1672:66212`). `now` 를 주입받는 순수 함수라 시각 의존 없이 결정적으로 검증된다.
 struct RoomDetailSortingTests {
     private let now = Date(timeIntervalSince1970: 1_700_000_000)
 
-    /// `daysAgo` 일 전에 저장된 핀. id 로 순서를 눈으로 확인할 수 있게 둔다.
     private func pin(_ id: String, daysAgo: Double) -> Pin {
         Pin(
             id: PinID(id),
@@ -19,7 +17,6 @@ struct RoomDetailSortingTests {
         )
     }
 
-    /// 0·5·10·15·20·25·30·35·40·45 일 전 10건.
     private var pins: [Pin] {
         (0..<10).map { pin("p\($0)", daysAgo: Double($0) * 5) }
     }
@@ -32,7 +29,6 @@ struct RoomDetailSortingTests {
     @Test("꾹 Pick 은 가장 오래된 상위 30% 를 오래된 순으로 낸다")
     func pick() {
         let result = RoomDetailSorting.apply(.pick, to: pins, now: now)
-        // 10건의 30% = 3건. 가장 오래된 건 45일 전(p9) → 40일(p8) → 35일(p7).
         #expect(result.map(\.id.value) == ["p9", "p8", "p7"])
     }
 
@@ -45,7 +41,6 @@ struct RoomDetailSortingTests {
     @Test("최신순은 14일 이내만 최신 순으로 낸다")
     func latest() {
         let result = RoomDetailSorting.apply(.latest, to: pins, now: now)
-        // 0·5·10 일 전만 14일 이내. 15일 전(p3)부터는 잘린다.
         #expect(result.map(\.id.value) == ["p0", "p1", "p2"])
     }
 
