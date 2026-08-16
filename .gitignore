@@ -17,6 +17,9 @@ xcuserdata/
 .build/
 .swiftpm/
 Package.resolved
+# 외부 의존(Alamofire)의 잠금은 추적한다 — 없으면 사람·CI 마다 다른 패치 버전으로 빌드된다.
+# Alamofire 는 Networking 을 거친 전이 의존이라 앱 프로젝트에는 Package.resolved 가 생기지 않는다.
+!Packages/Networking/Package.resolved
 
 ### macOS
 .DS_Store
