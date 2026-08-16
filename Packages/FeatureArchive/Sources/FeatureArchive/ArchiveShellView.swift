@@ -23,7 +23,9 @@ struct ArchiveShellView: View {
             ArchiveMapLayer()
 
             if let roomListStore {
-                filterBar(roomList: roomListStore)
+                if placeStore == nil {   // 장소 상세엔 정렬·카테고리 바가 없다
+                    filterBar(roomList: roomListStore)
+                }
                 sheet(roomList: roomListStore)
             }
 
@@ -98,22 +100,19 @@ struct ArchiveShellView: View {
 
     /// 장소 상세는 진입도 복귀도 half 로 맞춘다(스펙 ④) — 방 상세와 달리 높이를 승계하지 않는다.
     private func syncPlaceStore() {
-        guard let pin = coordinator.selectedPin else {
+        if let pin = coordinator.selectedPin {
+            placeStore = coordinator.makePlaceDetailStore(pin: pin)
+        } else {
             guard placeStore != nil else { return }
             placeStore = nil
-            withAnimation(.spring(duration: 0.3)) { detent = .medium }
-            return
         }
-        placeStore = coordinator.makePlaceDetailStore(pin: pin)
         withAnimation(.spring(duration: 0.3)) { detent = .medium }
     }
 
     @ViewBuilder
     private func filterBar(roomList: RoomListStore) -> some View {
         VStack(spacing: 0) {
-            if placeStore != nil {
-                EmptyView()   // 장소 상세엔 정렬·카테고리가 없다
-            } else if let detailStore {
+            if let detailStore {
                 MHFilterBar(
                     sortOptions: RoomDetailSort.allCases.map(\.rawValue),
                     selectedSort: sortBinding(detailStore),
@@ -159,8 +158,8 @@ struct ArchiveShellView: View {
         return detailStore == nil ? "RoomList.sheet" : "RoomDetail.sheet"
     }
 
-    private var peek: (low: CGFloat, medium: CGFloat) {
-        if placeStore != nil { return (156, 329) }
+    private var peek: (low: CGFloat?, medium: CGFloat) {
+        if placeStore != nil { return (nil, 329) }
         return detailStore == nil ? (112, 268) : (156, 405)
     }
 
