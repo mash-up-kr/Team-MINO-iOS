@@ -1,4 +1,5 @@
 import Foundation
+import Testing
 
 /// `URLSession` 을 가로채는 가짜 서버. Alamofire 도 URLSession 위에 있으므로 그대로 동작한다.
 ///
@@ -38,6 +39,9 @@ final class URLProtocolStub: URLProtocol, @unchecked Sendable {
         /// `stopLoading` 이 불린 횟수. 취소가 실제로 전송 계층까지 닿았는지 확인한다.
         var cancellations: Int { registry.cancellations(for: id) }
 
+        /// 아직 소비되지 않은 큐 길이. 스크립트가 다 쓰였는지 단언할 때 쓴다.
+        var remainingQueued: Int { registry.remainingQueued(for: id) }
+
         deinit { registry.remove(id) }
     }
 
@@ -53,6 +57,9 @@ final class URLProtocolStub: URLProtocol, @unchecked Sendable {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [URLProtocolStub.self]
         configuration.httpAdditionalHeaders = [header: id]
+        // 백스톱: `suspends` stub 은 응답을 영원히 주지 않는다. 상한이 없으면 테스트가
+        // 실패하는 대신 멈춘다(기본 60초를 다 태운다).
+        configuration.timeoutIntervalForRequest = 5
         return (configuration, Handle(id: id))
     }
 
@@ -131,6 +138,9 @@ final class URLProtocolStub: URLProtocol, @unchecked Sendable {
         }
 
         /// 큐가 있으면 앞에서 하나 꺼내고, 없으면 고정 stub 을 돌려준다.
+        ///
+        /// 등록되지 않은 세션이면 기본값을 조용히 돌려주지 않는다 — Handle 이 요청보다 먼저
+        /// 해제된 경우인데, 200 + 빈 본문으로 폴백하면 "이상한 성공" 으로 끝나 원인을 못 찾는다.
         func next(for id: String) -> Stub {
             lock.withLock {
                 if var pending = queued[id], !pending.isEmpty {
@@ -138,7 +148,11 @@ final class URLProtocolStub: URLProtocol, @unchecked Sendable {
                     queued[id] = pending
                     return head
                 }
-                return stubs[id] ?? Stub()
+                guard let stub = stubs[id] else {
+                    Issue.record("등록되지 않은 stub 세션으로 요청이 나갔다: \(id)")
+                    return Stub(statusCode: 599, body: Data())
+                }
+                return stub
             }
         }
 
@@ -160,6 +174,10 @@ final class URLProtocolStub: URLProtocol, @unchecked Sendable {
 
         func cancellations(for id: String) -> Int {
             lock.withLock { cancels[id] ?? 0 }
+        }
+
+        func remainingQueued(for id: String) -> Int {
+            lock.withLock { queued[id]?.count ?? 0 }
         }
 
         func remove(_ id: String) {

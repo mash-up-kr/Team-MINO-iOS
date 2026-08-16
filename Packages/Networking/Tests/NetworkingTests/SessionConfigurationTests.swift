@@ -24,6 +24,9 @@ struct SessionConfigurationTests {
         #expect(policy.retryLimit == 1)
         #expect(!policy.retryableHTTPMethods.contains(.post))
         #expect(policy.retryableHTTPMethods.contains(.get))
+        // 테스트는 백오프를 0.01 로 덮어쓰므로, 기본값은 여기서만 지켜진다.
+        #expect(policy.exponentialBackoffBase == 2)
+        #expect(policy.exponentialBackoffScale == 0.5)
     }
 
     @Test("로거가 실려 있다 — 빠지면 장애 때 남는 단서가 사라진다")

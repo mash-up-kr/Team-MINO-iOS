@@ -16,19 +16,20 @@ struct CancellationTests {
         }
 
         // 요청이 실제로 전송 계층까지 나간 뒤에 취소한다.
-        while stub.recorded.isEmpty { await Task.yield() }
+        try #require(await poll { !stub.recorded.isEmpty }, "요청이 전송 계층에 도달하지 않았다")
         task.cancel()
 
-        let error = await task.value
-        #expect(error == .cancelled)
-        #expect(stub.recorded.count == 1)      // 취소는 재시도 대상이 아니다
-        #expect(stub.cancellations == 1)       // 취소가 전송 계층까지 닿았다
+        #expect(await task.value == .cancelled)
+        #expect(stub.recorded.count == 1)   // 취소는 재시도 대상이 아니다
+
+        // 취소 전파는 URLProtocol 쪽에서 비동기로 관측되므로 기다린다.
+        #expect(await poll { stub.cancellations == 1 })
     }
 
     @Test("시작 전에 취소해도 cancelled 로 돌아온다")
     func cancelsBeforeStart() async throws {
         let (sut, stub) = makeSUT()
-        stub.stub.body = Data(#"{"data":[]}"#.utf8)
+        stub.stub.suspends = true   // 완주해서 성공으로 끝나는 경합을 없앤다
 
         let task = Task { () -> NetworkError? in
             await capture { _ = try await sut.request(Endpoint<[RoomDTO]>(path: "api/v1/rooms")) }
@@ -37,4 +38,16 @@ struct CancellationTests {
 
         #expect(await task.value == .cancelled)
     }
+}
+
+/// 조건이 참이 될 때까지 기다린다. **상한이 있어야 한다** — 무한 스핀은 회귀가 생겼을 때
+/// 테스트를 실패시키는 대신 CI 를 멈춘다(mvi-coordinator-di.md 7절: 무한 hang 금지).
+func poll(timeout: Duration = .seconds(2), _ condition: () -> Bool) async -> Bool {
+    let deadline = ContinuousClock.now + timeout
+    while ContinuousClock.now < deadline {
+        if condition() { return true }
+        await Task.yield()
+        try? await Task.sleep(for: .milliseconds(5))
+    }
+    return condition()
 }

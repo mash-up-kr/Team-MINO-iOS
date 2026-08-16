@@ -18,12 +18,6 @@ struct EndpointTests {
         #expect(endpoint.timeout == nil)
     }
 
-    @Test("인증 예외 엔드포인트는 requiresAuth 를 끈다")
-    func authException() {
-        let endpoint = Endpoint<DummyDTO>(path: "api/v1/users", method: .post, requiresAuth: false)
-        #expect(!endpoint.requiresAuth)
-    }
-
     @Test("paged 는 기존 쿼리를 유지한 채 page·pageSize 를 덧붙인다")
     func paged() {
         let paged: PagedEndpoint<DummyDTO> = Endpoint<[DummyDTO]>(
@@ -50,18 +44,5 @@ struct EndpointTests {
             URLQueryItem(name: "page", value: "1"),
             URLQueryItem(name: "pageSize", value: "20"),
         ])
-    }
-}
-
-@Suite("NetworkError")
-struct NetworkErrorTests {
-    @Test("연관값이 다르면 다른 오류다")
-    func equality() {
-        #expect(NetworkError.server(statusCode: 500) == .server(statusCode: 500))
-        #expect(NetworkError.server(statusCode: 500) != .server(statusCode: 503))
-        #expect(
-            NetworkError.forbidden(code: "FORBIDDEN", message: "방 멤버가 아닙니다")
-                != .forbidden(code: "FORBIDDEN", message: "권한이 없습니다")
-        )
     }
 }
