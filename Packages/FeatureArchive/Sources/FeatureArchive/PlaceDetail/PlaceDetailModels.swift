@@ -44,6 +44,32 @@ struct PlaceDetailComment: Identifiable, Equatable {
     static let localAuthorName = "나"
 }
 
+extension PlaceDetailPlace {
+    static let sample = PlaceDetailPlace(
+        id: "sample",
+        name: "레이어스튜디오 10",
+        address: "서울 성동구 상원4길 10",
+        savedDays: 30,
+        photoCount: 2
+    )
+}
+
+extension PlaceDetailComment {
+    static let samples: [PlaceDetailComment] = [
+        PlaceDetailComment(id: "c1", author: "서연", body: "친구가 남긴 코멘트입니다."),
+        PlaceDetailComment(
+            id: "c2",
+            author: "태윤",
+            body: String(repeating: "친구가 남긴 코멘트입니다.", count: 6)
+        ),
+        PlaceDetailComment(
+            id: "c3",
+            author: "에린",
+            body: String(repeating: "친구가 남긴 코멘트입니다.", count: 12)
+        ),
+    ]
+}
+
 enum PlaceDetailExternalMap {
     /// 핀에 좌표가 없어 주소 문자열 검색으로 지도 앱을 연다.
     static func url(forAddress address: String) -> URL? {
