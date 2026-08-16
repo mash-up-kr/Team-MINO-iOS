@@ -1,5 +1,4 @@
 import Domain
-import Foundation
 
 /// 방 상세 시트가 그리는 장소 한 건. 도메인 `Pin` 을 카드가 그릴 값으로 변환한 화면 표시 모델.
 struct RoomDetailLocation: Identifiable, Equatable {

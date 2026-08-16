@@ -8,28 +8,12 @@ import MVI
 /// 다시 계산해야 하므로 둘 다 들고 있는다 — 표시용만 들면 되돌릴 원본이 없다.
 struct RoomDetailState: Equatable {
     var room: RoomDetailRoom
-    var pins: [Pin]
-    var locations: [RoomDetailLocation]
+    var pins: [Pin] = []
+    var locations: [RoomDetailLocation] = []
     /// 상단 필터바(peek·half)와 시트 툴바(full)가 함께 보는 값. 스펙 ① 기본값은 "전체".
-    var sort: RoomDetailSort
-    var category: RoomDetailCategory
-    var viewMode: RoomDetailViewMode
-
-    init(
-        room: RoomDetailRoom,
-        pins: [Pin] = [],
-        locations: [RoomDetailLocation] = [],
-        sort: RoomDetailSort = .all,
-        category: RoomDetailCategory = .all,
-        viewMode: RoomDetailViewMode = .list
-    ) {
-        self.room = room
-        self.pins = pins
-        self.locations = locations
-        self.sort = sort
-        self.category = category
-        self.viewMode = viewMode
-    }
+    var sort: RoomDetailSort = .all
+    var category: RoomDetailCategory = .all
+    var viewMode: RoomDetailViewMode = .list
 }
 
 enum RoomDetailAction: Equatable {
