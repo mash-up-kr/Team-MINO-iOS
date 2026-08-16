@@ -14,10 +14,7 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps {
 
     init() {
         // 백엔드 미연결 단계 — 시범용 Stub UseCase 를 주입한다.
-        // 실제 API 준비 시 아래 한 줄을 교체한다 (import Networking 추가):
-        //   let client = URLSessionHTTPClient(baseURL: URL(string: "<real-base-url>")!)
-        //   let repository = MemberRepositoryImpl(client: client)
-        //   self.fetchMember = DefaultFetchMemberUseCase(repository: repository)
+        // 실 API 연결 절차는 Packages/Networking/README.md 참조.
         self.fetchMember = StubFetchMemberUseCase()
 
         // 방 목록: 실 API 미연결 → Mock Repository(하드코딩 JSON) 사용. 추후 RoomRepositoryImpl 로 교체.
