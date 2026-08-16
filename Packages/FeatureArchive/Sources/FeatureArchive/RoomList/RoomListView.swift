@@ -19,8 +19,16 @@ struct RoomListView: View {
             showEmptyState: !store.state.rooms.contains { $0.type == .shared },
             isFull: isFull,
             filterSelection: filterBinding,
-            onClose: onCollapse
+            onClose: onCollapse,
+            onSelectRoom: selectRoom
         )
+    }
+
+    /// 표시 모델은 id 만 돌려주므로 도메인 `Room` 을 여기서 되찾아 보낸다 —
+    /// 방 상세가 헤더(제목·메모·장소 수·멤버)를 로딩 없이 그리려면 방 전체가 필요하다.
+    private func selectRoom(_ id: RoomListItem.ID) {
+        guard let room = store.state.rooms.first(where: { $0.id == id }) else { return }
+        store.send(.tapRoom(room))
     }
 
     private var filterBinding: Binding<Int> {
@@ -42,6 +50,7 @@ struct RoomListContentView: View {
     let isFull: Bool
     @Binding var filterSelection: Int
     var onClose: (() -> Void)?
+    var onSelectRoom: ((RoomListItem.ID) -> Void)?
 
     private let filterItems = ["전체", "최근 저장 순", "코멘트 순"]
 
@@ -102,6 +111,11 @@ struct RoomListContentView: View {
                         thumbnail: room.thumbnail,
                         members: room.members
                     )
+                    // MHRoomCard 는 탭 액션을 노출하지 않는다 — DS 를 건드리지 않고 여기서 붙인다.
+                    // 여백까지 눌리도록 contentShape 를 주고, 자동화·VoiceOver 가 버튼으로 읽도록 trait 를 얹는다.
+                    .contentShape(Rectangle())
+                    .onTapGesture { onSelectRoom?(room.id) }
+                    .accessibilityAddTraits(.isButton)
                     .accessibilityIdentifier("RoomList.card.\(room.id)")
                 }
                 if showEmptyState {
