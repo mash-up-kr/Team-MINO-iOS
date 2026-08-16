@@ -17,14 +17,10 @@ public final class ArchiveCoordinator: Coordinator {
 
     private let deps: ArchiveDeps
 
-    /// 방 상세로 열려 있는 방. `nil` 이면 시트가 방 리스트 단계다.
     public private(set) var selectedRoom: Room?
 
-    /// 방 상세는 탭바 없는 전체 화면(Figma `004-1-1`)이라 앱 루트가 탭바를 감춰야 한다.
     public var isRoomDetailPresented: Bool { selectedRoom != nil }
 
-    /// 공유 시트로 띄울 장소. 시트는 `MHBottomSheet` 클립 경계 안이라 딤을 동반한 모달을
-    /// 자기 안에서 못 띄운다 — 껍데기가 받아서 띄운다.
     var sharingLocation: RoomDetailLocation?
 
     public init(deps: ArchiveDeps) {

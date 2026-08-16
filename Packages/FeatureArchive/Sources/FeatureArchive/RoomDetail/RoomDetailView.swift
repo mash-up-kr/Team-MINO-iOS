@@ -2,11 +2,6 @@ import DesignSystem
 import MVI
 import SwiftUI
 
-/// 방 상세 시트 내용. Figma `004-1-1 peek` / `004-1-2 half` / `004-1-3 full`.
-///
-/// 지도·상단 필터바·시트 프레임은 ``ArchiveShellView`` 가 소유한다 — 이 뷰는 시트 안만 그린다.
-/// 툴바(정렬·보기 전환)와 카테고리 칩은 full 에서만 나온다. peek·half 에서는 같은 값을
-/// 상단 필터바가 대신 보여준다(시트가 화면을 다 덮으면 상단 바가 가려지기 때문).
 struct RoomDetailView: View {
     let store: RoomDetailStore
     let detent: MHBottomSheetDetent
@@ -28,8 +23,8 @@ struct RoomDetailView: View {
             VStack(spacing: 0) {
                 RoomDetailHeader(
                     room: store.state.room,
-                    onAddMember: {},   // TODO: 004-4-2 친구 초대 시트 (시안 미확보)
-                    onMore: {},        // TODO: 방 편집 / 방 나가기 드롭다운 (시안 미확보)
+                    onAddMember: {},
+                    onMore: {},
                     onClose: { store.send(.tapClose) }
                 )
 
@@ -95,7 +90,6 @@ struct RoomDetailView: View {
 
     private var locationList: some View {
         // LazyVStack 은 자식의 zIndex 를 무시해 아래 카드가 열린 메뉴 위로 그려진다(시뮬레이터 확인).
-        // 목 데이터 10건 수준이라 VStack 으로 두고, 서버 연동으로 목록이 길어지면 다시 본다.
         VStack(spacing: 0) {
             ForEach(Array(locations.enumerated()), id: \.element.id) { index, location in
                 card(location, at: index)

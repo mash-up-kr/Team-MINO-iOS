@@ -1,8 +1,6 @@
 import Domain
 
-/// 방 상세 시트가 그리는 장소 한 건. 도메인 `Pin` 을 카드가 그릴 값으로 변환한 화면 표시 모델.
 struct RoomDetailLocation: Identifiable, Equatable {
-    /// `Pin.id` 를 그대로 쓴다 — 정렬이 바뀌어도 같은 장소는 같은 식별자여서 열린 메뉴가 엉뚱한 카드로 옮겨가지 않는다.
     let id: String
     let name: String
     let address: String
@@ -18,13 +16,8 @@ struct RoomDetailRoom: Equatable {
     let memberCount: Int
 }
 
-// MARK: - 도메인 → 표시 모델
-
 extension RoomDetailLocation {
-    /// `Pin` 에는 코멘트 수·사진 수가 없다. 시안이 요구하는 자리는 있으므로 상수로 채운다.
-    // TODO: Pin 에 코멘트 수·사진 수가 생기면 매핑으로 교체한다.
     private static let placeholderCommentCount = 0
-    /// 카드형(`004-1-3_카드형`)은 썸네일 2장을 나란히 놓는다 — `MHLocationCard(.expanded)` 가 배열 길이대로 나열한다.
     private static let placeholderPhotoCount = 2
 
     init(from pin: Pin) {
@@ -39,7 +32,6 @@ extension RoomDetailLocation {
 }
 
 extension RoomDetailRoom {
-    /// 시안 상한 표기("999+개"). 넘어가면 자릿수가 헤더를 밀어낸다.
     private static let countCap = 999
 
     init(from room: Room) {

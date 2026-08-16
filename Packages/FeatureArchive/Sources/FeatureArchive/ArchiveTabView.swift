@@ -1,7 +1,6 @@
 import FlowCoordination
 import SwiftUI
 
-/// 저장 탭 진입 View. 지도·필터바·바텀시트 껍데기(``ArchiveShellView``)를 띄운다.
 public struct ArchiveTabView: View {
     private let coordinator: ArchiveCoordinator
 
