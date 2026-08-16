@@ -49,9 +49,9 @@ public final class ArchiveCoordinator: Coordinator {
         return store
     }
 
-    func makePlaceDetailStore(pin: Pin, now: Date = Date()) -> PlaceDetailStore {
+    func makePlaceDetailStore(pin: Pin) -> PlaceDetailStore {
         let store = PlaceDetailStore(
-            PlaceDetailState(place: PlaceDetailPlace(from: pin, now: now)),
+            PlaceDetailState(place: PlaceDetailPlace(from: pin, now: Date())),
             reduce: placeDetailReducer(pin: pin)
         )
         store.observeNavigation { [weak self] in self?.handle($0) }
