@@ -1,6 +1,7 @@
+import Domain
 import Foundation
 
-/// 공유 대상으로 고를 수 있는 방 한 건. 서버 연동 전까지 쓰는 화면 전용 표시 모델.
+/// 공유 대상으로 고를 수 있는 방 한 건. 도메인 `Room` 을 시트가 그릴 값으로 변환한 표시 모델.
 struct RoomShareRoom: Identifiable, Equatable {
     let id: String
     let name: String
@@ -8,6 +9,17 @@ struct RoomShareRoom: Identifiable, Equatable {
     let locationCount: Int
 
     var locationCountText: String { "장소 \(locationCount)개" }
+}
+
+extension RoomShareRoom {
+    init(from room: Room) {
+        self.init(
+            id: room.id,
+            name: room.name,
+            memo: room.description ?? "",
+            locationCount: room.pinCount
+        )
+    }
 }
 
 /// 공유 시트의 방 선택 상태. 다중 선택이며, 하나도 안 고르면 전송할 수 없다.
