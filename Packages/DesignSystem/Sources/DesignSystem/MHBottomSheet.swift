@@ -345,10 +345,8 @@ public extension MHBottomSheet where ID == Never {
                   erasedContentID: nil, lowPeek: lowPeek, content: { _ in content() })
     }
 
-    /// low·medium 을 "콘텐츠 pt" 로 지정한다. 각각 하단 safe-area 를 내부에서 더해
+    /// low·medium 모두 "콘텐츠 pt" 로 지정한다. 각각 하단 safe-area 를 내부에서 더해
     /// 탭바 위로 지정 pt 만큼 온전히 보인다(기기 무관).
-    /// - Parameter detents: 이 시트가 쓰는 단계. 2단(half·full)만 쓰는 화면은 `[.medium, .full]` 로 좁히고
-    ///   `lowPeek` 을 생략한다 — low 를 뺀 단계는 스냅 후보에서 빠지고 드래그도 그 아래로 내려가지 않는다.
     init(
         detent: Binding<MHBottomSheetDetent>,
         lowPeek: CGFloat? = nil,

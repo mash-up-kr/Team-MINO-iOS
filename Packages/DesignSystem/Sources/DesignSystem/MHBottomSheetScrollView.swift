@@ -32,10 +32,6 @@ extension EnvironmentValues {
 /// - 핸드오프를 위해 내부 스크롤의 바운스를 끄므로 **pull-to-refresh 는 지원하지 않는다.**
 ///
 /// 스크롤이 없는 고정 콘텐츠는 이 래퍼 없이 일반 뷰로 넣으면 된다(시트 드래그가 그대로 동작).
-///
-/// `onOffsetChange` 로 스크롤 오프셋을 받아 "얼마나 내렸는가"에 반응할 수 있다(예: 헤더 축소).
-/// **받는 쪽은 임계값을 넘는 순간에만 `@State` 를 갱신한다** — 오프셋을 그대로 state 에 넣으면
-/// 스크롤 매 프레임 시트 콘텐츠 전체가 재평가된다(아래 `isAtTop` 이 Bool 인 것과 같은 이유).
 public struct MHBottomSheetScrollView<Inner: View>: View {
     @Environment(\.mhSheetScrollEnabled) private var scrollEnabled
     private let inner: Inner
