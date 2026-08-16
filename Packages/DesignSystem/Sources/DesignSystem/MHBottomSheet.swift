@@ -17,11 +17,6 @@ struct MHBottomSheetLayout: Equatable {
     /// 이 시트가 쓰는 단계. 빠진 단계는 스냅 후보에서 빠지고 드래그 한계도 남은 단계 기준이 된다.
     var detents: [MHBottomSheetDetent] = MHBottomSheetDetent.allCases
 
-    /// 빈 배열이 들어오면(호출자 실수) 3단 전부로 되돌린다 — 시트가 높이를 못 잡는 것보단 낫다.
-    private var usableDetents: [MHBottomSheetDetent] {
-        detents.isEmpty ? MHBottomSheetDetent.allCases : detents
-    }
-
     func height(of detent: MHBottomSheetDetent) -> CGFloat {
         switch detent {
         case .low: containerHeight * lowFraction
@@ -31,13 +26,13 @@ struct MHBottomSheetLayout: Equatable {
     }
 
     func clampedHeight(_ height: CGFloat) -> CGFloat {
-        let bounds = usableDetents.map { self.height(of: $0) }
+        let bounds = detents.map { self.height(of: $0) }
         guard let lower = bounds.min(), let upper = bounds.max() else { return height }
         return min(max(height, lower), upper)
     }
 
     func nearestDetent(to height: CGFloat) -> MHBottomSheetDetent {
-        usableDetents.min {
+        detents.min {
             abs(self.height(of: $0) - height) < abs(self.height(of: $1) - height)
         } ?? .medium
     }
