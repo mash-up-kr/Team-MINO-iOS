@@ -23,7 +23,8 @@ struct CancellationTests {
         #expect(stub.recorded.count == 1)   // 취소는 재시도 대상이 아니다
 
         // 취소 전파는 URLProtocol 쪽에서 비동기로 관측되므로 기다린다.
-        #expect(await poll { stub.cancellations == 1 })
+        // suspends stub 은 스스로 끝나지 않으므로, stopLoading 이 불렸다면 취소가 닿은 것이다.
+        #expect(await poll { stub.stopLoadingCount == 1 })
     }
 
     @Test("시작 전에 취소해도 cancelled 로 돌아온다")

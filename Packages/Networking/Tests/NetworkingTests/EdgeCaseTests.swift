@@ -29,7 +29,22 @@ struct EdgeCaseTests {
         #expect(stub.recorded.isEmpty)
     }
 
-    @Test("2xx 인데 본문이 비어 있으면 decodingFailed 로 드러난다")
+    // 서버 계약은 `{"data":{"ok":true}}` 지만 프록시·일부 엔드포인트가 204 를 준다.
+    // 실제로 성공한 요청(방 나가기 등)을 오류로 뒤집으면 사용자가 다시 누른다.
+    @Test("데이터 없는 성공은 204 + 빈 본문이어도 통과한다", arguments: [204, 200])
+    func emptyBodyForOkResponse(_ status: Int) async throws {
+        let (sut, stub) = makeSUT()
+        stub.stub.statusCode = status
+        stub.stub.body = Data()
+
+        let ok = try await sut.request(Endpoint<OkResponse>(
+            path: "api/v1/rooms/r1/members/me",
+            method: .delete
+        ))
+        #expect(ok.ok)
+    }
+
+    @Test("데이터가 필요한 응답인데 본문이 비어 있으면 decodingFailed 로 드러난다")
     func emptySuccessBody() async throws {
         let (sut, stub) = makeSUT()
         stub.stub.statusCode = 200

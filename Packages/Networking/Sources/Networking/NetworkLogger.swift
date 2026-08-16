@@ -22,11 +22,16 @@ struct NetworkLogger: EventMonitor {
     // 구현하면 비직렬화 `response()` 경로에서만 불려 로그가 한 줄도 남지 않는다.
     func request<Value>(_ request: DataRequest, didParseResponse response: DataResponse<Value, AFError>) {
         let status = response.response?.statusCode
+        // `response.metrics` 는 **마지막 시도**만 담는다(Alamofire 의 allMetrics.last).
+        // 재시도가 있었다면 사용자가 기다린 시간은 그 합이라, 마지막 것만 찍으면
+        // "왜 이 화면이 느렸나" 를 조사하는 사람이 네트워크를 용의선상에서 빼버린다.
+        let elapsed = request.allMetrics.reduce(0) { $0 + $1.taskInterval.duration }
         var metadata = [
             "method": request.request?.httpMethod ?? "-",
             "url": Self.urlForLog(request.request?.url),
             "status": status.map(String.init) ?? "-",
-            "elapsed": String(format: "%.3fs", response.metrics?.taskInterval.duration ?? 0),
+            "elapsed": String(format: "%.3fs", elapsed),
+            "attempts": String(request.retryCount + 1),
         ]
 
         #if DEBUG
@@ -35,7 +40,11 @@ struct NetworkLogger: EventMonitor {
         }
         #endif
 
-        if let status, (200..<300).contains(status) {
+        // 취소는 화면 이탈·검색어 재입력마다 발생한다. warning 으로 남기면 릴리즈 로그가
+        // 취소로 뒤덮여 진짜 실패가 묻힌다(`NetworkError.cancelled` 도 에러 표시 대상이 아니다).
+        if response.error?.isExplicitlyCancelledError == true {
+            Log.debug("← 취소", metadata: metadata)
+        } else if let status, (200..<300).contains(status) {
             Log.debug("← 응답", metadata: metadata)
         } else {
             Log.warning("← 응답 실패", metadata: metadata)

@@ -14,6 +14,9 @@ public enum APIDecoder {
     /// **`JSONDecoder.dateDecodingStrategy = .iso8601` 을 쓰면 안 된다** — 그 전략은
     /// iOS 26 미만에서 소수점이 붙은 문자열을 거부한다(iOS 17·18 실측). 배포 타깃이 iOS 17 이라
     /// 호스트(macOS)에서만 테스트하면 통과하고 기기에서 전멸한다.
+    /// ⚠️ **이 폴백은 호스트(macOS) 테스트로 검증되지 않는다.** 호스트의 `fractional` 스타일은
+    /// 소수점이 **없는** 문자열까지 파싱해서, `plain` 을 지워도 `swift test` 가 전부 통과한다.
+    /// iOS 에서는 둘이 갈리므로 `.github/workflows/ios-platform-tests.yml` 이 시뮬레이터에서 지킨다.
     private static func decodeISO8601(_ decoder: any Decoder) throws -> Date {
         let raw = try decoder.singleValueContainer().decode(String.self)
         if let date = try? Date(raw, strategy: fractional) { return date }

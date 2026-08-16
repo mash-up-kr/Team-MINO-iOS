@@ -73,6 +73,12 @@ public final class URLSessionHTTPClient: HTTPClient {
         case .failure(let error):
             throw Self.map(error)
         case .success(let data):
+            // 서버 계약은 데이터 없는 성공도 `{"data":{"ok":true}}` 지만, 프록시나 일부
+            // 엔드포인트가 204 + 빈 본문을 주면 디코딩이 반드시 실패한다.
+            // "방 나가기가 실제로 성공했는데 화면은 오류" 가 되는 걸 막는다.
+            if data.isEmpty, let ok = OkResponse(ok: true) as? T {
+                return APIEnvelope(data: ok, pagination: nil)
+            }
             do {
                 return try decoder.decode(APIEnvelope<T>.self, from: data)
             } catch {
@@ -206,6 +212,8 @@ extension Session {
     ///
     /// - 타임아웃 10초: 재시도까지 포함한 총 소요를 20초 안에 묶기 위한 값이다.
     ///   Alamofire `RetryPolicy` 에는 전체 마감시한이 없어 타임아웃이 유일한 레버다.
+    ///   ⚠️ `Endpoint.timeout` 을 올리면 재시도 때문에 **총 소요가 그 2배**가 된다
+    ///   (30초로 올리면 멱등 요청은 최악 60초). 큰 값이 필요하면 재시도를 함께 검토한다.
     /// - 캐시 끔: 남이 방금 추가한 핀이 보여야 하는 앱이라 `URLCache` 를 쓰지 않는다.
     /// - 재시도 1회: 멱등 메서드(GET·PUT·DELETE) + 408·5xx·전송 오류만. POST 는 기본 제외다.
     static func mino() -> Session {

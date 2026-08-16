@@ -131,6 +131,23 @@ struct NetworkLoggerTests {
         #expect(entry.metadata["attempt"] == "2")
     }
 
+    // 취소는 화면 이탈마다 일어난다. warning 이면 릴리즈 로그가 취소로 뒤덮여
+    // 진짜 실패가 묻힌다.
+    @Test("취소는 실패가 아니라 debug 로 남는다")
+    func logsCancellationAsDebug() async throws {
+        let (sut, stub, spy, path) = makeLoggingSUT()
+        stub.stub.suspends = true
+
+        let task = Task { _ = await capture { _ = try await sut.request(Endpoint<[RoomDTO]>(path: path)) } }
+        _ = await poll { !stub.recorded.isEmpty }
+        task.cancel()
+        await task.value
+
+        let entry = try #require(await waitFor("← 취소", path: path, in: spy))
+        #expect(entry.level == .debug)
+        #expect(spy.entry("← 응답 실패", forPath: path) == nil)
+    }
+
     @Test("어떤 로그에도 Authorization 이 남지 않는다")
     func neverLogsAuthorization() async throws {
         let (sut, stub, spy, path) = makeLoggingSUT()

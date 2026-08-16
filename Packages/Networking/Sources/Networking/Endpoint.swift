@@ -61,8 +61,12 @@ public extension Endpoint {
     /// 반환 타입이 `PagedEndpoint` 라 `requestPage` 로만 보낼 수 있다 — `request` 로 보내
     /// `pagination` 을 잃는 실수가 컴파일 단계에서 막힌다.
     func paged<Element>(page: Int, pageSize: Int) -> PagedEndpoint<Element> where Response == [Element] {
-        precondition(page >= 0, "page 는 0부터 시작한다")
-        precondition((1...100).contains(pageSize), "pageSize 는 1...100 (서버 스펙)")
+        // 서버가 준 `pagination.pageSize` 를 그대로 다음 요청에 넘기는 건 무한스크롤의 표준
+        // 구현이다. 여기서 precondition 을 걸면 **백엔드 값 하나로 릴리즈 앱이 죽는다.**
+        // 스펙 범위(1...100)로 조용히 맞추고, 개발 중에만 어긋남을 알린다.
+        assert(page >= 0 && (1...100).contains(pageSize), "page/pageSize 가 서버 스펙 범위를 벗어났다")
+        let safePage = max(page, 0)
+        let safePageSize = min(max(pageSize, 1), 100)
 
         // 이미 붙어 있던 page·pageSize 는 걷어낸다. 저장해 둔 endpoint 에 거듭 적용하면
         // `?page=0&page=1` 처럼 중복돼 서버 해석이 갈린다.
@@ -71,8 +75,8 @@ public extension Endpoint {
             path: path,
             method: method,
             queryItems: carried + [
-                URLQueryItem(name: "page", value: String(page)),
-                URLQueryItem(name: "pageSize", value: String(pageSize)),
+                URLQueryItem(name: "page", value: String(safePage)),
+                URLQueryItem(name: "pageSize", value: String(safePageSize)),
             ],
             headers: headers,
             body: body,

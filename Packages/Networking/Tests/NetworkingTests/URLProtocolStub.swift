@@ -36,8 +36,11 @@ final class URLProtocolStub: URLProtocol, @unchecked Sendable {
         /// 이 세션으로 나간 요청만 기록된다.
         var recorded: [URLRequest] { registry.recorded(for: id) }
 
-        /// `stopLoading` 이 불린 횟수. 취소가 실제로 전송 계층까지 닿았는지 확인한다.
-        var cancellations: Int { registry.cancellations(for: id) }
+        /// `stopLoading` 이 불린 횟수.
+        ///
+        /// ⚠️ **정상 완료에도 증가한다** — 취소 전용 카운터가 아니다.
+        /// 응답을 주지 않는 `suspends` stub 과 함께 쓸 때만 "취소가 전송 계층까지 닿았다" 를 뜻한다.
+        var stopLoadingCount: Int { registry.cancellations(for: id) }
 
         /// 아직 소비되지 않은 큐 길이. 스크립트가 다 쓰였는지 단언할 때 쓴다.
         var remainingQueued: Int { registry.remainingQueued(for: id) }

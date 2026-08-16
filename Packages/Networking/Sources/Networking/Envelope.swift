@@ -50,7 +50,13 @@ extension Page: Equatable where Element: Equatable {}
 /// `Endpoint` 와 타입을 가르는 이유: 같은 타입이면 목록 엔드포인트를 `request` 로 부를 수 있고,
 /// 그러면 `pagination` 이 **조용히 버려져** 무한스크롤이 다음 페이지에서 멈춘다.
 public struct PagedEndpoint<Element: Decodable & Sendable>: Sendable {
-    let endpoint: Endpoint<[Element]>
+    /// 감싼 요청. Repository 테스트가 "어떤 엔드포인트를 어떤 쿼리로 불렀는지" 확인해야 하므로
+    /// 읽기는 열어둔다. 생성은 `paged(page:pageSize:)` 로만 — 그래야 짝이 유지된다.
+    public let endpoint: Endpoint<[Element]>
+
+    init(endpoint: Endpoint<[Element]>) {
+        self.endpoint = endpoint
+    }
 }
 
 /// 반환할 데이터가 없는 성공 응답. 서버는 204 대신 `{"data": {"ok": true}}` 를 준다.
