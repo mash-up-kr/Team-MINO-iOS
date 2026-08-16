@@ -42,6 +42,16 @@
             skipped = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
+               BlueprintIdentifier = "FeatureHomeTests"
+               BuildableName = "FeatureHomeTests"
+               BlueprintName = "FeatureHomeTests"
+               ReferencedContainer = "container:../Packages/FeatureHome">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
                BlueprintIdentifier = "ShareExtensionUITests"
                BuildableName = "ShareExtensionUITests"
                BlueprintName = "ShareExtensionUITests"

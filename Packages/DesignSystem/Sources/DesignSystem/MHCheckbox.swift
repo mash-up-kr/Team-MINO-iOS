@@ -75,10 +75,10 @@ public struct MHCheckbox: View {
             Image(MHIcon.check)
                 .resizable().scaledToFit()
                 .frame(width: size.icon, height: size.icon)
-                .foregroundStyle(.mhStaticWhite)
+                .foregroundStyle(.mhInverseLabel)
         case .indeterminate:
             Capsule()
-                .fill(Color.mhStaticWhite)
+                .fill(Color.mhInverseLabel)
                 .frame(width: size.icon * 0.625, height: 1.5)   // minus 근사
         }
     }

@@ -1,0 +1,279 @@
+import DesignSystem
+import Domain
+import SwiftUI
+
+/// 홈 셸 콘텐츠. 방 뱃지 헤더 + 타이틀 + 필터바 + (카드 덱 자리 | 빈상태 A).
+struct HomeContentView: View {
+    let store: HomeStore
+
+    // 플로팅 "더 보기" 버튼은 여기(NavigationStack 안)가 아니라 HomeTabView 의 스택에 둔다 —
+    // NavigationStack 이 상위 safeAreaInset(탭바)을 콘텐츠에 전파하지 않아, 안에 두면 탭바에 가린다.
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            mainContent
+            roomListDim          // 방 리스트 열릴 때 — 마스코트 아래(홈 콘텐츠만 덮는다)
+            if store.state.showsRoomIdentity {
+                mascotCharacter  // 딤 위 — 밝게 유지. 개인방만 있고 비었을 때만 숨김 (Figma 002-6-1)
+            }
+            roomChangeTooltip
+        }
+        .animation(.easeInOut(duration: 0.5), value: store.state.changedRoomToastID)
+        .animation(.easeInOut(duration: 0.3), value: store.state.isRoomListPresented)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(Color.mhBackgroundNormalAlternative)
+        // 카드 더보기 메뉴를 화면 최상위에 호스팅 — 카드가 발행한 앵커에 스크림+메뉴를 얹는다
+        // (콘텐츠 크기 카드가 못 만드는 화면 전체 바깥탭 스크림을 화면 레벨에서 정확한 z-order 로 그린다).
+        .mhHomeCardMenuHost()
+        .task { store.send(.load) }
+        .task(id: store.state.changedRoomToastID) {
+            // 방 변경 툴팁은 5초 뒤 사라진다(정책). 새 툴팁이 뜨면 방 id 가 바뀌어 타이머가 재시작된다.
+            // dismiss 는 이 타이머가 세운 방 id 를 실어 보낸다 — 5초 경계에서 방을 바꾸면
+            // 이전 타이머의 dismiss 가 새 방 툴팁을 지우지 않도록 reducer 가 id 로 방어한다.
+            guard let roomID = store.state.changedRoomToastID else { return }
+            try? await Task.sleep(for: .seconds(5))
+            store.send(.dismissRoomToast(roomID))
+        }
+        .sheet(isPresented: roomListBinding) {
+            // 시스템 시트 컨테이너/슬라이드 애니메이션은 그대로 쓰되, 시스템 딤(스크림)만 제거한다.
+            // backgroundInteraction 을 켜면 스크림이 사라져 — 그래야 마스코트만 딤 위로 뺄 수 있다 —
+            // 딤은 프리젠터 쪽(roomListDim, 마스코트 아래)에서 제자리 페이드로 직접 그린다.
+            RoomListView(
+                rooms: store.state.rooms,
+                currentRoomID: store.state.currentRoom?.id,
+                onSelectRoom: { store.send(.selectRoom($0)) },
+                onCreateRoom: { store.send(.tapCreateRoom) }
+            )
+            .presentationDetents([.height(400)])
+            .presentationDragIndicator(.hidden)   // 디자인 스펙 그래버를 RoomListView 가 직접 그린다
+            .presentationBackgroundInteraction(.enabled(upThrough: .height(400)))   // 시스템 스크림 제거
+        }
+    }
+
+    /// 방 리스트가 열릴 때 홈 콘텐츠 위에 까는 딤(Figma `rgba(0,0,0,0.7)`).
+    /// 마스코트 아래 레이어라 마스코트는 딤에 안 덮인다. 탭하면 시트를 닫는다.
+    ///
+    /// 뷰 트리에 **항상** 두고 opacity 만 0↔1 로 애니메이션한다(조건부 삽입/제거 아님). 이유:
+    /// `if` + `.transition` 으로 넣다 빼면 사라지는 순간 딤의 z-order 가 흔들려, 페이드아웃 중
+    /// 카드덱·필터칩이 딤 위로 잠깐 번쩍 보였다. 항상 존재하면 z-order 가 고정된다.
+    private var roomListDim: some View {
+        let presented = store.state.isRoomListPresented
+        return Color.black.opacity(0.7)
+            .ignoresSafeArea()
+            .opacity(presented ? 1 : 0)
+            .contentShape(Rectangle())
+            .onTapGesture { store.send(.dismissRoomList) }
+            // 탭 제스처까지 포함해 통째로 게이트 — 가장 바깥에 둬야 닫혀 있을 때 딤이
+            // 카드덱 스와이프를 가로채지 않는다(안쪽에 두면 바깥 contentShape·tap 이 터치를 삼킴).
+            .allowsHitTesting(presented)
+            .accessibilityIdentifier("Home.roomListDim")
+    }
+
+    /// 방 선택 시트 표시 바인딩 — 스와이프 dismiss 도 reducer 로 흘려보낸다.
+    private var roomListBinding: Binding<Bool> {
+        Binding(
+            get: { store.state.isRoomListPresented },
+            set: { if !$0 { store.send(.dismissRoomList) } }
+        )
+    }
+
+    // 헤더·필터바는 항상 공통으로 그리고, 본문만 로딩 / 빈 상태 / 카드 덱으로 분기한다.
+    private var mainContent: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            header
+                .padding(.top, 32)
+                .padding(.horizontal, 20)
+
+            filterBar
+                .padding(.top, 32)
+                .padding(.horizontal, 20)
+
+            contentBody
+        }
+    }
+
+    /// 정책: 로딩이 끝나고 현재 정렬 기준으로 표시할 카드가 0장이면(방·공동방 유무 무관) 빈 상태를 띄운다.
+    @ViewBuilder
+    private var contentBody: some View {
+        if store.state.isLoading {
+            Spacer()
+            ProgressView()
+                .frame(maxWidth: .infinity)
+                .accessibilityIdentifier("Home.state.loading")
+            Spacer()
+        } else if store.state.showsEmptyState {
+            emptyStateBody
+        } else {
+            CardDeckView(
+                pins: store.state.pins,
+                currentIndex: store.state.currentCardIndex,
+                onSwipeForward: { store.send(.swipeForward) },
+                onSwipeBackward: { store.send(.swipeBackward) },
+                onTapCard: { store.send(.tapCard($0)) }
+            )
+            .padding(.top, 112)   // 앞 카드 고정 위치. 풀 덱일 때 뒤 카드 최상단이 필터 32pt 아래(112−80)에 오도록
+            .accessibilityIdentifier("Home.cardDeck")
+            Spacer()
+        }
+    }
+
+    // MARK: - 헤더 (방 뱃지 or 로고 + 타이틀)
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if store.state.showsRoomIdentity, let room = store.state.currentRoom {
+                MHContentBadge(room.homeDisplayName, size: .medium)   // 공동방 "…방" / 개인방 이름 그대로
+                    .contentShape(Rectangle())
+                    .onTapGesture { store.send(.tapRoomBadge) }   // 정책: 뱃지 탭 → 방 선택 바텀 시트
+                    .accessibilityIdentifier("Home.roomBadge")
+            } else {
+                // 개인방만 있고 비었을 때만 방 칩 대신 로고. (Figma 002-6-1)
+                // 공동방이 있거나(빈 방이어도) 표시할 장소가 있으면 위 방 칩이 유지된다.
+                Text("GGUK")
+                    .mhTypography(.heading1Bold)
+                    .foregroundStyle(.mhPrimaryNormal)
+                    .accessibilityIdentifier("Home.emptyState.logo")
+            }
+
+            Text("꾹 눌러둔 장소,\n다시 꺼내볼까요?")
+                .mhTypography(.heading1Bold)
+                .foregroundStyle(.mhLabelNormal)
+                .lineSpacing(8)
+                .accessibilityIdentifier("Home.title")
+        }
+    }
+
+    // MARK: - 필터바
+
+    private var filterBar: some View {
+        MHCategory(
+            ["꾹 Pick", "최신순", "가까운순"],
+            selection: Binding(
+                get: { store.state.selectedFilter },
+                set: { store.send(.selectFilter($0)) }
+            )
+        )
+        .accessibilityIdentifier("Home.filterBar")
+    }
+
+    // MARK: - 빈 상태 본문 (표시할 카드 0장)
+
+    /// 일러스트 + 카피 + "공동방 만들기" CTA. 헤더·필터는 mainContent 가 공통으로 그린다.
+    /// CTA 는 공동방 유무와 무관하게 항상 노출한다(팀 정책 — PRD [SYS-009] Flow D 와는 다름).
+    private var emptyStateBody: some View {
+        VStack(spacing: 20) {
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.mhFillNormal)   // 실제 일러스트 교체 전 placeholder — 화면 배경(alternative)과 구분되는 색
+                .frame(width: 249, height: 249)   // Figma(2809:138533): 249×249, 중앙 정렬
+                .overlay {
+                    Text("이미지 교체 예정")
+                        .mhTypography(.body2NormalMedium)
+                        .foregroundStyle(.mhLabelAlternative)
+                }
+                .accessibilityIdentifier("Home.emptyState.illustration")
+
+            VStack(spacing: 0) {
+                Text("\"저번에 말한 거기가 어디였지?\"")
+                    .mhTypography(.label1NormalRegular)
+                    .foregroundStyle(.mhPrimaryNormal)
+
+                Text("더 이상 묻지 말고, 친구와 함께 장소를 저장해 보세요.")
+                    .mhTypography(.label1NormalRegular)
+                    .foregroundStyle(.mhPrimaryNormal)
+            }
+            .multilineTextAlignment(.center)
+            .accessibilityIdentifier("Home.emptyState.copy")
+
+            MHButton(
+                "공동방 만들기",
+                variant: .solid,
+                color: .primary,
+                size: .medium,
+                leadingIcon: .plus
+            ) {
+                store.send(.tapCreateRoom)
+            }
+            .accessibilityIdentifier("Home.emptyState.createRoomButton")
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 58)
+    }
+
+    // MARK: - 마스코트 캐릭터
+
+    private var mascotCharacter: some View {
+        HomeMascotView()
+            .contentShape(Rectangle())
+            .onTapGesture { store.send(.tapRoomBadge) }   // 정책: 방 캐릭터 탭 → 방 선택 바텀 시트
+            .accessibilityIdentifier("Home.mascot")
+    }
+
+    /// 방 변경 툴팁 — 마스코트(방 캐릭터) 왼쪽에서 오른쪽 화살표로 캐릭터를 가리킨다(Figma Tooltip, position .left).
+    /// 상단 우측 고정 배치로 디자인 좌표(화살표 ≈ 상단, 마스코트 왼쪽 가장자리)에 맞춘다.
+    @ViewBuilder
+    private var roomChangeTooltip: some View {
+        // 식별은 id, 표시 문구는 그 id 로 rooms 에서 방 이름을 파생한다(화면 출력은 이전과 동일).
+        if let roomID = store.state.changedRoomToastID,
+           let name = store.state.rooms.first(where: { $0.id == roomID })?.name {
+            MHTooltip("\(name)방이에요.", position: .left)   // 표기: 방 이름 + "방이에요"
+                .fixedSize()
+                // Figma(node 2809-144332): 툴팁 top 을 뱃지 행 top 에 맞추고(header 의 top 패딩과 동일한 32),
+                // 화살표 끝을 마스코트 왼쪽 가장자리(x=280)에 둔다 → 우측 인셋 = 화면폭 375 − 280 = 95.
+                .padding(.top, 32)
+                .padding(.trailing, 95)
+                .transition(.opacity)
+                .accessibilityIdentifier("Home.roomChangeToast")
+        }
+    }
+}
+
+// MARK: - 마스코트
+
+/// 홈 우상단에서 살짝 걸쳐 보이는 방 마스코트.
+struct HomeMascotView: View {
+    var body: some View {
+        Image(dsImage: "homeMascot")
+            .resizable()
+            .scaledToFit()
+            .frame(width: 131)
+            .rotationEffect(.degrees(-27.52))
+            .padding(.top, 8)
+            .padding(.trailing, -55)
+    }
+}
+
+// MARK: - Preview
+
+#Preview("데이터 있을 때") {
+    HomeContentView(
+        store: HomeStore(
+            HomeState(rooms: [
+                Room(
+                    id: "1", type: .shared, name: "맛집 탐방", description: nil,
+                    color: "#FF6B6B", ownerId: "o", inviteCode: "A",
+                    createdAt: .now, pinCount: 3, memberCount: 2, users: []
+                ),
+            ]),
+            reduce: homeReducer(fetchRooms: PreviewFetchRooms(), fetchPins: PreviewFetchPins())
+        )
+    )
+}
+
+#Preview("빈상태 A") {
+    HomeContentView(
+        store: HomeStore(
+            HomeState(),
+            reduce: homeReducer(fetchRooms: PreviewFetchRooms(), fetchPins: PreviewFetchPins())
+        )
+    )
+}
+
+/// 프리뷰 전용 UseCase. load 액션을 보내도 빈 배열을 반환한다.
+private struct PreviewFetchRooms: FetchRoomsUseCase {
+    func execute() async throws -> [Room] { [] }
+}
+
+/// 프리뷰 전용 핀 UseCase. 빈 배열을 반환한다(카드 덱 없이 셸만 확인).
+private struct PreviewFetchPins: FetchPinsUseCase {
+    func execute(rooms: [Room]) async throws -> [Pin] { [] }
+    func execute(room: Room, page: Int) async throws -> [Pin] { [] }
+}

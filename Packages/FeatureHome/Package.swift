@@ -8,11 +8,21 @@ let package = Package(
         .library(name: "FeatureHome", targets: ["FeatureHome"]),
     ],
     dependencies: [
+        .package(path: "../Domain"),
+        .package(path: "../DesignSystem"),
         .package(path: "../FlowCoordination"),
+        .package(path: "../MVI"),
+        .package(path: "../RoomCreationUI"),
     ],
     targets: [
-        .target(name: "FeatureHome", dependencies: ["FlowCoordination"]),
-        .testTarget(name: "FeatureHomeTests", dependencies: ["FeatureHome"]),
+        .target(name: "FeatureHome", dependencies: ["Domain", "DesignSystem", "FlowCoordination", "MVI", "RoomCreationUI"]),
+        .testTarget(
+            name: "FeatureHomeTests",
+            dependencies: [
+                "FeatureHome",
+                .product(name: "MVITestSupport", package: "MVI"),
+            ]
+        ),
     ],
     swiftLanguageModes: [.v6]
 )

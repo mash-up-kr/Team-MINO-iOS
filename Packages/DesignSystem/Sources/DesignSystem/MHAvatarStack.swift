@@ -134,7 +134,7 @@ struct MHAvatarStackAddStyle: ButtonStyle {
         configuration.label
             .overlay {
                 if configuration.isPressed {
-                    shape.fill(Color.mhStaticWhite.opacity(0.15))
+                    shape.fill(Color.mhInversePrimary.opacity(0.15))
                 }
             }
     }
