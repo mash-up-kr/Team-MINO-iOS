@@ -17,10 +17,8 @@ private let fixturePin = Pin(
 
 @MainActor
 struct PlaceDetailReducerTests {
-    private func makeStore(
-        ids: [String] = ["c1", "c2", "c3"]
-    ) -> TestStore<PlaceDetailState, PlaceDetailAction, PlaceDetailNav> {
-        var remaining = ids
+    private func makeStore() -> TestStore<PlaceDetailState, PlaceDetailAction, PlaceDetailNav> {
+        var remaining = ["c1", "c2", "c3"]
         return TestStore(
             PlaceDetailState(place: PlaceDetailPlace(from: fixturePin, now: fixtureNow)),
             reduce: placeDetailReducer(pin: fixturePin, makeCommentID: { remaining.removeFirst() })

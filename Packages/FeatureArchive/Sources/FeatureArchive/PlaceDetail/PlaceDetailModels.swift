@@ -2,7 +2,6 @@ import Domain
 import Foundation
 
 struct PlaceDetailPlace: Equatable {
-    let id: String
     let name: String
     let address: String
     let savedDays: Int
@@ -14,7 +13,6 @@ extension PlaceDetailPlace {
 
     init(from pin: Pin, now: Date) {
         self.init(
-            id: pin.id.value,
             name: pin.title,
             address: pin.address,
             savedDays: PlaceDetailSaveAge.days(since: pin.createdAt, now: now),
@@ -46,7 +44,6 @@ struct PlaceDetailComment: Identifiable, Equatable {
 
 extension PlaceDetailPlace {
     static let sample = PlaceDetailPlace(
-        id: "sample",
         name: "레이어스튜디오 10",
         address: "서울 성동구 상원4길 10",
         savedDays: 30,
