@@ -90,7 +90,7 @@ struct RoomListView: View {
     private func roomCell(_ room: Room) -> some View {
         let isSelected = room.id == currentRoomID
         return Button { onSelectRoom(room.id) } label: {
-            cell(label: room.homeDisplayName) {   // 공동방 "…방" / 개인방("내 장소") 이름 그대로
+            cell(label: room.homeDisplayName) {   // 공동방 "…방" / 개인방 "내 장소"
                 cover(for: room)
                     .overlay {
                         if isSelected {

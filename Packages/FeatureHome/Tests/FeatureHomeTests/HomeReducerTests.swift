@@ -454,14 +454,25 @@ struct HomeReducerTests {
 
     // MARK: - 방 이름 표기
 
-    @Test("공동방은 표기 이름에 '방'을 붙이고, 개인방(내 장소)은 붙이지 않는다")
+    @Test("공동방은 표기 이름에 '방'을 붙이고, 개인방은 이름과 무관하게 '내 장소'로 표기한다")
     func homeDisplayName_suffixByType() {
-        let personal = Room(
-            id: "0", type: .personal, name: "내 장소", description: nil,
+        // 서버가 개인방에 다른 이름을 줘도 홈 표기는 "내 장소" 로 고정된다
+        #expect(fixtureRooms[0].homeDisplayName == "맛집 탐방방")            // 공동방
+        #expect(personalRoom(name: "내 장소").homeDisplayName == "내 장소")
+        #expect(personalRoom(name: "나의 아지트").homeDisplayName == "내 장소")
+    }
+
+    @Test("툴팁 문구는 공동방 '…방이에요.', 개인방 '내 장소예요.'")
+    func homeToastText_byType() {
+        #expect(fixtureRooms[0].homeToastText == "맛집 탐방방이에요.")        // 공동방 — 받침 있어 "이에요"
+        #expect(personalRoom(name: "나의 아지트").homeToastText == "내 장소예요.")   // 개인방 — 받침 없어 "예요"
+    }
+
+    private func personalRoom(name: String) -> Room {
+        Room(
+            id: "0", type: .personal, name: name, description: nil,
             color: "#00BDDE", ownerId: "owner-1", inviteCode: "MYROOM",
             createdAt: fixtureDate, pinCount: 0, memberCount: 1, users: []
         )
-        #expect(fixtureRooms[0].homeDisplayName == "맛집 탐방방")   // 공동방
-        #expect(personal.homeDisplayName == "내 장소")             // 개인방 — 접미사 없음
     }
 }

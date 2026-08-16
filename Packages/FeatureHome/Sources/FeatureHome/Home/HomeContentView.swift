@@ -121,7 +121,7 @@ struct HomeContentView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 12) {
             if store.state.showsRoomIdentity, let room = store.state.currentRoom {
-                MHContentBadge(room.homeDisplayName, size: .medium)   // 공동방 "…방" / 개인방 이름 그대로
+                MHContentBadge(room.homeDisplayName, size: .medium)   // 공동방 "…방" / 개인방 "내 장소"
                     .contentShape(Rectangle())
                     .onTapGesture { store.send(.tapRoomBadge) }   // 정책: 뱃지 탭 → 방 선택 바텀 시트
                     .accessibilityIdentifier("Home.roomBadge")
@@ -211,10 +211,10 @@ struct HomeContentView: View {
     /// 상단 우측 고정 배치로 디자인 좌표(화살표 ≈ 상단, 마스코트 왼쪽 가장자리)에 맞춘다.
     @ViewBuilder
     private var roomChangeTooltip: some View {
-        // 식별은 id, 표시 문구는 그 id 로 rooms 에서 방 이름을 파생한다(화면 출력은 이전과 동일).
+        // 식별은 id, 표시 문구는 그 id 로 rooms 에서 방을 찾아 파생한다.
         if let roomID = store.state.changedRoomToastID,
-           let name = store.state.rooms.first(where: { $0.id == roomID })?.name {
-            MHTooltip("\(name)방이에요.", position: .left)   // 표기: 방 이름 + "방이에요"
+           let room = store.state.rooms.first(where: { $0.id == roomID }) {
+            MHTooltip(room.homeToastText, position: .left)   // 공동방 "…방이에요." / 개인방 "내 장소예요."
                 .fixedSize()
                 // Figma(node 2809-144332): 툴팁 top 을 뱃지 행 top 에 맞추고(header 의 top 패딩과 동일한 32),
                 // 화살표 끝을 마스코트 왼쪽 가장자리(x=280)에 둔다 → 우측 인셋 = 화면폭 375 − 280 = 95.
