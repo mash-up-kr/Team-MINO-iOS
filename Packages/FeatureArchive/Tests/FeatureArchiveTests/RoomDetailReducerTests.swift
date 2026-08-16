@@ -52,12 +52,11 @@ struct RoomDetailReducerTests {
         RoomDetailSorting.apply(sort, to: fixturePins, now: fixtureNow).map(RoomDetailLocation.init(from:))
     }
 
-    private func loadedState(sort: RoomDetailSort = .all) -> RoomDetailState {
+    private func loadedState() -> RoomDetailState {
         RoomDetailState(
             room: RoomDetailRoom(from: fixtureRoom),
             pins: fixturePins,
-            locations: locations(sort),
-            sort: sort
+            locations: locations(.all)
         )
     }
 

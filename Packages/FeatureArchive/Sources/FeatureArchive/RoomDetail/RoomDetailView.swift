@@ -21,7 +21,6 @@ struct RoomDetailView: View {
 
     @State private var overlay: Overlay?
 
-    private var isFull: Bool { detent == .full }
     private var locations: [RoomDetailLocation] { store.state.locations }
 
     var body: some View {
@@ -34,7 +33,7 @@ struct RoomDetailView: View {
                     onClose: { store.send(.tapClose) }
                 )
 
-                if isFull {
+                if detent == .full {
                     toolbar
                     categoryRow
                 }

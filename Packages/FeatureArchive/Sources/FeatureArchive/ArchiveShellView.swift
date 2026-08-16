@@ -1,5 +1,4 @@
 import DesignSystem
-import Domain
 import SwiftUI
 
 /// 저장 탭 flow 의 껍데기. 지도·상단 필터바·바텀시트 프레임을 소유하고 시트 안 내용만 갈아끼운다.
