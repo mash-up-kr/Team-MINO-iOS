@@ -61,8 +61,6 @@ struct RoomListReducerTests {
 
     @Test("L1 — selectRoomFilter 는 roomFilter 만 갱신한다")
     func selectRoomFilter() async {
-        // 상단 필터바 좌측 드롭다운(방 선택). 시트 안 정렬 필터(filter)와 독립이어야 한다 —
-        // expect 클로저가 roomFilter 만 적으므로, filter 까지 바뀌면 exhaustive 단언이 실패한다.
         let store = makeStore(state: RoomListState(rooms: fixtureRooms, filter: 2))
         await store.send(.selectRoomFilter(1)) { $0.roomFilter = 1 }
         store.finish()
