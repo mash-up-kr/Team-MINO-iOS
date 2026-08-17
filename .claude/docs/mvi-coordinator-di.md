@@ -104,6 +104,7 @@ func memberHomeReducer(useCase: FetchMemberUseCase, id: MemberID)
             state.isLoading = true
             return .run { send in
                 do    { send(.loaded(try await useCase.execute(id: id))) }
+                catch is CancellationError { return }   // 취소는 결과가 없는 것이지 실패가 아니다
                 catch { send(.loadFailed(error as? DomainError ?? .unknown)) }
             }
         case .loaded(let member): state.member = member; state.isLoading = false; return .none
@@ -115,6 +116,9 @@ func memberHomeReducer(useCase: FetchMemberUseCase, id: MemberID)
 ```
 - State는 단일 `Equatable` struct
 - 비동기는 `.run`이 결과를 **Response Action**(`loaded`/`loadFailed`)으로 되돌려 state 갱신 — 성공·실패 **양쪽 다 case 로 받아** 처리한다(실패를 흘리지 않음)
+- **취소는 `catch` 하기 전에 걸러낸다.** `catch` 하나로 다 받으면 화면 이탈·검색어 재입력으로 생긴 취소가 `.unknown` 오류가 되어 **정상 조작에 오류 UI가 뜬다**. 취소는 "결과를 못 얻은 것"이 아니라 "결과가 필요 없어진 것"이라 state 를 갱신하지 않고 빠져나간다
+  - Repository 가 취소를 `CancellationError` 로 번역하는 규약은 `Packages/Networking/README.md` 참조
+  - 이때 `isLoading` 은 true 로 남는다. 취소는 화면을 떠났거나(state 폐기) 새 요청이 곧 다시 true 로 만드는 상황이라 대개 문제가 없다 — "취소하고 화면에 머무는" 흐름이 있으면 그 화면이 명시적으로 내려야 한다
 - **에러를 State에 담는 모양**(평탄 `error: DomainError?` vs `enum LoadState`)은 화면마다 결정 — 위 `error` 필드는 예시일 뿐 강제 규칙 아님
 - 의존성은 `Effect.run` 안에서만 사용 — reduce 시그니처는 순수 유지
 
