@@ -4,9 +4,8 @@ import Logging
 
 /// 요청·응답을 로그로 남기는 Alamofire `EventMonitor`.
 ///
-/// **`Authorization` 헤더는 절대 찍지 않는다.** 응답 본문과 전체 URL 은 DEBUG 빌드에서만 남긴다 —
-/// 초대 코드가 경로에 들어가고(`/invitations/{code}`) 본문에 닉네임·방 이름이 실리므로,
-/// 릴리즈 기기 로그에 쌓이면 안 된다.
+/// **`Authorization` 헤더는 절대 찍지 않는다.** 릴리즈에서 남는 값은 `LogRedaction` 이 가린다 —
+/// 초대 코드가 **경로에** 들어가므로(`/invitations/{code}`) 쿼리만 떼는 것으로는 부족하다.
 struct NetworkLogger: EventMonitor {
     let queue = DispatchQueue(label: "com.mashup.teamMino.networking.log")
 
@@ -14,7 +13,7 @@ struct NetworkLogger: EventMonitor {
     func request(_ request: Request, didCreateURLRequest urlRequest: URLRequest) {
         Log.debug("→ 요청", metadata: [
             "method": urlRequest.httpMethod ?? "-",
-            "url": Self.urlForLog(urlRequest.url),
+            "url": LogRedaction.url(urlRequest.url),
         ])
     }
 
@@ -28,7 +27,7 @@ struct NetworkLogger: EventMonitor {
         let elapsed = request.allMetrics.reduce(0) { $0 + $1.taskInterval.duration }
         var metadata = [
             "method": request.request?.httpMethod ?? "-",
-            "url": Self.urlForLog(request.request?.url),
+            "url": LogRedaction.url(request.request?.url),
             "status": status.map(String.init) ?? "-",
             "elapsed": String(format: "%.3fs", elapsed),
             "attempts": String(request.retryCount + 1),
@@ -55,18 +54,8 @@ struct NetworkLogger: EventMonitor {
     func request(_ request: Request, didCreateTask task: URLSessionTask) {
         guard request.retryCount > 0 else { return }
         Log.warning("↻ 재시도", metadata: [
-            "url": Self.urlForLog(request.request?.url),
+            "url": LogRedaction.url(request.request?.url),
             "attempt": String(request.retryCount + 1),
         ])
-    }
-
-    /// 릴리즈에서는 쿼리를 떼고 경로만 남긴다 — 초대 코드·검색어가 기기 로그에 쌓이지 않게 한다.
-    private static func urlForLog(_ url: URL?) -> String {
-        guard let url else { return "-" }
-        #if DEBUG
-        return url.absoluteString
-        #else
-        return url.path()
-        #endif
     }
 }

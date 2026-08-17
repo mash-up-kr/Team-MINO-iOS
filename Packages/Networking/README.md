@@ -255,3 +255,5 @@ Endpoint(path: "api/v1/users", method: .post, body: .json(dto), requiresAuth: fa
 | 재시도 | 멱등 메서드(GET·PUT·DELETE) + `408·500·502·503·504`·전송 오류에 **1회**. POST 는 재시도하지 않는다 |
 | 캐시 | 끔(`.reloadIgnoringLocalCacheData`) — 남이 방금 추가한 핀이 보여야 한다 |
 | 기본 헤더 | `Accept: application/json` 항상, `Content-Type: application/json` 은 body 있을 때만 |
+| 로그(릴리즈) | 실패·재시도만 남는다. **경로의 식별자는 `***` 로 가려지고 응답 본문은 크기만** 남는다 — 초대 코드가 경로에 있고(`/invitations/{code}`) `OSLogger` 가 `.public` 으로 찍어 기기에 영구 기록되기 때문 |
+| 로그(DEBUG) | 전체 URL·응답 본문 앞 200바이트까지. `Authorization` 은 어느 빌드에서도 찍지 않는다 |

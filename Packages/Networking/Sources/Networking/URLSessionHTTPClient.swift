@@ -40,7 +40,7 @@ public final class URLSessionHTTPClient: HTTPClient {
         guard let pagination = envelope.pagination else {
             // 페이지네이션을 요청했는데 서버가 메타를 빠뜨렸다. nil 로 삼키면 hasNext 판단이
             // 조용히 틀어지므로 계약 위반으로 드러낸다.
-            Log.error("페이지 응답에 pagination 이 없다", metadata: ["path": endpoint.endpoint.path])
+            Log.error("페이지 응답에 pagination 이 없다", metadata: ["path": LogRedaction.path(endpoint.endpoint.path)])
             throw NetworkError.decodingFailed(description: "페이지 응답에 pagination 이 없음")
         }
         return Page(items: envelope.data, pagination: pagination)
@@ -83,7 +83,7 @@ public final class URLSessionHTTPClient: HTTPClient {
                 return try decoder.decode(APIEnvelope<T>.self, from: data)
             } catch {
                 Log.error("응답 디코딩 실패", metadata: [
-                    "path": endpoint.path,
+                    "path": LogRedaction.path(endpoint.path),
                     "type": String(describing: T.self),
                     "reason": String(describing: error),
                 ])
@@ -168,26 +168,24 @@ public final class URLSessionHTTPClient: HTTPClient {
             // 서버가 진단 정보를 본문에 담아 보내는 경우가 많다. 케이스에는 안 싣더라도 로그에는 남긴다.
             if !data.isEmpty {
                 Log.warning("서버 오류 본문", metadata: [
-                    "path": path,
+                    "path": LogRedaction.path(path),
                     "status": String(statusCode),
-                    "preview": String(decoding: data.prefix(200), as: UTF8.self),
-                ])
+                ].merging(LogRedaction.body(data)) { lhs, _ in lhs })
             }
             return .server(statusCode: statusCode)
         }
 
         guard let body = try? decoder.decode(APIErrorBody.self, from: data) else {
-            let preview = String(decoding: data.prefix(200), as: UTF8.self)
+            let preview = String(decoding: data.prefix(200), as: UTF8.self)   // 값에만 싣는다(로그는 마스킹)
 
             // 본문 없는 401 은 인증 미들웨어의 정상 응답이라 조용히 넘긴다.
             // 다만 본문이 **있는데** 계약이 아니면(프록시가 낚아챈 HTML 등) 다른 상태코드와 똑같이 드러낸다.
             if statusCode == 401, data.isEmpty { return .unauthorized(code: nil, message: nil) }
 
             Log.error("에러 응답이 약속 포맷이 아님", metadata: [
-                "path": path,
+                "path": LogRedaction.path(path),
                 "status": String(statusCode),
-                "preview": preview,
-            ])
+            ].merging(LogRedaction.body(data)) { lhs, _ in lhs })
             if statusCode == 401 { return .unauthorized(code: nil, message: nil) }
             // 상태코드를 문자열에 녹이면 Data 계층이 분기할 수 없다 — 필드로 보존한다.
             return .unexpectedErrorFormat(statusCode: statusCode, preview: preview)

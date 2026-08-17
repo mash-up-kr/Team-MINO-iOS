@@ -50,11 +50,18 @@ struct NetworkLoggerTests {
         interceptor: (any RequestInterceptor)? = nil
     ) -> (URLSessionHTTPClient, URLProtocolStub.Handle, SpyLogHandler, String) {
         let spy = sharedSpy
-        let path = "api/v1/probe/\(UUID().uuidString)"
+        // 마스킹 대상이 되지 않는 고유 세그먼트를 쓴다 — UUID 는 릴리즈에서 `***` 로 가려져
+        // 자기 로그를 골라낼 수 없다(그게 LogRedaction 의 의도된 동작이다).
+        let path = "api/v1/probe/\(Self.uniqueToken())"
         let (configuration, handle) = URLProtocolStub.makeSession()
         let session = Session(configuration: configuration, interceptor: interceptor, eventMonitors: [NetworkLogger()])
         let sut = URLSessionHTTPClient(baseURL: URL(string: "https://api.gguk.org")!, session: session)
         return (sut, handle, spy, path)
+    }
+
+    /// 영문자만으로 만든 고유 토큰. 숫자가 없어 `LogRedaction` 이 식별자로 보지 않는다.
+    private static func uniqueToken() -> String {
+        String((0..<12).map { _ in "abcdefghijklmnopqrstuvwxyz".randomElement()! })
     }
 
     /// EventMonitor 는 자기 큐에서 비동기로 돌아 응답 반환보다 늦을 수 있다.
@@ -102,7 +109,14 @@ struct NetworkLoggerTests {
         _ = await capture { _ = try await sut.request(Endpoint<[RoomDTO]>(path: path)) }
 
         let entry = try #require(await waitFor("서버 오류 본문", path: path, in: spy))
-        #expect(entry.metadata["preview"]?.contains("DB_TIMEOUT") == true)
+        // 본문 내용은 DEBUG 에만 남는다. 릴리즈는 크기만 — 서버 에러 본문에 요청 에코·닉네임이
+        // 실릴 수 있어 기기 로그에 평문으로 쌓이면 안 된다(LogRedaction).
+        if LogRedaction.isDebugBuild {
+            #expect(entry.metadata["preview"]?.contains("DB_TIMEOUT") == true)
+        } else {
+            #expect(entry.metadata["preview"] == nil)
+            #expect(entry.metadata["bodyBytes"] != nil)
+        }
     }
 
     @Test("본문이 있는데 계약이 아닌 401 은 로그로 드러난다")
