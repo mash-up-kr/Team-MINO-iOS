@@ -10,7 +10,7 @@ HTTP 통신 인프라. **화면에 API 를 붙일 때 이 문서를 따른다.**
 | 호출 | `HTTPClient.request(_:)` / 목록은 `requestPage(_:)` |
 | 목록 응답 | `Page<Element>` (`items` + `pagination`) |
 | 빈 성공 응답 | `OkResponse` |
-| 오류 | `NetworkError` — 4xx 는 `errorCode`·`message` 동봉, 전송 실패는 `TransportFailure` 로 갈래 구분 |
+| 오류 | `NetworkError` — 4xx 는 `errorCode`·`message` 동봉. 전송 실패의 `TransportFailure` 는 **갈래가 완전하지 않다**(셀룰러 차단·TLS 실패는 `.unknown`) — 주 용도는 로그 |
 | 디코딩·인코딩 규칙 | `APIDecoder` · `APIEncoder` |
 | 세션 기본값 | `Session.mino()` — 타임아웃·재시도·캐시·로깅이 여기 묶여 있다 |
 
@@ -252,8 +252,8 @@ Endpoint(path: "api/v1/users", method: .post, body: .json(dto), requiresAuth: fa
 | | 값 |
 |---|---|
 | 요청 타임아웃 | 10초 (`Endpoint.timeout` 으로 개별 상향 가능) |
-| 재시도 | 멱등 메서드(GET·PUT·DELETE) + `408·500·502·503·504`·전송 오류에 **1회**. POST 는 재시도하지 않는다 |
-| 캐시 | 끔(`.reloadIgnoringLocalCacheData`) — 남이 방금 추가한 핀이 보여야 한다 |
+| 재시도 | Alamofire 기본값 — 상태코드 `408·500·502·503·504`(501·505 제외), 메서드 GET·PUT·DELETE·HEAD·OPTIONS·TRACE(POST·PATCH 제외)에 **1회** |
+| 캐시 | 끔 — `requestCachePolicy` 로 읽기를 막고 **`urlCache = nil` 로 저장도 막는다**(정책만으로는 디스크에 계속 쌓인다) |
 | 기본 헤더 | `Accept: application/json` 항상, `Content-Type: application/json` 은 body 있을 때만 |
 | 로그(릴리즈) | 실패·재시도만 남는다. **경로의 식별자는 `***` 로 가려지고 응답 본문은 크기만** 남는다 — 초대 코드가 경로에 있고(`/invitations/{code}`) `OSLogger` 가 `.public` 으로 찍어 기기에 영구 기록되기 때문 |
 | 로그(DEBUG) | 전체 URL·응답 본문 앞 200바이트까지. `Authorization` 은 어느 빌드에서도 찍지 않는다 |

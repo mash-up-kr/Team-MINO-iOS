@@ -52,8 +52,9 @@ public final class URLSessionHTTPClient: HTTPClient {
         let urlRequest = try makeURLRequest(endpoint)
         // `validate` 는 재시도를 위해 필요하다 — 이게 없으면 Alamofire 가 5xx 를 "성공" 으로 보고
         // `RetryPolicy` 를 아예 부르지 않는다. 상태코드 범위만 검사한다(콘텐츠 타입 검증은 뺀다).
-        // 빈 본문은 모든 상태코드에서 허용한다. 기본값이면 본문 없는 401·503 이 직렬화 실패로
-        // 잡혀 `.transport` 로 뭉개진다.
+        // 빈 본문은 모든 상태코드에서 허용한다. Alamofire 기본값은 `[204, 205]` 뿐이라
+        // **204 가 아닌 2xx(예: 200)에 빈 본문**이 오면 `inputDataNilOrZeroLength` 로 잡혀
+        // `.transport` 로 뭉개진다. (4xx·5xx 는 아래 상태코드 검사에 먼저 걸리므로 무관하다)
         let response = await session.request(urlRequest)
             .validate(statusCode: 200..<300)
             .serializingData(emptyResponseCodes: Set(100..<600))
@@ -143,6 +144,14 @@ public final class URLSessionHTTPClient: HTTPClient {
     private static func map(_ error: AFError) -> NetworkError {
         if error.isExplicitlyCancelledError { return .cancelled }
 
+        // 갈래를 나눠도 원본을 버리면 진단이 0 이다. TLS 거부·ATS 차단·토큰 주입 실패가
+        // 전부 `.unknown` 으로 수렴하는데, 로그가 없으면 릴리즈에서 구분할 방법이 없다.
+        // (클라이언트 측 오류 설명이라 서버 본문과 달리 PII 위험이 없다)
+        Log.warning("전송 실패", metadata: [
+            "error": String(describing: error),
+            "underlying": error.underlyingError.map { String(describing: $0) } ?? "-",
+        ])
+
         guard let urlError = error.underlyingError as? URLError else {
             return .transport(reason: .unknown)
         }
@@ -213,11 +222,16 @@ extension Session {
     ///   ⚠️ `Endpoint.timeout` 을 올리면 재시도 때문에 **총 소요가 그 2배**가 된다
     ///   (30초로 올리면 멱등 요청은 최악 60초). 큰 값이 필요하면 재시도를 함께 검토한다.
     /// - 캐시 끔: 남이 방금 추가한 핀이 보여야 하는 앱이라 `URLCache` 를 쓰지 않는다.
-    /// - 재시도 1회: 멱등 메서드(GET·PUT·DELETE) + 408·5xx·전송 오류만. POST 는 기본 제외다.
+    /// - 재시도 1회: Alamofire 기본값 그대로 — 상태코드는 `408·500·502·503·504` 만이고
+    ///   (501·505 등은 제외), 메서드는 GET·PUT·DELETE·HEAD·OPTIONS·TRACE 다(POST·PATCH 제외).
     static func mino() -> Session {
         let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = 10
+        // `requestCachePolicy` 는 **읽기**만 막는다. 저장은 `urlCache` 가 결정하므로
+        // 이것만으로는 응답이 계속 공유 디스크 캐시(URLCache.shared, 20MB)에 기록된다.
+        // 방 이름·닉네임·위치가 앱 Caches 에 평문으로 쌓이지 않게 캐시 자체를 없앤다.
         configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+        configuration.urlCache = nil
 
         return Session(
             configuration: configuration,

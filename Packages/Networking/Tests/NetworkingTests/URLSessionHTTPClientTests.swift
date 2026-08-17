@@ -91,7 +91,7 @@ struct URLSessionHTTPClientTests {
     )
 
     let url = try #require(stub.recorded.first?.url)
-    #expect(url.absoluteString == "https://api.gguk.org/api/v1/pins?roomId=r1&page=1&pageSize=20")
+    #expect(url.absoluteString == "https://stub.invalid/api/v1/pins?roomId=r1&page=1&pageSize=20")
     }
 
     @Test("본문이 있으면 JSON 으로 인코딩하고 Content-Type 을 붙인다")

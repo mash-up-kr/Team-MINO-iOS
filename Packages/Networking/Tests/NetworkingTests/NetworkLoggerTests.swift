@@ -55,7 +55,7 @@ struct NetworkLoggerTests {
         let path = "api/v1/probe/\(Self.uniqueToken())"
         let (configuration, handle) = URLProtocolStub.makeSession()
         let session = Session(configuration: configuration, interceptor: interceptor, eventMonitors: [NetworkLogger()])
-        let sut = URLSessionHTTPClient(baseURL: URL(string: "https://api.gguk.org")!, session: session)
+        let sut = URLSessionHTTPClient(baseURL: URL(string: "https://stub.invalid")!, session: session)
         return (sut, handle, spy, path)
     }
 

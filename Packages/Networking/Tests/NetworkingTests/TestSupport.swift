@@ -23,8 +23,11 @@ let roomsJSON = """
 let testRetryPolicy = Session.minoRetryPolicy(backoffScale: 0.01)
 
 /// 테스트마다 **자기 stub 을 가진** 클라이언트를 만든다. 전역 상태가 없어 병렬 실행이 안전하다.
+/// 기본 baseURL 은 **실재할 수 없는 호스트**(RFC 2606 `.invalid`)다.
+/// 실 도메인을 쓰면 stub 이 요청을 못 잡았을 때(`canInit` 미스매치, 리다이렉트 후 헤더 유실 등)
+/// 조용히 진짜 네트워크로 나가서, 로컬에선 붙었다 떨어졌다 하고 CI 에선 엉뚱한 오류로 실패한다.
 func makeSUT(
-    baseURL: String = "https://api.gguk.org",
+    baseURL: String = "https://stub.invalid",
     interceptor: (any RequestInterceptor)? = nil
 ) -> (sut: URLSessionHTTPClient, stub: URLProtocolStub.Handle) {
     let (configuration, handle) = URLProtocolStub.makeSession()

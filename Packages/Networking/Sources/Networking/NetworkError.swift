@@ -30,7 +30,11 @@ public enum NetworkError: Error, Equatable, Sendable {
     case decodingFailed(description: String)
     /// 요청 본문을 JSON 으로 만들지 못했다. 보내는 쪽 실패라 `decodingFailed` 와 구분한다.
     case encodingFailed(description: String)
-    /// 응답을 못 받았다. `reason` 은 원인 구분용이며 화면 분기 근거가 아니다(로그·디버깅용).
+    /// 응답을 못 받았다.
+    ///
+    /// `reason` 으로 화면을 분기할 수는 있지만(`.notConnected` → "연결을 확인하세요"),
+    /// **갈래가 완전하지 않다는 걸 알고 써야 한다** — 셀룰러 차단·로밍 해제·TLS 실패는
+    /// 전부 `.unknown` 이다. 주 용도는 로그에서 원인을 좁히는 것이다.
     case transport(reason: TransportFailure)
     /// 화면 이탈 등으로 인한 정상 취소. 에러로 표시할 대상이 아니다.
     case cancelled

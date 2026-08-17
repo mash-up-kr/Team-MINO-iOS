@@ -13,9 +13,13 @@ struct SessionConfigurationTests {
     }
 
     // 캐시가 켜지면 "남이 방금 추가한 핀이 안 보인다" — 이 앱에서 가장 아픈 회귀다.
-    @Test("URLCache 를 쓰지 않는다")
+    // `requestCachePolicy` 만 보면 안 된다: 그건 **읽기**만 막고 저장은 `urlCache` 가 결정한다.
+    // 정책만 단언하면 응답이 디스크에 계속 쌓여도 테스트가 초록이다.
+    @Test("URLCache 를 쓰지 않는다 — 읽기도 저장도")
     func cacheDisabled() {
-        #expect(Session.mino().sessionConfiguration.requestCachePolicy == .reloadIgnoringLocalCacheData)
+        let configuration = Session.mino().sessionConfiguration
+        #expect(configuration.requestCachePolicy == .reloadIgnoringLocalCacheData)
+        #expect(configuration.urlCache == nil)
     }
 
     @Test("재시도는 1회 — POST 중복 생성을 막기 위해 멱등 메서드로 제한된다")
