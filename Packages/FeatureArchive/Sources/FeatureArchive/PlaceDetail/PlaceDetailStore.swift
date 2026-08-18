@@ -8,7 +8,7 @@ struct PlaceDetailState: Equatable {
 }
 
 /// 내가 작성한 코멘트의 표시 이름 — 로컬 표시 규칙이라 Feature 가 정한다.
-let placeDetailLocalAuthorName = "나"
+private let placeDetailLocalAuthorName = "나"
 
 enum PlaceDetailAction: Equatable {
     case submitComment(String)
