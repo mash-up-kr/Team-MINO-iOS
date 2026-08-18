@@ -6,7 +6,7 @@ import Testing
 struct RoomOrderingTests {
     private func room(_ id: String, type: RoomType) -> Room {
         Room(
-            id: id,
+            id: RoomID(id),
             type: type,
             name: "방 \(id)",
             description: nil,
@@ -23,7 +23,7 @@ struct RoomOrderingTests {
     @Test("개인방이 먼저, 공동방이 나중에 온다")
     func personalComesFirst() {
         let rooms = [room("s1", type: .shared), room("p1", type: .personal), room("s2", type: .shared)]
-        #expect(RoomOrdering.personalFirst(rooms).map(\.id) == ["p1", "s1", "s2"])
+        #expect(RoomOrdering.personalFirst(rooms).map(\.id.value) == ["p1", "s1", "s2"])
     }
 
     @Test("각 그룹 안의 상대 순서는 입력 순서를 유지한다")
@@ -32,15 +32,15 @@ struct RoomOrderingTests {
             room("s1", type: .shared), room("p1", type: .personal),
             room("s2", type: .shared), room("p2", type: .personal),
         ]
-        #expect(RoomOrdering.personalFirst(rooms).map(\.id) == ["p1", "p2", "s1", "s2"])
+        #expect(RoomOrdering.personalFirst(rooms).map(\.id.value) == ["p1", "p2", "s1", "s2"])
     }
 
     @Test("개인방만·공동방만·빈 배열은 그대로 통과한다")
     func passesThroughHomogeneousInput() {
         let personals = [room("p1", type: .personal), room("p2", type: .personal)]
         let shareds = [room("s1", type: .shared), room("s2", type: .shared)]
-        #expect(RoomOrdering.personalFirst(personals).map(\.id) == ["p1", "p2"])
-        #expect(RoomOrdering.personalFirst(shareds).map(\.id) == ["s1", "s2"])
+        #expect(RoomOrdering.personalFirst(personals).map(\.id.value) == ["p1", "p2"])
+        #expect(RoomOrdering.personalFirst(shareds).map(\.id.value) == ["s1", "s2"])
         #expect(RoomOrdering.personalFirst([]).isEmpty)
     }
 }

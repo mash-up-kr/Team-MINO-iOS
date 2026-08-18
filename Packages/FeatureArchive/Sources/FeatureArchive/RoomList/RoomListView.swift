@@ -20,7 +20,7 @@ struct RoomListView: View {
     }
 
     private func selectRoom(_ id: RoomListItem.ID) {
-        guard let room = store.state.rooms.first(where: { $0.id == id }) else { return }
+        guard let room = store.state.rooms.first(where: { $0.id.value == id }) else { return }
         store.send(.tapRoom(room))
     }
 
@@ -196,7 +196,7 @@ extension RoomListItem {
     /// 도메인 `Room` → 카드 표시 모델. 아바타 이미지는 아직 없어 개수만큼 `nil` 플레이스홀더로 채운다.
     init(from room: Room) {
         self.init(
-            id: room.id,
+            id: room.id.value,
             title: room.name,
             memo: room.description,
             placeCount: room.pinCount,

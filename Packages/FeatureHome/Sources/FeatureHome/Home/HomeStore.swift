@@ -13,15 +13,15 @@ public struct HomeState: Equatable {
     /// 현재 맨 앞 카드 인덱스
     public var currentCardIndex: Int
     /// 방별 "더 보기" 페이지 커서(roomID → page). 더 보기마다 +1 해 UseCase 에 넘긴다(다음 페이지 조회).
-    public var roomPages: [String: Int]
+    public var roomPages: [RoomID: Int]
     /// 방 선택 바텀 시트 표시 여부 (뱃지·캐릭터 탭으로 열림).
     public var isRoomListPresented: Bool
     /// 방 변경 직후 뜨는 툴팁이 가리키는 방의 id (nil = 숨김). 5초 후 자동으로 nil 이 된다.
     /// 표시 문구(방 이름)는 뷰가 이 id 로 rooms 에서 파생한다 — 이름이 같은 방도 안정적으로 식별하려 id 로 든다.
-    public var changedRoomToastID: String?
+    public var changedRoomToastID: RoomID?
     /// 방 리스트에서 명시적으로 고른 방 (nil = 미선택). 표시할 카드가 없을 때(빈 방들) 현재 방을 정하는 근거 —
     /// 카드가 있을 땐 덱의 맨 앞 카드가 현재 방을 정하므로 이 값은 쓰이지 않는다.
-    public var selectedRoomID: String?
+    public var selectedRoomID: RoomID?
 
     public init(
         rooms: [Room] = [],
@@ -30,10 +30,10 @@ public struct HomeState: Equatable {
         selectedFilter: Int = 0,
         pins: [Pin] = [],
         currentCardIndex: Int = 0,
-        roomPages: [String: Int] = [:],
+        roomPages: [RoomID: Int] = [:],
         isRoomListPresented: Bool = false,
-        changedRoomToastID: String? = nil,
-        selectedRoomID: String? = nil
+        changedRoomToastID: RoomID? = nil,
+        selectedRoomID: RoomID? = nil
     ) {
         self.rooms = rooms
         self.isLoading = isLoading
@@ -88,7 +88,7 @@ public enum HomeAction: Equatable {
     case tapCreateRoom
     case pinsLoaded([Pin])
     /// "이 방 장소 더 보기" 결과 — 해당 방 구간을 이 핀들로 교체한다.
-    case morePlacesLoaded(roomID: String, pins: [Pin])
+    case morePlacesLoaded(roomID: RoomID, pins: [Pin])
     case swipeForward
     case swipeBackward
     case tapCard(PinID)
@@ -99,10 +99,10 @@ public enum HomeAction: Equatable {
     /// 방 선택 바텀 시트 닫기 (스와이프 dismiss 포함)
     case dismissRoomList
     /// 바텀 시트에서 방 선택 → 해당 방으로 즉시 전환
-    case selectRoom(String)
+    case selectRoom(RoomID)
     /// 방 변경 툴팁 숨기기 (선택 5초 후 자동 발생). 연관값은 이 타이머가 세운 방의 id —
     /// 5초가 도는 사이 다른 방으로 바꾸면 이전 타이머가 새 방 툴팁을 지우지 않도록 방어한다.
-    case dismissRoomToast(String)
+    case dismissRoomToast(RoomID)
 }
 
 public enum HomeNav: Equatable, Sendable {

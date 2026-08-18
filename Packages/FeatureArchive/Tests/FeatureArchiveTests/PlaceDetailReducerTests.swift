@@ -8,7 +8,7 @@ private let fixtureNow = Date(timeIntervalSince1970: 1_700_000_000)
 
 private let fixturePin = Pin(
     id: PinID("p1"),
-    roomID: "r1",
+    roomID: RoomID("r1"),
     category: .worthVisiting,
     title: "레이어스튜디오 10",
     address: "서울 성동구 상원4길 10",

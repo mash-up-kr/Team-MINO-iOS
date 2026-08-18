@@ -33,7 +33,7 @@ struct RoomDTOTests {
 
         let room = dto.toDomain()
 
-        #expect(room.id == "r1")
+        #expect(room.id == RoomID("r1"))
         #expect(room.type == .personal)
         #expect(room.name == "내 장소")
         #expect(room.description == nil)

@@ -45,7 +45,7 @@ public final class MockPinRepository: PinRepository {
         return (0..<count).map { i in
             let src = (i + page) % count
             return Pin(
-                id: PinID("pin-\(room.id)-\(page)-\(i)"),
+                id: PinID("pin-\(room.id.value)-\(page)-\(i)"),
                 roomID: room.id,
                 category: categories[src],
                 title: places[src].title,

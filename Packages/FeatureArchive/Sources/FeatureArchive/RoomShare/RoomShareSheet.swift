@@ -163,7 +163,7 @@ private struct RoomShareRoomCard: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityIdentifier("RoomShare.room.\(room.id)")
+        .accessibilityIdentifier("RoomShare.room.\(room.id.value)")
         .accessibilityLabel("\(room.name), \(room.locationCountText)")
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }

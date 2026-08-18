@@ -24,7 +24,7 @@ struct MockRoomRepositoryTests {
         let rooms = try await sut.rooms()
         let first = try #require(rooms.first)
 
-        #expect(first.id == "00000000-0000-0000-0000-000000000001")
+        #expect(first.id == RoomID("00000000-0000-0000-0000-000000000001"))
         #expect(first.type == .personal)
         #expect(first.users.count == 1)
     }
@@ -34,7 +34,7 @@ struct MockRoomRepositoryTests {
         let sut = MockRoomRepository()
 
         let rooms = try await sut.rooms()
-        let shared = try #require(rooms.first { $0.id == "00000000-0000-0000-0000-000000000002" })
+        let shared = try #require(rooms.first { $0.id == RoomID("00000000-0000-0000-0000-000000000002") })
 
         #expect(shared.type == .shared)
         #expect(shared.users.count == 3)

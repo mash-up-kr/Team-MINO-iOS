@@ -248,7 +248,7 @@ struct HomeMascotView: View {
         store: HomeStore(
             HomeState(rooms: [
                 Room(
-                    id: "1", type: .shared, name: "맛집 탐방", description: nil,
+                    id: RoomID("1"), type: .shared, name: "맛집 탐방", description: nil,
                     color: "#FF6B6B", ownerId: "o", inviteCode: "A",
                     createdAt: .now, pinCount: 3, memberCount: 2, users: []
                 ),

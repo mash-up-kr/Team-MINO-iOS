@@ -44,7 +44,7 @@ extension RoomDTO {
     /// 알 수 없는 `type` 은 `shared` 로, 파싱 불가한 날짜는 epoch(0)로 보수적 처리한다.
     func toDomain() -> Room {
         Room(
-            id: id,
+            id: RoomID(id),
             type: RoomType(rawValue: type) ?? .shared,
             name: name,
             description: description,

@@ -2,7 +2,7 @@ import Foundation
 
 public struct Pin: Equatable, Identifiable, Sendable {
     public let id: PinID
-    public let roomID: String
+    public let roomID: RoomID
     public let category: PinCategory
     public let title: String
     public let address: String
@@ -10,7 +10,7 @@ public struct Pin: Equatable, Identifiable, Sendable {
 
     public init(
         id: PinID,
-        roomID: String,
+        roomID: RoomID,
         category: PinCategory,
         title: String,
         address: String,

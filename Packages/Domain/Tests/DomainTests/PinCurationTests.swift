@@ -9,7 +9,7 @@ struct PinCurationTests {
     private func pin(_ id: String, daysAgo: Double) -> Pin {
         Pin(
             id: PinID(id),
-            roomID: "r1",
+            roomID: RoomID("r1"),
             category: .worthVisiting,
             title: "장소 \(id)",
             address: "주소 \(id)",

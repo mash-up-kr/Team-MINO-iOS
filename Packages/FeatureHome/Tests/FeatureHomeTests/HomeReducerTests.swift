@@ -8,12 +8,12 @@ private let fixtureDate = Date(timeIntervalSince1970: 1_700_000_000)
 
 private let fixtureRooms = [
     Room(
-        id: "1", type: .shared, name: "맛집 탐방", description: nil,
+        id: RoomID("1"), type: .shared, name: "맛집 탐방", description: nil,
         color: "#FF6B6B", ownerId: "owner-1", inviteCode: "FOOD2024",
         createdAt: fixtureDate, pinCount: 3, memberCount: 2, users: []
     ),
     Room(
-        id: "2", type: .shared, name: "데이트 코스", description: nil,
+        id: RoomID("2"), type: .shared, name: "데이트 코스", description: nil,
         color: "#4ECDC4", ownerId: "owner-1", inviteCode: "DATE2024",
         createdAt: fixtureDate, pinCount: 0, memberCount: 1, users: []
     ),
@@ -22,7 +22,7 @@ private let fixtureRooms = [
 private let fixturePins: [Pin] = (0..<3).map { i in
     Pin(
         id: PinID("pin-\(i)"),
-        roomID: "1",
+        roomID: RoomID("1"),
         category: [.popularAmongFriends, .manyStories, .savedByMany][i],
         title: "장소 \(i)",
         address: "주소 \(i)",
@@ -86,7 +86,7 @@ struct HomeReducerTests {
     @Test("L2 — load 는 개인방을 먼저, 그다음 공동방 순서로 반영한다(데이터 순서 무관)")
     func load_ordersPersonalFirst() async {
         let personal = Room(
-            id: "0", type: .personal, name: "내 장소", description: nil,
+            id: RoomID("0"), type: .personal, name: "내 장소", description: nil,
             color: "#00BDDE", ownerId: "owner-1", inviteCode: "MYROOM",
             createdAt: fixtureDate, pinCount: 0, memberCount: 1, users: []
         )
@@ -159,7 +159,7 @@ struct HomeReducerTests {
     @Test("showsRoomIdentity — 개인방만 비면 false(로고·마스코트 숨김), 공동방 있거나 장소 있으면 true(방 칩·마스코트)")
     func showsRoomIdentity_rules() {
         let personal = Room(
-            id: "0", type: .personal, name: "내 장소", description: nil,
+            id: RoomID("0"), type: .personal, name: "내 장소", description: nil,
             color: "#00BDDE", ownerId: "o", inviteCode: "MY",
             createdAt: fixtureDate, pinCount: 0, memberCount: 1, users: []
         )
@@ -247,7 +247,7 @@ struct HomeReducerTests {
     @Test("L2 — tapMorePlaces 는 page 를 올려 fetchPins 를 호출하고, 결과로 현재 방 구간을 교체하며 인덱스를 리셋한다")
     func tapMorePlaces_regenerates() async {
         let morePins = (0..<10).map { i in
-            Pin(id: PinID("more-1-\(i)"), roomID: "1", category: .savedByMany,
+            Pin(id: PinID("more-1-\(i)"), roomID: RoomID("1"), category: .savedByMany,
                 title: "새 장소 \(i)", address: "주소", createdAt: fixtureDate)
         }
         let store = makeStore(
@@ -255,9 +255,9 @@ struct HomeReducerTests {
             state: HomeState(rooms: fixtureRooms, pins: fixturePins, currentCardIndex: 2)
         )
         // send: page 커서만 오른다(데이터 교체는 morePlacesLoaded 응답에서)
-        await store.send(.tapMorePlaces) { $0.roomPages["1"] = 1 }
+        await store.send(.tapMorePlaces) { $0.roomPages[RoomID("1")] = 1 }
         // receive: 방1 구간(fixturePins 3장 전부) → 새 10장으로 교체, 인덱스 0
-        await store.receive(.morePlacesLoaded(roomID: "1", pins: morePins)) {
+        await store.receive(.morePlacesLoaded(roomID: RoomID("1"), pins: morePins)) {
             $0.pins = morePins
             $0.currentCardIndex = 0
         }
@@ -269,11 +269,11 @@ struct HomeReducerTests {
     /// 방1(3장) + 방2(2장) 을 방 순서대로 이어붙인 평면 덱.
     private func multiRoomPins() -> [Pin] {
         let r1 = (0..<3).map { i in
-            Pin(id: PinID("a-\(i)"), roomID: "1", category: .savedByMany,
+            Pin(id: PinID("a-\(i)"), roomID: RoomID("1"), category: .savedByMany,
                 title: "A\(i)", address: "주소", createdAt: fixtureDate)
         }
         let r2 = (0..<2).map { i in
-            Pin(id: PinID("b-\(i)"), roomID: "2", category: .savedByMany,
+            Pin(id: PinID("b-\(i)"), roomID: RoomID("2"), category: .savedByMany,
                 title: "B\(i)", address: "주소", createdAt: fixtureDate)
         }
         return r1 + r2
@@ -282,9 +282,9 @@ struct HomeReducerTests {
     @Test("currentRoom 은 현재 맨 앞 카드가 속한 방을 반영한다")
     func currentRoom_followsCard() {
         var state = HomeState(rooms: fixtureRooms, pins: multiRoomPins(), currentCardIndex: 0)
-        #expect(state.currentRoom?.id == "1")
+        #expect(state.currentRoom?.id == RoomID("1"))
         state.currentCardIndex = 4
-        #expect(state.currentRoom?.id == "2")
+        #expect(state.currentRoom?.id == RoomID("2"))
     }
 
     @Test("remainingInCurrentRoom 은 덱 전체가 아니라 현재 방 구간의 남은 카드를 센다")
@@ -305,7 +305,7 @@ struct HomeReducerTests {
         await store.send(.swipeForward) {
             $0.currentCardIndex = 3   // 방2 첫 카드
         }
-        #expect(store.currentState.currentRoom?.id == "2")
+        #expect(store.currentState.currentRoom?.id == RoomID("2"))
         store.finish()
     }
 
@@ -321,7 +321,7 @@ struct HomeReducerTests {
     func tapMorePlaces_replacesOnlyCurrentRoomSlice() async {
         let base = multiRoomPins()   // 방1 3장(index 0..2) + 방2 2장(3..4)
         let morePins = (0..<10).map { i in
-            Pin(id: PinID("more-2-\(i)"), roomID: "2", category: .savedByMany,
+            Pin(id: PinID("more-2-\(i)"), roomID: RoomID("2"), category: .savedByMany,
                 title: "새 장소 \(i)", address: "주소", createdAt: fixtureDate)
         }
         // index 4 = 방2 카드 → 방2 구간만 교체
@@ -329,13 +329,13 @@ struct HomeReducerTests {
             fetchPins: StubFetchPins(more: morePins),
             state: HomeState(rooms: fixtureRooms, pins: base, currentCardIndex: 4)
         )
-        await store.send(.tapMorePlaces) { $0.roomPages["2"] = 1 }
-        await store.receive(.morePlacesLoaded(roomID: "2", pins: morePins)) {
+        await store.send(.tapMorePlaces) { $0.roomPages[RoomID("2")] = 1 }
+        await store.receive(.morePlacesLoaded(roomID: RoomID("2"), pins: morePins)) {
             $0.pins = Array(base.prefix(3)) + morePins   // 방1 3장 유지 + 방2 새 10장
             $0.currentCardIndex = 3                       // 방2 구간 시작
         }
-        #expect(store.currentState.roomPages["1"] == nil)   // 방1 page 는 건드리지 않음
-        #expect(store.currentState.currentRoom?.id == "2")
+        #expect(store.currentState.roomPages[RoomID("1")] == nil)   // 방1 page 는 건드리지 않음
+        #expect(store.currentState.currentRoom?.id == RoomID("2"))
         store.finish()
     }
 
@@ -343,7 +343,7 @@ struct HomeReducerTests {
     func morePlacesLoaded_emptyKeepsDeck() async {
         // 실 API 가 "더 이상 없음"으로 [] 를 주면 그 방 구간이 통째로 사라지던 회귀 방어.
         let store = makeStore(state: HomeState(rooms: fixtureRooms, pins: fixturePins, currentCardIndex: 2))
-        await store.send(.morePlacesLoaded(roomID: "1", pins: []))   // 변화 없음
+        await store.send(.morePlacesLoaded(roomID: RoomID("1"), pins: []))   // 변화 없음
         store.finish()
         #expect(store.currentState.pins == fixturePins)
         #expect(store.currentState.currentCardIndex == 2)
@@ -356,7 +356,7 @@ struct HomeReducerTests {
             state: HomeState(rooms: fixtureRooms, pins: fixturePins, currentCardIndex: 2)
         )
         // send: page 커서는 전진한다(현재 동작 — 실패 롤백은 tapMorePlaces 의 FIXME 참조)
-        await store.send(.tapMorePlaces) { $0.roomPages["1"] = 1 }
+        await store.send(.tapMorePlaces) { $0.roomPages[RoomID("1")] = 1 }
         // 실패는 조용히 무시 → morePlacesLoaded 미도착, pins·인덱스 그대로
         store.finish()
         #expect(store.currentState.pins == fixturePins)
@@ -385,11 +385,11 @@ struct HomeReducerTests {
         let store = makeStore(
             state: HomeState(rooms: fixtureRooms, pins: multiRoomPins(), currentCardIndex: 1, isRoomListPresented: true)
         )
-        await store.send(.selectRoom("2")) {
+        await store.send(.selectRoom(RoomID("2"))) {
             $0.currentCardIndex = 3                 // 방2 구간 시작
             $0.isRoomListPresented = false
-            $0.selectedRoomID = "2"
-            $0.changedRoomToastID = "2"             // 식별은 id — 툴팁 표기("데이트 코스방이에요")는 뷰가 이 id 로 파생
+            $0.selectedRoomID = RoomID("2")
+            $0.changedRoomToastID = RoomID("2")             // 식별은 id — 툴팁 표기("데이트 코스방이에요")는 뷰가 이 id 로 파생
         }
         store.finish()
     }
@@ -401,27 +401,27 @@ struct HomeReducerTests {
             state: HomeState(rooms: fixtureRooms, pins: [], isRoomListPresented: true)
         )
         #expect(store.currentState.currentRoom?.id == fixtureRooms.first?.id)   // 선택 전: 첫 방
-        await store.send(.selectRoom("2")) {
+        await store.send(.selectRoom(RoomID("2"))) {
             $0.isRoomListPresented = false
-            $0.selectedRoomID = "2"                 // 카드가 없어 currentCardIndex 는 그대로
-            $0.changedRoomToastID = "2"
+            $0.selectedRoomID = RoomID("2")                 // 카드가 없어 currentCardIndex 는 그대로
+            $0.changedRoomToastID = RoomID("2")
         }
-        #expect(store.currentState.currentRoom?.id == "2")   // 선택 후: 고른 방이 현재 방
+        #expect(store.currentState.currentRoom?.id == RoomID("2"))   // 선택 후: 고른 방이 현재 방
         store.finish()
     }
 
     @Test("L1 — dismissRoomToast 는 같은 방(id 일치) 툴팁을 숨긴다")
     func dismissRoomToast_hides() async {
-        let store = makeStore(state: HomeState(rooms: fixtureRooms, changedRoomToastID: "1"))
-        await store.send(.dismissRoomToast("1")) { $0.changedRoomToastID = nil }
+        let store = makeStore(state: HomeState(rooms: fixtureRooms, changedRoomToastID: RoomID("1")))
+        await store.send(.dismissRoomToast(RoomID("1"))) { $0.changedRoomToastID = nil }
         store.finish()
     }
 
     @Test("L1 — dismissRoomToast 는 다른 방(id 불일치)으로 바뀌었으면 툴팁을 지우지 않는다")
     func dismissRoomToast_ignoresStaleID() async {
         // 방을 바꿔 툴팁이 방2 를 가리키는데, 이전 방(방1) 타이머의 dismiss 가 뒤늦게 도착한 상황
-        let store = makeStore(state: HomeState(rooms: fixtureRooms, changedRoomToastID: "2"))
-        await store.send(.dismissRoomToast("1"))   // 상태 변화 없음 — 새 방 툴팁 유지
+        let store = makeStore(state: HomeState(rooms: fixtureRooms, changedRoomToastID: RoomID("2")))
+        await store.send(.dismissRoomToast(RoomID("1")))   // 상태 변화 없음 — 새 방 툴팁 유지
         store.finish()
     }
 
@@ -429,18 +429,18 @@ struct HomeReducerTests {
     func dismissRoomToast_distinguishesSameNamedRoomsByID() async {
         // 같은 이름("모임")의 서로 다른 방 두 개 — 이름 기반이었다면 stale dismiss 가 오작동했을 케이스.
         let sameName = [
-            Room(id: "a", type: .shared, name: "모임", description: nil,
+            Room(id: RoomID("a"), type: .shared, name: "모임", description: nil,
                  color: "#FF6B6B", ownerId: "o", inviteCode: "A",
                  createdAt: fixtureDate, pinCount: 0, memberCount: 1, users: []),
-            Room(id: "b", type: .shared, name: "모임", description: nil,
+            Room(id: RoomID("b"), type: .shared, name: "모임", description: nil,
                  color: "#4ECDC4", ownerId: "o", inviteCode: "B",
                  createdAt: fixtureDate, pinCount: 0, memberCount: 1, users: []),
         ]
         // 현재 툴팁은 방 "b" 를 가리킴. 이전 방 "a" 타이머의 뒤늦은 dismiss 가 도착.
-        let store = makeStore(state: HomeState(rooms: sameName, changedRoomToastID: "b"))
-        await store.send(.dismissRoomToast("a"))   // 이름은 같지만 id 가 달라 무시(이름 기반이면 잘못 지웠을 것)
-        #expect(store.currentState.changedRoomToastID == "b")
-        await store.send(.dismissRoomToast("b")) { $0.changedRoomToastID = nil }   // 같은 id 는 정상 숨김
+        let store = makeStore(state: HomeState(rooms: sameName, changedRoomToastID: RoomID("b")))
+        await store.send(.dismissRoomToast(RoomID("a")))   // 이름은 같지만 id 가 달라 무시(이름 기반이면 잘못 지웠을 것)
+        #expect(store.currentState.changedRoomToastID == RoomID("b"))
+        await store.send(.dismissRoomToast(RoomID("b"))) { $0.changedRoomToastID = nil }   // 같은 id 는 정상 숨김
         store.finish()
     }
 
@@ -457,7 +457,7 @@ struct HomeReducerTests {
     @Test("공동방은 표기 이름에 '방'을 붙이고, 개인방(내 장소)은 붙이지 않는다")
     func homeDisplayName_suffixByType() {
         let personal = Room(
-            id: "0", type: .personal, name: "내 장소", description: nil,
+            id: RoomID("0"), type: .personal, name: "내 장소", description: nil,
             color: "#00BDDE", ownerId: "owner-1", inviteCode: "MYROOM",
             createdAt: fixtureDate, pinCount: 0, memberCount: 1, users: []
         )

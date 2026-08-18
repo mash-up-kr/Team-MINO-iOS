@@ -9,8 +9,8 @@ import SwiftUI
 struct RoomListView: View {
     let rooms: [Room]
     /// 현재 선택된 방(핑크 하이라이트 대상).
-    let currentRoomID: String?
-    let onSelectRoom: (String) -> Void
+    let currentRoomID: RoomID?
+    let onSelectRoom: (RoomID) -> Void
     let onCreateRoom: () -> Void
 
     // Figma 실측(node 2809-139474)
@@ -101,7 +101,7 @@ struct RoomListView: View {
             }
         }
         .buttonStyle(.plain)
-        .accessibilityIdentifier("Home.roomList.room.\(room.id)")
+        .accessibilityIdentifier("Home.roomList.room.\(room.id.value)")
     }
 
     /// 커버(70×70) + 이름 라벨(12 간격) 공통 셀 레이아웃.

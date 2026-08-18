@@ -1,3 +1,4 @@
+import Domain
 import Testing
 @testable import FeatureArchive
 
@@ -11,26 +12,26 @@ struct RoomShareSelectionTests {
     @Test("한 방을 고르면 공유할 수 있다")
     func singleSelectionCanSubmit() {
         var selection = RoomShareSelection()
-        selection.toggle("room-0")
+        selection.toggle(RoomID("room-0"))
 
-        #expect(selection.contains("room-0"))
+        #expect(selection.contains(RoomID("room-0")))
         #expect(selection.canSubmit)
     }
 
     @Test("여러 방을 동시에 고를 수 있다")
     func multipleSelectionAccumulates() {
         var selection = RoomShareSelection()
-        selection.toggle("room-0")
-        selection.toggle("room-1")
+        selection.toggle(RoomID("room-0"))
+        selection.toggle(RoomID("room-1"))
 
-        #expect(selection.ids == ["room-0", "room-1"])
+        #expect(selection.ids == [RoomID("room-0"), RoomID("room-1")])
     }
 
     @Test("고른 방을 다시 누르면 선택이 풀린다")
     func toggleTurnsSelectionOff() {
         var selection = RoomShareSelection()
-        selection.toggle("room-0")
-        selection.toggle("room-0")
+        selection.toggle(RoomID("room-0"))
+        selection.toggle(RoomID("room-0"))
 
         #expect(selection.ids.isEmpty)
         #expect(selection.canSubmit == false)

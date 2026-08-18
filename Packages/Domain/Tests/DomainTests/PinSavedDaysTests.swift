@@ -17,7 +17,7 @@ struct PinSavedDaysTests {
     private func pin(createdAt: Date) -> Pin {
         Pin(
             id: PinID("pin-1"),
-            roomID: "room-1",
+            roomID: RoomID("room-1"),
             category: .worthVisiting,
             title: "레이어스튜디오 10",
             address: "서울 성동구 상원4길 10",
