@@ -153,7 +153,8 @@ let client = URLSessionHTTPClient(baseURL: /* §최초 1회 배선 참조 */)
 self.fetchRooms = DefaultFetchRoomsUseCase(repository: RoomRepositoryImpl(client: client))
 ```
 
-⚠️ **클라이언트는 컴포지션 루트에서 한 번만 만들어 재사용한다.** 만들 때마다 새 `URLSession` 이 생겨 연결 풀이 쪼개진다.
+클라이언트는 여러 개 만들어도 된다 — `Session` 은 프로세스에 하나이므로 연결 풀이 쪼개지거나
+해제 중 요청이 오류로 뒤집히지 않는다. 그래도 조립은 컴포지션 루트에 모으는 게 낫다(의존 그래프가 한눈에 보인다).
 
 ### 7) 테스트
 

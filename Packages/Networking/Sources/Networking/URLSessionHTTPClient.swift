@@ -14,7 +14,7 @@ public final class URLSessionHTTPClient: HTTPClient {
 
     /// 앱이 쓰는 유일한 초기화 경로. **Alamofire 타입이 시그니처에 드러나지 않는다.**
     public convenience init(baseURL: URL) {
-        self.init(baseURL: baseURL, session: .mino())
+        self.init(baseURL: baseURL, session: .mino)
     }
 
     /// 세션·디코더를 갈아끼우는 경로. 테스트 전용이라 `internal` 로 닫는다
@@ -212,10 +212,13 @@ public final class URLSessionHTTPClient: HTTPClient {
 }
 
 extension Session {
-    /// 이 앱의 기본 세션.
+    /// 이 앱의 기본 세션. **프로세스에 하나만 존재한다.**
     ///
-    /// **호출할 때마다 새 `URLSession` 이 만들어진다.** 컴포지션 루트에서 클라이언트를
-    /// 한 번만 조립해 재사용한다 — 화면마다 클라이언트를 새로 만들면 연결 풀이 쪼개진다.
+    /// 클라이언트마다 새 `Session` 을 만들면, 그 클라이언트가 해제될 때 Alamofire 가
+    /// 비행 중이던 요청을 `.sessionDeinitialized` 로 끝낸다. 이건 **명시적 취소가 아니고
+    /// `underlyingError` 도 nil** 이라 우리 번역기에서 `.transport(.unknown)` 이 된다 —
+    /// 화면을 벗어났을 뿐인데 "알 수 없는 오류" 가 뜨고, 원인이 unknown 이라 추적도 어렵다.
+    /// 공유하면 그 실수가 성립하지 않는다(`Session` 은 thread-safe).
     ///
     /// - 타임아웃 10초: 재시도까지 포함한 총 소요를 20초 안에 묶기 위한 값이다.
     ///   Alamofire `RetryPolicy` 에는 전체 마감시한이 없어 타임아웃이 유일한 레버다.
@@ -224,7 +227,7 @@ extension Session {
     /// - 캐시 끔: 남이 방금 추가한 핀이 보여야 하는 앱이라 `URLCache` 를 쓰지 않는다.
     /// - 재시도 1회: Alamofire 기본값 그대로 — 상태코드는 `408·500·502·503·504` 만이고
     ///   (501·505 등은 제외), 메서드는 GET·PUT·DELETE·HEAD·OPTIONS·TRACE 다(POST·PATCH 제외).
-    static func mino() -> Session {
+    static let mino: Session = {
         let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = 10
         // `requestCachePolicy` 는 **읽기**만 막는다. 저장은 `urlCache` 가 결정하므로
@@ -238,7 +241,7 @@ extension Session {
             interceptor: minoRetryPolicy(),
             eventMonitors: [NetworkLogger()]
         )
-    }
+    }()
 
     /// 재시도 정책. 테스트가 백오프만 줄여 **같은 정책을** 쓰도록 파라미터로 연다 —
     /// 값을 복사해 두면 프로덕션이 바뀌어도 테스트가 눈치채지 못한다.
