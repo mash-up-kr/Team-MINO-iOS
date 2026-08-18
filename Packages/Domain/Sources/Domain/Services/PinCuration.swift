@@ -3,7 +3,7 @@ import Foundation
 /// 핀 큐레이션 정책 — 방 상세의 "꾹 Pick"·"최신순" 규칙.
 /// 어느 한 Pin 의 자연스러운 책임이 아니라 컬렉션 위에서 성립하는 규칙이라 도메인 서비스로 둔다.
 /// 화면의 정렬 선택지(전체·거리순·코멘트순 포함)와 dispatch 는 Feature 가 담당한다.
-public enum PinCuration {
+public enum PinCuration: Sendable {
     private static let topRatio = 0.3
     private static let recentDays = 14.0
     private static let secondsPerDay = 86_400.0
