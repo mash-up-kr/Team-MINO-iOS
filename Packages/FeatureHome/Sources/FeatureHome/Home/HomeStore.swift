@@ -141,10 +141,8 @@ public func homeReducer(
             }
 
         case .loaded(let rooms):
-            // 홈은 개인방(personal, "내 장소")을 먼저, 그다음 공동방(shared)을 보여준다 — 데이터 순서와
-            // 무관하게 항상 이 순서. 공동방 내부 순서는 서버가 준 순서를 그대로 유지(클라 정렬 없음).
             // 뱃지·카드덱·방리스트가 모두 이 order 를 따른다(방리스트에서 개인방이 "방 만들기" 우측 고정).
-            let ordered = rooms.filter { $0.type == .personal } + rooms.filter { $0.type == .shared }
+            let ordered = RoomOrdering.personalFirst(rooms)
             state.rooms = ordered
             // isLoading 은 여기서 끄지 않는다 — 핀까지 로드돼야 표시할 카드 유무가 정해지므로,
             // pinsLoaded 에서 끈다. (여기서 끄면 핀 도착 전 빈 상태+CTA 가 한 프레임 깜빡인다)
