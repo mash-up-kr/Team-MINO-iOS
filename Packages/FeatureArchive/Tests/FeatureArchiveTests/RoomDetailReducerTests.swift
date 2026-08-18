@@ -46,8 +46,15 @@ struct RoomDetailReducerTests {
         TestStore(state, reduce: roomDetailReducer(useCase: useCase, room: fixtureRoom, now: { fixtureNow }))
     }
 
+    /// 기대 표시 목록 — reducer 의 dispatch 와 같은 규칙(전체·거리순·코멘트순은 원본 유지)으로 계산한다.
     private func locations(_ sort: RoomDetailSort) -> [RoomDetailLocation] {
-        RoomDetailSorting.apply(sort, to: fixturePins, now: fixtureNow).map(RoomDetailLocation.init(from:))
+        let sorted: [Pin]
+        switch sort {
+        case .all, .distance, .comment: sorted = fixturePins
+        case .pick: sorted = PinCuration.pick(from: fixturePins)
+        case .latest: sorted = PinCuration.latest(from: fixturePins, now: fixtureNow)
+        }
+        return sorted.map(RoomDetailLocation.init(from:))
     }
 
     private func loadedState() -> RoomDetailState {
@@ -92,6 +99,27 @@ struct RoomDetailReducerTests {
             $0.locations = locations(.latest)
         }
         #expect(store.currentState.locations.count == 2)
+        store.finish()
+    }
+
+    @Test("L1 — 꾹 Pick 은 가장 오래된 상위 30% 를 표시 목록으로 낸다")
+    func selectSort_pick() async {
+        let store = makeStore(state: loadedState())
+        await store.send(.selectSort(.pick)) {
+            $0.sort = .pick
+            $0.locations = locations(.pick)
+        }
+        #expect(store.currentState.locations.map(\.id) == ["p20"])
+        store.finish()
+    }
+
+    @Test("L1 — 거리순·코멘트순은 계산할 수 없어 원본 순서를 그대로 낸다")
+    func selectSort_unsupportedKeepsOriginalOrder() async {
+        let store = makeStore(state: loadedState())
+        await store.send(.selectSort(.distance)) { $0.sort = .distance }
+        #expect(store.currentState.locations.map(\.id) == fixturePins.map(\.id.value))
+        await store.send(.selectSort(.comment)) { $0.sort = .comment }
+        #expect(store.currentState.locations.map(\.id) == fixturePins.map(\.id.value))
         store.finish()
     }
 

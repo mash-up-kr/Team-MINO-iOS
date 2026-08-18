@@ -84,7 +84,17 @@ func roomDetailReducer(
     }
 }
 
+/// 화면의 정렬 선택지를 도메인 정책(PinCuration)으로 dispatch 한다.
+/// 거리순·코멘트순은 계산 근거(좌표·코멘트 수)가 아직 없어 원본을 그대로 낸다.
 private func applySort(_ state: inout RoomDetailState, now: Date) {
-    state.locations = RoomDetailSorting.apply(state.sort, to: state.pins, now: now)
-        .map(RoomDetailLocation.init(from:))
+    let sorted: [Pin]
+    switch state.sort {
+    case .all, .distance, .comment:
+        sorted = state.pins
+    case .pick:
+        sorted = PinCuration.pick(from: state.pins)
+    case .latest:
+        sorted = PinCuration.latest(from: state.pins, now: now)
+    }
+    state.locations = sorted.map(RoomDetailLocation.init(from:))
 }
