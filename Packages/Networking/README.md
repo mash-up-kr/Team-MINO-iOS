@@ -102,16 +102,35 @@ public final class RoomRepositoryImpl: RoomRepository {
     }
 
     /// 반부패 계층: 인프라 오류를 도메인 어휘로 번역한다.
+    ///
+    /// **케이스가 아니라 `statusCode` 로 분기한다.** 같은 404 가 본문 모양에 따라
+    /// `.notFound` 로도 `.unexpectedErrorFormat(404, _)` 로도 오기 때문이다 —
+    /// 프록시가 HTML 을 끼워 넣으면 후자다. 케이스만 보면 그 404 를 놓친다.
     private static func mapToDomain(_ error: NetworkError) -> Error {
-        switch error {
-        case .cancelled:             return CancellationError()   // 취소는 화면에 에러로 보이면 안 된다
-        case .unauthorized:          return DomainError.unauthorized
-        case .notFound:              return DomainError.roomsFetchFailed
-        default:                     return DomainError.unknown
+        if case .cancelled = error { return CancellationError() }   // 취소는 실패가 아니다
+
+        switch error.statusCode {
+        case 401: return DomainError.unauthorized
+        case 404: return DomainError.roomsFetchFailed
+        default:
+            // 번역하지 못했다는 사실은 반드시 남긴다 — 어떤 DomainError 를 추가해야
+            // 하는지 알 수 있는 유일한 단서다. 이 로그가 없으면 403·409·타임아웃이
+            // 전부 "알 수 없는 오류" 로 수렴하고 아무도 눈치채지 못한다.
+            Log.warning("도메인으로 번역되지 않음", metadata: [
+                "error": String(describing: error),
+                "status": error.statusCode.map(String.init) ?? "-",
+                "code": error.errorCode ?? "-",
+            ])
+            return DomainError.unknown
         }
     }
 }
 ```
+
+> `Log` 를 쓰려면 `Packages/Data/Package.swift` 에 `Logging` 의존을 추가한다.
+
+**`DomainError` 케이스를 미리 만들지 않는다.** 403·409 를 화면이 구분해 보여줘야 할 때
+그때 추가한다. 대신 **번역되지 않은 오류는 로그에 남겨** 무엇을 추가해야 하는지 드러낸다.
 
 - `NetworkError` 를 그대로 던지지 않는다 — **Domain 이 인프라를 모르게** 한다
 - `DomainError` 에 새 어휘가 필요한지는 **화면이 판단한다.** 403·409 를 화면이 구분해 보여줘야 하면 그때 `DomainError` 에 추가한다. 안 쓸 케이스를 미리 만들지 않는다
@@ -215,6 +234,8 @@ Packages/Data/Sources/Data/
 | envelope 래퍼 DTO | 클라이언트가 이미 벗긴다 |
 | Repository 에서 `NetworkError` 를 그대로 던지기 | Domain 이 인프라를 알게 된다 |
 | Repository 안에서 `Endpoint(...)` 직접 생성 | 경로가 흩어진다. 반드시 `Data/API/` 의 `enum` 을 거친다 |
+| 오류를 **케이스로만** 분기 | 같은 404 가 `.notFound` 로도 `.unexpectedErrorFormat(404,_)` 로도 온다. `error.statusCode` 를 축으로 쓴다 |
+| 번역 안 된 오류를 조용히 `.unknown` 으로 | 어떤 `DomainError` 를 추가해야 하는지 알 단서가 사라진다. `default` 에 로그를 남긴다 |
 
 ---
 

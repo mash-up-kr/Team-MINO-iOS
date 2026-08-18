@@ -53,3 +53,44 @@ public enum TransportFailure: String, Equatable, Sendable {
     case cannotFindHost
     case unknown
 }
+
+public extension NetworkError {
+    /// 서버가 준 HTTP 상태코드. 응답을 받지 못했으면 nil.
+    ///
+    /// **Data 계층이 분기할 때 이걸 축으로 쓴다.** 같은 상황이 본문 모양에 따라 두 케이스로
+    /// 갈리기 때문이다 — 프록시가 HTML 404 를 끼워 넣으면 `.notFound` 가 아니라
+    /// `.unexpectedErrorFormat(404, _)` 로 온다. 케이스만 보고 분기하면 그 404 를 놓친다.
+    var statusCode: Int? {
+        switch self {
+        case .badRequest:                       400
+        case .unauthorized:                     401
+        case .forbidden:                        403
+        case .notFound:                         404
+        case .conflict:                         409
+        case .client(let statusCode, _, _):     statusCode
+        case .server(let statusCode):           statusCode
+        case .unexpectedErrorFormat(let statusCode, _): statusCode
+        case .invalidURL, .decodingFailed, .encodingFailed, .transport, .cancelled: nil
+        }
+    }
+
+    /// 서버가 준 `errorCode`. 계약대로 온 응답에만 있다.
+    ///
+    /// 값 목록은 서버가 피쳐 PR 마다 확정하므로 enum 으로 닫지 않는다.
+    /// 화면 문구가 갈리는 경우(409 가 `ROOM_FULL` 인지 `ALREADY_JOINED` 인지)에 쓴다.
+    var errorCode: String? {
+        switch self {
+        case .badRequest(let code, _),
+             .forbidden(let code, _),
+             .notFound(let code, _),
+             .conflict(let code, _),
+             .client(_, let code, _):
+            code
+        case .unauthorized(let code, _):
+            code
+        case .invalidURL, .server, .unexpectedErrorFormat,
+             .decodingFailed, .encodingFailed, .transport, .cancelled:
+            nil
+        }
+    }
+}
