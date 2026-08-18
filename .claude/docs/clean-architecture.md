@@ -42,6 +42,47 @@
 - 여러 Repository를 조합하여 비즈니스 흐름 구현
 - UI 관심사(화면 상태, 네비게이션)를 포함하면 안 됨
 
+## DDD 전술 패턴 — 이 저장소의 교본 규칙
+
+아래 규칙은 실제 코드가 예시다. 새 도메인 개념을 만들 때 같은 모양을 따른다.
+
+### 규칙은 Domain 에 산다 (anemic model 금지)
+
+검증·계산·정책이 Feature/UI 에 있으면 안티패턴이다 — Fowler: anemic domain model 은 "hardly any behavior on these objects" 상태로, "도메인 모델의 모든 비용을 부담하면서도 이점은 얻지 못한다". Evans 의 Application layer 는 "This layer is kept thin" 이어야 한다.
+
+| 규칙 종류 | 놓는 곳 | 예 |
+|---|---|---|
+| 입력 검증·정규화 | Value Object | `Nickname`·`RoomName`·`RoomMemo`·`CommentBody` |
+| 한 Entity 의 자연스러운 계산 | Entity 메서드 | `Pin.savedDays(asOf:calendar:)` |
+| 컬렉션 위에서 성립하는 정책 | 도메인 서비스 (`Services/`) | `PinCuration`(꾹 Pick·최신순) · `RoomOrdering`(개인방 우선) |
+
+### 입력 VO — 코드에 실재하는 규칙만 담는다 (어포던스 발명 금지)
+
+- 규칙이 화면마다 다르므로 어포던스도 차등이다: 라이브 클램프가 실재하면 `clampedDraft`, 거부 규칙이 실재하면 `init?`, 거부 규칙이 없으면 **비실패 `init`**(`RoomMemo`). 미구현 규칙("한글·영문만")은 VO 에 넣지 않고 주석으로 남긴다.
+- 실패는 `init?` 로 표현한다 — 현 UI 가 실패 사유를 표시하지 않고 버튼 비활성만 하므로, 에러 enum 은 화면이 사유를 구분해야 할 때 추가한다(`DomainError` 와 같은 원칙).
+- 상수(`minLength`/`maxLength`)는 VO 가 단일 출처다 — 화면 안내 문구·글자수 카운터가 같은 값을 읽는다.
+- **화면의 입력 draft 는 String 으로 유지**한다(TextField 는 공백만·미달 길이 같은 중간 상태를 담아야 한다). VO 는 판정(`Nickname(name) != nil`)·정규화(`RoomName.clampedDraft`)·제출(`CommentBody(text)`) 시점에만 만든다.
+
+### Aggregate 는 식별자로 참조한다
+
+Vernon (IDDD): "Prefer references to external Aggregates only by their globally unique identity, not by holding a direct object reference." — `Pin.roomID: RoomID` 처럼 다른 aggregate 는 ID VO 로만 가리키고, Repository·UseCase 시그니처도 aggregate 통째가 아니라 식별자를 받는다(`PinRepository.pins(roomIDs:)`).
+
+- 식별자는 원시 String 이 아니라 ID VO(`RoomID`·`PinID`·`MemberID`·`CommentID`)로 — 다른 리소스의 id 와 섞이는 실수를 타입이 막는다.
+- ⚠️ ID VO 는 문자열 보간에서 `RoomID(value:"1")` 로 렌더된다 — 로그·accessibilityIdentifier 에는 반드시 `.value`. `CustomStringConvertible` 로 덮지 않는다(버그 은폐).
+- Repository 는 aggregate root 단위로만 둔다 — Evans: "Provide repositories only for aggregate roots."
+
+### Domain 에 넣지 않는 것
+
+- 표시 포맷 — "999+개" 캡, "N일째" 문구, `homeDisplayName`("…방"), 코멘트 작성자 "나", 뱃지 문구·색
+- 플랫폼·외부 시스템 어댑터 — 애플지도 URL 조립(`PlaceDetailExternalMap`), Deeplink(Core)
+- UI 선택 상태 — `RoomShareSelection` 같은 다중선택 모델
+- 화면의 정렬 선택지 enum 과 dispatch — Domain 은 구현된 정책만 제공하고, 어떤 선택지를 노출할지는 Feature 가 정한다(`RoomDetailStore.applySort`)
+
+### Swift 6 주의
+
+- public struct 는 `Sendable` 이 자동으로 새어나가지 않는다 — 명시 선언
+- VO·Entity 에 `Codable` 금지 유지, `Date()`·`Calendar.current` 는 주입으로(순수성·테스트 결정성)
+
 ## Core 배치 기준
 
 - **Domain은 의존 패키지 0을 유지한다** (Core도 보지 않는다 — CI(layer-guard)가 검사). Domain에 필요한 순수 공용 타입은 Domain 안에 둔다.
