@@ -7,41 +7,6 @@ import Testing
 /// `Log.bootstrap` 은 **전역** 백엔드를 갈아끼운다. `.serialized` 는 이 스위트 안만 직렬화할 뿐
 /// 다른 스위트와의 병렬 실행은 막지 못하므로, spy 에는 다른 테스트의 로그가 섞여 들어온다.
 /// 그래서 테스트마다 **고유 경로**를 쓰고 그 경로의 로그만 골라 본다.
-final class SpyLogHandler: LogHandler, @unchecked Sendable {
-    struct Entry {
-        let level: LogLevel
-        let message: String
-        let metadata: [String: String]
-    }
-
-    private let lock = NSLock()
-    private var entries: [Entry] = []
-
-    func log(_ level: LogLevel, message: String, metadata: [String: String],
-             file: String, function: String, line: UInt) {
-        lock.withLock { entries.append(Entry(level: level, message: message, metadata: metadata)) }
-    }
-
-    /// 이 테스트가 쓴 경로의 로그만. 다른 스위트가 남긴 같은 이름의 로그를 잡지 않는다.
-    func entries(forPath path: String) -> [Entry] {
-        lock.withLock { entries }.filter {
-            ($0.metadata["path"] ?? $0.metadata["url"] ?? "").contains(path)
-        }
-    }
-
-    /// 메시지 **정확 일치**. `contains` 로 찾으면 "← 응답" 이 "← 응답 실패" 까지 잡는다.
-    func entry(_ message: String, forPath path: String) -> Entry? {
-        entries(forPath: path).first { $0.message == message }
-    }
-}
-
-/// 전역 백엔드는 타깃 전체에서 한 번만 설치한다 — 테스트마다 갈아끼우면 서로를 무력화한다.
-private let sharedSpy: SpyLogHandler = {
-    let spy = SpyLogHandler()
-    Log.bootstrap(spy)
-    return spy
-}()
-
 @Suite("로깅")
 struct NetworkLoggerTests {
     /// 프로덕션과 동일하게 `NetworkLogger` 를 붙인 클라이언트. 이걸 안 붙이면
@@ -52,19 +17,14 @@ struct NetworkLoggerTests {
         let spy = sharedSpy
         // 마스킹 대상이 되지 않는 고유 세그먼트를 쓴다 — UUID 는 릴리즈에서 `***` 로 가려져
         // 자기 로그를 골라낼 수 없다(그게 LogRedaction 의 의도된 동작이다).
-        let path = "api/v1/probe/\(Self.uniqueToken())"
+        let path = "api/v1/probe/\(uniqueToken())"
         let (configuration, handle) = URLProtocolStub.makeSession()
         let session = Session(configuration: configuration, interceptor: interceptor, eventMonitors: [NetworkLogger()])
         let sut = URLSessionHTTPClient(baseURL: URL(string: "https://stub.invalid")!, session: session)
         return (sut, handle, spy, path)
     }
 
-    /// 영문자만으로 만든 고유 토큰. 숫자가 없어 `LogRedaction` 이 식별자로 보지 않는다.
-    private static func uniqueToken() -> String {
-        String((0..<12).map { _ in "abcdefghijklmnopqrstuvwxyz".randomElement()! })
-    }
-
-    /// EventMonitor 는 자기 큐에서 비동기로 돌아 응답 반환보다 늦을 수 있다.
+        /// EventMonitor 는 자기 큐에서 비동기로 돌아 응답 반환보다 늦을 수 있다.
     private func waitFor(
         _ message: String, path: String, in spy: SpyLogHandler
     ) async -> SpyLogHandler.Entry? {

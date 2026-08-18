@@ -50,6 +50,10 @@ enum LogRedaction {
 
     /// UUID·연속 숫자·초대 코드처럼 "값" 인 세그먼트인가.
     /// `api`·`v1`·`rooms` 같은 고정 세그먼트는 남겨야 어느 API 인지 알 수 있다.
+    ///
+    /// ⚠️ 휴리스틱이라 **경로 이름이 우연히 조건을 만족하면 그것도 가려진다**
+    /// (`oauth2`·`v2beta` 처럼 6자 이상이면서 숫자를 포함하는 이름). 그러면 릴리즈
+    /// 로그에서 어느 API 인지 알 수 없게 되므로, 그런 이름이 생기면 예외 목록이 필요하다.
     private static func isIdentifier(_ segment: Substring) -> Bool {
         if segment.isEmpty { return false }
         if UUID(uuidString: String(segment)) != nil { return true }

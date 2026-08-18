@@ -1,5 +1,6 @@
 import Alamofire
 import Foundation
+import Logging
 import Testing
 @testable import Networking
 
@@ -47,4 +48,46 @@ func capture(_ body: () async throws -> Void) async -> NetworkError? {
         Issue.record("NetworkError 가 아닌 오류가 새어 나왔다: \(error)")
         return nil
     }
+}
+
+final class SpyLogHandler: LogHandler, @unchecked Sendable {
+    struct Entry {
+        let level: LogLevel
+        let message: String
+        let metadata: [String: String]
+    }
+
+    private let lock = NSLock()
+    private var entries: [Entry] = []
+
+    func log(_ level: LogLevel, message: String, metadata: [String: String],
+             file: String, function: String, line: UInt) {
+        lock.withLock { entries.append(Entry(level: level, message: message, metadata: metadata)) }
+    }
+
+    /// 이 테스트가 쓴 경로의 로그만. 다른 스위트가 남긴 같은 이름의 로그를 잡지 않는다.
+    func entries(forPath path: String) -> [Entry] {
+        lock.withLock { entries }.filter {
+            ($0.metadata["path"] ?? $0.metadata["url"] ?? "").contains(path)
+        }
+    }
+
+    /// 메시지 **정확 일치**. `contains` 로 찾으면 "← 응답" 이 "← 응답 실패" 까지 잡는다.
+    func entry(_ message: String, forPath path: String) -> Entry? {
+        entries(forPath: path).first { $0.message == message }
+    }
+}
+
+/// 전역 백엔드는 타깃 전체에서 한 번만 설치한다 — 테스트마다 갈아끼우면 서로를 무력화한다.
+let sharedSpy: SpyLogHandler = {
+    let spy = SpyLogHandler()
+    Log.bootstrap(spy)
+    return spy
+}()
+
+
+/// 영문자만으로 만든 고유 경로 토큰. 숫자가 없어 `LogRedaction` 이 식별자로 보지 않는다 —
+/// 마스킹되면 릴리즈 빌드에서 자기 로그를 골라낼 수 없다.
+func uniqueToken() -> String {
+    String((0..<12).map { _ in "abcdefghijklmnopqrstuvwxyz".randomElement()! })
 }

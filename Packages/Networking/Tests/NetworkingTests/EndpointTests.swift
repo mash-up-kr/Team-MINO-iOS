@@ -1,4 +1,5 @@
 import Foundation
+import Logging
 import Testing
 @testable import Networking
 
@@ -61,5 +62,29 @@ struct EndpointTests {
             URLQueryItem(name: "page", value: expectedPage),
             URLQueryItem(name: "pageSize", value: expectedSize),
         ])
+    }
+
+    // 클램프를 assert 에서 로그로 바꾼 목적이 "릴리즈에서 관측 가능하게" 였다.
+    // 값만 검증하면 그 Log.warning 이 지워져도 테스트가 전부 초록이라 목적이 지켜지지 않는다.
+    @Test("클램프가 일어나면 요청값·적용값을 로그로 남긴다")
+    func clampLogsCorrection() {
+        let spy = sharedSpy
+        let path = "api/v1/pins/\(uniqueToken())"
+
+        _ = Endpoint<[DummyDTO]>(path: path).paged(page: -1, pageSize: 0) as PagedEndpoint<DummyDTO>
+
+        let entry = try? #require(spy.entry("페이지 파라미터 보정", forPath: path))
+        #expect(entry?.metadata["requested"] == "page=-1, pageSize=0")
+        #expect(entry?.metadata["applied"] == "page=0, pageSize=1")
+    }
+
+    @Test("범위 안 값은 로그를 남기지 않는다 — 정상 호출마다 경고가 쌓이면 안 된다")
+    func noLogWhenWithinSpec() {
+        let spy = sharedSpy
+        let path = "api/v1/pins/\(uniqueToken())"
+
+        _ = Endpoint<[DummyDTO]>(path: path).paged(page: 0, pageSize: 20) as PagedEndpoint<DummyDTO>
+
+        #expect(spy.entry("페이지 파라미터 보정", forPath: path) == nil)
     }
 }

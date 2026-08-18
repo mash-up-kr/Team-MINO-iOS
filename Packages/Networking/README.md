@@ -279,3 +279,7 @@ Endpoint(path: "api/v1/users", method: .post, body: .json(dto), requiresAuth: fa
 | 기본 헤더 | `Accept: application/json` 항상, `Content-Type: application/json` 은 body 있을 때만 |
 | 로그(릴리즈) | 실패·재시도만 남는다. **경로의 식별자는 `***` 로 가려지고 응답 본문은 크기만** 남는다 — 초대 코드가 경로에 있고(`/invitations/{code}`) `OSLogger` 가 `.public` 으로 찍어 기기에 영구 기록되기 때문 |
 | 로그(DEBUG) | 전체 URL·응답 본문 앞 200바이트까지. `Authorization` 은 어느 빌드에서도 찍지 않는다 |
+
+⚠️ **경로 세그먼트 이름을 지을 때**: 마스킹은 "6자 이상 + 숫자 포함 + 영숫자" 를 식별자로 보는
+휴리스틱이라, `oauth2`·`v2beta` 같은 **고정 경로 이름도 가려진다.** 그러면 릴리즈 로그에서
+어느 API 인지 알 수 없어진다 — 그런 이름을 쓰게 되면 `LogRedaction` 에 예외를 추가한다.
