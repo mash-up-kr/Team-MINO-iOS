@@ -1,8 +1,9 @@
 import DesignSystem
+import Domain
 import SwiftUI
 
 struct PlaceDetailCommentSection: View {
-    let comments: [PlaceDetailComment]
+    let comments: [Comment]
     @Binding var draft: String
     let onSubmit: () -> Void
 
@@ -40,7 +41,7 @@ struct PlaceDetailCommentSection: View {
                         .fill(.mhLineNormalNormal)
                         .frame(height: 1)
                 }
-                MHComment(avatar: nil, name: comment.author, comment: comment.body)
+                MHComment(avatar: nil, name: comment.author, comment: comment.body.value)
             }
         }
         .accessibilityIdentifier("PlaceDetail.commentList")
@@ -69,7 +70,7 @@ struct PlaceDetailCommentSection: View {
             text: $draft,
             identifier: "PlaceDetail.commentInput",
             bottomLeading: {
-                MHCharacterCounter(count: draft.count, limit: PlaceDetailComment.bodyLimit)
+                MHCharacterCounter(count: draft.count, limit: CommentBody.maxLength)
             }
         )
     }
@@ -99,7 +100,7 @@ struct PlaceDetailCommentSection: View {
         var body: some View {
             ScrollView {
                 PlaceDetailCommentSection(
-                    comments: PlaceDetailComment.samples, draft: $draft, onSubmit: {}
+                    comments: Comment.samples, draft: $draft, onSubmit: {}
                 )
             }
         }

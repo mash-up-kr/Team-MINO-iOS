@@ -21,7 +21,9 @@ struct PlaceDetailReducerTests {
         var remaining = ["c1", "c2", "c3"]
         return TestStore(
             PlaceDetailState(place: PlaceDetailPlace(from: fixturePin, now: fixtureNow)),
-            reduce: placeDetailReducer(pin: fixturePin, makeCommentID: { remaining.removeFirst() })
+            reduce: placeDetailReducer(
+                pin: fixturePin, makeCommentID: { CommentID(remaining.removeFirst()) }
+            )
         )
     }
 
@@ -29,28 +31,22 @@ struct PlaceDetailReducerTests {
     func submitComment() async {
         let store = makeStore()
         await store.send(.submitComment("좋았어요")) {
-            $0.comments = [PlaceDetailComment(id: "c1", author: "나", body: "좋았어요")]
+            $0.comments = [
+                Comment(id: CommentID("c1"), author: "나", body: CommentBody("좋았어요")!)
+            ]
         }
         store.finish()
     }
 
-    @Test("L1 — 앞뒤 공백은 잘라내고, 공백뿐이면 아무것도 추가하지 않는다")
-    func submitComment_trimsAndIgnoresBlank() async {
+    @Test("L1 — 정규화(트림·클램프)는 CommentBody 규칙을 따르고, 빈 입력은 무시한다")
+    func submitComment_normalizesViaCommentBody() async {
         let store = makeStore()
         await store.send(.submitComment("  좋았어요  ")) {
-            $0.comments = [PlaceDetailComment(id: "c1", author: "나", body: "좋았어요")]
+            $0.comments = [
+                Comment(id: CommentID("c1"), author: "나", body: CommentBody("  좋았어요  ")!)
+            ]
         }
         await store.send(.submitComment("   "))
-        store.finish()
-    }
-
-    @Test("L1 — 200자를 넘는 코멘트는 잘라 저장한다")
-    func submitComment_clampsToLimit() async {
-        let store = makeStore()
-        let clamped = String(repeating: "가", count: PlaceDetailComment.bodyLimit)
-        await store.send(.submitComment(String(repeating: "가", count: 250))) {
-            $0.comments = [PlaceDetailComment(id: "c1", author: "나", body: clamped)]
-        }
         store.finish()
     }
 

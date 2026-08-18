@@ -1,4 +1,5 @@
 import DesignSystem
+import Domain
 import MVI
 import SwiftUI
 
@@ -86,7 +87,7 @@ private final class CollapseRef {
 
 #Preview("장소 상세 시트") {
     let store = PlaceDetailStore(
-        PlaceDetailState(place: .sample, comments: PlaceDetailComment.samples),
+        PlaceDetailState(place: .sample, comments: Comment.samples),
         reduce: { _, _ in .none }
     )
     return ZStack {

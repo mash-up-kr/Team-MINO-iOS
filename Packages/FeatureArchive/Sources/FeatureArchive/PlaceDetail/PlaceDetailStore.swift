@@ -4,8 +4,11 @@ import MVI
 
 struct PlaceDetailState: Equatable {
     var place: PlaceDetailPlace
-    var comments: [PlaceDetailComment] = []
+    var comments: [Comment] = []
 }
+
+/// 내가 작성한 코멘트의 표시 이름 — 로컬 표시 규칙이라 Feature 가 정한다.
+let placeDetailLocalAuthorName = "나"
 
 enum PlaceDetailAction: Equatable {
     case submitComment(String)
@@ -22,21 +25,14 @@ typealias PlaceDetailStore = Store<PlaceDetailState, PlaceDetailAction, PlaceDet
 
 func placeDetailReducer(
     pin: Pin,
-    makeCommentID: @escaping () -> String = { UUID().uuidString }
+    makeCommentID: @escaping () -> CommentID = { CommentID(UUID().uuidString) }
 ) -> (inout PlaceDetailState, PlaceDetailAction) -> Effect<PlaceDetailAction, PlaceDetailNav> {
     { state, action in
         switch action {
         case .submitComment(let text):
-            let body = String(
-                text.trimmingCharacters(in: .whitespacesAndNewlines).prefix(PlaceDetailComment.bodyLimit)
-            )
-            guard !body.isEmpty else { return .none }
+            guard let body = CommentBody(text) else { return .none }
             state.comments.append(
-                PlaceDetailComment(
-                    id: makeCommentID(),
-                    author: PlaceDetailComment.localAuthorName,
-                    body: body
-                )
+                Comment(id: makeCommentID(), author: placeDetailLocalAuthorName, body: body)
             )
             return .none
 
