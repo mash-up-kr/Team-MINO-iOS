@@ -1,5 +1,6 @@
 import SwiftUI
 import DesignSystem
+import Domain
 
 // MARK: - 캐릭터 스와치
 
@@ -57,7 +58,7 @@ struct ProfileSetupContent: View {
                         .frame(maxWidth: .infinity)
 
                     MHTextField(
-                        "한글·영문 \(ProfileSetupLimit.minimumNameLength)글자 이상",
+                        "한글·영문 \(Nickname.minLength)글자 이상",
                         text: $name,
                         heading: "이름 또는 닉네임",
                         isRequired: true,

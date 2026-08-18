@@ -9,6 +9,7 @@ let package = Package(
     ],
     dependencies: [
         .package(path: "../Core"),
+        .package(path: "../Domain"),
         .package(path: "../FlowCoordination"),
         .package(path: "../MVI"),
         .package(path: "../DesignSystem"),
@@ -17,7 +18,7 @@ let package = Package(
     targets: [
         .target(
             name: "FeatureOnboarding",
-            dependencies: ["Core", "FlowCoordination", "MVI", "DesignSystem", "RoomCreationUI"],
+            dependencies: ["Core", "Domain", "FlowCoordination", "MVI", "DesignSystem", "RoomCreationUI"],
             resources: [.process("Resources")]
         ),
         .testTarget(
