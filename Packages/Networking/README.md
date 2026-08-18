@@ -228,7 +228,7 @@ Packages/Data/Sources/Data/
 
 | 금지 | 이유 |
 |---|---|
-| `import Alamofire` (Networking 밖에서) | 라이브러리 격리가 깨지고 교체가 불가능해진다. **CI(`layer-guard`)가 막는다** |
+| `import Alamofire` (Networking 밖에서) | 라이브러리 격리가 깨지고 교체가 불가능해진다. **아직 리뷰로만 지킨다** — `layer-guard` 에 grep 검사를 넣는 건 후속(토큰 권한) |
 | `JSONDecoder()` 직접 생성 | 날짜 전략이 갈린다. 디코딩은 클라이언트가 한다 |
 | Entity 에 `Codable` 부착 | Domain 이 API 스키마와 결합된다 |
 | DTO 를 `public` 으로 | Domain 으로 샌다 |
