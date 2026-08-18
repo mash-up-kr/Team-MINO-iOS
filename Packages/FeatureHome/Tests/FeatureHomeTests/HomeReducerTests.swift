@@ -44,15 +44,15 @@ private struct StubFetchRooms: FetchRoomsUseCase {
 private struct StubFetchPins: FetchPinsUseCase {
     var all: [Pin] = []
     var more: [Pin] = []
-    func execute(rooms: [Room]) async throws -> [Pin] { all }
-    func execute(room: Room, page: Int) async throws -> [Pin] { more }
+    func execute(roomIDs: [RoomID]) async throws -> [Pin] { all }
+    func execute(roomID: RoomID, page: Int) async throws -> [Pin] { more }
 }
 
 /// 핀 조회가 항상 실패하는 스텁 — 실패 경로(로드 실패 라우팅 / 더 보기 무시)를 검증한다.
 private struct ThrowingFetchPins: FetchPinsUseCase {
     var error: DomainError = .unknown
-    func execute(rooms: [Room]) async throws -> [Pin] { throw error }
-    func execute(room: Room, page: Int) async throws -> [Pin] { throw error }
+    func execute(roomIDs: [RoomID]) async throws -> [Pin] { throw error }
+    func execute(roomID: RoomID, page: Int) async throws -> [Pin] { throw error }
 }
 
 @MainActor

@@ -13,8 +13,8 @@ private struct StubFetchRooms: FetchRoomsUseCase {
 }
 
 private struct StubFetchPins: FetchPinsUseCase {
-    func execute(rooms: [Room]) async throws -> [Pin] { [] }
-    func execute(room: Room, page: Int) async throws -> [Pin] { [] }
+    func execute(roomIDs: [RoomID]) async throws -> [Pin] { [] }
+    func execute(roomID: RoomID, page: Int) async throws -> [Pin] { [] }
 }
 
 @MainActor

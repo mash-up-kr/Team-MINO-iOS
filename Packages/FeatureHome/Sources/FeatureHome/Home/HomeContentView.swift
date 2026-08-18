@@ -274,6 +274,6 @@ private struct PreviewFetchRooms: FetchRoomsUseCase {
 
 /// 프리뷰 전용 핀 UseCase. 빈 배열을 반환한다(카드 덱 없이 셸만 확인).
 private struct PreviewFetchPins: FetchPinsUseCase {
-    func execute(rooms: [Room]) async throws -> [Pin] { [] }
-    func execute(room: Room, page: Int) async throws -> [Pin] { [] }
+    func execute(roomIDs: [RoomID]) async throws -> [Pin] { [] }
+    func execute(roomID: RoomID, page: Int) async throws -> [Pin] { [] }
 }

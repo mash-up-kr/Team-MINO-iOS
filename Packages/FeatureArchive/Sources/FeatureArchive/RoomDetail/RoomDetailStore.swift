@@ -41,7 +41,7 @@ func roomDetailReducer(
         case .load:
             return .run { send in
                 do {
-                    let pins = try await useCase.execute(room: room, page: 0)
+                    let pins = try await useCase.execute(roomID: room.id, page: 0)
                     send(.loaded(pins))
                 } catch let error as DomainError {
                     send(.loadFailed(error))

@@ -148,7 +148,7 @@ public func homeReducer(
             // pinsLoaded 에서 끈다. (여기서 끄면 핀 도착 전 빈 상태+CTA 가 한 프레임 깜빡인다)
             return .run { send in
                 do {
-                    send(.pinsLoaded(try await fetchPins.execute(rooms: ordered)))
+                    send(.pinsLoaded(try await fetchPins.execute(roomIDs: ordered.map(\.id))))
                 } catch let error as DomainError {
                     send(.loadFailed(error))
                 } catch {
@@ -222,7 +222,7 @@ public func homeReducer(
             state.roomPages[room.id] = page
             return .run { send in
                 do {
-                    let pins = try await fetchPins.execute(room: room, page: page)
+                    let pins = try await fetchPins.execute(roomID: room.id, page: page)
                     send(.morePlacesLoaded(roomID: room.id, pins: pins))
                 } catch {
                     // 더 보기 실패는 조용히 무시(기존 카드 유지). 에러 UI 정책 확정 시 처리 추가.

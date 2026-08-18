@@ -9,12 +9,12 @@ import Domain
 public final class MockPinRepository: PinRepository {
     public init() {}
 
-    public func pins(rooms: [Room]) async throws -> [Pin] {
-        rooms.flatMap { Self.makePins(for: $0, page: 0) }
+    public func pins(roomIDs: [RoomID]) async throws -> [Pin] {
+        roomIDs.flatMap { Self.makePins(for: $0, page: 0) }
     }
 
-    public func pins(room: Room, page: Int) async throws -> [Pin] {
-        Self.makePins(for: room, page: page)
+    public func pins(roomID: RoomID, page: Int) async throws -> [Pin] {
+        Self.makePins(for: roomID, page: page)
     }
 
     // MARK: - Mock 합성
@@ -38,15 +38,15 @@ public final class MockPinRepository: PinRepository {
         ("무드등 서울", "서울 강남구 선릉로 157길 5"),
     ]
 
-    private static func makePins(for room: Room, page: Int) -> [Pin] {
+    private static func makePins(for roomID: RoomID, page: Int) -> [Pin] {
         let now = Date.now
         let count = places.count
         // page 마다 풀을 회전시켜 다른 카드처럼 보이게 하고, id 에 page 를 넣어 이전 페이지와 겹치지 않게 한다.
         return (0..<count).map { i in
             let src = (i + page) % count
             return Pin(
-                id: PinID("pin-\(room.id.value)-\(page)-\(i)"),
-                roomID: room.id,
+                id: PinID("pin-\(roomID.value)-\(page)-\(i)"),
+                roomID: roomID,
                 category: categories[src],
                 title: places[src].title,
                 address: places[src].address,
