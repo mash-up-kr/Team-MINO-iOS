@@ -71,50 +71,6 @@ struct PlaceDetailReducerTests {
     }
 }
 
-struct PlaceDetailSaveAgeTests {
-    private let calendar = Calendar(identifier: .gregorian)
-
-    private func date(_ iso: String) -> Date {
-        let formatter = DateFormatter()
-        formatter.calendar = calendar
-        formatter.timeZone = calendar.timeZone
-        formatter.dateFormat = "yyyy-MM-dd HH:mm"
-        return formatter.date(from: iso)!
-    }
-
-    @Test("저장한 당일은 1일째")
-    func sameDay() {
-        let days = PlaceDetailSaveAge.days(
-            since: date("2026-08-16 09:00"), now: date("2026-08-16 23:00"), calendar: calendar
-        )
-        #expect(days == 1)
-    }
-
-    @Test("자정을 넘기면 24시간이 안 지나도 2일째")
-    func nextCalendarDay() {
-        let days = PlaceDetailSaveAge.days(
-            since: date("2026-08-15 23:00"), now: date("2026-08-16 01:00"), calendar: calendar
-        )
-        #expect(days == 2)
-    }
-
-    @Test("29일 전 저장이면 30일째")
-    func thirtiethDay() {
-        let days = PlaceDetailSaveAge.days(
-            since: date("2026-07-18 12:00"), now: date("2026-08-16 12:00"), calendar: calendar
-        )
-        #expect(days == 30)
-    }
-
-    @Test("기기 시계가 뒤로 가 있어도 1일째 아래로는 내려가지 않는다")
-    func futureDateClamps() {
-        let days = PlaceDetailSaveAge.days(
-            since: date("2026-08-20 12:00"), now: date("2026-08-16 12:00"), calendar: calendar
-        )
-        #expect(days == 1)
-    }
-}
-
 struct PlaceDetailExternalMapTests {
     @Test("주소를 검색어로 실은 지도 URL 을 만든다")
     func buildsSearchURL() {

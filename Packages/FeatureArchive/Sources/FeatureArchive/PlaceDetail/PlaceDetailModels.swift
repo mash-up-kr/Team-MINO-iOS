@@ -15,18 +15,9 @@ extension PlaceDetailPlace {
         self.init(
             name: pin.title,
             address: pin.address,
-            savedDays: PlaceDetailSaveAge.days(since: pin.createdAt, now: now),
+            savedDays: pin.savedDays(asOf: now),
             photoCount: Self.placeholderPhotoCount
         )
-    }
-}
-
-enum PlaceDetailSaveAge {
-    static func days(since createdAt: Date, now: Date, calendar: Calendar = .current) -> Int {
-        let from = calendar.startOfDay(for: createdAt)
-        let to = calendar.startOfDay(for: now)
-        let elapsed = calendar.dateComponents([.day], from: from, to: to).day ?? 0
-        return max(1, elapsed + 1)
     }
 }
 
