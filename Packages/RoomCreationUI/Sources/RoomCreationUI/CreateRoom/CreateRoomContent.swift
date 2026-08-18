@@ -1,5 +1,6 @@
 import SwiftUI
 import DesignSystem
+import Domain
 
 // MARK: - 방 색상 스와치
 
@@ -112,7 +113,7 @@ struct CreateRoomContent: View {
             text: $roomName,
             heading: "방 이름",
             isRequired: true,
-            description: "한글·영문·숫자만 입력 가능해요. (공백 포함 \(CreateRoomLimit.name)자 이내)",
+            description: "한글·영문·숫자만 입력 가능해요. (공백 포함 \(RoomName.maxLength)자 이내)",
             identifier: "CreateRoom.nameField"
         )
     }
@@ -124,7 +125,7 @@ struct CreateRoomContent: View {
             heading: "방 설명",
             identifier: "CreateRoom.descriptionField",
             bottomLeading: {
-                MHCharacterCounter(count: roomDescription.count, limit: CreateRoomLimit.description)
+                MHCharacterCounter(count: roomDescription.count, limit: RoomMemo.maxLength)
             }
         )
     }
