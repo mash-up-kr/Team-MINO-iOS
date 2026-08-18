@@ -45,4 +45,21 @@ struct EndpointTests {
             URLQueryItem(name: "pageSize", value: "20"),
         ])
     }
+
+    // 서버가 준 pagination.pageSize 를 다음 요청에 그대로 넘기는 게 무한스크롤의 표준
+    // 구현이다. 그 값이 스펙을 벗어나도 앱이 죽으면 안 되고, 조용히 눌려서도 안 된다.
+    @Test("스펙을 벗어난 값은 크래시 없이 클램프된다", arguments: [
+        (-1, 0, "0", "1"),
+        (0, 200, "0", "100"),
+        (5, 20, "5", "20"),
+    ])
+    func clampsOutOfSpecValues(_ page: Int, _ pageSize: Int, _ expectedPage: String, _ expectedSize: String) {
+        let paged: PagedEndpoint<DummyDTO> = Endpoint<[DummyDTO]>(path: "api/v1/pins")
+            .paged(page: page, pageSize: pageSize)
+
+        #expect(paged.endpoint.queryItems == [
+            URLQueryItem(name: "page", value: expectedPage),
+            URLQueryItem(name: "pageSize", value: expectedSize),
+        ])
+    }
 }

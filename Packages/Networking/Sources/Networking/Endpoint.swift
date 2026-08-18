@@ -1,4 +1,5 @@
 import Foundation
+import Logging
 
 public enum HTTPMethod: String, Sendable {
     case get = "GET"
@@ -60,13 +61,23 @@ public extension Endpoint {
     /// 서버는 둘 다 생략하면 전체를 반환하므로, 전체 조회에는 쓰지 않는다.
     /// 반환 타입이 `PagedEndpoint` 라 `requestPage` 로만 보낼 수 있다 — `request` 로 보내
     /// `pagination` 을 잃는 실수가 컴파일 단계에서 막힌다.
+    ///
+    /// 스펙 범위(`page >= 0`, `pageSize` 1...100)를 벗어난 값은 **클램프되고 로그가 남는다.**
     func paged<Element>(page: Int, pageSize: Int) -> PagedEndpoint<Element> where Response == [Element] {
         // 서버가 준 `pagination.pageSize` 를 그대로 다음 요청에 넘기는 건 무한스크롤의 표준
-        // 구현이다. 여기서 precondition 을 걸면 **백엔드 값 하나로 릴리즈 앱이 죽는다.**
-        // 스펙 범위(1...100)로 조용히 맞추고, 개발 중에만 어긋남을 알린다.
-        assert(page >= 0 && (1...100).contains(pageSize), "page/pageSize 가 서버 스펙 범위를 벗어났다")
+        // 구현이다. 여기서 precondition/assert 를 걸면 **백엔드 값 하나로 앱이 죽거나
+        // (릴리즈) 개발 중 트랩이 걸려 이 동작을 테스트할 수도 없다.**
+        // 클램프하되 조용히 넘어가지 않는다 — 릴리즈에서 pageSize 0 이 1 로 눌리면
+        // "1개씩 무한스크롤" 이 되는데, 로그가 없으면 느릴 뿐 정상으로 보인다.
         let safePage = max(page, 0)
         let safePageSize = min(max(pageSize, 1), 100)
+        if safePage != page || safePageSize != pageSize {
+            Log.warning("페이지 파라미터 보정", metadata: [
+                "path": LogRedaction.path(path),
+                "requested": "page=\(page), pageSize=\(pageSize)",
+                "applied": "page=\(safePage), pageSize=\(safePageSize)",
+            ])
+        }
 
         // 이미 붙어 있던 page·pageSize 는 걷어낸다. 저장해 둔 endpoint 에 거듭 적용하면
         // `?page=0&page=1` 처럼 중복돼 서버 해석이 갈린다.

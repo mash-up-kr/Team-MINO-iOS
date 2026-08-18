@@ -98,6 +98,12 @@ struct NetworkLoggerTests {
         let entry = try #require(await waitFor("← 응답 실패", path: path, in: spy))
         #expect(entry.level == .warning)
         #expect(entry.metadata["status"] == "500")
+        // 재시도가 없었으면 시도는 1회. `attempts` 를 지워도 통과하는 걸 막는다.
+        #expect(entry.metadata["attempts"] == "1")
+        // elapsed 는 마지막 시도만이 아니라 전체 소요여야 한다(allMetrics 합계).
+        // 0 이면 metrics 를 못 읽은 것이라 "왜 느렸나" 조사에서 네트워크가 제외된다.
+        let elapsed = Double(entry.metadata["elapsed"]?.replacingOccurrences(of: "s", with: "") ?? "")
+        #expect((elapsed ?? 0) > 0)
     }
 
     @Test("5xx 응답 본문을 로그에 남긴다 — 장애 원인 추적의 유일한 단서다")
@@ -143,6 +149,11 @@ struct NetworkLoggerTests {
 
         let entry = try #require(await waitFor("↻ 재시도", path: path, in: spy))
         #expect(entry.metadata["attempt"] == "2")
+
+        // 응답 로그의 attempts 도 재시도를 반영해야 한다 — 사용자가 기다린 시간은
+        // 두 시도의 합인데, 마지막 시도만 재면 조사자가 네트워크를 용의선상에서 뺀다.
+        let response = try #require(await waitFor("← 응답 실패", path: path, in: spy))
+        #expect(response.metadata["attempts"] == "2")
     }
 
     // 취소는 화면 이탈마다 일어난다. warning 이면 릴리즈 로그가 취소로 뒤덮여
