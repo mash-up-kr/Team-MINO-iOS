@@ -48,7 +48,7 @@
 
 ### 규칙은 Domain 에 산다 (anemic model 금지)
 
-검증·계산·정책이 Feature/UI 에 있으면 안티패턴이다 — Fowler: anemic domain model 은 "hardly any behavior on these objects" 상태로, "도메인 모델의 모든 비용을 부담하면서도 이점은 얻지 못한다". Evans 의 Application layer 는 "This layer is kept thin" 이어야 한다.
+검증·계산·정책이 Feature/UI 에 있으면 안티패턴이다 — Fowler 가 말한 anemic domain model 은 객체에 "hardly any behavior on these objects" 인 상태로, 도메인 모델의 비용은 다 치르면서 이점은 얻지 못한다. Evans 의 Application layer 는 "This layer is kept thin" 이어야 한다.
 
 | 규칙 종류 | 놓는 곳 | 예 |
 |---|---|---|
@@ -69,7 +69,7 @@ Vernon (IDDD): "Prefer references to external Aggregates only by their globally 
 
 - 식별자는 원시 String 이 아니라 ID VO(`RoomID`·`PinID`·`MemberID`·`CommentID`)로 — 다른 리소스의 id 와 섞이는 실수를 타입이 막는다.
 - ⚠️ ID VO 는 문자열 보간에서 `RoomID(value:"1")` 로 렌더된다 — 로그·accessibilityIdentifier 에는 반드시 `.value`. `CustomStringConvertible` 로 덮지 않는다(버그 은폐).
-- Repository 는 aggregate root 단위로만 둔다 — Evans: "Provide repositories only for aggregate roots."
+- Repository 는 aggregate root 단위로만 둔다 — Evans: "Provide repositories only for aggregate roots that actually need direct access."
 
 ### Domain 에 넣지 않는 것
 
