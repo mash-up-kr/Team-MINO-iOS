@@ -119,14 +119,12 @@ struct CardDeckView: View {
         )
     }
 
-    /// 카드 더보기(⋮) 메뉴 — Figma `Menu/Menu`. 항목 동작(다른 방 저장·장소 가리기)은 후속 작업이라
+    /// 카드 더보기(⋮) 메뉴 — Figma `Menu/Menu`. 항목 동작(다른 방 저장)은 후속 작업이라
     /// 지금은 **비활성(isDisabled)** 으로 노출한다 — 눌러도 아무 일 없는 무음 no-op 대신 "미구현"을 보이게.
     private func moreMenuItems(for pin: Pin) -> [MHMenuItem] {
         [
             // TODO: 다른 방에 저장 — 002-4-1 방 변경 바텀시트로 저장 진행. 구현 시 isDisabled 제거.
             MHMenuItem("다른 방 저장", isDisabled: true) {},
-            // TODO: 장소 가리기 — 이 장소를 덱에서 숨김. 구현 시 isDisabled 제거.
-            MHMenuItem("장소 가리기", isDisabled: true) {},
         ]
     }
 
