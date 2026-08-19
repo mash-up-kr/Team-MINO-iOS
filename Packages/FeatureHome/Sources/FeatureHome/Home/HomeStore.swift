@@ -142,7 +142,7 @@ public enum HomeAction: Equatable {
     case showGuide
     /// 가이드 X 버튼 탭 → 닫기
     case dismissGuide
-    /// 방 뱃지·캐릭터 탭 → 방 선택 바텀 시트 열기
+    /// 방 뱃지·캐릭터 탭 → 방 선택 바텀 시트 토글(열려 있으면 닫는다)
     case tapRoomBadge
     /// 방 선택 바텀 시트 닫기 (스와이프 dismiss 포함)
     case dismissRoomList
@@ -377,7 +377,9 @@ public func homeReducer(
             return .none
 
         case .tapRoomBadge:
-            state.isRoomListPresented = true
+            // 열려 있으면 닫는다. 실질적으로 마스코트 재탭 경로다 —
+            // 뱃지는 딤에 가려 hit-test 가 막히고, 마스코트만 딤 위에 그려져 시트 중에도 탭된다.
+            state.isRoomListPresented.toggle()
             return .none
 
         case .dismissRoomList:

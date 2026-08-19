@@ -722,6 +722,13 @@ struct HomeReducerTests {
         store.finish()
     }
 
+    @Test("L1 — 시트가 열린 상태의 tapRoomBadge(마스코트 재탭) 는 시트를 닫는다")
+    func tapRoomBadge_whilePresented_dismisses() async {
+        let store = makeStore(state: HomeState(rooms: fixtureRooms, isRoomListPresented: true))
+        await store.send(.tapRoomBadge) { $0.isRoomListPresented = false }
+        store.finish()
+    }
+
     @Test("L1 — dismissRoomList 는 시트를 닫는다")
     func dismissRoomList_dismisses() async {
         let store = makeStore(state: HomeState(rooms: fixtureRooms, isRoomListPresented: true))

@@ -251,7 +251,7 @@ struct HomeContentView: View {
     private var mascotCharacter: some View {
         HomeMascotView()
             .contentShape(Rectangle())
-            .onTapGesture { store.send(.tapRoomBadge) }   // 정책: 방 캐릭터 탭 → 방 선택 바텀 시트
+            .onTapGesture { store.send(.tapRoomBadge) }   // 정책: 방 캐릭터 탭 → 방 선택 바텀 시트 토글(열려 있으면 닫는다)
             .accessibilityIdentifier("Home.mascot")
     }
 
