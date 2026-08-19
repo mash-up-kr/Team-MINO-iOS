@@ -298,11 +298,22 @@ private extension PinFilter {
 /// (시안에서 그룹은 x 249…375 인데 자식 좌표가 367·375 로 잡히는 게 그 반전의 흔적)
 struct HomeMascotView: View {
     var body: some View {
-        Image(dsImage: "homeMascot")
-            .resizable()
-            .frame(width: 126, height: 164)
-            .scaleEffect(x: -1)
-            .padding(.top, 26)
+        ZStack {
+            // 마스코트 눈은 채워진 흰 도형이 아니라 **뚫린 구멍**이라, 뒤에 있는 것이 그대로 비친다.
+            // 방 리스트 딤 위에 마스코트를 얹어도 이 구멍으로 딤이 새어 눈만 어두워진다 —
+            // 구멍 자리에 화면 배경색을 미리 깔아 막는다. (배경색은 시안에서 눈이 캔버스로 읽히는 것과 같다)
+            Image(dsImage: "homeMascotEyes")
+                .renderingMode(.template)
+                .resizable()
+                .frame(width: 126, height: 164)
+                .foregroundStyle(Color.mhBackgroundNormalAlternative)
+
+            Image(dsImage: "homeMascot")
+                .resizable()
+                .frame(width: 126, height: 164)
+        }
+        .scaleEffect(x: -1)   // 두 겹을 함께 뒤집어야 눈 자리가 어긋나지 않는다
+        .padding(.top, 26)
     }
 }
 
