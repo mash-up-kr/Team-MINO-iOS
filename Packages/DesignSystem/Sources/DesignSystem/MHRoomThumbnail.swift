@@ -89,28 +89,32 @@ extension MHRoomThumbnailKind: Equatable {
 public struct MHRoomThumbnail: View {
     private let kind: MHRoomThumbnailKind
     private let size: CGFloat
+    private let isSelected: Bool
 
     /// 색상 variant. 기본값 pink.
-    public init(color: MHRoomThumbnailColor = .pink, size: CGFloat = 80) {
+    public init(color: MHRoomThumbnailColor = .pink, size: CGFloat = 80, isSelected: Bool = false) {
         self.kind = .color(color)
         self.size = size
+        self.isSelected = isSelected
     }
 
     /// ``MHRoomThumbnailKind`` 를 직접 지정. ``MHRoomCard`` 처럼 썸네일 종류를 주입받는 컨테이너가 쓴다.
-    public init(kind: MHRoomThumbnailKind, size: CGFloat = 80) {
+    public init(kind: MHRoomThumbnailKind, size: CGFloat = 80, isSelected: Bool = false) {
         self.kind = kind
         self.size = size
+        self.isSelected = isSelected
     }
 
     /// 장소 사진 콜라주. 1~4장(4장 초과는 앞 4개만 사용).
-    public init(images: [Image], size: CGFloat = 80) {
+    public init(images: [Image], size: CGFloat = 80, isSelected: Bool = false) {
         self.kind = .full(images)
         self.size = size
+        self.isSelected = isSelected
     }
 
     /// my-room 전용 일러스트 썸네일.
-    public static func myRoom(size: CGFloat = 80) -> MHRoomThumbnail {
-        MHRoomThumbnail(kind: .myRoom, size: size)
+    public static func myRoom(size: CGFloat = 80, isSelected: Bool = false) -> MHRoomThumbnail {
+        MHRoomThumbnail(kind: .myRoom, size: size, isSelected: isSelected)
     }
 
     // Figma 80pt 기준 비율. 방 썸네일 radius 는 Card_Room 슬롯 기준(`--radius` = 14 @80pt)으로 통일한다.
@@ -132,6 +136,21 @@ public struct MHRoomThumbnail: View {
         }
         .frame(width: size, height: size)
         .clipShape(RoundedRectangle(cornerRadius: radius))
+        .overlay { if isSelected { selectedOverlay } }
+    }
+
+    /// 선택 표시 — 딤(검정 40%) 위에 흰 체크. Figma `Room Thumbnail` property2="select"(node 3251-202525).
+    /// 체크는 썸네일 크기에 비례한다(Figma 70pt 기준 28 → 80pt 기준 32).
+    private var selectedOverlay: some View {
+        RoundedRectangle(cornerRadius: radius)
+            .fill(Color.black.opacity(0.4))
+            .overlay {
+                Image(MHIcon.checkThick)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: size * 0.4, height: size * 0.4)
+                    .foregroundStyle(.mhStaticWhite)
+            }
     }
 
     private func image(_ name: String) -> some View {
