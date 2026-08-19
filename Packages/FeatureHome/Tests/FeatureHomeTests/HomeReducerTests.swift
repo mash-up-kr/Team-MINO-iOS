@@ -452,10 +452,12 @@ struct HomeReducerTests {
 
     @Test("L1 — 마지막으로 본 방에 카드가 없으면(삭제·스루) 첫 방부터 시작한다")
     func pinsLoaded_fallsBackWhenLastRoomHasNoCards() async {
-        let store = makeStore(state: HomeState(rooms: fixtureRooms, isLoading: true))
+        // 시작 인덱스를 0 이 아닌 값으로 둔다 — 기대값 0 이 초기값과 같으면
+        // 폴백이 동작한 건지 아무 일도 안 일어난 건지 구분되지 않는다.
+        let store = makeStore(state: HomeState(rooms: fixtureRooms, isLoading: true, currentCardIndex: 3))
         await store.send(.pinsLoaded(pins: multiRoomPins(), startRoomID: "없는-방")) {
             $0.pins = multiRoomPins()
-            $0.currentCardIndex = 0     // selectedRoomID 도 그대로 nil
+            $0.currentCardIndex = 0     // 3 → 0 으로 되돌린다. selectedRoomID 도 그대로 nil
             $0.isLoading = false
         }
         store.finish()
