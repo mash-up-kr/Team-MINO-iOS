@@ -15,9 +15,14 @@ struct CardDeckLayoutTests {
         #expect(Layout.swipeOutcome(predicted: 150, returnProgress: 0, currentIndex: 0, pinCount: 5) == .forward)
     }
 
-    @Test("마지막 카드에서는 우측으로 던져도 forward 가 아니라 snapBack (넘길 카드 없음)")
-    func swipe_snapBack_atLastCard() {
-        #expect(Layout.swipeOutcome(predicted: 300, returnProgress: 0, currentIndex: 4, pinCount: 5) == .snapBack)
+    @Test("마지막 카드에서도 우측으로 던지면 forward — 덱 밖으로 나가 소진 화면이 된다(002-3)")
+    func swipe_forward_atLastCard() {
+        #expect(Layout.swipeOutcome(predicted: 300, returnProgress: 0, currentIndex: 4, pinCount: 5) == .forward)
+    }
+
+    @Test("이미 덱 밖(소진)이면 우측으로 던져도 snapBack (넘길 카드 없음)")
+    func swipe_snapBack_pastDeck() {
+        #expect(Layout.swipeOutcome(predicted: 300, returnProgress: 0, currentIndex: 5, pinCount: 5) == .snapBack)
     }
 
     @Test("우측으로 살짝만 밀면(예측 ≤ 임계) 제자리 snapBack")

@@ -102,6 +102,8 @@ struct HomeContentView: View {
             Spacer()
         } else if store.state.showsEmptyState {
             emptyStateBody
+        } else if store.state.hasViewedAllPlaces {
+            allViewedBody
         } else {
             CardDeckView(
                 pins: store.state.pins,
@@ -161,15 +163,7 @@ struct HomeContentView: View {
     /// CTA 는 공동방 유무와 무관하게 항상 노출한다(팀 정책 — PRD [SYS-009] Flow D 와는 다름).
     private var emptyStateBody: some View {
         VStack(spacing: 20) {
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color.mhFillNormal)   // 실제 일러스트 교체 전 placeholder — 화면 배경(alternative)과 구분되는 색
-                .frame(width: 249, height: 249)   // Figma(2809:138533): 249×249, 중앙 정렬
-                .overlay {
-                    Text("이미지 교체 예정")
-                        .mhTypography(.body2NormalMedium)
-                        .foregroundStyle(.mhLabelAlternative)
-                }
-                .accessibilityIdentifier("Home.emptyState.illustration")
+            illustrationPlaceholder(identifier: "Home.emptyState.illustration")
 
             VStack(spacing: 0) {
                 Text("\"저번에 말한 거기가 어디였지?\"")
@@ -196,6 +190,38 @@ struct HomeContentView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 58)
+    }
+
+    // MARK: - 소진 본문 (모든 방의 장소를 다 봤을 때)
+
+    /// Figma 002-3 「모든 카드를 다 봤을 때」 — 일러스트 + 카피만. CTA("장소 더 보기")는 카드 덱일 때와 같은
+    /// 자리(탭바 위 플로팅)라 HomeTabView 가 그린다. 헤더·필터는 mainContent 가 공통으로 그린다.
+    private var allViewedBody: some View {
+        VStack(spacing: 20) {   // Figma: 일러스트 하단(572) → 카피 상단(592) = base lg 20
+            illustrationPlaceholder(identifier: "Home.allViewed.illustration")
+
+            Text("꾹 눌러둔 장소를 모두 둘러봤어요")
+                .mhTypography(.label1NormalRegular)
+                .foregroundStyle(.mhPrimaryNormal)
+                .accessibilityIdentifier("Home.allViewed.copy")
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 75)   // Figma: 필터바 하단(248) → 일러스트 상단(323)
+        .accessibilityIdentifier("Home.allViewed")
+    }
+
+    /// 일러스트 자리(249×249)를 잡는 placeholder — 빈 상태·소진 화면이 같은 크기로 쓴다.
+    /// 실제 일러스트 에셋이 나오면 이 헬퍼만 Image 로 교체한다.
+    private func illustrationPlaceholder(identifier: String) -> some View {
+        RoundedRectangle(cornerRadius: 16)
+            .fill(Color.mhFillNormal)   // 화면 배경(alternative)과 구분되는 색
+            .frame(width: 249, height: 249)   // Figma(2809:138533 / 3388:199439): 249×249, 중앙 정렬
+            .overlay {
+                Text("이미지 교체 예정")
+                    .mhTypography(.body2NormalMedium)
+                    .foregroundStyle(.mhLabelAlternative)
+            }
+            .accessibilityIdentifier(identifier)
     }
 
     // MARK: - 마스코트 캐릭터

@@ -214,10 +214,14 @@ struct HomeReducerTests {
         store.finish()
     }
 
-    @Test("L1 — swipeForward 는 마지막 카드에서 clamp 된다")
-    func swipeForward_clamps() async {
+    @Test("L1 — swipeForward 는 마지막 카드에서 한 번 더 넘어가 덱 밖(소진)으로 나가고, 그 뒤로 clamp 된다")
+    func swipeForward_exitsDeckThenClamps() async {
         let store = makeStore(state: HomeState(pins: fixturePins, currentCardIndex: 2))
-        await store.send(.swipeForward)
+        await store.send(.swipeForward) {
+            $0.currentCardIndex = 3   // = pins.count → 소진 상태(002-3)
+        }
+        #expect(store.currentState.hasViewedAllPlaces)
+        await store.send(.swipeForward)   // 덱 밖에서는 더 이상 전진하지 않음
         store.finish()
     }
 
@@ -309,12 +313,31 @@ struct HomeReducerTests {
         store.finish()
     }
 
-    @Test("L1 — 마지막 방 마지막 카드에서 swipeForward 는 clamp 된다(고정)")
-    func swipeForward_clampsAtVeryLastCard() async {
+    @Test("L1 — 마지막 방 마지막 카드에서 swipeForward 는 전 방 소진 상태로 나간다")
+    func swipeForward_entersAllViewedAtVeryLastCard() async {
         // index 4 = 방2(마지막 방) 마지막 카드
         let store = makeStore(state: HomeState(rooms: fixtureRooms, pins: multiRoomPins(), currentCardIndex: 4))
-        await store.send(.swipeForward)   // 변화 없음
+        await store.send(.swipeForward) {
+            $0.currentCardIndex = 5   // = pins.count
+        }
+        #expect(store.currentState.hasViewedAllPlaces)
+        // 뱃지는 첫 방으로 튀지 않고 마지막으로 본 방(방2)을 유지한다
+        #expect(store.currentState.currentRoom?.id == "2")
         store.finish()
+    }
+
+    // MARK: - 전 방 소진 (002-3 「모든 카드를 다 봤을 때」)
+
+    @Test("hasViewedAllPlaces 는 덱을 다 넘겼을 때만 true (카드 0장이면 빈 상태이지 소진이 아니다)")
+    func hasViewedAllPlaces_onlyWhenDeckExhausted() {
+        var state = HomeState(rooms: fixtureRooms, pins: multiRoomPins(), currentCardIndex: 4)
+        #expect(!state.hasViewedAllPlaces)      // 마지막 카드를 보는 중
+        state.currentCardIndex = 5
+        #expect(state.hasViewedAllPlaces)       // 덱 밖으로 나감
+        #expect(!state.showsEmptyState)         // 빈 상태(카드 0장)와는 다른 화면
+
+        let noPins = HomeState(rooms: fixtureRooms, pins: [], currentCardIndex: 0)
+        #expect(!noPins.hasViewedAllPlaces)     // 애초에 볼 장소가 없으면 소진이 아니라 빈 상태
     }
 
     @Test("L2 — tapMorePlaces 는 현재 방(방2) 구간만 교체하고 방1 은 그대로 두며 그 방 첫 카드로 리셋한다")

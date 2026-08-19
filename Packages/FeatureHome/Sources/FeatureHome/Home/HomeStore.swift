@@ -62,16 +62,24 @@ public struct HomeState: Equatable {
 
     /// 현재 방(뱃지·방 리스트 선택 표시의 기준). 카드가 있으면 맨 앞 카드가 속한 방(넘기면 그 방으로 바뀜),
     /// 카드가 없으면(빈 방들) 방 리스트에서 고른 방(selectedRoomID) — 없으면 첫 방(내 장소).
+    /// 덱을 끝까지 넘겨 인덱스가 덱 밖으로 나간 뒤([[hasViewedAllPlaces]])에도 뱃지는 마지막으로 본 방을
+    /// 유지해야 하므로 인덱스를 덱 안으로 클램프해서 찾는다(안 하면 소진 순간 뱃지가 첫 방으로 튄다).
     public var currentRoom: Room? {
-        if pins.indices.contains(currentCardIndex) {
-            let roomID = pins[currentCardIndex].roomID
+        if !pins.isEmpty {
+            let roomID = pins[min(currentCardIndex, pins.count - 1)].roomID
             return rooms.first { $0.id == roomID } ?? rooms.first
         }
         return rooms.first { $0.id == selectedRoomID } ?? rooms.first
     }
 
+    /// 모든 방의 장소를 끝까지 넘겼는지 (Figma 002-3 「모든 카드를 다 봤을 때」).
+    /// 마지막 카드에서 한 번 더 넘기면 인덱스가 덱 밖(pins.count)으로 나가 이 상태가 된다 —
+    /// 본문이 소진 일러스트로 바뀌고 플로팅 CTA 가 "장소 더 보기"(전 방 다음 페이지)로 바뀐다.
+    public var hasViewedAllPlaces: Bool { !pins.isEmpty && currentCardIndex >= pins.count }
+
     /// 현재 맨 앞 카드가 속한 방에서 (현재 카드 포함) 아직 넘기지 않은 카드 수.
     /// "이 방 장소 더 보기" 버튼 노출 판단에 쓴다 — 덱 전체가 아니라 현재 방 구간 기준이라, 방마다 끝자락에서 뜬다.
+    /// 덱을 다 넘긴 뒤([[hasViewedAllPlaces]])엔 0 이다 — 그 상태의 CTA 는 이 값이 아니라 소진 여부로 정한다.
     public var remainingInCurrentRoom: Int {
         guard pins.indices.contains(currentCardIndex) else { return 0 }
         let roomID = pins[currentCardIndex].roomID
@@ -203,7 +211,8 @@ public func homeReducer(
             return .none
 
         case .swipeForward:
-            if state.currentCardIndex < state.pins.count - 1 {
+            // 마지막 카드에서 한 번 더 넘기면 인덱스가 덱 밖(pins.count)으로 나가 소진 화면이 된다(002-3).
+            if state.currentCardIndex < state.pins.count {
                 state.currentCardIndex += 1
             }
             return .none

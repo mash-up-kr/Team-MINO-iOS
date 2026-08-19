@@ -48,10 +48,11 @@ enum CardDeckLayout {
             let committed = predicted < -backwardFlingThreshold || returnProgress > backwardProgressThreshold
             return committed ? .backward : .snapBack
         }
-        if predicted > forwardFlingThreshold, currentIndex < pinCount - 1 {
+        if predicted > forwardFlingThreshold, currentIndex < pinCount {
             return .forward
         }
-        // 마지막 카드이거나 충분히 밀지 않음 → 제자리. 마지막 카드는 넘길 수 없어 화면에 고정된다.
+        // 충분히 밀지 않음 → 제자리. 마지막 카드도 한 번 더 넘길 수 있고(덱 밖으로 나가 소진 화면, 002-3),
+        // 이미 덱 밖이면(currentIndex == pinCount) 넘길 카드가 없어 여기로 온다.
         return .snapBack
     }
 

@@ -166,7 +166,7 @@ struct CardDeckView: View {
                 case .backward:
                     completeBackward()
                 case .snapBack:
-                    // 마지막 카드이거나 충분히 밀지 않음 → 제자리로. 마지막 카드는 넘길 수 없어 화면에 고정된다.
+                    // 충분히 밀지 않음 → 제자리로. (마지막 카드도 넘길 수 있다 — 넘기면 덱이 비고 소진 화면)
                     withAnimation(.spring(duration: Anim.springDuration)) {
                         dragOffset = 0
                         returnProgress = 0
