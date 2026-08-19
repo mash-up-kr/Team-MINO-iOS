@@ -13,7 +13,9 @@ struct HomeContentView: View {
             mainContent
             roomListDim          // 방 리스트 열릴 때 — 마스코트 아래(홈 콘텐츠만 덮는다)
             if store.state.showsRoomIdentity {
-                mascotCharacter  // 딤 위 — 밝게 유지. 개인방만 있고 비었을 때만 숨김 (Figma 002-6-1)
+                // 시안에서 바와 캐릭터는 한 그룹(Group 283)이라 함께 넣고, 캐릭터를 바 위에 얹는다.
+                mascotBar        // 딤 위 — 밝게 유지. 개인방만 있고 비었을 때만 숨김 (Figma 002-6-1)
+                mascotCharacter
             }
             roomChangeTooltip
         }
@@ -226,6 +228,17 @@ struct HomeContentView: View {
 
     // MARK: - 마스코트 캐릭터
 
+    /// 마스코트 오른쪽으로 살짝 보이는 세로 바 (Figma `Rectangle 6323`, node 3395-201429).
+    /// 8×148, 화면 우측 끝에 붙고 상단 50(= 시안 94 − 상태바 44). 화면 밖으로 나가는 우측 모서리는 각지고
+    /// 안쪽(좌측) 모서리만 라운드 3.961 ≈ 4.
+    private var mascotBar: some View {
+        UnevenRoundedRectangle(topLeadingRadius: 4, bottomLeadingRadius: 4, style: .continuous)
+            .fill(Color.mhCoolNeutral80)
+            .frame(width: 8, height: 148)
+            .padding(.top, 50)
+            .accessibilityHidden(true)   // 장식 — 읽어줄 내용이 없다
+    }
+
     private var mascotCharacter: some View {
         HomeMascotView()
             .contentShape(Rectangle())
@@ -242,8 +255,9 @@ struct HomeContentView: View {
            let room = store.state.rooms.first(where: { $0.id == roomID }) {
             MHTooltip(room.homeToastText, position: .left)   // 공동방 "…방이에요." / 개인방 "내 장소예요."
                 .fixedSize()
-                // Figma(node 2809-144332): 툴팁 top 을 뱃지 행 top 에 맞추고(header 의 top 패딩과 동일한 32),
-                // 화살표 끝을 마스코트 왼쪽 가장자리(x=280)에 둔다 → 우측 인셋 = 화면폭 375 − 280 = 95.
+                // Figma 002-5-1(node 2809-143382)의 Tooltip 인스턴스: x=22, y=76, 258×36 →
+                // top = 76 − 상태바 44 = 32(뱃지 행과 같은 줄), 우측 인셋 = 375 − (22+258) = 95.
+                // 방 이름이 길면 뱃지·마스코트와 겹치는데 시안도 그렇다(툴팁이 위에 그려지고 잠깐 떴다 사라진다).
                 .padding(.top, 32)
                 .padding(.trailing, 95)
                 .transition(.opacity)
@@ -255,15 +269,18 @@ struct HomeContentView: View {
 // MARK: - 마스코트
 
 /// 홈 우상단에서 살짝 걸쳐 보이는 방 마스코트.
+/// Figma `Group 283`(3395-200046): 126×164, 우측 화면 끝에 붙고 상단 70(= 상태바 44 + 26).
+/// 기울기가 에셋에 반영돼 있어 rotationEffect 로 돌리지 않는다(예전 에셋은 정면이라 코드에서 돌렸다).
+///
+/// 좌우 반전은 시안의 그룹 변환이다 — 익스포트되는 건 반전 전 원본이라 여기서 뒤집어야 시안과 같다.
+/// (시안에서 그룹은 x 249…375 인데 자식 좌표가 367·375 로 잡히는 게 그 반전의 흔적)
 struct HomeMascotView: View {
     var body: some View {
         Image(dsImage: "homeMascot")
             .resizable()
-            .scaledToFit()
-            .frame(width: 131)
-            .rotationEffect(.degrees(-27.52))
-            .padding(.top, 8)
-            .padding(.trailing, -55)
+            .frame(width: 126, height: 164)
+            .scaleEffect(x: -1)
+            .padding(.top, 26)
     }
 }
 
