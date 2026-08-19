@@ -6,10 +6,14 @@ public struct HomeState: Equatable {
     public var rooms: [Room]
     public var isLoading: Bool
     public var errorMessage: String?
-    /// 필터바 선택 인덱스 (UI 상태만, 실제 필터 로직은 후속 PR)
-    public var selectedFilter: Int
-    /// 카드 덱에 표시할 핀 목록 (최대 10개)
-    public var pins: [Pin]
+    /// 현재 조회 기준(필터 칩). 덱을 다 넘기면 다음 기준으로 자동 전환된다.
+    public var selectedFilter: PinFilter
+    /// 기준별로 받아 둔 덱(캐시). 칩을 오가도 재조회 없이 이어 본다 —
+    /// 소진 시 다음 칩, 첫 카드에서 뒤로 가면 이전 칩의 마지막 카드로 이어지는 정책 때문에
+    /// 앞뒤로 오가는 일이 잦아 매번 다시 받으면 화면이 비었다 채워진다.
+    public var decks: [PinFilter: [Pin]]
+    /// 다른 기준의 덱을 받아오는 중인지. 받는 동안에는 빈 상태·소진 화면을 띄우지 않는다(깜빡임 방지).
+    public var isDeckLoading: Bool
     /// 현재 맨 앞 카드 인덱스
     public var currentCardIndex: Int
     /// 방별 "더 보기" 페이지 커서(roomID → page). 더 보기마다 +1 해 UseCase 에 넘긴다(다음 페이지 조회).
@@ -29,8 +33,9 @@ public struct HomeState: Equatable {
         rooms: [Room] = [],
         isLoading: Bool = false,
         errorMessage: String? = nil,
-        selectedFilter: Int = 0,
+        selectedFilter: PinFilter = .recommended,
         pins: [Pin] = [],
+        isDeckLoading: Bool = false,
         currentCardIndex: Int = 0,
         roomPages: [String: Int] = [:],
         isRoomListPresented: Bool = false,
@@ -42,7 +47,8 @@ public struct HomeState: Equatable {
         self.isLoading = isLoading
         self.errorMessage = errorMessage
         self.selectedFilter = selectedFilter
-        self.pins = pins
+        self.decks = pins.isEmpty ? [:] : [selectedFilter: pins]
+        self.isDeckLoading = isDeckLoading
         self.currentCardIndex = currentCardIndex
         self.roomPages = roomPages
         self.isRoomListPresented = isRoomListPresented
@@ -51,12 +57,20 @@ public struct HomeState: Equatable {
         self.selectedRoomID = selectedRoomID
     }
 
+    /// 현재 기준의 카드 덱. 쓰기는 현재 기준의 덱만 갈아끼운다(다른 기준 캐시는 그대로).
+    public var pins: [Pin] {
+        get { decks[selectedFilter] ?? [] }
+        // 빈 덱은 키를 남기지 않는다 — "받았는데 0장"과 "아직 안 받음"을 같게 둬야 상태가 정규화되고,
+        // 다시 그 기준으로 갈 때 재조회한다(빈 캐시로 굳지 않게).
+        set { decks[selectedFilter] = newValue.isEmpty ? nil : newValue }
+    }
+
     /// 홈 빈 상태(일러스트 + "공동방 만들기" CTA)를 보여줄지. 정책: 로딩이 끝났고, 현재 정렬 기준으로
     /// 표시할 카드가 0장이면(방·공동방 유무 무관) 빈 상태다 — "방이 0개일 때"가 아니라 "볼 장소가 0일 때".
     /// (PRD [SCR-003] Flow F / [SYS-009] Flow C). CTA 는 공동방 유무와 무관하게 항상 노출한다
     /// (팀 정책 결정 — 공동방 있으면 유도를 끄는 Flow D 와는 다름).
     /// 정렬 필터 후속 PR: 이 판정은 `pins`(현재 전체) → 필터된 표시 집합 기준으로 바뀐다. [[showsRoomIdentity]] 는 계속 원본.
-    public var showsEmptyState: Bool { !isLoading && pins.isEmpty }
+    public var showsEmptyState: Bool { !isLoading && !isDeckLoading && pins.isEmpty }
 
     /// 홈 상단 방 정체성(방 칩·마스코트)을 노출할지. **표시할 장소가 있거나(정렬 무관) 공동방이 하나라도
     /// 있으면** 노출한다 → 오직 개인방만 있고 그마저 비었을 때만 로고(GGUK)·마스코트를 숨긴다.
@@ -79,7 +93,22 @@ public struct HomeState: Equatable {
     /// 모든 방의 장소를 끝까지 넘겼는지 (Figma 002-3 「모든 카드를 다 봤을 때」).
     /// 마지막 카드에서 한 번 더 넘기면 인덱스가 덱 밖(pins.count)으로 나가 이 상태가 된다 —
     /// 본문이 소진 일러스트로 바뀌고 플로팅 CTA 가 "장소 더 보기"(전 방 다음 페이지)로 바뀐다.
-    public var hasViewedAllPlaces: Bool { !pins.isEmpty && currentCardIndex >= pins.count }
+    public var hasViewedAllPlaces: Bool { isCurrentDeckExhausted && selectedFilter.next == nil }
+
+    /// 현재 기준의 덱을 끝까지 넘겼는지(다음 기준 유무와 무관). 다음 기준이 남아 있으면 소진 화면 대신
+    /// 그 기준으로 자동 전환한다 — 그래서 화면 판정([[hasViewedAllPlaces]])과 분리해 둔다.
+    var isCurrentDeckExhausted: Bool { !pins.isEmpty && currentCardIndex >= pins.count }
+
+    /// 첫 카드에서 뒤로 넘겨 이전 기준으로 돌아갈 수 있는지 — 첫 기준(`recommended`)에서만 false.
+    /// 앞으로 소진되면 다음 기준으로 넘어가는 것([[isCurrentDeckExhausted]])의 반대 방향이다.
+    public var canReturnToPreviousFilter: Bool { selectedFilter.previous != nil }
+
+    /// 뒤로 돌아갔을 때 맨 앞에 올 카드 — 이전 기준 덱의 마지막 카드. 그 기준을 아직 받아 두지 않았으면 nil
+    /// (전환은 그대로 일어나고, 덱을 받는 동안 복귀 애니메이션에 얹을 카드만 없다).
+    public var previousDeckLastPin: Pin? {
+        guard let previous = selectedFilter.previous else { return nil }
+        return decks[previous]?.last
+    }
 
     /// 현재 맨 앞 카드가 속한 방에서 (현재 카드 포함) 아직 넘기지 않은 카드 수.
     /// "이 방 장소 더 보기" 버튼 노출 판단에 쓴다 — 덱 전체가 아니라 현재 방 구간 기준이라, 방마다 끝자락에서 뜬다.
@@ -96,7 +125,9 @@ public enum HomeAction: Equatable {
     case load
     case loaded([Room])
     case loadFailed(DomainError)
-    case selectFilter(Int)
+    case selectFilter(PinFilter)
+    /// 필터가 바뀌어(직접 선택·소진 자동 전환·뒤로 돌아가기) 새로 받은 덱과, 그 덱의 어느 끝에서 시작할지.
+    case filterPinsLoaded(pins: [Pin], entry: DeckEntry)
     case tapCreateRoom
     /// 초기 로드 결과 — 핀 목록과, 이어 볼 방(마지막으로 본 방) id. 최초 실행이면 startRoomID 가 nil.
     case pinsLoaded(pins: [Pin], startRoomID: String?)
@@ -142,6 +173,41 @@ extension Room {
     static let personalHomeName = "내 장소"
 }
 
+/// 새 기준의 덱에 어느 끝으로 들어가는지 — 앞으로 넘어가면 첫 카드, 뒤로 돌아가면 마지막 카드.
+public enum DeckEntry: Equatable, Sendable {
+    case first
+    case last
+
+    func index(in pins: [Pin]) -> Int {
+        switch self {
+        case .first: 0
+        case .last: max(0, pins.count - 1)
+        }
+    }
+}
+
+/// 기준을 바꾼다. 이미 받아 둔 덱이 있으면 재조회 없이 즉시 전환하고(앞뒤로 오갈 때 화면이 비지 않는다),
+/// 없으면 받아와 filterPinsLoaded 로 되돌린다. 실패는 조용히 무시한다(기존 덱 유지) — tapMorePlaces 와 같은 정책.
+private func switchFilter(
+    to filter: PinFilter,
+    entering entry: DeckEntry,
+    state: inout HomeState,
+    fetchPins: FetchPinsUseCase
+) -> Effect<HomeAction, HomeNav> {
+    state.selectedFilter = filter
+    if let cached = state.decks[filter], !cached.isEmpty {
+        state.currentCardIndex = entry.index(in: cached)
+        return .none
+    }
+    state.isDeckLoading = true   // 받는 동안 빈 상태·소진 화면이 끼어들지 않게 한다
+    let rooms = state.rooms
+    return .run { send in
+        if let pins = try? await fetchPins.execute(rooms: rooms, filter: filter) {
+            send(.filterPinsLoaded(pins: pins, entry: entry))
+        }
+    }
+}
+
 /// 현재 방이 바뀌었을 때만 "마지막으로 본 방"을 기록한다(정책 3 — 재실행 시 이어 보기).
 /// 결과 action 이 없는 단발 부수효과라 Effect.run 의 send 를 쓰지 않는다.
 private func persistIfRoomChanged(
@@ -183,12 +249,13 @@ public func homeReducer(
             // 뱃지·카드덱·방리스트가 모두 이 order 를 따른다(방리스트에서 개인방이 "방 만들기" 우측 고정).
             let ordered = rooms.filter { $0.type == .personal } + rooms.filter { $0.type == .shared }
             state.rooms = ordered
+            let filter = state.selectedFilter   // 조회 기준도 함께 넘긴다(필터링은 서버 몫)
             // isLoading 은 여기서 끄지 않는다 — 핀까지 로드돼야 표시할 카드 유무가 정해지므로,
             // pinsLoaded 에서 끈다. (여기서 끄면 핀 도착 전 빈 상태+CTA 가 한 프레임 깜빡인다)
             return .run { send in
                 do {
                     // 정책: 재실행 시 마지막으로 보던 방부터 이어 본다 — 핀과 함께 병렬로 받아 한 액션으로 되돌린다.
-                    async let pins = fetchPins.execute(rooms: ordered)
+                    async let pins = fetchPins.execute(rooms: ordered, filter: filter)
                     async let startRoomID = lastViewedRoom.load()
                     send(.pinsLoaded(pins: try await pins, startRoomID: await startRoomID))
                 } catch let error as DomainError {
@@ -206,11 +273,16 @@ public func homeReducer(
             state.errorMessage = "\(error)"
             return .none
 
-        case .selectFilter(let index):
-            // TODO: 필터 로직 미정 — 클라 정렬(pins 재정렬) vs 서버 재조회 중 결정 후 구현.
-            //   지금은 선택 인덱스(UI 상태)만 들고, showsEmptyState/정렬 판정은 여기에 안 엮여 있다.
-            state.selectedFilter = index
-            return .none
+        case .selectFilter(let filter):
+            guard filter != state.selectedFilter else { return .none }
+            return switchFilter(to: filter, entering: .first, state: &state, fetchPins: fetchPins)
+
+        case .filterPinsLoaded(let pins, let entry):
+            let roomBeforeFilter = state.currentRoom?.id
+            state.isDeckLoading = false
+            state.pins = pins
+            state.currentCardIndex = entry.index(in: pins)
+            return persistIfRoomChanged(from: roomBeforeFilter, to: state, using: lastViewedRoom)
 
         case .tapCreateRoom:
             state.isRoomListPresented = false
@@ -246,10 +318,15 @@ public func homeReducer(
             return .none
 
         case .swipeForward:
-            // 마지막 카드에서 한 번 더 넘기면 인덱스가 덱 밖(pins.count)으로 나가 소진 화면이 된다(002-3).
+            // 마지막 카드에서 한 번 더 넘기면 인덱스가 덱 밖(pins.count)으로 나간다.
             let roomBeforeForward = state.currentRoom?.id
             if state.currentCardIndex < state.pins.count {
                 state.currentCardIndex += 1
+            }
+            // 정책: 한 기준의 카드를 다 넘기면 다음 기준으로 자동 전환하고, 마지막 기준까지 소진하면
+            // 그때 소진 화면(002-3)을 띄운다. 데이터 유무와 무관하게 기준만 넘긴다(필터링은 서버 몫).
+            if state.isCurrentDeckExhausted, let next = state.selectedFilter.next {
+                return switchFilter(to: next, entering: .first, state: &state, fetchPins: fetchPins)
             }
             return persistIfRoomChanged(from: roomBeforeForward, to: state, using: lastViewedRoom)
 
@@ -257,8 +334,12 @@ public func homeReducer(
             let roomBeforeBackward = state.currentRoom?.id
             if state.currentCardIndex > 0 {
                 state.currentCardIndex -= 1
+                return persistIfRoomChanged(from: roomBeforeBackward, to: state, using: lastViewedRoom)
             }
-            return persistIfRoomChanged(from: roomBeforeBackward, to: state, using: lastViewedRoom)
+            // 정책: 첫 카드에서 뒤로 넘기면 이전 기준의 **마지막 카드**(마지막 방의 마지막 장소)로 돌아간다.
+            // 앞으로 자동 전환된 경로를 그대로 되짚는 이동이라, 첫 기준에서는 더 갈 곳이 없다.
+            guard let previous = state.selectedFilter.previous else { return .none }
+            return switchFilter(to: previous, entering: .last, state: &state, fetchPins: fetchPins)
 
         case .tapCard:
             // TODO: 카드 탭 동작 미정(장소 상세 진입 등) — 팀 논의 후 Nav 를 추가한다.
@@ -275,9 +356,10 @@ public func homeReducer(
             guard let room = state.currentRoom else { return .none }
             let page = (state.roomPages[room.id] ?? 0) + 1
             state.roomPages[room.id] = page
+            let filter = state.selectedFilter
             return .run { send in
                 do {
-                    let pins = try await fetchPins.execute(room: room, page: page)
+                    let pins = try await fetchPins.execute(room: room, page: page, filter: filter)
                     send(.morePlacesLoaded(roomID: room.id, pins: pins))
                 } catch {
                     // 더 보기 실패는 조용히 무시(기존 카드 유지). 에러 UI 정책 확정 시 처리 추가.

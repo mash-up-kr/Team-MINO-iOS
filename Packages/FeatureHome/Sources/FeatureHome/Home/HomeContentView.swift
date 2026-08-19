@@ -96,7 +96,9 @@ struct HomeContentView: View {
     /// 정책: 로딩이 끝나고 현재 정렬 기준으로 표시할 카드가 0장이면(방·공동방 유무 무관) 빈 상태를 띄운다.
     @ViewBuilder
     private var contentBody: some View {
-        if store.state.isLoading {
+        // 기준을 바꿔 덱을 받는 중이면(캐시 없을 때만) 로딩으로 둔다 — 그 사이 빈 상태·소진 화면이
+        // 한 프레임 끼어들면 화면이 깜빡인다. 받아 둔 기준으로 되돌아갈 땐 즉시 전환이라 여기 안 걸린다.
+        if store.state.isLoading || (store.state.isDeckLoading && store.state.pins.isEmpty) {
             Spacer()
             ProgressView()
                 .frame(maxWidth: .infinity)
@@ -110,6 +112,8 @@ struct HomeContentView: View {
             CardDeckView(
                 pins: store.state.pins,
                 currentIndex: store.state.currentCardIndex,
+                canReturnToPreviousDeck: store.state.canReturnToPreviousFilter,
+                previousDeckLastCard: store.state.previousDeckLastPin,
                 onSwipeForward: { store.send(.swipeForward) },
                 onSwipeBackward: { store.send(.swipeBackward) },
                 onTapCard: { store.send(.tapCard($0)) }
@@ -148,12 +152,13 @@ struct HomeContentView: View {
 
     // MARK: - 필터바
 
+    /// 칩 순서는 `PinFilter.allCases` 순서와 1:1 이다 — 표기(한글 라벨)만 Feature 가 매핑한다.
     private var filterBar: some View {
         MHCategory(
-            ["꾹 Pick", "최신순", "가까운순"],
+            PinFilter.allCases.map(\.chipTitle),
             selection: Binding(
-                get: { store.state.selectedFilter },
-                set: { store.send(.selectFilter($0)) }
+                get: { PinFilter.allCases.firstIndex(of: store.state.selectedFilter) ?? 0 },
+                set: { store.send(.selectFilter(PinFilter.allCases[$0])) }
             )
         )
         .accessibilityIdentifier("Home.filterBar")
@@ -226,7 +231,7 @@ struct HomeContentView: View {
             .accessibilityIdentifier(identifier)
     }
 
-    // MARK: - 마스코트 캐릭터
+// MARK: - 마스코트 캐릭터
 
     /// 마스코트 오른쪽으로 살짝 보이는 세로 바 (Figma `Rectangle 6323`, node 3395-201429).
     /// 8×148, 화면 우측 끝에 붙고 상단 50(= 시안 94 − 상태바 44). 화면 밖으로 나가는 우측 모서리는 각지고
@@ -262,6 +267,19 @@ struct HomeContentView: View {
                 .padding(.trailing, 95)
                 .transition(.opacity)
                 .accessibilityIdentifier("Home.roomChangeToast")
+        }
+    }
+}
+
+// MARK: - 필터 표기
+
+/// 필터 칩 라벨 (Figma 002-1-1 Category). 도메인 값 → 화면 표기 매핑은 Feature 책임.
+private extension PinFilter {
+    var chipTitle: String {
+        switch self {
+        case .recommended: "꾹 Pick"
+        case .latest: "최신순"
+        case .nearby: "가까운순"
         }
     }
 }
@@ -339,6 +357,6 @@ private struct PreviewHomeGuide: HomeGuideUseCase {
 
 /// 프리뷰 전용 핀 UseCase. 빈 배열을 반환한다(카드 덱 없이 셸만 확인).
 private struct PreviewFetchPins: FetchPinsUseCase {
-    func execute(rooms: [Room]) async throws -> [Pin] { [] }
-    func execute(room: Room, page: Int) async throws -> [Pin] { [] }
+    func execute(rooms: [Room], filter: PinFilter) async throws -> [Pin] { [] }
+    func execute(room: Room, page: Int, filter: PinFilter) async throws -> [Pin] { [] }
 }

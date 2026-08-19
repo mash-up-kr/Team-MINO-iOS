@@ -6,6 +6,11 @@ import SwiftUI
 struct CardDeckView: View {
     let pins: [Pin]
     let currentIndex: Int
+    /// 첫 카드에서 뒤로 넘겼을 때 이전 덱(기준)으로 돌아갈 수 있는지. false 면 첫 카드가 덱의 끝이다.
+    let canReturnToPreviousDeck: Bool
+    /// 그때 돌아올 카드 — 이전 덱의 마지막 카드. 아직 그 덱을 받아 두지 않았으면 nil 이고,
+    /// 전환은 그대로 일어나되 복귀 애니메이션에 얹을 카드만 없다.
+    let previousDeckLastCard: Pin?
     let onSwipeForward: () -> Void
     let onSwipeBackward: () -> Void
     let onTapCard: (PinID) -> Void
@@ -94,9 +99,9 @@ struct CardDeckView: View {
         return Array(pins[CardDeckLayout.visibleRange(currentIndex: currentIndex, pinCount: pins.count)].reversed())
     }
 
+    /// 좌스와이프 때 우상단에서 돌아오는 카드. 덱 안이면 바로 앞 카드, 첫 카드면 이전 덱의 마지막 카드다.
     private var previousPin: Pin? {
-        guard currentIndex > 0 else { return nil }
-        return pins[currentIndex - 1]
+        currentIndex > 0 ? pins[currentIndex - 1] : previousDeckLastCard
     }
 
     // MARK: - 개별 카드
@@ -147,7 +152,10 @@ struct CardDeckView: View {
                     // 우측 드래그 — 현재 카드 따라감
                     dragOffset = dx
                     returnProgress = 0
-                } else if currentIndex > 0 {
+                } else if CardDeckLayout.allowsBackwardDrag(
+                    currentIndex: currentIndex,
+                    canReturnToPreviousDeck: canReturnToPreviousDeck
+                ) {
                     // 좌측 드래그 — 현재 카드 고정, 이전 카드 등장
                     dragOffset = 0
                     returnProgress = min(1, abs(dx) / Anim.backwardDragRange)

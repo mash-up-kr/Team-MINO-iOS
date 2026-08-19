@@ -32,6 +32,12 @@ enum CardDeckLayout {
         case snapBack   // 제자리(넘길 카드 없거나 약하게 밀었을 때)
     }
 
+    /// 좌드래그(뒤로)를 받을지. 덱 안이면 이전 카드로, 첫 카드여도 돌아갈 이전 덱이 있으면 그쪽으로 간다 —
+    /// 첫 카드에서 무조건 막으면 "이전 기준의 마지막 카드로 복귀"가 제스처 단계에서 잘려 도달할 수 없다.
+    static func allowsBackwardDrag(currentIndex: Int, canReturnToPreviousDeck: Bool) -> Bool {
+        currentIndex > 0 || canReturnToPreviousDeck
+    }
+
     /// onEnded 분기의 순수 결정. 애니메이션 실행은 뷰가, "무엇을 할지"는 여기가 정한다.
     /// - Parameters:
     ///   - predicted: `predictedEndTranslation.width`(관성 포함 예측 이동량). 우측 +, 좌측 −.

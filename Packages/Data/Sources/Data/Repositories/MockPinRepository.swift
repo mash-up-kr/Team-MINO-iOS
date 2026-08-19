@@ -9,11 +9,13 @@ import Domain
 public final class MockPinRepository: PinRepository {
     public init() {}
 
-    public func pins(rooms: [Room]) async throws -> [Pin] {
+    // 필터는 서버가 걸러 내려줄 몫이라 목은 무시한다(어떤 기준이든 같은 풀을 돌린다).
+    // 실제 PinRepositoryImpl 로 교체될 때 쿼리 파라미터로 전달된다.
+    public func pins(rooms: [Room], filter: PinFilter) async throws -> [Pin] {
         rooms.flatMap { Self.makePins(for: $0, page: 0) }
     }
 
-    public func pins(room: Room, page: Int) async throws -> [Pin] {
+    public func pins(room: Room, page: Int, filter: PinFilter) async throws -> [Pin] {
         Self.makePins(for: room, page: page)
     }
 

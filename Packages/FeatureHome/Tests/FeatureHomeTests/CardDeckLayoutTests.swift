@@ -45,6 +45,23 @@ struct CardDeckLayoutTests {
         #expect(Layout.swipeOutcome(predicted: -150, returnProgress: 0.1, currentIndex: 2, pinCount: 5) == .backward)
     }
 
+    // MARK: - allowsBackwardDrag (좌드래그 수용 여부)
+
+    @Test("덱 안에서는 좌드래그를 받는다")
+    func allowsBackwardDrag_insideDeck() {
+        #expect(Layout.allowsBackwardDrag(currentIndex: 2, canReturnToPreviousDeck: false))
+    }
+
+    @Test("첫 카드여도 돌아갈 이전 덱이 있으면 좌드래그를 받는다 (이전 기준의 마지막 카드로)")
+    func allowsBackwardDrag_atFirstCardWithPreviousDeck() {
+        #expect(Layout.allowsBackwardDrag(currentIndex: 0, canReturnToPreviousDeck: true))
+    }
+
+    @Test("첫 기준의 첫 카드에서는 좌드래그를 받지 않는다 (더 돌아갈 곳 없음)")
+    func allowsBackwardDrag_atFirstCardWithoutPreviousDeck() {
+        #expect(Layout.allowsBackwardDrag(currentIndex: 0, canReturnToPreviousDeck: false) == false)
+    }
+
     // MARK: - visibleRange (렌더 슬라이스)
 
     @Test("visibleRange 는 현재 인덱스부터 최대 visibleCount+1 장을 감싼다")
