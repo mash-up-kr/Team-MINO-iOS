@@ -205,7 +205,11 @@ struct HomeContentView: View {
     /// 자리(탭바 위 플로팅)라 HomeTabView 가 그린다. 헤더·필터는 mainContent 가 공통으로 그린다.
     private var allViewedBody: some View {
         VStack(spacing: 20) {   // Figma: 일러스트 하단(572) → 카피 상단(592) = base lg 20
-            illustrationPlaceholder(identifier: "Home.allViewed.illustration")
+            Image(dsImage: "homeAllViewedIllustration")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 249, height: 249)
+                .accessibilityIdentifier("Home.allViewed.illustration")
 
             Text("꾹 눌러둔 장소를 모두 둘러봤어요")
                 .mhTypography(.label1NormalRegular)
@@ -217,12 +221,12 @@ struct HomeContentView: View {
         .accessibilityIdentifier("Home.allViewed")
     }
 
-    /// 일러스트 자리(249×249)를 잡는 placeholder — 빈 상태·소진 화면이 같은 크기로 쓴다.
-    /// 실제 일러스트 에셋이 나오면 이 헬퍼만 Image 로 교체한다.
+    /// 빈 상태 일러스트 자리(249×249)를 잡는 placeholder. 소진 화면은 실 에셋으로 교체됐고,
+    /// 빈 상태는 시안이 아직 정리되지 않아 자리만 잡아 둔다 — 에셋이 나오면 이 헬퍼를 Image 로 교체한다.
     private func illustrationPlaceholder(identifier: String) -> some View {
         RoundedRectangle(cornerRadius: 16)
             .fill(Color.mhFillNormal)   // 화면 배경(alternative)과 구분되는 색
-            .frame(width: 249, height: 249)   // Figma(2809:138533 / 3388:199439): 249×249, 중앙 정렬
+            .frame(width: 249, height: 249)   // 소진 화면 일러스트와 같은 크기
             .overlay {
                 Text("이미지 교체 예정")
                     .mhTypography(.body2NormalMedium)
