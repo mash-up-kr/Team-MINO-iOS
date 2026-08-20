@@ -7,10 +7,18 @@ public struct RoomListState: Equatable {
     public var rooms: [Room]
     /// 선택된 필터 칩 인덱스(전체/최근 저장 순/코멘트 순). 정렬 로직은 미구현(UI 상태만).
     public var filter: Int
+    /// 공동방 생성 유도 시트(001-2-1)가 떠 있는가.
+    public var isCreatePromptPresented: Bool
 
-    public init(rooms: [Room] = [], filter: Int = 0) {
+    public init(rooms: [Room] = [], filter: Int = 0, isCreatePromptPresented: Bool = false) {
         self.rooms = rooms
         self.filter = filter
+        self.isCreatePromptPresented = isCreatePromptPresented
+    }
+
+    /// 공동방을 하나라도 가졌는가. 빈 상태 노출과 유도 시트가 같은 기준을 봐야 해서 여기서 한 번만 정의한다.
+    public var hasSharedRoom: Bool {
+        rooms.contains { $0.type == .shared }
     }
 }
 
@@ -19,10 +27,15 @@ public enum RoomListAction: Equatable {
     case loaded([Room])            // Response Action (성공)
     case loadFailed(DomainError)   // Response Action (실패)
     case selectFilter(Int)
+    /// 유도 시트·빈 상태 CTA·헤더 "+" 가 공유하는 진입 액션.
+    case tapCreateRoom
+    case dismissCreatePrompt
 }
 
-/// 이번 PR 은 화면 전환이 없다(카드 탭·"+" 인터랙션 비활성) → 빈 Nav.
-public enum RoomListNav: Equatable, Sendable {}
+public enum RoomListNav: Equatable, Sendable {
+    /// 공동방 만들기 화면으로. (카드 탭 등 나머지 전환은 아직 없다)
+    case goToCreateRoom
+}
 
 public typealias RoomListStore = Store<RoomListState, RoomListAction, RoomListNav>
 
@@ -45,12 +58,21 @@ public func roomListReducer(
             }
         case .loaded(let rooms):
             state.rooms = rooms
+            // 기획: 활성 조건 = 공동방 미생성, 비활성 조건 = 공동방 1개 생성(001-2-1).
+            // 저장 탭에 들어올 때마다 .load 가 다시 돌아 매번 판정된다 — 거절을 기억하지 않는다.
+            state.isCreatePromptPresented = !state.hasSharedRoom
             return .none
         case .loadFailed:
             // 실패도 Response Action 으로 받아 흘리지 않는다. 다만 에러 UI 는 범위 밖이라 표시는 하지 않는다.
             return .none
         case .selectFilter(let index):
             state.filter = index   // TODO: 필터별 정렬 로직(최근 저장 순/코멘트 순) 후속 PR
+            return .none
+        case .tapCreateRoom:
+            state.isCreatePromptPresented = false
+            return .navigate(.goToCreateRoom)
+        case .dismissCreatePrompt:
+            state.isCreatePromptPresented = false
             return .none
         }
     }

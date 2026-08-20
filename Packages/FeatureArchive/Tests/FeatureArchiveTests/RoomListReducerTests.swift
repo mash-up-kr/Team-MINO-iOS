@@ -36,11 +36,62 @@ struct RoomListReducerTests {
         TestStore(state, reduce: roomListReducer(useCase: useCase))
     }
 
-    @Test("L2 — load 하면 rooms 를 반영한다")
+    @Test("L2 — load 하면 rooms 를 반영한다. 공동방이 있으면 유도 시트는 뜨지 않는다")
     func load_success() async {
         let store = makeStore()
         await store.send(.load)
         await store.receive(.loaded(fixtureRooms)) { $0.rooms = fixtureRooms }
+        #expect(!store.currentState.isCreatePromptPresented)
+        store.finish()
+    }
+
+    // 기획 001-2-1 — 활성 조건은 "공동방 미생성". 개인방만 있는 건 없는 것으로 친다.
+    @Test("L2 — 공동방이 하나도 없으면 load 후 생성 유도 시트가 뜬다")
+    func load_withoutSharedRoom_showsCreatePrompt() async {
+        let personalOnly = [fixtureRooms[0]]
+        let store = makeStore(StubFetchRooms(result: .success(personalOnly)))
+
+        await store.send(.load)
+        await store.receive(.loaded(personalOnly)) {
+            $0.rooms = personalOnly
+            $0.isCreatePromptPresented = true
+        }
+
+        store.finish()
+    }
+
+    @Test("L2 — tapCreateRoom 은 유도 시트를 닫고 만들기 화면으로 보낸다")
+    func tapCreateRoom_dismissesPromptAndNavigates() async {
+        let store = makeStore(state: RoomListState(isCreatePromptPresented: true))
+
+        await store.send(.tapCreateRoom) { $0.isCreatePromptPresented = false }
+        store.receiveNavigation(.goToCreateRoom)
+
+        store.finish()
+    }
+
+    @Test("L1 — dismissCreatePrompt(나중에 만들래요) 는 시트만 닫는다")
+    func dismissCreatePrompt_closesOnly() async {
+        let store = makeStore(state: RoomListState(isCreatePromptPresented: true))
+
+        await store.send(.dismissCreatePrompt) { $0.isCreatePromptPresented = false }
+
+        // finish 가 미수신 navigation 잔여를 검사한다 — 닫기만 했는데 전환이 나갔다면 실패한다
+        store.finish()
+    }
+
+    // 거절을 기억하지 않는다 — 저장 탭에 다시 들어오면(.load 재실행) 또 뜬다(기획서 그대로).
+    @Test("L2 — 시트를 닫아도 재조회하면 다시 뜬다")
+    func reload_afterDismiss_showsPromptAgain() async {
+        let personalOnly = [fixtureRooms[0]]
+        let store = makeStore(
+            StubFetchRooms(result: .success(personalOnly)),
+            state: RoomListState(rooms: personalOnly, isCreatePromptPresented: false)
+        )
+
+        await store.send(.load)
+        await store.receive(.loaded(personalOnly)) { $0.isCreatePromptPresented = true }
+
         store.finish()
     }
 

@@ -48,6 +48,7 @@ struct MainTabView: View {
     private var isFullBleedContentPresented: Bool {
         coordinator.profile.isRoomDetailPresented
             || coordinator.home.isFullBleedContentPresented
+            || coordinator.archive.isFullBleedContentPresented
     }
 
     var body: some View {

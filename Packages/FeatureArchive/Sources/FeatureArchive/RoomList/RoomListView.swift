@@ -1,6 +1,7 @@
 import DesignSystem
 import Domain
 import MVI
+import RoomCreationUI
 import SwiftUI
 
 /// 방 리스트 바텀 시트 화면. Figma Frame 198(node 2236:45798) — 저장 탭 진입 화면.
@@ -58,15 +59,33 @@ private struct RoomListLoadedView: View {
             MHBottomSheet(detent: $detent, lowPeek: 112, mediumPeek: mediumPeek) {
                 RoomListContentView(
                     rooms: store.state.rooms.map(RoomListItem.init(from:)),
-                    showEmptyState: !store.state.rooms.contains { $0.type == .shared },
+                    showEmptyState: !store.state.hasSharedRoom,
                     isFull: detent == .full,
                     filterSelection: filterBinding,
-                    onClose: { withAnimation(.spring(duration: 0.3)) { detent = .medium } }
+                    onClose: { withAnimation(.spring(duration: 0.3)) { detent = .medium } },
+                    onCreateRoom: { store.send(.tapCreateRoom) }
                 )
             }
             .accessibilityIdentifier("RoomList.sheet")
         }
+        // 저장 탭에 들어올 때마다 다시 판정한다 — 공동방이 없으면 유도 시트가 다시 뜬다(기획 001-2-1).
         .task { store.send(.load) }
+        .sheet(isPresented: createPromptBinding) {
+            RoomCreationPromptView(
+                onCreate: { store.send(.tapCreateRoom) },
+                onLater: { store.send(.dismissCreatePrompt) }
+            )
+            .presentationDetents([.height(RoomCreationPromptView.detentHeight)])
+            .presentationDragIndicator(.hidden)   // 그래버는 시트가 직접 그린다
+        }
+    }
+
+    // 스와이프 dismiss 도 reducer 를 거치게 한다 — state 와 실제 표시가 갈라지면 시트가 다시 안 뜬다.
+    private var createPromptBinding: Binding<Bool> {
+        Binding(
+            get: { store.state.isCreatePromptPresented },
+            set: { if !$0 { store.send(.dismissCreatePrompt) } }
+        )
     }
 
     private var filterBinding: Binding<Int> {
@@ -88,6 +107,8 @@ struct RoomListContentView: View {
     let isFull: Bool
     @Binding var filterSelection: Int
     var onClose: (() -> Void)?
+    /// 빈 상태 CTA 와 헤더 "+" 가 함께 쓰는 방 만들기 진입.
+    var onCreateRoom: () -> Void = {}
 
     private let filterItems = ["전체", "최근 저장 순", "코멘트 순"]
 
@@ -108,7 +129,7 @@ struct RoomListContentView: View {
                 .accessibilityIdentifier("RoomList.title")
             Spacer()
             HStack(spacing: 8) {
-                MHIconButton(icon: .plus, accessibilityLabel: "방 추가") {}
+                MHIconButton(icon: .plus, accessibilityLabel: "방 추가", action: onCreateRoom)
                     .accessibilityIdentifier("RoomList.addButton")
                 if isFull {
                     MHIconButton(icon: .close, accessibilityLabel: "시트 접기") {
@@ -181,10 +202,8 @@ struct RoomListContentView: View {
                         .multilineTextAlignment(.center)
                 }
 
-                MHButton("공동방 만들기", size: .medium, leadingIcon: .plus) {
-                    // TODO: 공동방 생성 플로우 연결
-                }
-                .accessibilityIdentifier("RoomList.createRoomButton")
+                MHButton("공동방 만들기", size: .medium, leadingIcon: .plus, action: onCreateRoom)
+                    .accessibilityIdentifier("RoomList.createRoomButton")
             }
 
             Spacer(minLength: 24)
