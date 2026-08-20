@@ -224,6 +224,25 @@ struct HomeReducerTests {
         store.finish()
     }
 
+    @Test("L2 — 필터 덱 조회가 실패하면 기준을 되돌리고 로딩을 꺼 기존 덱을 계속 보여준다")
+    func selectFilter_revertsOnFetchFailure() async {
+        let store = makeStore(
+            fetchPins: ThrowingFetchPins(),
+            state: HomeState(rooms: fixtureRooms, pins: fixturePins, currentCardIndex: 2)
+        )
+        await store.send(.selectFilter(.nearby)) {
+            $0.selectedFilter = .nearby
+            $0.isDeckLoading = true
+        }
+        await store.receive(.filterPinsLoadFailed(revertTo: .recommended, index: 2)) {
+            $0.isDeckLoading = false
+            $0.selectedFilter = .recommended   // 못 받았으니 원래 기준으로
+        }
+        #expect(store.currentState.pins == fixturePins)   // 기존 덱 유지
+        #expect(!store.currentState.showsEmptyState)      // 조회 실패가 "장소 없음"으로 새지 않는다
+        store.finish()
+    }
+
     @Test("L2 — 첫 카드에서 뒤로 넘기면 이전 기준의 마지막 카드로 돌아간다")
     func swipeBackward_returnsToPreviousFilterLastCard() async {
         let previousDeck = multiRoomPins()   // 방1 3장 + 방2 2장
@@ -347,6 +366,30 @@ struct HomeReducerTests {
             $0.currentCardIndex = 0
         }
         #expect(!store.currentState.hasViewedAllPlaces)
+        store.finish()
+    }
+
+    @Test("L2 — 소진 자동 전환이 실패하면 덱 밖 인덱스를 마지막 카드로 되돌린다")
+    func swipeForward_revertsOnFetchFailure() async {
+        let store = makeStore(
+            fetchPins: ThrowingFetchPins(),
+            state: HomeState(
+                rooms: fixtureRooms, selectedFilter: .recommended,
+                pins: fixturePins, currentCardIndex: fixturePins.count - 1
+            )
+        )
+        await store.send(.swipeForward) {
+            $0.currentCardIndex = fixturePins.count   // 덱 밖
+            $0.selectedFilter = .latest
+            $0.isDeckLoading = true
+        }
+        // 전환 직전 인덱스가 덱 밖이라, 되돌릴 때 마지막 카드로 클램프된다
+        await store.receive(.filterPinsLoadFailed(revertTo: .recommended, index: fixturePins.count)) {
+            $0.isDeckLoading = false
+            $0.selectedFilter = .recommended
+            $0.currentCardIndex = fixturePins.count - 1
+        }
+        #expect(!store.currentState.isCurrentDeckExhausted)   // 다시 넘기면 재시도된다
         store.finish()
     }
 
