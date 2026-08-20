@@ -193,11 +193,13 @@ struct RoomFormReducerTests {
         store.finish()
     }
 
-    @Test("L2 — 편집 모드 tapBack: 확인 다이얼로그 없이 didCancel 을 알린다")
-    func editMode_tapBack_notifiesWithoutDialog() async {
+    // 나가기는 편집에서도 묻는다(변경 유실 경고). 문구만 화면이 mode 로 갈아 끼운다.
+    @Test("L2 — 편집 모드 tapBack: 생성 모드와 똑같이 취소 확인 다이얼로그를 거친다")
+    func editMode_tapBack_showsCancelDialog() async {
         let store = TestStore(RoomFormState(mode: .edit, roomName: "야호"), reduce: roomFormReducer())
 
-        await store.send(.tapBack)
+        await store.send(.tapBack) { $0.dialog = .cancelConfirm }
+        await store.send(.confirmCancel) { $0.dialog = nil }
         store.receiveNavigation(.didCancel)
 
         store.finish()

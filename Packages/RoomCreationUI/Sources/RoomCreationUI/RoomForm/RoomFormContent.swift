@@ -38,6 +38,21 @@ private extension RoomFormMode {
         case .edit:   "방 편집 완료"
         }
     }
+
+    var cancelDialogTitle: String {
+        switch self {
+        case .create: "공동방 만들기를 취소하시겠어요?"
+        case .edit:   "공동방 편집을 취소하시겠어요?"
+        }
+    }
+
+    /// 편집 취소에는 시안 문구가 없어 비운다 — 없는 문구를 지어내지 않는다(``MHDialog`` 는 설명이 선택).
+    var cancelDialogMessage: String? {
+        switch self {
+        case .create: "저장탭에서 공동방을 생성할 수 있어요"
+        case .edit:   nil
+        }
+    }
 }
 
 // MARK: - RoomFormContent
@@ -107,10 +122,9 @@ struct RoomFormContent: View {
                 confirm: MHAction("저장하기", action: onConfirmSubmit)
             )
         case .cancelConfirm:
-            // 문구는 Figma 원문 그대로다("공동방을 만들기를"). 오타로 보이지만 임의로 고치지 않는다.
             MHDialog(
-                title: "공동방을 만들기를 취소하시겠어요?",
-                message: "저장탭에서 공동방을 생성할 수 있어요",
+                title: mode.cancelDialogTitle,
+                message: mode.cancelDialogMessage,
                 cancel: MHAction("취소", action: onDismissDialog),
                 confirm: MHAction("나가기", action: onConfirmCancel)
             )
@@ -226,6 +240,17 @@ struct RoomFormContent: View {
 
 #Preview("취소 확인 다이얼로그") {
     PreviewHost(roomName: "", roomDescription: "", selectedColorIndex: nil, dialog: .cancelConfirm)
+}
+
+#Preview("편집 취소 확인 다이얼로그") {
+    PreviewHost(
+        mode: .edit,
+        roomName: "야호",
+        roomDescription: "야호호",
+        selectedColorIndex: 0,
+        dialog: .cancelConfirm,
+        showsSkip: false
+    )
 }
 
 #Preview("건너뛰기 없음") {

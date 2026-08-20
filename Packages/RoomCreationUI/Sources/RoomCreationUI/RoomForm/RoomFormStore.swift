@@ -126,8 +126,9 @@ public func roomFormReducer() -> (inout RoomFormState, RoomFormAction) -> Effect
         case .selectColor(let index):
             state.selectedColorIndex = index
             return .none
-        // 생성 모드에서 CTA·뒤로가기는 곧장 전환하지 않고 확인 다이얼로그를 먼저 띄운다(디자인 ⑤⑦).
-        // 편집 모드는 그대로 전환한다 — 편집 화면(004-5-3)에는 확인 모달 시안이 없다.
+        // CTA·뒤로가기는 곧장 전환하지 않고 확인 다이얼로그를 먼저 띄운다(디자인 ⑤⑦).
+        // 단 편집 모드의 CTA(저장)는 그대로 전환한다 — 나가기는 변경 유실 경고가 필요하지만
+        // 저장은 이미 명시적인 의도라 한 번 더 묻지 않는다.
         case .tapSubmit:
             // 뷰의 .disabled 는 UI 레이어 방어라 뷰가 바뀌면 뚫린다 — 전환 조건은 여기서도 지킨다.
             // (.tapSkip 은 건너뛰기라 조건 없이 통과한다)
@@ -135,9 +136,8 @@ public func roomFormReducer() -> (inout RoomFormState, RoomFormAction) -> Effect
             guard state.mode == .create else { return .navigate(.didSubmit) }
             state.dialog = .saveConfirm
             return .none
-        // 생성 모드는 입력이 비어 있어도 묻는다 — 디자인 ⑦ 에 조건이 없다.
+        // 입력이 비어 있어도 묻는다 — 디자인 ⑦ 에 조건이 없다. 문구는 화면이 mode 로 고른다.
         case .tapBack:
-            guard state.mode == .create else { return .navigate(.didCancel) }
             state.dialog = .cancelConfirm
             return .none
         case .confirmSubmit:
