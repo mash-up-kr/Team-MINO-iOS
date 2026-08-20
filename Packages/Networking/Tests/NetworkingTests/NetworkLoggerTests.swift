@@ -133,6 +133,29 @@ struct NetworkLoggerTests {
         #expect(spy.entry("← 응답 실패", forPath: path) == nil)
     }
 
+    // 전송 오류를 `String(describing:)` 으로 찍으면 URLError userInfo 의
+    // `NSErrorFailingURLKey` 를 통해 **전체 URL 이 통째로 들어간다**. 초대 코드가 경로에
+    // 있으므로 LogRedaction 으로 가려놓고 옆에서 새는 꼴이 된다. 실제로 그랬던 적이 있다.
+    @Test("전송 오류 로그에 URL·초대 코드가 새지 않는다")
+    func transportErrorLogDoesNotLeakURL() async throws {
+        let spy = sharedSpy
+        let secretPath = "api/v1/invitations/\(uniqueToken())"
+        let (configuration, stub) = URLProtocolStub.makeSession()
+        stub.stub.error = URLError(.timedOut, userInfo: [
+            NSURLErrorFailingURLErrorKey: URL(string: "https://stub.invalid/\(secretPath)")!,
+        ])
+        let session = Session(configuration: configuration, eventMonitors: [NetworkLogger()])
+        let sut = URLSessionHTTPClient(baseURL: URL(string: "https://stub.invalid")!, session: session)
+
+        _ = await capture { _ = try await sut.request(Endpoint<[RoomDTO]>(path: secretPath)) }
+
+        let entry = try #require(spy.entries(forPath: secretPath).first { $0.message == "전송 실패" })
+        let dump = "\(entry.message) \(entry.metadata)"
+        #expect(!dump.contains("NSErrorFailingURL"))
+        #expect(entry.metadata["urlErrorCode"] == String(URLError.Code.timedOut.rawValue))
+        #expect(entry.metadata["reason"] == "sessionTaskFailed")
+    }
+
     @Test("어떤 로그에도 Authorization 이 남지 않는다")
     func neverLogsAuthorization() async throws {
         let (sut, stub, spy, path) = makeLoggingSUT()

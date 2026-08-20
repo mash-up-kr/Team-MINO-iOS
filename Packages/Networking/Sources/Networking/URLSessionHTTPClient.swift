@@ -60,6 +60,14 @@ public final class URLSessionHTTPClient: HTTPClient {
             .serializingData(emptyResponseCodes: Set(100..<600))
             .response
 
+        // **취소를 상태코드보다 먼저 본다.** 헤더가 도착한 뒤 화면을 나가면 `response.response`
+        // 가 이미 채워져 있어서, 순서가 반대면 취소가 `.server(500)` 으로 뒤집힌다 —
+        // 화면을 벗어났을 뿐인데 오류 UI 가 뜨고, 취소가 아니라서 reduce 의 CancellationError
+        // 필터로도 안 걸러진다.
+        if case .failure(let error) = response.result, error.isExplicitlyCancelledError {
+            throw NetworkError.cancelled
+        }
+
         // 상태코드가 1차 진실이다. 검증 실패든 아니든 응답이 왔으면 상태코드로 판단한다.
         if let http = response.response, !(200..<300).contains(http.statusCode) {
             throw Self.mapFailure(
@@ -72,6 +80,16 @@ public final class URLSessionHTTPClient: HTTPClient {
 
         switch response.result {
         case .failure(let error):
+            // 경로 없이 "전송 실패" 만 남기면 어느 요청이 죽었는지 알 수 없다.
+            // 경로는 마스킹해서 남긴다(초대 코드가 경로에 있다).
+            if !error.isExplicitlyCancelledError {
+                let urlError = error.underlyingError as? URLError
+                Log.warning("전송 실패", metadata: [
+                    "path": LogRedaction.path(endpoint.path),
+                    "reason": Self.label(for: error),
+                    "urlErrorCode": urlError.map { String($0.code.rawValue) } ?? "-",
+                ])
+            }
             throw Self.map(error)
         case .success(let data):
             // 서버 계약은 데이터 없는 성공도 `{"data":{"ok":true}}` 지만, 프록시나 일부
@@ -144,14 +162,6 @@ public final class URLSessionHTTPClient: HTTPClient {
     private static func map(_ error: AFError) -> NetworkError {
         if error.isExplicitlyCancelledError { return .cancelled }
 
-        // 갈래를 나눠도 원본을 버리면 진단이 0 이다. TLS 거부·ATS 차단·토큰 주입 실패가
-        // 전부 `.unknown` 으로 수렴하는데, 로그가 없으면 릴리즈에서 구분할 방법이 없다.
-        // (클라이언트 측 오류 설명이라 서버 본문과 달리 PII 위험이 없다)
-        Log.warning("전송 실패", metadata: [
-            "error": String(describing: error),
-            "underlying": error.underlyingError.map { String(describing: $0) } ?? "-",
-        ])
-
         guard let urlError = error.underlyingError as? URLError else {
             return .transport(reason: .unknown)
         }
@@ -163,6 +173,35 @@ public final class URLSessionHTTPClient: HTTPClient {
         case .cannotFindHost, .cannotConnectToHost, .dnsLookupFailed:
                                                           return .transport(reason: .cannotFindHost)
         default:                                          return .transport(reason: .unknown)
+        }
+    }
+
+    /// `AFError` 의 갈래 이름만 뽑는다.
+    ///
+    /// ⚠️ **오류 객체를 `String(describing:)` 으로 통째로 찍으면 안 된다.** `URLError` 의
+    /// userInfo 에는 `NSErrorFailingURLKey` 로 **전체 URL 이 들어있어** 초대 코드가 그대로
+    /// 남는다 — `LogRedaction` 으로 경로를 가려놓고 옆에서 새는 꼴이 된다.
+    /// 진단에 필요한 건 "무엇이 실패했나" 이고 그건 라벨·코드로 충분하다.
+    private static func label(for error: AFError) -> String {
+        switch error {
+        case .createUploadableFailed:        "createUploadableFailed"
+        case .createURLRequestFailed:        "createURLRequestFailed"
+        case .downloadedFileMoveFailed:      "downloadedFileMoveFailed"
+        case .explicitlyCancelled:           "explicitlyCancelled"
+        case .invalidURL:                    "invalidURL"
+        case .multipartEncodingFailed:       "multipartEncodingFailed"
+        case .parameterEncodingFailed:       "parameterEncodingFailed"
+        case .parameterEncoderFailed:        "parameterEncoderFailed"
+        case .requestAdaptationFailed:       "requestAdaptationFailed"
+        case .requestRetryFailed:            "requestRetryFailed"
+        case .responseValidationFailed:      "responseValidationFailed"
+        case .responseSerializationFailed:   "responseSerializationFailed"
+        case .serverTrustEvaluationFailed:   "serverTrustEvaluationFailed"
+        case .sessionDeinitialized:          "sessionDeinitialized"
+        case .sessionInvalidated:            "sessionInvalidated"
+        case .sessionTaskFailed:             "sessionTaskFailed"
+        case .urlRequestValidationFailed:    "urlRequestValidationFailed"
+        @unknown default:                    "unknown"
         }
     }
 

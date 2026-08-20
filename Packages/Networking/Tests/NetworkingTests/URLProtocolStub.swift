@@ -14,6 +14,8 @@ final class URLProtocolStub: URLProtocol, @unchecked Sendable {
         /// 응답을 보류하고 요청이 나갔다는 사실만 기록한다.
         /// "비행 중 취소"처럼 응답 대기 상태를 재현할 때 쓴다.
         var suspends: Bool = false
+        /// 헤더만 내려보내고 본문 없이 멈춘다(리뷰 ② 재현용).
+        var headerOnlyThenSuspend: Bool = false
     }
 
     /// 한 테스트가 자기 stub 을 읽고 쓰는 창구.
@@ -90,6 +92,12 @@ final class URLProtocolStub: URLProtocol, @unchecked Sendable {
         let stub = Self.registry.next(for: id)
         // 보류 모드: 응답을 만들지 않고 멈춘다. 취소되면 stopLoading 이 불린다.
         if stub.suspends { return }
+        if stub.headerOnlyThenSuspend {
+            let response = HTTPURLResponse(url: request.url!, statusCode: stub.statusCode,
+                                           httpVersion: "HTTP/1.1", headerFields: stub.headers)!
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            return   // 본문·완료 없이 멈춘다
+        }
         if let error = stub.error {
             client?.urlProtocol(self, didFailWithError: error)
             return

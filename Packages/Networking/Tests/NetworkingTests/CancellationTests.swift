@@ -27,6 +27,25 @@ struct CancellationTests {
         #expect(await poll { stub.stopLoadingCount == 1 })
     }
 
+    // 헤더가 도착한 뒤 화면을 나가는 경우. `response.response` 가 이미 채워져 있어서
+    // 상태코드 검사가 취소보다 앞이면 **취소가 `.server(500)` 으로 뒤집힌다** —
+    // 화면을 벗어났을 뿐인데 오류 UI 가 뜨고, 취소가 아니라 reduce 필터로도 안 걸러진다.
+    @Test("에러 상태코드 헤더를 받은 뒤 취소해도 cancelled 다")
+    func cancelAfterErrorHeader() async throws {
+        let (sut, stub) = makeSUT()
+        stub.stub.statusCode = 500
+        stub.stub.headerOnlyThenSuspend = true
+
+        let task = Task { () -> NetworkError? in
+            await capture { _ = try await sut.request(Endpoint<[RoomDTO]>(path: "api/v1/rooms")) }
+        }
+        try #require(await poll { !stub.recorded.isEmpty }, "요청이 전송 계층에 도달하지 않았다")
+        try await Task.sleep(for: .milliseconds(50))   // 헤더가 클라이언트에 전달될 시간
+        task.cancel()
+
+        #expect(await task.value == .cancelled)
+    }
+
     @Test("시작 전에 취소해도 cancelled 로 돌아온다")
     func cancelsBeforeStart() async throws {
         let (sut, stub) = makeSUT()
