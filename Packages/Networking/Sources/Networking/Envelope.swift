@@ -32,7 +32,7 @@ public struct Pagination: Decodable, Sendable, Equatable {
 /// ⚠️ **이 타입을 Domain 경계 밖으로 내보내지 않는다.** Repository 가 `Page<Entity>` 를
 /// 반환하면 Domain 프로토콜이 Networking 타입을 알아야 하고, 그러면 `Domain 은 의존 0`
 /// 규칙이 깨진다(CI `layer-guard` 가 막는다). 페이지 정보가 필요하면 Domain 자기 타입으로
-/// 표현한다 — `README.md` 의 "Page 를 Domain 경계 밖으로 내보내지 않는다" 참조.
+/// 표현한다 — `Docs/AddingAPI.md` 의 "Page 를 Domain 경계 밖으로 내보내지 않는다" 참조.
 public struct Page<Element: Sendable>: Sendable {
     public let items: [Element]
     public let pagination: Pagination
