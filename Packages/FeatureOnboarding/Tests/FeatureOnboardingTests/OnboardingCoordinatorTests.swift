@@ -53,7 +53,7 @@ struct OnboardingCoordinatorTests {
         let coord = OnboardingCoordinator()
 
         coord.handle(ProfileSetupNav.didSave)
-        coord.handle(CreateRoomNav.didCreateRoom)
+        coord.handle(RoomFormNav.didCreateRoom)
 
         #expect(coord.path == [.createRoom, .inviteFriends])
     }
@@ -63,7 +63,7 @@ struct OnboardingCoordinatorTests {
         let coord = OnboardingCoordinator()
 
         coord.handle(ProfileSetupNav.didSave)
-        coord.handle(CreateRoomNav.didSkip)
+        coord.handle(RoomFormNav.didSkip)
 
         #expect(coord.path == [.createRoom, .tutorial])
     }
@@ -132,7 +132,7 @@ struct OnboardingCoordinatorTests {
         coord.finish.bind { captured = $0 }
 
         coord.handle(ProfileSetupNav.didSave)
-        coord.handle(CreateRoomNav.didCreateRoom)
+        coord.handle(RoomFormNav.didCreateRoom)
         coord.handle(InviteFriendsNav.complete)
 
         // 튜토리얼 완료 화면은 라우트가 아니라 튜토리얼 화면 안의 단계다.
@@ -162,7 +162,7 @@ struct OnboardingCoordinatorTests {
         let coord = OnboardingCoordinator()
 
         #expect(coord.makeProfileSetupStore() !== coord.makeProfileSetupStore())
-        #expect(coord.makeCreateRoomStore() !== coord.makeCreateRoomStore())
+        #expect(coord.makeRoomFormStore() !== coord.makeRoomFormStore())
         #expect(coord.makeInviteFriendsStore() !== coord.makeInviteFriendsStore())
         // 튜토리얼은 넷 중 유일하게 단계를 들어, 캐시되면 다시 들어갈 때 이전 단계부터 시작한다.
         #expect(coord.makeTutorialStore() !== coord.makeTutorialStore())
@@ -203,11 +203,11 @@ struct OnboardingCoordinatorTests {
         #expect(coord.path == [.tutorial])
     }
 
-    @Test("배선 — CreateRoom Store 의 저장 확인이 path 에 반영된다")
+    @Test("배선 — RoomForm Store 의 저장 확인이 path 에 반영된다")
     func createRoomStore_isWiredToPath() async {
         let coord = OnboardingCoordinator()
 
-        let store = coord.makeCreateRoomStore()
+        let store = coord.makeRoomFormStore()
         store.send(.roomNameChanged("민호야 잘하자"))   // reduce 가 생성 조건을 가드하므로 이름을 먼저 넣는다
         store.send(.tapCreate)                        // 확인 다이얼로그를 띄우기만 한다
         store.send(.confirmCreate)
@@ -216,11 +216,11 @@ struct OnboardingCoordinatorTests {
         #expect(coord.path == [.inviteFriends])
     }
 
-    @Test("배선 — CreateRoom Store 의 건너뛰기가 path 에 반영된다")
+    @Test("배선 — RoomForm Store 의 건너뛰기가 path 에 반영된다")
     func createRoomStore_skip_isWiredToPath() async {
         let coord = OnboardingCoordinator()
 
-        let store = coord.makeCreateRoomStore()
+        let store = coord.makeRoomFormStore()
         store.send(.tapSkip)   // 건너뛰기는 이름 입력 없이도 통과한다
 
         await waitUntil { !coord.path.isEmpty }

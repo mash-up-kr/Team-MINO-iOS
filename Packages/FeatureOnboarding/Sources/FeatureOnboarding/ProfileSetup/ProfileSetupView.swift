@@ -19,7 +19,7 @@ public struct ProfileSetupView: View {
                 .navigationDestination(for: OnboardingRoute.self) { route in
                     switch route {
                     case .createRoom:
-                        CreateRoomView(makeStore: coordinator.makeCreateRoomStore)
+                        RoomFormView(makeStore: coordinator.makeRoomFormStore)
                     case .inviteFriends:
                         InviteFriendsView(makeStore: coordinator.makeInviteFriendsStore)
                     case .tutorial:

@@ -1,7 +1,7 @@
 import SwiftUI
 
 // [Convention] .claude/docs/mvi-coordinator-di.md 5절 — Store 는 .task 에서 1회 lazy 생성
-// Coordinator 대신 `makeStore` 클로저를 받는 이유는 CreateRoomView 주석 참조.
+// Coordinator 대신 `makeStore` 클로저를 받는 이유는 RoomFormView 주석 참조.
 public struct InviteFriendsView: View {
     private let makeStore: @MainActor () -> InviteFriendsStore
     private let showsSkip: Bool

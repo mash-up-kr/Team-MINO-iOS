@@ -55,8 +55,8 @@ public final class OnboardingCoordinator: Coordinator {
         return store
     }
 
-    func makeCreateRoomStore() -> CreateRoomStore {
-        let store = CreateRoomStore(CreateRoomState(), reduce: createRoomReducer())
+    func makeRoomFormStore() -> RoomFormStore {
+        let store = RoomFormStore(RoomFormState(), reduce: roomFormReducer())
         store.observeNavigation { [weak self] in self?.handle($0) }
         return store
     }
@@ -81,7 +81,7 @@ public final class OnboardingCoordinator: Coordinator {
         }
     }
 
-    func handle(_ nav: CreateRoomNav) {
+    func handle(_ nav: RoomFormNav) {
         switch nav {
         case .didCreateRoom:
             push(.inviteFriends)

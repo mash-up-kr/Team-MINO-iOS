@@ -38,7 +38,7 @@ App ──▶ Feature* ──▶ Domain ──▶ Core
 | 플랫폼·SDK 브릿지 | `MapUI` | `UIViewRepresentable` 래퍼와 순수 value type. 상태를 들지 않는다 |
 
 - **`*UI` 는 Coordinator·Route·NavigationStack·FlowFinish 를 갖지 않는다.** 스택 소유는 소비하는 Feature 몫 — 그래야 같은 화면을 한쪽은 push 로, 다른 쪽은 cover 안 스택으로 띄울 수 있다.
-- 그래서 `*UI` 의 View 는 Coordinator 대신 **`makeStore` 클로저**를 받는다. 특정 Coordinator 타입을 알면 다른 진입점에서 쓸 수 없기 때문(`RoomCreationUI.CreateRoomView` 참조).
+- 그래서 `*UI` 의 View 는 Coordinator 대신 **`makeStore` 클로저**를 받는다. 특정 Coordinator 타입을 알면 다른 진입점에서 쓸 수 없기 때문(`RoomCreationUI.RoomFormView` 참조).
 
 #### 허용 의존
 

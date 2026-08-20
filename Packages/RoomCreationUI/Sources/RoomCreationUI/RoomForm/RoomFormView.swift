@@ -4,14 +4,14 @@ import SwiftUI
 //
 // Coordinator 대신 `makeStore` 클로저를 받는다: 이 화면은 온보딩과 방리스트가 함께 쓰므로 특정
 // Coordinator 타입을 알면 다른 쪽에서 못 쓴다. 누가 만들었는지 몰라도 1회 생성은 그대로 유지된다.
-public struct CreateRoomView: View {
-    private let makeStore: @MainActor () -> CreateRoomStore
+public struct RoomFormView: View {
+    private let makeStore: @MainActor () -> RoomFormStore
     private let showsSkip: Bool
-    @State private var store: CreateRoomStore?
+    @State private var store: RoomFormStore?
 
     /// - Parameter showsSkip: 상단바 건너뛰기 버튼 노출. 건너뛸 수 없는 진입점(방리스트 등)은 `false`.
-    ///   눌렀을 때 어디로 갈지는 `CreateRoomNav.didSkip` 을 받는 소비자가 정한다.
-    public init(makeStore: @escaping @MainActor () -> CreateRoomStore, showsSkip: Bool = true) {
+    ///   눌렀을 때 어디로 갈지는 `RoomFormNav.didSkip` 을 받는 소비자가 정한다.
+    public init(makeStore: @escaping @MainActor () -> RoomFormStore, showsSkip: Bool = true) {
         self.makeStore = makeStore
         self.showsSkip = showsSkip
     }
@@ -19,7 +19,7 @@ public struct CreateRoomView: View {
     public var body: some View {
         Group {
             if let store {
-                CreateRoomContent(
+                RoomFormContent(
                     roomName: Binding(
                         get: { store.state.roomName },
                         set: { store.send(.roomNameChanged($0)) }

@@ -22,20 +22,20 @@ private let roomColorSwatches: [MHSelectionGridItem] = [
     .color(fill: .mhPurple70, border: .mhPurple40),
 ]
 
-// MARK: - CreateRoomContent
+// MARK: - RoomFormContent
 
 /// "공동방 만들기" 화면의 순수 마크업. Store·Coordinator 를 모른다 — 값과 클로저만 받는다.
 ///
 /// 카드 안 지도 썸네일은 실제 지도 에셋이 아직 없어 선택된 색으로 틴트되는 placeholder 로 그린다
 /// (색을 고르면 지도 색이 바뀌는 확정 동작을 반영하기 위함). 지도 에셋이 붙으면 교체 대상이다.
-struct CreateRoomContent: View {
+struct RoomFormContent: View {
     @Binding var roomName: String
     @Binding var roomDescription: String
     let selectedColorIndex: Int?
     let isNameValid: Bool
     let isDescriptionValid: Bool
     let isCreateEnabled: Bool
-    let dialog: CreateRoomDialog?
+    let dialog: RoomFormDialog?
     let onSelectColor: (Int) -> Void
     let onCreate: () -> Void
     let onBack: () -> Void
@@ -77,7 +77,7 @@ struct CreateRoomContent: View {
 
     // MARK: 확인 다이얼로그 (디자인 001-1-4)
 
-    private func confirmDialog(_ dialog: CreateRoomDialog) -> MHDialog {
+    private func confirmDialog(_ dialog: RoomFormDialog) -> MHDialog {
         switch dialog {
         case .saveConfirm:
             MHDialog(
@@ -121,7 +121,7 @@ struct CreateRoomContent: View {
         // 카드는 한 덩어리로 읽는다 — combine 이 없으면 식별자가 자식(썸네일·이름·설명)마다 복제돼
         // QA 자동화의 선택자가 다중 매치된다.
         .accessibilityElement(children: .combine)
-        .accessibilityIdentifier("CreateRoom.previewCard")
+        .accessibilityIdentifier("RoomForm.previewCard")
     }
 
     // 색을 고르면 색이 바뀌는 지도 placeholder(실제 지도 에셋 도입 전까지).
@@ -146,9 +146,9 @@ struct CreateRoomContent: View {
             heading: "방 이름",
             isRequired: true,
             // 오류 문구를 따로 두지 않는다 — 디자인(001-1-3)은 같은 안내문을 빨갛게 물들인다.
-            description: "한글·영문·숫자만 입력 가능해요. (공백 포함 \(CreateRoomLimit.name)자 이내)",
+            description: "한글·영문·숫자만 입력 가능해요. (공백 포함 \(RoomFormLimit.name)자 이내)",
             status: isNameValid ? .normal : .negative,
-            identifier: "CreateRoom.nameField"
+            identifier: "RoomForm.nameField"
         )
     }
 
@@ -158,9 +158,9 @@ struct CreateRoomContent: View {
             text: $roomDescription,
             heading: "방 설명",
             status: isDescriptionValid ? .normal : .negative,
-            identifier: "CreateRoom.descriptionField",
+            identifier: "RoomForm.descriptionField",
             bottomLeading: {
-                MHCharacterCounter(count: roomDescription.count, limit: CreateRoomLimit.description)
+                MHCharacterCounter(count: roomDescription.count, limit: RoomFormLimit.description)
             }
         )
     }
@@ -173,7 +173,7 @@ struct CreateRoomContent: View {
             items: roomColorSwatches,
             selectedIndex: selectedColorIndex,
             shape: .roundedSquare,
-            identifierPrefix: "CreateRoom.color",
+            identifierPrefix: "RoomForm.color",
             onSelect: onSelectColor
         )
     }
@@ -212,19 +212,19 @@ struct CreateRoomContent: View {
     PreviewHost(roomName: "민호야 잘하자", roomDescription: "팀 회식 장소 모음", selectedColorIndex: 2, showsSkip: false)
 }
 
-/// 검증 결과를 손으로 넘기지 않고 실제 `CreateRoomState` 에서 뽑는다 — 프리뷰가 reducer 규칙과 어긋나지 않게.
+/// 검증 결과를 손으로 넘기지 않고 실제 `RoomFormState` 에서 뽑는다 — 프리뷰가 reducer 규칙과 어긋나지 않게.
 private struct PreviewHost: View {
-    @State var state = CreateRoomState()
+    @State var state = RoomFormState()
     var showsSkip: Bool = true
 
     init(
         roomName: String,
         roomDescription: String,
         selectedColorIndex: Int?,
-        dialog: CreateRoomDialog? = nil,
+        dialog: RoomFormDialog? = nil,
         showsSkip: Bool = true
     ) {
-        var state = CreateRoomState()
+        var state = RoomFormState()
         state.roomName = roomName
         state.roomDescription = roomDescription
         state.selectedColorIndex = selectedColorIndex
@@ -234,7 +234,7 @@ private struct PreviewHost: View {
     }
 
     var body: some View {
-        CreateRoomContent(
+        RoomFormContent(
             roomName: $state.roomName,
             roomDescription: $state.roomDescription,
             selectedColorIndex: state.selectedColorIndex,

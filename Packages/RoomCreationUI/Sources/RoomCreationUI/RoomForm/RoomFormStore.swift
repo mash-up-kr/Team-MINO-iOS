@@ -3,7 +3,7 @@ import MVI
 
 // [Convention] .claude/docs/mvi-coordinator-di.md 5절 — 화면 = Store 1개 = 폴더 1개, State/Action/Nav/reducer 한 파일
 /// 화면 위에 떠 있는 확인 다이얼로그. 없으면 `nil`.
-public enum CreateRoomDialog: Equatable, Identifiable, Sendable {
+public enum RoomFormDialog: Equatable, Identifiable, Sendable {
     /// CTA 를 눌렀을 때 — "저장하시겠어요?" (디자인 001-1-4)
     case saveConfirm
     /// 뒤로가기를 눌렀을 때 — "만들기를 취소하시겠어요?" (디자인 001-1-4)
@@ -12,23 +12,23 @@ public enum CreateRoomDialog: Equatable, Identifiable, Sendable {
     public var id: Self { self }
 }
 
-public struct CreateRoomState: Equatable {
+public struct RoomFormState: Equatable {
     public var roomName: String = ""
     public var roomDescription: String = ""
     public var selectedColorIndex: Int?
-    public var dialog: CreateRoomDialog?
+    public var dialog: RoomFormDialog?
 
     public init() {}
 
     /// 방 이름이 규칙을 지키는가 — 길이 상한과 허용 문자 둘 다. 어기면 화면이 에러 상태로 그린다.
     public var isNameValid: Bool {
-        roomName.count <= CreateRoomLimit.name
+        roomName.count <= RoomFormLimit.name
             && roomName.unicodeScalars.allSatisfy(Self.allowedNameScalars.contains)
     }
 
     /// 방 설명이 규칙을 지키는가 — 상한 길이만 본다(문자 제한 없음).
     public var isDescriptionValid: Bool {
-        roomDescription.count <= CreateRoomLimit.description
+        roomDescription.count <= RoomFormLimit.description
     }
 
     /// 공백만 있는 이름은 생성 비활성. 상한 초과·형식 오류도 막는다 —
@@ -57,7 +57,7 @@ public struct CreateRoomState: Equatable {
     }()
 }
 
-public enum CreateRoomAction: Equatable {
+public enum RoomFormAction: Equatable {
     case roomNameChanged(String)
     case roomDescriptionChanged(String)
     case selectColor(Int)
@@ -72,22 +72,22 @@ public enum CreateRoomAction: Equatable {
 /// 목적지가 아니라 **일어난 일**로 이름 붙인다 — 이 화면은 온보딩과 방리스트가 함께 쓰는데
 /// 방 생성 뒤 어디로 갈지는 진입점마다 다르다. `goToInviteFriends` 처럼 목적지를 박으면
 /// 다른 곳으로 보내는 소비자에서 이름이 거짓말이 된다.
-public enum CreateRoomNav: Equatable, Sendable {
+public enum RoomFormNav: Equatable, Sendable {
     case didCreateRoom
     /// 사용자가 만들기를 그만뒀다. 뒤로가기 → 확인 다이얼로그 → "나가기" 를 거친 결과다.
     case didCancel
     case didSkip
 }
 
-public typealias CreateRoomStore = Store<CreateRoomState, CreateRoomAction, CreateRoomNav>
+public typealias RoomFormStore = Store<RoomFormState, RoomFormAction, RoomFormNav>
 
-/// 입력 길이 상한. 검증(`CreateRoomState`)·안내 문구·카운터가 같은 값을 읽어야 하므로 한 곳에서만 정의한다.
-public enum CreateRoomLimit {
+/// 입력 길이 상한. 검증(`RoomFormState`)·안내 문구·카운터가 같은 값을 읽어야 하므로 한 곳에서만 정의한다.
+public enum RoomFormLimit {
     public static let name = 15
     public static let description = 30
 }
 
-public func createRoomReducer() -> (inout CreateRoomState, CreateRoomAction) -> Effect<CreateRoomAction, CreateRoomNav> {
+public func roomFormReducer() -> (inout RoomFormState, RoomFormAction) -> Effect<RoomFormAction, RoomFormNav> {
     { state, action in
         switch action {
         // 입력을 자르지 않고 그대로 담는다. 잘라 담으면 `count > limit` 이 영원히 성립하지 않아

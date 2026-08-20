@@ -32,10 +32,10 @@ struct HomeCoordinatorTests {
     }
 
     @Test("방 만들기에서 didCreateRoom 은 홈으로 pop 한다")
-    func handleCreateRoomNav_popsHome() {
+    func handleRoomFormNav_popsHome() {
         let coordinator = HomeCoordinator(deps: StubDeps())
         coordinator.handle(.goToCreateRoom)
-        coordinator.handle(CreateRoomNav.didCreateRoom)
+        coordinator.handle(RoomFormNav.didCreateRoom)
         #expect(coordinator.path.isEmpty)
     }
 }

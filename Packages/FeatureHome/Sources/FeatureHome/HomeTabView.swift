@@ -27,8 +27,8 @@ public struct HomeTabView: View {
                         switch route {
                         case .createRoom:
                             // 방 리스트 시트에서 진입 → 건너뛰기 없음(showsSkip: false)
-                            // CreateRoomView 가 내비바를 숨겨 엣지 백스와이프가 꺼지므로 되살린다.
-                            CreateRoomView(makeStore: coordinator.makeCreateRoomStore, showsSkip: false)
+                            // RoomFormView 가 내비바를 숨겨 엣지 백스와이프가 꺼지므로 되살린다.
+                            RoomFormView(makeStore: coordinator.makeRoomFormStore, showsSkip: false)
                                 .enablesBackSwipe()
                         }
                     }
