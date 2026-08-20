@@ -12,7 +12,8 @@ import Foundation
 public enum NetworkError: Error, Equatable, Sendable {
     case invalidURL
     case badRequest(code: String, message: String)
-    /// 인증 미들웨어가 본문 없이 401 을 던지는 경우가 있어 옵셔널이다.
+    /// 계약을 어긴 401(본문이 없거나 우리 포맷이 아님)도 이 케이스로 받으므로 옵셔널이다.
+    /// `unexpectedErrorFormat` 으로 보내면 다른 4xx 와 뭉뚱그려져 화면이 재인증을 안 한다.
     case unauthorized(code: String?, message: String?)
     /// 멤버십·방장·작성자 검증 실패. 방·핀 API 전반이 쓴다.
     case forbidden(code: String, message: String)

@@ -195,7 +195,9 @@ struct URLSessionHTTPClientTests {
         #expect(error == .unauthorized(code: nil, message: nil))
     }
 
-    @Test("401 은 본문이 없어도 unauthorized 로 받는다")
+    // 계약 위반이지만 케이스는 유지한다 — unexpectedErrorFormat 으로 보내면
+// 다른 4xx 와 뭉뚱그려져 화면이 재인증을 안 한다.
+@Test("본문 없는 401 도 unauthorized 로 받는다 — 재인증 흐름을 살린다")
     func unauthorizedWithoutBody() async throws {
     let (sut, stub) = makeSUT()
     stub.stub.statusCode = 401

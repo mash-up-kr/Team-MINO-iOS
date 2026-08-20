@@ -85,11 +85,17 @@ struct NetworkLoggerTests {
         }
     }
 
-    @Test("본문이 있는데 계약이 아닌 401 은 로그로 드러난다")
-    func logsBrokenUnauthorizedBody() async throws {
+    // 스펙상 4xx 는 전부 Error 스키마(errorCode·message 필수)를 쓴다.
+    // 그래서 **본문이 비어 있어도 계약 위반**이고, 401 도 예외가 아니다.
+    // "인증 미들웨어가 본문 없이 던지더라" 는 관측된 적 없는 실무 예상일 뿐이었다.
+    @Test("계약을 어긴 401 은 본문 유무와 무관하게 로그로 드러난다", arguments: [
+        Data("<html>Gateway login</html>".utf8),
+        Data(),
+    ])
+    func logsContractViolatingUnauthorized(_ body: Data) async throws {
         let (sut, stub, spy, path) = makeLoggingSUT()
         stub.stub.statusCode = 401
-        stub.stub.body = Data("<html>Gateway login</html>".utf8)
+        stub.stub.body = body
 
         _ = await capture { _ = try await sut.request(Endpoint<[RoomDTO]>(path: path)) }
 
@@ -97,9 +103,6 @@ struct NetworkLoggerTests {
         #expect(entry.metadata["status"] == "401")
     }
 
-    // 재시도가 로그에 안 남으면 최대 20초 지연의 원인을 설명할 수 없다.
-    // 로깅 스위트는 interceptor 없는 세션을, 재시도 스위트는 로거 없는 세션을 쓰기 때문에
-    // 이 조합(로거 + 재시도)이 없으면 "↻ 재시도" 는 프로덕션에서 처음 실행된다.
     @Test("재시도가 일어나면 로그에 남는다")
     func logsRetry() async throws {
         let (sut, stub, spy, path) = makeLoggingSUT(interceptor: testRetryPolicy)

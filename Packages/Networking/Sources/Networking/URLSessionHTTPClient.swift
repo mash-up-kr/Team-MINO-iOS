@@ -223,20 +223,26 @@ public final class URLSessionHTTPClient: HTTPClient {
             return .server(statusCode: statusCode)
         }
 
+        // 여기 도달 = 4xx 인데 `{errorCode, message}` 로 디코딩되지 않았다.
+        // 스펙상 4xx 응답은 **전부** Error 스키마(errorCode·message 필수)를 쓰므로,
+        // 본문이 비었든 HTML 이든 JSON 인데 키가 다르든 **전부 계약 위반**이다.
+        // 401 도 예외가 아니다 — "인증 미들웨어가 본문 없이 던지더라" 는 실무 예상일 뿐,
+        // 관측된 적이 없다. 실제로 로그가 시끄러우면 그때 예외를 판다.
         guard let body = try? decoder.decode(APIErrorBody.self, from: data) else {
-            let preview = String(decoding: data.prefix(200), as: UTF8.self)   // 값에만 싣는다(로그는 마스킹)
-
-            // 본문 없는 401 은 인증 미들웨어의 정상 응답이라 조용히 넘긴다.
-            // 다만 본문이 **있는데** 계약이 아니면(프록시가 낚아챈 HTML 등) 다른 상태코드와 똑같이 드러낸다.
-            if statusCode == 401, data.isEmpty { return .unauthorized(code: nil, message: nil) }
-
             Log.error("에러 응답이 약속 포맷이 아님", metadata: [
                 "path": LogRedaction.path(path),
                 "status": String(statusCode),
             ].merging(LogRedaction.body(data)) { lhs, _ in lhs })
+
+            // 401 만 케이스를 유지한다. `unexpectedErrorFormat` 으로 보내면 다른 4xx 와
+            // 뭉뚱그려져 화면이 "토큰 만료" 를 알아보지 못하고 재인증을 안 한다.
             if statusCode == 401 { return .unauthorized(code: nil, message: nil) }
+
             // 상태코드를 문자열에 녹이면 Data 계층이 분기할 수 없다 — 필드로 보존한다.
-            return .unexpectedErrorFormat(statusCode: statusCode, preview: preview)
+            return .unexpectedErrorFormat(
+                statusCode: statusCode,
+                preview: String(decoding: data.prefix(200), as: UTF8.self)
+            )
         }
 
         switch statusCode {
