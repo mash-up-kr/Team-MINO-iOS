@@ -9,11 +9,19 @@ public struct RoomListState: Equatable {
     public var filter: Int
     /// 공동방 생성 유도 시트(001-2-1)가 떠 있는가.
     public var isCreatePromptPresented: Bool
+    /// 다음 재조회에서는 유도 시트를 띄우지 않는다 — 만들기 화면에 다녀온 직후의 복귀 1회.
+    public var skipsNextCreatePrompt: Bool
 
-    public init(rooms: [Room] = [], filter: Int = 0, isCreatePromptPresented: Bool = false) {
+    public init(
+        rooms: [Room] = [],
+        filter: Int = 0,
+        isCreatePromptPresented: Bool = false,
+        skipsNextCreatePrompt: Bool = false
+    ) {
         self.rooms = rooms
         self.filter = filter
         self.isCreatePromptPresented = isCreatePromptPresented
+        self.skipsNextCreatePrompt = skipsNextCreatePrompt
     }
 
     /// 공동방을 하나라도 가졌는가. 빈 상태 노출과 유도 시트가 같은 기준을 봐야 해서 여기서 한 번만 정의한다.
@@ -60,6 +68,14 @@ public func roomListReducer(
             state.rooms = rooms
             // 기획: 활성 조건 = 공동방 미생성, 비활성 조건 = 공동방 1개 생성(001-2-1).
             // 저장 탭에 들어올 때마다 .load 가 다시 돌아 매번 판정된다 — 거절을 기억하지 않는다.
+            //
+            // 단, 만들기 화면에서 돌아온 직후는 건너뛴다. pop 하면 이 화면의 `.task` 가 다시 돌아
+            // `.load` 가 나가는데, 방금 그 시트에서 출발한 사용자에게 같은 시트를 즉시 다시 띄우게 된다
+            // (시뮬레이터에서 재현). 취소하고 나온 경우엔 "나가기 → 시트 → 나가기" 가 반복된다.
+            guard !state.skipsNextCreatePrompt else {
+                state.skipsNextCreatePrompt = false
+                return .none
+            }
             state.isCreatePromptPresented = !state.hasSharedRoom
             return .none
         case .loadFailed:
@@ -70,6 +86,7 @@ public func roomListReducer(
             return .none
         case .tapCreateRoom:
             state.isCreatePromptPresented = false
+            state.skipsNextCreatePrompt = true
             return .navigate(.goToCreateRoom)
         case .dismissCreatePrompt:
             state.isCreatePromptPresented = false

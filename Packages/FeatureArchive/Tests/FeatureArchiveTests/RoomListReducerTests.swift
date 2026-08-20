@@ -64,8 +64,42 @@ struct RoomListReducerTests {
     func tapCreateRoom_dismissesPromptAndNavigates() async {
         let store = makeStore(state: RoomListState(isCreatePromptPresented: true))
 
-        await store.send(.tapCreateRoom) { $0.isCreatePromptPresented = false }
+        await store.send(.tapCreateRoom) {
+            $0.isCreatePromptPresented = false
+            $0.skipsNextCreatePrompt = true
+        }
         store.receiveNavigation(.goToCreateRoom)
+
+        store.finish()
+    }
+
+    // pop 하면 이 화면의 .task 가 다시 돌아 .load 가 나간다. 억제하지 않으면 방금 그 시트에서
+    // 출발한 사용자에게 같은 시트가 즉시 다시 뜬다("나가기 → 시트 → 나가기" 반복).
+    @Test("L2 — 만들기 화면에서 돌아온 직후의 재조회는 유도 시트를 다시 띄우지 않는다")
+    func reload_rightAfterReturningFromCreation_skipsPromptOnce() async {
+        let personalOnly = [fixtureRooms[0]]
+        let store = makeStore(
+            StubFetchRooms(result: .success(personalOnly)),
+            state: RoomListState(isCreatePromptPresented: true)
+        )
+
+        await store.send(.tapCreateRoom) {
+            $0.isCreatePromptPresented = false
+            $0.skipsNextCreatePrompt = true
+        }
+        store.receiveNavigation(.goToCreateRoom)
+
+        // 복귀 직후 1회 — 억제하고 플래그를 소비한다
+        await store.send(.load)
+        await store.receive(.loaded(personalOnly)) {
+            $0.rooms = personalOnly
+            $0.skipsNextCreatePrompt = false
+        }
+        #expect(!store.currentState.isCreatePromptPresented)
+
+        // 다음 탭 진입 — 다시 뜬다
+        await store.send(.load)
+        await store.receive(.loaded(personalOnly)) { $0.isCreatePromptPresented = true }
 
         store.finish()
     }
