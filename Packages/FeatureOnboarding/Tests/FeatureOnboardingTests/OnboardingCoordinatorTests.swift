@@ -237,8 +237,8 @@ struct OnboardingCoordinatorTests {
         #expect(coord.path == [.tutorial])
     }
 
-    // 완주(didFinish)가 아니라 건너뛰기로 배선을 지난다 — 완주 경로는 자동 전환 타이머를 기다려야 해서
-    // 배선 검증에는 값이 없다(타이머 자체는 TutorialReducerTests 가 지연 0 으로 본다).
+    // 건너뛰기로 배선을 지난다 — 완주(didFinish)와 같은 채널이라 둘 중 하나면 배선이 확인된다
+    // (완주 조건 자체는 TutorialReducerTests 가 본다).
     @Test("배선 — Tutorial Store 의 건너뛰기가 finish 로 이어진다")
     func tutorialStore_isWiredToFinish() async {
         let coord = OnboardingCoordinator()
