@@ -20,11 +20,13 @@ enum RoomDetailAction: Equatable {
     case selectViewMode(RoomDetailViewMode)
     case tapClose
     case tapShare(RoomDetailLocation)
+    case tapLocation(RoomDetailLocation.ID)
 }
 
 enum RoomDetailNav: Equatable, Sendable {
     case close
     case shareLocation(RoomDetailLocation)
+    case openPlaceDetail(Pin)
 }
 
 typealias RoomDetailStore = Store<RoomDetailState, RoomDetailAction, RoomDetailNav>
@@ -74,6 +76,10 @@ func roomDetailReducer(
 
         case .tapShare(let location):
             return .navigate(.shareLocation(location))
+
+        case .tapLocation(let id):
+            guard let pin = state.pins.first(where: { $0.id.value == id }) else { return .none }
+            return .navigate(.openPlaceDetail(pin))
         }
     }
 }

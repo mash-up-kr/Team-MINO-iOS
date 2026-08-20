@@ -7,6 +7,7 @@ struct ArchiveShellView: View {
     @State private var detent: MHBottomSheetDetent = .medium
     @State private var roomListStore: RoomListStore?
     @State private var detailStore: RoomDetailStore?
+    @State private var placeStore: PlaceDetailStore?
 
     @State private var pendingToast: String?
     @State private var toastMessage: String?
@@ -22,7 +23,9 @@ struct ArchiveShellView: View {
             ArchiveMapLayer()
 
             if let roomListStore {
-                filterBar(roomList: roomListStore)
+                if placeStore == nil {
+                    filterBar(roomList: roomListStore)
+                }
                 sheet(roomList: roomListStore)
             }
 
@@ -36,6 +39,7 @@ struct ArchiveShellView: View {
             store.send(.load)
         }
         .task(id: coordinator.selectedRoom?.id) { syncDetailStore() }
+        .task(id: coordinator.selectedPin?.id.value) { syncPlaceStore() }
         .sheet(item: $coordinator.sharingLocation, onDismiss: showPendingToast) { location in
             RoomShareSheet(
                 location: location,
@@ -94,6 +98,16 @@ struct ArchiveShellView: View {
         withAnimation(.spring(duration: 0.3)) { detent = .medium }
     }
 
+    private func syncPlaceStore() {
+        if let pin = coordinator.selectedPin {
+            placeStore = coordinator.makePlaceDetailStore(pin: pin)
+        } else {
+            guard placeStore != nil else { return }
+            placeStore = nil
+        }
+        withAnimation(.spring(duration: 0.3)) { detent = .medium }
+    }
+
     @ViewBuilder
     private func filterBar(roomList: RoomListStore) -> some View {
         VStack(spacing: 0) {
@@ -117,8 +131,15 @@ struct ArchiveShellView: View {
     }
 
     private func sheet(roomList: RoomListStore) -> some View {
-        MHBottomSheet(detent: $detent, lowPeek: peek.low, mediumPeek: peek.medium) {
-            if let detailStore {
+        MHBottomSheet(
+            detent: $detent,
+            lowPeek: peek.low,
+            mediumPeek: peek.medium,
+            detents: placeStore == nil ? MHBottomSheetDetent.allCases : [.medium, .full]
+        ) {
+            if let placeStore {
+                PlaceDetailView(store: placeStore, detent: detent)
+            } else if let detailStore {
                 RoomDetailView(store: detailStore, detent: detent)
             } else {
                 RoomListView(
@@ -128,11 +149,17 @@ struct ArchiveShellView: View {
                 )
             }
         }
-        .accessibilityIdentifier(detailStore == nil ? "RoomList.sheet" : "RoomDetail.sheet")
+        .accessibilityIdentifier(sheetIdentifier)
     }
 
-    private var peek: (low: CGFloat, medium: CGFloat) {
-        detailStore == nil ? (112, 268) : (156, 405)
+    private var sheetIdentifier: String {
+        if placeStore != nil { return "PlaceDetail.sheet" }
+        return detailStore == nil ? "RoomList.sheet" : "RoomDetail.sheet"
+    }
+
+    private var peek: (low: CGFloat?, medium: CGFloat) {
+        if placeStore != nil { return (nil, 329) }
+        return detailStore == nil ? (112, 268) : (156, 405)
     }
 
     private static let roomListCategories = ["전체", "카페", "음식점"]

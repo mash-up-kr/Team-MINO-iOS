@@ -117,6 +117,21 @@ struct RoomDetailReducerTests {
         store.finish()
     }
 
+    @Test("L1 — tapLocation 은 그 장소의 핀을 실어 navigate 한다")
+    func tapLocation() async {
+        let store = makeStore(state: loadedState())
+        await store.send(.tapLocation(fixturePins[1].id.value))
+        store.receiveNavigation(.openPlaceDetail(fixturePins[1]))
+        store.finish()
+    }
+
+    @Test("L1 — 목록에 없는 장소를 탭하면 아무 일도 일어나지 않는다")
+    func tapLocation_unknownID() async {
+        let store = makeStore(state: loadedState())
+        await store.send(.tapLocation("없는-id"))
+        store.finish()
+    }
+
     @Test("L1 — tapShare 는 고른 장소를 실어 navigate 한다")
     func tapShare() async {
         let store = makeStore(state: loadedState())
