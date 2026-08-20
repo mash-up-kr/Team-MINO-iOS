@@ -7,10 +7,14 @@ public struct RoomListState: Equatable {
     public var rooms: [Room]
     /// 선택된 필터 칩 인덱스(전체/최근 저장 순/코멘트 순). 정렬 로직은 미구현(UI 상태만).
     public var filter: Int
+    public var roomFilter: Int
+    public var categoryFilter: Int
 
-    public init(rooms: [Room] = [], filter: Int = 0) {
+    public init(rooms: [Room] = [], filter: Int = 0, roomFilter: Int = 0, categoryFilter: Int = 0) {
         self.rooms = rooms
         self.filter = filter
+        self.roomFilter = roomFilter
+        self.categoryFilter = categoryFilter
     }
 }
 
@@ -19,6 +23,8 @@ public enum RoomListAction: Equatable {
     case loaded([Room])            // Response Action (성공)
     case loadFailed(DomainError)   // Response Action (실패)
     case selectFilter(Int)
+    case selectRoomFilter(Int)
+    case selectCategory(Int)
 }
 
 /// 이번 PR 은 화면 전환이 없다(카드 탭·"+" 인터랙션 비활성) → 빈 Nav.
@@ -51,6 +57,12 @@ public func roomListReducer(
             return .none
         case .selectFilter(let index):
             state.filter = index   // TODO: 필터별 정렬 로직(최근 저장 순/코멘트 순) 후속 PR
+            return .none
+        case .selectRoomFilter(let index):
+            state.roomFilter = index
+            return .none
+        case .selectCategory(let index):
+            state.categoryFilter = index
             return .none
         }
     }

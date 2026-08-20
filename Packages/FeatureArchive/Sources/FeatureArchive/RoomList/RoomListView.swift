@@ -5,7 +5,7 @@ import SwiftUI
 
 /// 방 리스트 바텀 시트 화면. Figma Frame 198(node 2236:45798) — 저장 탭 진입 화면.
 ///
-/// 지도 위에 겹쳐 뜨는 비모달 시트(`MHBottomSheet`)로, 지도가 아직 없어 뒤는 중립 배경으로 채운다.
+/// 지도 위에 겹쳐 뜨는 비모달 시트(`MHBottomSheet`).
 /// 헤더(타이틀 + 추가 버튼)·필터(``MHCategory``)는 시트 상단에 고정하고, 방 카드 목록만
 /// ``MHBottomSheetScrollView`` 로 스크롤한다.
 ///
@@ -51,8 +51,17 @@ private struct RoomListLoadedView: View {
 
     var body: some View {
         ZStack {
-            Color.mhBackgroundNormalAlternative
-                .ignoresSafeArea()
+            ArchiveMapLayer()
+
+            VStack(spacing: 0) {
+                MHFilterBar(
+                    sortOptions: roomOptions,
+                    selectedSort: roomFilterBinding,
+                    categories: Self.categories,
+                    selectedCategory: categoryBinding
+                )
+                Spacer(minLength: 0)
+            }
 
             // low(peek) 는 그래버(30) + 헤더(60) 만, medium 은 카드 영역까지 — 둘 다 콘텐츠 pt 기반(MHBottomSheet 가 하단 safe-area 보정).
             MHBottomSheet(detent: $detent, lowPeek: 112, mediumPeek: mediumPeek) {
@@ -73,6 +82,26 @@ private struct RoomListLoadedView: View {
         Binding(
             get: { store.state.filter },
             set: { store.send(.selectFilter($0)) }
+        )
+    }
+
+    private static let categories = ["전체", "카페", "음식점"]
+
+    private var roomOptions: [String] {
+        ["전체"] + store.state.rooms.map(\.name)
+    }
+
+    private var roomFilterBinding: Binding<Int> {
+        Binding(
+            get: { store.state.roomFilter },
+            set: { store.send(.selectRoomFilter($0)) }
+        )
+    }
+
+    private var categoryBinding: Binding<Int> {
+        Binding(
+            get: { store.state.categoryFilter },
+            set: { store.send(.selectCategory($0)) }
         )
     }
 }
