@@ -20,7 +20,7 @@ final class MHSnackbarSnapshotTests: XCTestCase {
         }
     }
 
-    // 단일 라인 스낵바 높이가 Figma(54pt)와 일치하는지.
+    // 단일 라인 스낵바 높이가 Figma(48pt)와 일치하는지.
     @MainActor
     func testSingleLineHeightMatchesFigma() throws {
         MHFontRegistrar.registerIfNeeded()
@@ -28,7 +28,7 @@ final class MHSnackbarSnapshotTests: XCTestCase {
             MHSnackbar(title: "메시지에 마침표를 찍어요.", actionTitle: "텍스트") {}.frame(width: 384))
         r.scale = 1
         let h = try XCTUnwrap(r.uiImage).size.height
-        XCTAssertEqual(h, 54, accuracy: 1.5)   // Figma Snackbar/Snackbar 단일 라인 = 54pt
+        XCTAssertEqual(h, 48, accuracy: 1.5)   // Figma Snackbar/Snackbar 단일 라인 = 48pt (2862:178010 · 1672:73661 실측)
     }
 }
 
