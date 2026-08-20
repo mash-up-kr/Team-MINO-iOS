@@ -31,6 +31,8 @@ public struct CreateRoomView: View {
                         set: { store.send(.roomDescriptionChanged($0)) }
                     ),
                     selectedColorIndex: store.state.selectedColorIndex,
+                    isNameValid: store.state.isNameValid,
+                    isDescriptionValid: store.state.isDescriptionValid,
                     isCreateEnabled: store.state.isCreateEnabled,
                     onSelectColor: { store.send(.selectColor($0)) },
                     onCreate: { store.send(.tapCreate) },

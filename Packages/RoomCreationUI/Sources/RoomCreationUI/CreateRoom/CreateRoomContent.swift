@@ -32,6 +32,8 @@ struct CreateRoomContent: View {
     @Binding var roomName: String
     @Binding var roomDescription: String
     let selectedColorIndex: Int?
+    let isNameValid: Bool
+    let isDescriptionValid: Bool
     let isCreateEnabled: Bool
     let onSelectColor: (Int) -> Void
     let onCreate: () -> Void
@@ -54,6 +56,7 @@ struct CreateRoomContent: View {
                 }
                 .padding(20)
             }
+            .scrollDismissesKeyboard(.interactively)
             // 액션 영역을 VStack 자식으로 두면 키보드가 올라올 때 MHActionArea 의 하단 안전영역 측정에
             // 키보드 높이가 섞여 스크롤뷰가 찌그러진다. safeAreaInset 으로 붙여 키보드 회피를 맡긴다.
             .safeAreaInset(edge: .bottom) {
@@ -62,6 +65,9 @@ struct CreateRoomContent: View {
             }
         }
         .background(Color.mhBackgroundNormalNormal)
+        // 방 설명(MHTextArea)은 리턴키가 개행이라 리턴키로 못 닫는다. 스크롤 해제·툴바 '완료' 와 함께
+        // 여백 탭도 열어 둔다 — 키보드가 하단을 가리면 방 색상 그리드에 접근 자체가 안 된다(이슈 #93).
+        .mhDismissKeyboardOnTap()
     }
 
     // MARK: 미리보기 카드
@@ -112,7 +118,9 @@ struct CreateRoomContent: View {
             text: $roomName,
             heading: "방 이름",
             isRequired: true,
+            // 오류 문구를 따로 두지 않는다 — 디자인(001-1-3)은 같은 안내문을 빨갛게 물들인다.
             description: "한글·영문·숫자만 입력 가능해요. (공백 포함 \(CreateRoomLimit.name)자 이내)",
+            status: isNameValid ? .normal : .negative,
             identifier: "CreateRoom.nameField"
         )
     }
@@ -122,6 +130,7 @@ struct CreateRoomContent: View {
             descriptionPlaceholder,
             text: $roomDescription,
             heading: "방 설명",
+            status: isDescriptionValid ? .normal : .negative,
             identifier: "CreateRoom.descriptionField",
             bottomLeading: {
                 MHCharacterCounter(count: roomDescription.count, limit: CreateRoomLimit.description)
@@ -153,47 +162,44 @@ struct CreateRoomContent: View {
 // MARK: - Preview
 
 #Preview("버튼 활성") {
-    PreviewHost(
-        roomName: "민호야 잘하자",
-        roomDescription: "팀 회식 장소 모음",
-        selectedColorIndex: 2,
-        isCreateEnabled: true
-    )
+    PreviewHost(roomName: "민호야 잘하자", roomDescription: "팀 회식 장소 모음", selectedColorIndex: 2)
 }
 
 #Preview("버튼 비활성") {
-    PreviewHost(
-        roomName: "",
-        roomDescription: "",
-        selectedColorIndex: 0,
-        isCreateEnabled: false
-    )
+    PreviewHost(roomName: "", roomDescription: "", selectedColorIndex: 0)
+}
+
+#Preview("입력 오류") {
+    PreviewHost(roomName: "민호야 잘하자^^", roomDescription: String(repeating: "가", count: 31), selectedColorIndex: 5)
 }
 
 #Preview("건너뛰기 없음") {
-    PreviewHost(
-        roomName: "민호야 잘하자",
-        roomDescription: "팀 회식 장소 모음",
-        selectedColorIndex: 2,
-        isCreateEnabled: true,
-        showsSkip: false
-    )
+    PreviewHost(roomName: "민호야 잘하자", roomDescription: "팀 회식 장소 모음", selectedColorIndex: 2, showsSkip: false)
 }
 
+/// 검증 결과를 손으로 넘기지 않고 실제 `CreateRoomState` 에서 뽑는다 — 프리뷰가 reducer 규칙과 어긋나지 않게.
 private struct PreviewHost: View {
-    @State var roomName: String
-    @State var roomDescription: String
-    @State var selectedColorIndex: Int?
-    let isCreateEnabled: Bool
+    @State var state = CreateRoomState()
     var showsSkip: Bool = true
+
+    init(roomName: String, roomDescription: String, selectedColorIndex: Int?, showsSkip: Bool = true) {
+        var state = CreateRoomState()
+        state.roomName = roomName
+        state.roomDescription = roomDescription
+        state.selectedColorIndex = selectedColorIndex
+        self._state = State(initialValue: state)
+        self.showsSkip = showsSkip
+    }
 
     var body: some View {
         CreateRoomContent(
-            roomName: $roomName,
-            roomDescription: $roomDescription,
-            selectedColorIndex: selectedColorIndex,
-            isCreateEnabled: isCreateEnabled,
-            onSelectColor: { selectedColorIndex = $0 },
+            roomName: $state.roomName,
+            roomDescription: $state.roomDescription,
+            selectedColorIndex: state.selectedColorIndex,
+            isNameValid: state.isNameValid,
+            isDescriptionValid: state.isDescriptionValid,
+            isCreateEnabled: state.isCreateEnabled,
+            onSelectColor: { state.selectedColorIndex = $0 },
             onCreate: {},
             onBack: {},
             onSkip: showsSkip ? {} : nil

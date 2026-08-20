@@ -21,32 +21,68 @@ struct CreateRoomReducerTests {
         store.finish()
     }
 
-    @Test("L1 — roomNameChanged: 공백 포함 15자를 넘으면 잘린다")
-    func roomNameChanged_truncatesAt15Characters() async {
+    // 자르지 않고 그대로 담아야 `count > limit` 이 성립해 워닝이 뜬다 — 잘라 담던 시절엔
+    // 초과 상태에 도달할 수가 없어 에러 UI 가 영원히 안 떴다(이슈 #93).
+    @Test("L1 — roomNameChanged: 15자 경계 — 넘겨도 자르지 않고 담되 무효 처리한다")
+    func roomNameChanged_keepsOverLimitInputAndInvalidates() async {
         let store = TestStore(CreateRoomState(), reduce: createRoomReducer())
-        let overLimit = "가나다라마바사아자차카타파하거너"  // 16자
-        let truncated = String(overLimit.prefix(15))
+        let atLimit = "가나다라마바사아자차카타파하거"      // 15자
+        let overLimit = atLimit + "너"                     // 16자
 
-        await store.send(.roomNameChanged(overLimit)) {
-            $0.roomName = truncated
-        }
+        await store.send(.roomNameChanged(atLimit)) { $0.roomName = atLimit }
+        #expect(store.currentState.isNameValid)
+        #expect(store.currentState.isCreateEnabled)
+
+        await store.send(.roomNameChanged(overLimit)) { $0.roomName = overLimit }
+        #expect(!store.currentState.isNameValid)
+        #expect(!store.currentState.isCreateEnabled)
 
         store.finish()
     }
 
-    @Test("L1 — roomDescriptionChanged: 입력값이 반영되고 20자를 넘으면 잘린다")
-    func roomDescriptionChanged_updatesStateAndTruncatesAt20Characters() async {
+    @Test("L1 — roomNameChanged: 한글·영문·숫자·공백 밖의 문자는 무효다")
+    func roomNameChanged_rejectsDisallowedCharacters() async {
         let store = TestStore(CreateRoomState(), reduce: createRoomReducer())
 
-        await store.send(.roomDescriptionChanged("팀 회식 장소 모음")) {
-            $0.roomDescription = "팀 회식 장소 모음"
-        }
+        await store.send(.roomNameChanged("Mino 4팀 room")) { $0.roomName = "Mino 4팀 room" }
+        #expect(store.currentState.isNameValid)
 
-        let overLimit = String(repeating: "가", count: 25)
-        let truncated = String(overLimit.prefix(20))
-        await store.send(.roomDescriptionChanged(overLimit)) {
-            $0.roomDescription = truncated
-        }
+        await store.send(.roomNameChanged("민호야 잘하자^^")) { $0.roomName = "민호야 잘하자^^" }
+        #expect(!store.currentState.isNameValid)
+        #expect(!store.currentState.isCreateEnabled)
+
+        store.finish()
+    }
+
+    // 이걸 막으면 한글을 치는 내내 에러 테두리가 깜빡인다 — 자모는 조합이 끝나기 전 잠깐 state 로 들어온다.
+    @Test("L1 — roomNameChanged: 한글 조합 중간 상태(자모)는 유효하다")
+    func roomNameChanged_allowsHangulJamoDuringComposition() async {
+        let store = TestStore(CreateRoomState(), reduce: createRoomReducer())
+
+        await store.send(.roomNameChanged("ㅁ")) { $0.roomName = "ㅁ" }
+        #expect(store.currentState.isNameValid)
+
+        await store.send(.roomNameChanged("미ㄴ")) { $0.roomName = "미ㄴ" }
+        #expect(store.currentState.isNameValid)
+
+        store.finish()
+    }
+
+    @Test("L1 — roomDescriptionChanged: 30자 경계 — 넘겨도 자르지 않고 담되 생성을 막는다")
+    func roomDescriptionChanged_keepsOverLimitInputAndBlocksCreate() async {
+        let store = TestStore(CreateRoomState(), reduce: createRoomReducer())
+        let atLimit = String(repeating: "가", count: 30)
+        let overLimit = String(repeating: "가", count: 31)
+
+        await store.send(.roomNameChanged("민호야 잘하자")) { $0.roomName = "민호야 잘하자" }
+
+        await store.send(.roomDescriptionChanged(atLimit)) { $0.roomDescription = atLimit }
+        #expect(store.currentState.isDescriptionValid)
+        #expect(store.currentState.isCreateEnabled)
+
+        await store.send(.roomDescriptionChanged(overLimit)) { $0.roomDescription = overLimit }
+        #expect(!store.currentState.isDescriptionValid)
+        #expect(!store.currentState.isCreateEnabled)
 
         store.finish()
     }
@@ -90,6 +126,19 @@ struct CreateRoomReducerTests {
         await store.send(.tapCreate)
 
         // finish 가 미수신 navigation 잔여를 검사한다 — didCreateRoom 이 나갔다면 여기서 실패한다
+        store.finish()
+    }
+
+    @Test("L2 — tapCreate: 색·설명을 채워도 이름이 오류면 막힌다 (디자인 ⑤)")
+    func tapCreate_whenNameInvalid_notifiesNothingEvenWithOtherFields() async {
+        let store = TestStore(CreateRoomState(), reduce: createRoomReducer())
+
+        await store.send(.roomNameChanged("민호야 잘하자^^")) { $0.roomName = "민호야 잘하자^^" }
+        await store.send(.roomDescriptionChanged("팀 회식 장소 모음")) { $0.roomDescription = "팀 회식 장소 모음" }
+        await store.send(.selectColor(1)) { $0.selectedColorIndex = 1 }
+
+        await store.send(.tapCreate)
+
         store.finish()
     }
 
