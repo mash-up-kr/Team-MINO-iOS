@@ -174,4 +174,22 @@ struct NetworkLoggerTests {
         #expect(!dump.contains("super-secret-token"))
         #expect(!dump.contains("Authorization"))
     }
+
+    // DEBUG 로그는 본문을 그대로 싣는다. 상한이 없으면 목록 응답 하나가 수백 KB 를
+    // 로그 파이프에 밀어 넣어, 정작 필요한 앞뒤 줄이 밀려 사라진다.
+    @Test("DEBUG 본문 로그는 2048 바이트에서 끊는다")
+    func truncatesResponseBodyLog() async throws {
+        let (sut, stub, spy, path) = makeLoggingSUT()
+        let filler = String(repeating: "A", count: 5_000)
+        stub.stub.body = Data(#"{"data":[],"note":"\#(filler)"}"#.utf8)
+
+        _ = try await sut.request(Endpoint<[RoomDTO]>(path: path))
+
+        let entry = try #require(await waitFor("← 응답", path: path, in: spy))
+        if LogRedaction.isDebugBuild {
+            #expect(entry.metadata["body"]?.count == 2048)
+        } else {
+            #expect(entry.metadata["body"] == nil)   // 릴리즈는 본문을 아예 싣지 않는다
+        }
+    }
 }

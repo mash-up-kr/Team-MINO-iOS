@@ -52,4 +52,23 @@ struct LogRedactionTests {
         let debug = LogRedaction.body(body, includePreview: true)
         #expect(debug["preview"]?.contains("FORBIDDEN") == true)
     }
+
+    // 소스가 주석으로 경고해 둔 오탐이다("6자 이상 + 숫자 포함이면 고정 세그먼트도 가려진다").
+    // 경고만으로는 회귀를 감지할 수 없으므로 현재 동작을 못박는다 — 예외 목록을 넣는 PR 에서
+    // 이 테스트가 깨지는 것이 의도된 신호다.
+    @Test("고정 세그먼트라도 6자 이상 + 숫자를 포함하면 가려진다 (알려진 오탐)", arguments: [
+        "oauth2", "v2beta1", "s3files",
+    ])
+    func knownFalsePositives(_ segment: String) {
+        #expect(LogRedaction.maskIdentifiers(in: "/api/\(segment)/rooms") == "/api/***/rooms")
+    }
+
+    // 오탐의 반대편 경계. 하한을 낮추거나 숫자 조건을 빼면 `v1` 까지 가려져
+    // 릴리즈 로그에서 어느 API 인지조차 알 수 없게 된다.
+    @Test("짧거나 숫자가 없는 세그먼트는 남는다", arguments: [
+        "v1", "me", "rooms", "invitations",
+    ])
+    func keepsShortOrAlphaSegments(_ segment: String) {
+        #expect(LogRedaction.maskIdentifiers(in: "/api/\(segment)") == "/api/\(segment)")
+    }
 }

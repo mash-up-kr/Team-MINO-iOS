@@ -58,6 +58,28 @@ struct CancellationTests {
 
         #expect(await task.value == .cancelled)
     }
+
+    // 재시도는 첫 실패 뒤에 **새 요청**을 만든다. 취소 판정이 그 두 번째 경로를 못 보면
+    // 화면을 나간 뒤에도 재시도가 나가고, 결과가 `.cancelled` 가 아니라 서버 오류로 돌아온다
+    // (reduce 의 CancellationError 필터를 통과해 오류 UI 가 뜬다).
+    @Test("재시도로 넘어간 뒤 취소해도 cancelled 다")
+    func cancelDuringRetry() async throws {
+        let (sut, stub) = makeSUT(interceptor: testRetryPolicy)
+        stub.enqueue([
+            .init(statusCode: 503, body: Data()),
+            .init(suspends: true),              // 2차 시도는 응답을 주지 않고 붙잡는다
+        ])
+
+        let task = Task { () -> NetworkError? in
+            await capture { _ = try await sut.request(Endpoint<[RoomDTO]>(path: "api/v1/rooms")) }
+        }
+
+        try #require(await poll { stub.recorded.count == 2 }, "재시도 요청이 나가지 않았다")
+        task.cancel()
+
+        #expect(await task.value == .cancelled)
+        #expect(stub.recorded.count == 2)   // 취소된 뒤 3차는 없다
+    }
 }
 
 /// 조건이 참이 될 때까지 기다린다. **상한이 있어야 한다** — 무한 스핀은 회귀가 생겼을 때

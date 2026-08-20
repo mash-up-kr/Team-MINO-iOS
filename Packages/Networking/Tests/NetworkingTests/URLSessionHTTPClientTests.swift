@@ -58,6 +58,50 @@ struct URLSessionHTTPClientTests {
         }
     }
 
+    // pagination 키는 왔는데 필드가 빠진 경우. `pagination` 이 옵셔널이라 "없으면 nil" 로
+    // 뭉개는 구현으로 바뀌면 hasNext 가 조용히 false 가 되어 무한스크롤이 멈춘다.
+    @Test("pagination 필드가 결손이면 계약 위반으로 드러낸다")
+    func pagedResponseWithPartialPagination() async throws {
+        let (sut, stub) = makeSUT()
+        stub.stub.body = Data(#"{"data":[],"pagination":{"pageSize":20,"page":0}}"#.utf8)   // hasNext 없음
+
+        let error = await capture {
+            _ = try await sut.requestPage(Endpoint<[RoomDTO]>(path: "api/v1/pins").paged(page: 0, pageSize: 20))
+        }
+
+        guard case .decodingFailed = error else {
+            Issue.record("decodingFailed 를 기대했는데 \(String(describing: error))")
+            return
+        }
+    }
+
+    // requestPage 는 send 결과에 pagination 검사를 덧붙이는 별도 경로다. 오류 번역이
+    // request 쪽에만 걸려 있어도 위 테스트들은 전부 통과하므로 여기서 따로 못박는다.
+    @Test("페이지 요청의 4xx 도 request 와 똑같이 번역된다")
+    func pagedResponseClientError() async throws {
+        let (sut, stub) = makeSUT()
+        stub.stub.statusCode = 403
+        stub.stub.body = Data(#"{"errorCode":"NOT_A_MEMBER","message":"멤버가 아닙니다"}"#.utf8)
+
+        let error = await capture {
+            _ = try await sut.requestPage(Endpoint<[RoomDTO]>(path: "api/v1/pins").paged(page: 0, pageSize: 20))
+        }
+
+        #expect(error == .forbidden(code: "NOT_A_MEMBER", message: "멤버가 아닙니다"))
+    }
+
+    @Test("페이지 요청의 전송 실패도 transport 로 번역된다")
+    func pagedResponseTransportError() async throws {
+        let (sut, stub) = makeSUT()
+        stub.stub.error = URLError(.timedOut)
+
+        let error = await capture {
+            _ = try await sut.requestPage(Endpoint<[RoomDTO]>(path: "api/v1/pins").paged(page: 0, pageSize: 20))
+        }
+
+        #expect(error == .transport(reason: .timedOut))
+    }
+
     @Test("전체 조회는 배열을 그대로 돌려준다")
     func fullListWithoutPagination() async throws {
     let (sut, stub) = makeSUT()
@@ -230,5 +274,23 @@ struct URLSessionHTTPClientTests {
     let error = await capture { try await sut.request(Endpoint<[RoomDTO]>(path: "api/v1/rooms")) }
 
     #expect(error == .transport(reason: .notConnected))
+    }
+
+    // 게이트웨이가 끼워 넣는 HTML 오류 페이지는 수십 KB 다. preview 에 상한이 없으면
+    // 그게 통째로 오류 값에 실려 로그·크래시 리포트까지 따라간다.
+    @Test("계약을 벗어난 본문이 길어도 preview 는 200자에서 끊는다")
+    func truncatesUnexpectedFormatPreview() async throws {
+        let (sut, stub) = makeSUT()
+        stub.stub.statusCode = 400
+        stub.stub.body = Data(String(repeating: "A", count: 5_000).utf8)
+
+        let error = await capture { _ = try await sut.request(Endpoint<[RoomDTO]>(path: "api/v1/rooms")) }
+
+        guard case .unexpectedErrorFormat(let statusCode, let preview) = error else {
+            Issue.record("unexpectedErrorFormat 를 기대했는데 \(String(describing: error))")
+            return
+        }
+        #expect(statusCode == 400)
+        #expect(preview.count == 200)
     }
 }

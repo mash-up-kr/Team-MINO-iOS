@@ -87,4 +87,42 @@ struct RetryTests {
 
     #expect(stub.recorded.count == 2)
     }
+
+    // Alamofire `RetryPolicy` 의 기본 대상은 408·500·502·503·504 다. 503 하나만 검증하면
+    // 목록이 좁아지거나(라이브러리 기본값 변경) 우리가 정책을 갈아끼웠을 때 조용히 통과한다.
+    @Test("재시도 대상 상태코드는 모두 한 번 더 시도한다", arguments: [408, 500, 502, 503, 504])
+    func retriesEveryRetryableStatusCode(_ statusCode: Int) async throws {
+        let (sut, stub) = makeSUT(interceptor: testRetryPolicy)
+        stub.stub.statusCode = statusCode
+
+        _ = await capture { _ = try await sut.request(Endpoint<[RoomDTO]>(path: "api/v1/rooms")) }
+
+        #expect(stub.recorded.count == 2)
+    }
+
+    // 501·505 는 "이 서버는 그걸 못 한다" 는 뜻이라 다시 물어도 답이 같다.
+    // 5xx 를 뭉뚱그려 재시도하게 바뀌면 실패가 두 배 느려진다.
+    @Test("재시도 대상이 아닌 5xx 는 한 번만 시도한다", arguments: [501, 505])
+    func doesNotRetryNonRetryableServerErrors(_ statusCode: Int) async throws {
+        let (sut, stub) = makeSUT(interceptor: testRetryPolicy)
+        stub.stub.statusCode = statusCode
+
+        _ = await capture { _ = try await sut.request(Endpoint<[RoomDTO]>(path: "api/v1/rooms")) }
+
+        #expect(stub.recorded.count == 1)
+    }
+
+    // PATCH 도 POST 와 같이 멱등이 아니다. 부분 수정을 두 번 보내면 서버 구현에 따라
+    // 결과가 갈린다(카운터 증감 등).
+    @Test("PATCH 5xx 는 재시도하지 않는다")
+    func doesNotRetryPatch() async throws {
+        let (sut, stub) = makeSUT(interceptor: testRetryPolicy)
+        stub.stub.statusCode = 503
+
+        _ = await capture {
+            _ = try await sut.request(Endpoint<OkResponse>(path: "api/v1/rooms/r1", method: .patch))
+        }
+
+        #expect(stub.recorded.count == 1)
+    }
 }
