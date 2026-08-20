@@ -203,13 +203,14 @@ struct OnboardingCoordinatorTests {
         #expect(coord.path == [.tutorial])
     }
 
-    @Test("배선 — CreateRoom Store 의 tapCreate 가 path 에 반영된다")
+    @Test("배선 — CreateRoom Store 의 저장 확인이 path 에 반영된다")
     func createRoomStore_isWiredToPath() async {
         let coord = OnboardingCoordinator()
 
         let store = coord.makeCreateRoomStore()
         store.send(.roomNameChanged("민호야 잘하자"))   // reduce 가 생성 조건을 가드하므로 이름을 먼저 넣는다
-        store.send(.tapCreate)
+        store.send(.tapCreate)                        // 확인 다이얼로그를 띄우기만 한다
+        store.send(.confirmCreate)
 
         await waitUntil { !coord.path.isEmpty }
         #expect(coord.path == [.inviteFriends])

@@ -35,9 +35,13 @@ struct CreateRoomContent: View {
     let isNameValid: Bool
     let isDescriptionValid: Bool
     let isCreateEnabled: Bool
+    let dialog: CreateRoomDialog?
     let onSelectColor: (Int) -> Void
     let onCreate: () -> Void
     let onBack: () -> Void
+    let onDismissDialog: () -> Void
+    let onConfirmCreate: () -> Void
+    let onConfirmCancel: () -> Void
     /// `nil` 이면 상단바에 건너뛰기 버튼을 그리지 않는다 — 건너뛸 수 없는 진입점(방리스트 등)을 위해.
     let onSkip: (() -> Void)?
 
@@ -68,6 +72,29 @@ struct CreateRoomContent: View {
         // 방 설명(MHTextArea)은 리턴키가 개행이라 리턴키로 못 닫는다. 스크롤 해제·툴바 '완료' 와 함께
         // 여백 탭도 열어 둔다 — 키보드가 하단을 가리면 방 색상 그리드에 접근 자체가 안 된다(이슈 #93).
         .mhDismissKeyboardOnTap()
+        .mhDialog(item: .constant(dialog)) { confirmDialog($0) }
+    }
+
+    // MARK: 확인 다이얼로그 (디자인 001-1-4)
+
+    private func confirmDialog(_ dialog: CreateRoomDialog) -> MHDialog {
+        switch dialog {
+        case .saveConfirm:
+            MHDialog(
+                title: "공동방을 저장하시겠어요?",
+                message: "공동방 편집에서 설정을 변경할 수 있어요.",
+                cancel: MHAction("취소", action: onDismissDialog),
+                confirm: MHAction("저장하기", action: onConfirmCreate)
+            )
+        case .cancelConfirm:
+            // 문구는 Figma 원문 그대로다("공동방을 만들기를"). 오타로 보이지만 임의로 고치지 않는다.
+            MHDialog(
+                title: "공동방을 만들기를 취소하시겠어요?",
+                message: "저장탭에서 공동방을 생성할 수 있어요",
+                cancel: MHAction("취소", action: onDismissDialog),
+                confirm: MHAction("나가기", action: onConfirmCancel)
+            )
+        }
     }
 
     // MARK: 미리보기 카드
@@ -173,6 +200,14 @@ struct CreateRoomContent: View {
     PreviewHost(roomName: "민호야 잘하자^^", roomDescription: String(repeating: "가", count: 31), selectedColorIndex: 5)
 }
 
+#Preview("저장 확인 다이얼로그") {
+    PreviewHost(roomName: "민호야 잘하자", roomDescription: "팀 회식 장소 모음", selectedColorIndex: 2, dialog: .saveConfirm)
+}
+
+#Preview("취소 확인 다이얼로그") {
+    PreviewHost(roomName: "", roomDescription: "", selectedColorIndex: nil, dialog: .cancelConfirm)
+}
+
 #Preview("건너뛰기 없음") {
     PreviewHost(roomName: "민호야 잘하자", roomDescription: "팀 회식 장소 모음", selectedColorIndex: 2, showsSkip: false)
 }
@@ -182,11 +217,18 @@ private struct PreviewHost: View {
     @State var state = CreateRoomState()
     var showsSkip: Bool = true
 
-    init(roomName: String, roomDescription: String, selectedColorIndex: Int?, showsSkip: Bool = true) {
+    init(
+        roomName: String,
+        roomDescription: String,
+        selectedColorIndex: Int?,
+        dialog: CreateRoomDialog? = nil,
+        showsSkip: Bool = true
+    ) {
         var state = CreateRoomState()
         state.roomName = roomName
         state.roomDescription = roomDescription
         state.selectedColorIndex = selectedColorIndex
+        state.dialog = dialog
         self._state = State(initialValue: state)
         self.showsSkip = showsSkip
     }
@@ -199,9 +241,13 @@ private struct PreviewHost: View {
             isNameValid: state.isNameValid,
             isDescriptionValid: state.isDescriptionValid,
             isCreateEnabled: state.isCreateEnabled,
+            dialog: state.dialog,
             onSelectColor: { state.selectedColorIndex = $0 },
-            onCreate: {},
-            onBack: {},
+            onCreate: { state.dialog = .saveConfirm },
+            onBack: { state.dialog = .cancelConfirm },
+            onDismissDialog: { state.dialog = nil },
+            onConfirmCreate: { state.dialog = nil },
+            onConfirmCancel: { state.dialog = nil },
             onSkip: showsSkip ? {} : nil
         )
     }

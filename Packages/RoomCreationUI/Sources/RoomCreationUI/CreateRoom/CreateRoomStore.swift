@@ -2,10 +2,21 @@ import Foundation
 import MVI
 
 // [Convention] .claude/docs/mvi-coordinator-di.md 5절 — 화면 = Store 1개 = 폴더 1개, State/Action/Nav/reducer 한 파일
+/// 화면 위에 떠 있는 확인 다이얼로그. 없으면 `nil`.
+public enum CreateRoomDialog: Equatable, Identifiable, Sendable {
+    /// CTA 를 눌렀을 때 — "저장하시겠어요?" (디자인 001-1-4)
+    case saveConfirm
+    /// 뒤로가기를 눌렀을 때 — "만들기를 취소하시겠어요?" (디자인 001-1-4)
+    case cancelConfirm
+
+    public var id: Self { self }
+}
+
 public struct CreateRoomState: Equatable {
     public var roomName: String = ""
     public var roomDescription: String = ""
     public var selectedColorIndex: Int?
+    public var dialog: CreateRoomDialog?
 
     public init() {}
 
@@ -51,6 +62,10 @@ public enum CreateRoomAction: Equatable {
     case roomDescriptionChanged(String)
     case selectColor(Int)
     case tapCreate
+    case tapBack
+    case confirmCreate
+    case confirmCancel
+    case dismissDialog
     case tapSkip
 }
 
@@ -59,6 +74,8 @@ public enum CreateRoomAction: Equatable {
 /// 다른 곳으로 보내는 소비자에서 이름이 거짓말이 된다.
 public enum CreateRoomNav: Equatable, Sendable {
     case didCreateRoom
+    /// 사용자가 만들기를 그만뒀다. 뒤로가기 → 확인 다이얼로그 → "나가기" 를 거친 결과다.
+    case didCancel
     case didSkip
 }
 
@@ -85,11 +102,27 @@ public func createRoomReducer() -> (inout CreateRoomState, CreateRoomAction) -> 
         case .selectColor(let index):
             state.selectedColorIndex = index
             return .none
+        // CTA·뒤로가기는 곧장 전환하지 않고 확인 다이얼로그를 먼저 띄운다(디자인 ⑤⑦).
+        // 실제 전환은 confirm* 액션이 낸다.
         case .tapCreate:
             // 뷰의 .disabled 는 UI 레이어 방어라 뷰가 바뀌면 뚫린다 — 전환 조건은 여기서도 지킨다.
             // (.tapSkip 은 건너뛰기라 조건 없이 통과한다)
             guard state.isCreateEnabled else { return .none }
+            state.dialog = .saveConfirm
+            return .none
+        // 입력이 비어 있어도 묻는다 — 디자인 ⑦ 에 조건이 없다.
+        case .tapBack:
+            state.dialog = .cancelConfirm
+            return .none
+        case .confirmCreate:
+            state.dialog = nil
             return .navigate(.didCreateRoom)
+        case .confirmCancel:
+            state.dialog = nil
+            return .navigate(.didCancel)
+        case .dismissDialog:
+            state.dialog = nil
+            return .none
         case .tapSkip:
             return .navigate(.didSkip)
         }

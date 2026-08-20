@@ -100,17 +100,41 @@ struct CreateRoomReducerTests {
 
     // Nav 는 목적지가 아니라 일어난 일을 알린다 — 어디로 갈지는 소비하는 flow 가 정하므로
     // 이 테스트는 "무엇이 일어났는지"만 단언한다.
-    @Test("L2 — tapCreate(방 생성하기): 이름이 있으면 didCreateRoom 을 알린다")
-    func tapCreate_whenCreateEnabled_notifiesDidCreateRoom() async {
+    @Test("L2 — tapCreate(방 생성하기): 곧장 전환하지 않고 저장 확인 다이얼로그를 띄운다")
+    func tapCreate_whenCreateEnabled_showsSaveDialog() async {
         let store = TestStore(CreateRoomState(), reduce: createRoomReducer())
 
         await store.send(.roomNameChanged("민호야 잘하자")) {
             $0.roomName = "민호야 잘하자"
         }
 
-        await store.send(.tapCreate)
+        await store.send(.tapCreate) { $0.dialog = .saveConfirm }
+        await store.send(.confirmCreate) { $0.dialog = nil }
         store.receiveNavigation(.didCreateRoom)
 
+        store.finish()
+    }
+
+    @Test("L2 — tapBack(뒤로가기): 취소 확인 다이얼로그를 거쳐야 didCancel 이 나간다")
+    func tapBack_showsCancelDialogThenNotifiesDidCancel() async {
+        let store = TestStore(CreateRoomState(), reduce: createRoomReducer())
+
+        await store.send(.tapBack) { $0.dialog = .cancelConfirm }
+        await store.send(.confirmCancel) { $0.dialog = nil }
+        store.receiveNavigation(.didCancel)
+
+        store.finish()
+    }
+
+    @Test("L2 — dismissDialog: 다이얼로그만 닫고 화면은 그대로다")
+    func dismissDialog_closesWithoutNavigating() async {
+        let store = TestStore(CreateRoomState(), reduce: createRoomReducer())
+
+        await store.send(.roomNameChanged("민호야 잘하자")) { $0.roomName = "민호야 잘하자" }
+        await store.send(.tapCreate) { $0.dialog = .saveConfirm }
+        await store.send(.dismissDialog) { $0.dialog = nil }
+
+        // finish 가 미수신 navigation 잔여를 검사한다 — 취소했는데 전환이 나갔다면 여기서 실패한다
         store.finish()
     }
 

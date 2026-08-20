@@ -8,8 +8,6 @@ public struct CreateRoomView: View {
     private let makeStore: @MainActor () -> CreateRoomStore
     private let showsSkip: Bool
     @State private var store: CreateRoomStore?
-    // 뒤로가기: Coordinator.pop() 을 직접 부르지 않고 NavigationStack 표준 dismiss 를 쓴다.
-    @Environment(\.dismiss) private var dismiss
 
     /// - Parameter showsSkip: 상단바 건너뛰기 버튼 노출. 건너뛸 수 없는 진입점(방리스트 등)은 `false`.
     ///   눌렀을 때 어디로 갈지는 `CreateRoomNav.didSkip` 을 받는 소비자가 정한다.
@@ -34,9 +32,13 @@ public struct CreateRoomView: View {
                     isNameValid: store.state.isNameValid,
                     isDescriptionValid: store.state.isDescriptionValid,
                     isCreateEnabled: store.state.isCreateEnabled,
+                    dialog: store.state.dialog,
                     onSelectColor: { store.send(.selectColor($0)) },
                     onCreate: { store.send(.tapCreate) },
-                    onBack: { dismiss() },
+                    onBack: { store.send(.tapBack) },
+                    onDismissDialog: { store.send(.dismissDialog) },
+                    onConfirmCreate: { store.send(.confirmCreate) },
+                    onConfirmCancel: { store.send(.confirmCancel) },
                     onSkip: showsSkip ? { store.send(.tapSkip) } : nil
                 )
             } else {
