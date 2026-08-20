@@ -71,9 +71,9 @@ public struct SaveLinkView: View {
         }
     }
 
-    /// 저장이 끝나면 시트는 사라지고 스낵바만 남는다. Figma `013-2`(화면 바닥에서 40).
+    /// 저장이 끝나면 시트는 사라지고 스낵바만 남는다. Figma `013-2`(node 2792:177961 — 화면 바닥에서 40).
     private var savedFeedback: some View {
-        MHSnackbar(title: "저장이 완료됐습니다.", icon: .check)
+        MHSnackbar(title: "저장이 완료됐습니다.", icon: .checkThick)
             .padding(.horizontal, 20)
             .padding(.bottom, 40)
             .accessibilityIdentifier("SaveLink.completionSnackbar")
