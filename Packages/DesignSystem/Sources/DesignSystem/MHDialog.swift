@@ -68,13 +68,18 @@ public struct MHDialog: View {
         .accessibilityIdentifier("MHDialog")
     }
 
-    // 취소=Background/Normal/Alternative + Static/Black, 확인=Primary/Normal + Static/White (Figma 실측).
+    // 취소=Background/Normal/Alternative + Label/Normal, 확인=Primary/Normal + Inverse/Label.
+    //
+    // Figma 는 라벨을 `Static/White`·`Static/Black` 으로 찍어 뒀지만 그건 라이트 모드만 그린 시안이다.
+    // 그대로 쓰면 다크에서 Primary/Normal 이 흰색으로 뒤집히면서 **흰 배경에 흰 글씨**가 된다
+    // (시뮬레이터 확인). 배경을 따라 뒤집히는 시맨틱 토큰으로 매핑한다 — 라이트 실측값은 동일하고,
+    // `MHButton` 의 solid/primary 가 `.mhInverseLabel` 을 쓰는 것과 같은 규칙이다.
     @ViewBuilder private func button(_ action: MHAction, isConfirm: Bool) -> some View {
         Button(action: action.action) {
             Text(action.title)
                 .mhTypography(.body1NormalMedium)
                 .foregroundStyle(action.isEnabled
-                    ? (isConfirm ? Color.mhStaticWhite : Color.mhStaticBlack)
+                    ? (isConfirm ? Color.mhInverseLabel : Color.mhLabelNormal)
                     : Color.mhLabelAssistive)
                 .frame(maxWidth: .infinity)
                 .frame(height: Metric.buttonHeight)
