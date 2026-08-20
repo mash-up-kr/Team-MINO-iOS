@@ -16,8 +16,7 @@ let package = Package(
     targets: [
         .target(
             name: "FeatureArchive",
-            dependencies: ["FlowCoordination", "DesignSystem", "MVI", "Domain"],
-            resources: [.process("Resources")]
+            dependencies: ["FlowCoordination", "DesignSystem", "MVI", "Domain"]
         ),
         .testTarget(
             name: "FeatureArchiveTests",

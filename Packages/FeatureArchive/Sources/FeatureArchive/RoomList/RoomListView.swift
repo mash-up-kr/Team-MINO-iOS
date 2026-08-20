@@ -167,7 +167,7 @@ struct RoomListContentView: View {
             Spacer(minLength: 24)
 
             VStack(spacing: 24) {
-                Image("emptyRoomIllustration", bundle: .module)
+                Image(MHIllustration.emptyRoom)
                     .accessibilityHidden(true)
 
                 VStack(spacing: 8) {
