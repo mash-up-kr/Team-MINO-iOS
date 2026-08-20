@@ -17,6 +17,12 @@ public final class ArchiveCoordinator: Coordinator {
 
     private let deps: ArchiveDeps
 
+    public private(set) var selectedRoom: Room?
+
+    public var isRoomDetailPresented: Bool { selectedRoom != nil }
+
+    var sharingLocation: RoomDetailLocation?
+
     public init(deps: ArchiveDeps) {
         self.deps = deps
     }
@@ -32,8 +38,30 @@ public final class ArchiveCoordinator: Coordinator {
         return store
     }
 
+    func makeRoomDetailStore(room: Room) -> RoomDetailStore {
+        let store = RoomDetailStore(
+            RoomDetailState(room: RoomDetailRoom(from: room)),
+            reduce: roomDetailReducer(useCase: deps.fetchPins, room: room)
+        )
+        store.observeNavigation { [weak self] in self?.handle($0) }
+        return store
+    }
+
     // MARK: - Effect Routing
 
-    /// NavigationEffect 라우팅. 이번 PR 은 전환이 없어(빈 `RoomListNav`) 실제로 호출되지 않는다.
-    func handle(_ nav: RoomListNav) {}
+    func handle(_ nav: RoomListNav) {
+        switch nav {
+        case .openRoomDetail(let room):
+            selectedRoom = room
+        }
+    }
+
+    func handle(_ nav: RoomDetailNav) {
+        switch nav {
+        case .close:
+            selectedRoom = nil
+        case .shareLocation(let location):
+            sharingLocation = location
+        }
+    }
 }

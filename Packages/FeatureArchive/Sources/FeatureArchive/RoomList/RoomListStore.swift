@@ -25,10 +25,12 @@ public enum RoomListAction: Equatable {
     case selectFilter(Int)
     case selectRoomFilter(Int)
     case selectCategory(Int)
+    case tapRoom(Room)
 }
 
-/// 이번 PR 은 화면 전환이 없다(카드 탭·"+" 인터랙션 비활성) → 빈 Nav.
-public enum RoomListNav: Equatable, Sendable {}
+public enum RoomListNav: Equatable, Sendable {
+    case openRoomDetail(Room)
+}
 
 public typealias RoomListStore = Store<RoomListState, RoomListAction, RoomListNav>
 
@@ -64,6 +66,8 @@ public func roomListReducer(
         case .selectCategory(let index):
             state.categoryFilter = index
             return .none
+        case .tapRoom(let room):
+            return .navigate(.openRoomDetail(room))
         }
     }
 }

@@ -73,6 +73,14 @@ struct RoomListReducerTests {
         store.finish()
     }
 
+    @Test("L1 — tapRoom 은 고른 방을 실어 방 상세로 navigate 한다")
+    func tapRoom() async {
+        let store = makeStore(state: RoomListState(rooms: fixtureRooms))
+        await store.send(.tapRoom(fixtureRooms[1]))
+        store.receiveNavigation(.openRoomDetail(fixtureRooms[1]))
+        store.finish()
+    }
+
     @Test("L2 — 이미 rooms 가 있는 상태에서 재조회가 실패해도 기존 rooms 를 비우지 않는다")
     func load_failure_afterPreviousSuccess_keepsExistingRooms() async {
         // 재진입(pull-to-refresh 등) 시나리오: 첫 로드는 성공, 두 번째 로드가 실패해도

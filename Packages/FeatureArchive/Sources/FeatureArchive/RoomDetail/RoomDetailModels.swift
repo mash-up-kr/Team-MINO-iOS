@@ -1,8 +1,7 @@
-import Foundation
+import Domain
 
-/// 방 상세 시트가 그리는 장소 한 건. 서버 연동 전까지 쓰는 화면 전용 표시 모델.
 struct RoomDetailLocation: Identifiable, Equatable {
-    let id: UUID = UUID()
+    let id: String
     let name: String
     let address: String
     let commentCount: Int
@@ -15,6 +14,34 @@ struct RoomDetailRoom: Equatable {
     let memo: String
     let locationCountText: String
     let memberCount: Int
+}
+
+extension RoomDetailLocation {
+    private static let placeholderCommentCount = 0
+    private static let placeholderPhotoCount = 2
+
+    init(from pin: Pin) {
+        self.init(
+            id: pin.id.value,
+            name: pin.title,
+            address: pin.address,
+            commentCount: Self.placeholderCommentCount,
+            photoCount: Self.placeholderPhotoCount
+        )
+    }
+}
+
+extension RoomDetailRoom {
+    private static let countCap = 999
+
+    init(from room: Room) {
+        self.init(
+            title: room.name,
+            memo: room.description ?? "",
+            locationCountText: room.pinCount > Self.countCap ? "\(Self.countCap)+개" : "\(room.pinCount)개",
+            memberCount: room.users.count
+        )
+    }
 }
 
 /// 툴바 좌측 드롭다운의 정렬 기준.
@@ -49,16 +76,6 @@ enum RoomDetailMenuItemID: String, CaseIterable {
     }
 }
 
-/// 시트가 자기 바깥으로 내보내는 요청. 진입 화면(`ProfileTabView`)이 받아 처리한다.
-/// 시트는 자기 안에서 딤을 동반한 모달을 띄울 수 없다 — `MHBottomSheet` 의 클립 경계 안이라 잘린다.
-///
-/// 장소는 식별자가 아니라 **값째** 싣는다. ID 만 보내면 받는 쪽이 자기 목록에서 재조회해야 하는데,
-/// 시트에 주입된 목록과 조회처가 갈라지는 순간(서버 연동·필터) 조회 실패가 무음으로 삼켜진다.
-enum RoomDetailOutput: Equatable {
-    case close
-    case shareLocation(RoomDetailLocation)
-}
-
 /// 헤더 아래 카테고리 칩.
 enum RoomDetailCategory: String, CaseIterable, Identifiable {
     case all = "전체"
@@ -80,8 +97,9 @@ extension RoomDetailRoom {
 }
 
 extension RoomDetailLocation {
-    static let samples: [RoomDetailLocation] = (0..<8).map { _ in
+    static let samples: [RoomDetailLocation] = (0..<8).map { index in
         RoomDetailLocation(
+            id: "sample-\(index)",
             name: "레이어스튜디오 10",
             address: "서울 성동구 상원4길 10",
             commentCount: 1000,
