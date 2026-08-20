@@ -201,6 +201,10 @@ struct HomeReducerTests {
         #expect(HomeState(rooms: [personal] + fixtureRooms, pins: []).showsRoomIdentity)
         // 표시할 장소가 있으면 → 방 칩·마스코트
         #expect(HomeState(rooms: fixtureRooms, pins: fixturePins).showsRoomIdentity)
+        // 지금 칩의 덱만 비고 다른 기준엔 장소가 있으면 → 유지. 숨기면 방을 바꿀 유일한 진입점이 사라진다
+        var otherFilterOnly = HomeState(rooms: [personal], selectedFilter: .nearby, pins: [])
+        otherFilterOnly.decks[.latest] = fixturePins
+        #expect(otherFilterOnly.showsRoomIdentity)
     }
 
     // MARK: - Filter

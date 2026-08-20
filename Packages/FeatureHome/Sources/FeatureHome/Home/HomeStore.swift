@@ -69,14 +69,17 @@ public struct HomeState: Equatable {
     /// 표시할 카드가 0장이면(방·공동방 유무 무관) 빈 상태다 — "방이 0개일 때"가 아니라 "볼 장소가 0일 때".
     /// (PRD [SCR-003] Flow F / [SYS-009] Flow C). CTA 는 공동방 유무와 무관하게 항상 노출한다
     /// (팀 정책 결정 — 공동방 있으면 유도를 끄는 Flow D 와는 다름).
-    /// 정렬 필터 후속 PR: 이 판정은 `pins`(현재 전체) → 필터된 표시 집합 기준으로 바뀐다. [[showsRoomIdentity]] 는 계속 원본.
     public var showsEmptyState: Bool { !isLoading && !isDeckLoading && pins.isEmpty }
 
-    /// 홈 상단 방 정체성(방 칩·마스코트)을 노출할지. **표시할 장소가 있거나(정렬 무관) 공동방이 하나라도
+    /// 홈 상단 방 정체성(방 칩·마스코트)을 노출할지. **어느 기준으로든 받아 둔 장소가 있거나 공동방이 하나라도
     /// 있으면** 노출한다 → 오직 개인방만 있고 그마저 비었을 때만 로고(GGUK)·마스코트를 숨긴다.
+    /// 현재 기준(`pins`)이 아니라 `decks` 전체를 보는 이유: 마스코트·뱃지는 방 변경 바텀시트의 유일한 진입점이라
+    /// (PRD [SCR-003] Flow E), 지금 칩의 덱만 비었다고 숨기면 다른 칩엔 장소가 있는데도 방을 바꿀 길이 사라진다.
     /// (공동방이 있으면 방이 비어도 방 리스트로 전환할 수 있어야 하므로 칩·마스코트를 유지한다)
     /// 빈 상태 본문([[showsEmptyState]]) 노출과는 독립 — 방 칩·마스코트를 띄운 채 empty state 를 보일 수 있다.
-    public var showsRoomIdentity: Bool { !pins.isEmpty || rooms.contains { $0.type == .shared } }
+    public var showsRoomIdentity: Bool {
+        decks.values.contains { !$0.isEmpty } || rooms.contains { $0.type == .shared }
+    }
 
     /// 현재 방(뱃지·방 리스트 선택 표시의 기준). 카드가 있으면 맨 앞 카드가 속한 방(넘기면 그 방으로 바뀜),
     /// 카드가 없으면(빈 방들) 방 리스트에서 고른 방(selectedRoomID) — 없으면 첫 방(내 장소).
