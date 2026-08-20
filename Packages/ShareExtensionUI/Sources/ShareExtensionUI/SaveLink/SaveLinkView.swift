@@ -1,10 +1,14 @@
 import Core
 import DesignSystem
+import SavePostUI
 import SwiftUI
 
 // [Convention] .claude/docs/mvi-coordinator-di.md 5절 — Store 는 .task 에서 1회 lazy 생성
 
 /// 공유받은 링크를 방에 저장하는 바텀시트. Figma `013-1 외부 공유 시 바텀시트`(node 2661:164102 외).
+///
+/// 시트 마크업은 홈과 공유하는 ``SavePostSheet`` 가 그리고, 여기서는 익스텐션 고유의 컨테이너
+/// (호스트 화면 위 오버레이·바깥탭 닫기·완료 스낵바)만 맡는다.
 ///
 /// Coordinator 대신 `makeStore` 클로저를 받는다: 익스텐션에는 Coordinator 가 없고
 /// `ShareViewController` 가 Store 를 만들어 navigation 을 소비한다.
@@ -31,16 +35,8 @@ public struct SaveLinkView: View {
                     if store.state.isSaved {
                         savedFeedback
                     } else {
-                        SaveLinkContent(
-                            rooms: store.state.rooms,
-                            checkedRoomIDs: store.state.checkedRoomIDs,
-                            savedRoomIDs: store.state.savedRoomIDs,
-                            canSubmit: store.state.canSubmit,
-                            safeAreaBottom: proxy.safeAreaInsets.bottom,
-                            onToggleRoom: { store.send(.toggleRoom($0)) },
-                            onSave: { store.send(.tapSave) }
-                        )
-                        .transition(.move(edge: .bottom))
+                        sheet(store: store, safeAreaBottom: proxy.safeAreaInsets.bottom)
+                            .transition(.move(edge: .bottom))
                     }
                 } else {
                     ProgressView()
@@ -53,6 +49,28 @@ public struct SaveLinkView: View {
         }
     }
 
+    /// 시트 본체 + 익스텐션 쪽 컨테이너(고정 높이·둥근 상단 배경).
+    /// 홈은 시스템 `.sheet` 가 이 둘을 대신하므로 ``SavePostSheet`` 는 컨테이너를 그리지 않는다.
+    private func sheet(store: SaveLinkStore, safeAreaBottom: CGFloat) -> some View {
+        SavePostSheet(
+            rooms: store.state.rooms.map(SavePostRoom.init(_:)),
+            checkedRoomIDs: store.state.checkedRoomIDs,
+            disabledRoomIDs: store.state.savedRoomIDs,
+            canSubmit: store.state.canSubmit,
+            safeAreaBottom: safeAreaBottom,
+            identifierPrefix: "SaveLink",
+            onToggleRoom: { store.send(.toggleRoom($0)) },
+            onSave: { store.send(.tapSave) }
+        )
+        .frame(height: SavePostSheetMetrics.height(roomCount: store.state.rooms.count,
+                                                  safeAreaBottom: safeAreaBottom))
+        .frame(maxWidth: .infinity)
+        .background {
+            UnevenRoundedRectangle(topLeadingRadius: 20, topTrailingRadius: 20)
+                .fill(Color.mhBackgroundElevatedNormal)
+        }
+    }
+
     /// 저장이 끝나면 시트는 사라지고 스낵바만 남는다. Figma `013-2`(화면 바닥에서 40).
     private var savedFeedback: some View {
         MHSnackbar(title: "저장이 완료됐습니다.", icon: .check)
@@ -62,86 +80,11 @@ public struct SaveLinkView: View {
     }
 }
 
-/// 값과 콜백만 받는 마크업. Store 를 모른다.
-struct SaveLinkContent: View {
-    let rooms: [SharedRoom]
-    let checkedRoomIDs: Set<String>
-    let savedRoomIDs: Set<String>
-    let canSubmit: Bool
-    let safeAreaBottom: CGFloat
-    let onToggleRoom: (String) -> Void
-    let onSave: () -> Void
-
-    var body: some View {
-        VStack(spacing: 0) {
-            grabber
-            header
-            roomList
-            // safeArea: false — 시트가 자기 바닥을 홈 인디케이터까지 늘려 이미 여백을 확보한다.
-            MHActionArea(main: .init("저장하기", isEnabled: canSubmit, action: onSave), safeArea: false)
-                .padding(.bottom, safeAreaBottom)
-        }
-        .frame(height: SaveLinkSheetMetrics.height(roomCount: rooms.count, safeAreaBottom: safeAreaBottom),
-               alignment: .top)
-        .frame(maxWidth: .infinity)
-        .background {
-            UnevenRoundedRectangle(topLeadingRadius: 20, topTrailingRadius: 20)
-                .fill(Color.mhBackgroundElevatedNormal)
-        }
-        .accessibilityIdentifier("SaveLink.sheet")
-    }
-
-    private var grabber: some View {
-        RoundedRectangle(cornerRadius: 4)
-            .fill(Color.mhFillNormal)
-            .frame(width: 38, height: 4)
-            .frame(maxWidth: .infinity)
-            .frame(height: 30)
-            .accessibilityHidden(true)
-    }
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("게시물 저장")
-                .mhTypography(.heading2Bold)
-                .foregroundStyle(Color.mhLabelNormal)
-            Text("장소를 저장할 방을 선택해주세요.")
-                .mhTypography(.label1NormalRegular)
-                .foregroundStyle(Color.mhLabelNeutral)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 20)
-        .padding(.bottom, 12)
-        .accessibilityElement(children: .combine)
-        .accessibilityIdentifier("SaveLink.header")
-    }
-
-    private var roomList: some View {
-        ScrollView {
-            LazyVStack(spacing: 0) {
-                ForEach(rooms) { room in
-                    MHRoomCard(
-                        title: room.name,
-                        memo: room.memo,
-                        placeCount: room.placeCount,
-                        selection: Binding(
-                            get: { checkedRoomIDs.contains(room.id) },
-                            set: { _ in onToggleRoom(room.id) }
-                        )
-                    )
-                    .padding(.horizontal, 20)
-                    // 체크박스는 18pt 라 겨냥이 어렵다 — 줄 전체를 탭 영역으로 넓힌다.
-                    .contentShape(Rectangle())
-                    .onTapGesture { onToggleRoom(room.id) }
-                    // 이미 저장된 방은 체크된 채 비활성(MHCheckbox 가 isEnabled 를 읽어 흐려진다).
-                    // 줄 탭보다 **바깥**에 걸어야 넓힌 탭 영역까지 함께 죽는다.
-                    .disabled(savedRoomIDs.contains(room.id))
-                    .accessibilityIdentifier("SaveLink.room.\(room.id)")
-                }
-            }
-        }
-        .scrollBounceBehavior(.basedOnSize)
-        .frame(maxHeight: .infinity)
+private extension SavePostRoom {
+    /// 익스텐션이 들고 있는 방(`Core.SharedRoom`) → 시트 표시용 값.
+    /// 썸네일 정보는 아직 공유 저장소에 없어 기본 색으로 둔다.
+    init(_ room: SharedRoom) {
+        self.init(id: room.id, name: room.name, memo: room.memo, placeCount: room.placeCount)
     }
 }
 
@@ -149,14 +92,20 @@ struct SaveLinkContent: View {
     ZStack(alignment: .bottom) {
         // 실제로는 호스트 화면이 비친다 — 시트 경계를 보려고 깔아둔 배경.
         Color.mhMaterialDimmer.ignoresSafeArea()
-        SaveLinkContent(
-            rooms: SharedRoom.samples,
+        SavePostSheet(
+            rooms: SharedRoom.samples.map(SavePostRoom.init(_:)),
             checkedRoomIDs: ["2"],
-            savedRoomIDs: ["2"],
+            disabledRoomIDs: ["2"],
             canSubmit: false,
-            safeAreaBottom: 34,
+            safeAreaBottom: SavePostSheetMetrics.designSafeAreaBottom,
+            identifierPrefix: "SaveLink",
             onToggleRoom: { _ in },
             onSave: {}
         )
+        .frame(height: SavePostSheetMetrics.height(roomCount: SharedRoom.samples.count, safeAreaBottom: 34))
+        .background {
+            UnevenRoundedRectangle(topLeadingRadius: 20, topTrailingRadius: 20)
+                .fill(Color.mhBackgroundElevatedNormal)
+        }
     }
 }
