@@ -13,6 +13,7 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps {
     let fetchPins: FetchPinsUseCase
     let lastViewedRoom: LastViewedRoomUseCase
     let homeGuide: HomeGuideUseCase
+    let savePin: SavePinToRoomsUseCase
 
     init() {
         // 백엔드 미연결 단계 — 시범용 Stub UseCase 를 주입한다.
@@ -35,6 +36,10 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps {
 
         // 홈 사용 가이드 1회 표기 플래그도 같은 이유로 UserDefaults.
         self.homeGuide = DefaultHomeGuideUseCase(repository: UserDefaultsHomeGuideRepository())
+
+        // 다른 방 저장: 저장 API 미연결 → Mock Repository(지연만 주고 성공) 사용.
+        // 추후 SavePinRepositoryImpl 로 교체한다.
+        self.savePin = DefaultSavePinToRoomsUseCase(repository: MockSavePinRepository())
     }
 }
 

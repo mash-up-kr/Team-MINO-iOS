@@ -13,9 +13,10 @@ let package = Package(
         .package(path: "../FlowCoordination"),
         .package(path: "../MVI"),
         .package(path: "../RoomCreationUI"),
+        .package(path: "../SavePostUI"),
     ],
     targets: [
-        .target(name: "FeatureHome", dependencies: ["Domain", "DesignSystem", "FlowCoordination", "MVI", "RoomCreationUI"]),
+        .target(name: "FeatureHome", dependencies: ["Domain", "DesignSystem", "FlowCoordination", "MVI", "RoomCreationUI", "SavePostUI"]),
         .testTarget(
             name: "FeatureHomeTests",
             dependencies: [

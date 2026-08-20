@@ -1,0 +1,26 @@
+[
+  {
+    "id": "Home.savePost.sheet",
+    "kind": "container",
+    "screen": "SavePost",
+    "note": "게시물 저장 바텀시트(Figma 013-1-3) 루트. 홈 카드 더보기 메뉴 '다른 방 저장' 으로 열린다. 존재/detent 검증용."
+  },
+  {
+    "id": "Home.savePost.header",
+    "kind": "text",
+    "screen": "SavePost",
+    "note": "'게시물 저장' + 안내 문구를 합친 접근성 요소. 문구 변경 대비 텍스트 대신 식별자로 검증."
+  },
+  {
+    "id": "Home.savePost.room.<roomID>",
+    "kind": "row",
+    "screen": "SavePost",
+    "note": "방 선택 행(줄 전체가 탭 영역). <roomID>는 도메인 Room.id — 배열 인덱스 아님. 카드가 이미 속한 방은 체크된 채 비활성이라 탭해도 선택이 바뀌지 않는다."
+  },
+  {
+    "id": "Home.savedToast",
+    "kind": "state",
+    "screen": "Home",
+    "note": "저장 완료 스낵바(Figma 013-2). 시트가 닫힌 뒤 탭바 위에 뜨고 2초 후 사라진다 — 캡처 타이밍 주의."
+  }
+]

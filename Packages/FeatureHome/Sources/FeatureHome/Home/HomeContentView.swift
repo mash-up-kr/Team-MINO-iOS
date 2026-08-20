@@ -1,5 +1,6 @@
 import DesignSystem
 import Domain
+import SavePostUI
 import SwiftUI
 
 /// 홈 셸 콘텐츠. 방 뱃지 헤더 + 타이틀 + 필터바 + (카드 덱 자리 | 빈상태 A).
@@ -49,6 +50,43 @@ struct HomeContentView: View {
             .presentationDragIndicator(.hidden)   // 디자인 스펙 그래버를 RoomListView 가 직접 그린다
             .presentationBackgroundInteraction(.enabled(upThrough: .height(400)))   // 시스템 스크림 제거
         }
+        // 방 리스트 시트와 달리 게시물 저장 시트는 시안에 딤(`Material/Dimmer`)이 있어
+        // 시스템 스크림을 그대로 쓴다 — 그래서 프리젠터 쪽 딤(roomListDim)도 붙이지 않는다.
+        .sheet(isPresented: savePostBinding) {
+            savePostSheet
+        }
+    }
+
+    /// 게시물 저장 바텀시트. Figma `013-1-3`(node 2862:177988) — 마크업은 홈과 익스텐션이 함께 쓰는
+    /// ``SavePostSheet`` 가 그리고, 여기서는 시트 컨테이너(높이·그래버 숨김)만 맡는다.
+    @ViewBuilder
+    private var savePostSheet: some View {
+        if let savePost = store.state.savePost {
+            let rooms = store.state.rooms.map(SavePostRoom.init(_:))
+            SavePostSheet(
+                rooms: rooms,
+                checkedRoomIDs: savePost.checkedRoomIDs,
+                disabledRoomIDs: savePost.alreadySavedRoomIDs,
+                canSubmit: savePost.canSubmit,
+                identifierPrefix: "Home.savePost",
+                onToggleRoom: { store.send(.toggleSavePostRoom($0)) },
+                onSave: { store.send(.tapSavePost) }
+            )
+            // safeAreaBottom 0 — 시스템 시트가 하단 인셋을 이미 넣어 준다. detent 높이도 같은 이유로
+            // 홈 인디케이터를 뺀 값이다(`.height` 는 안전영역 **위쪽** 높이).
+            .presentationDetents([.height(SavePostSheetMetrics.height(roomCount: rooms.count,
+                                                                     safeAreaBottom: 0))])
+            .presentationDragIndicator(.hidden)   // 그래버는 시안대로 시트 안에서 직접 그린다
+            .presentationBackground(.mhBackgroundElevatedNormal)
+        }
+    }
+
+    /// 게시물 저장 시트 표시 바인딩 — 스와이프 dismiss 도 reducer 로 흘려보낸다.
+    private var savePostBinding: Binding<Bool> {
+        Binding(
+            get: { store.state.savePost != nil },
+            set: { if !$0 { store.send(.dismissSavePost) } }
+        )
     }
 
     /// 방 리스트가 열릴 때 홈 콘텐츠 위에 까는 딤(Figma `rgba(0,0,0,0.7)`).
@@ -116,7 +154,8 @@ struct HomeContentView: View {
                 previousDeckLastCard: store.state.previousDeckLastPin,
                 onSwipeForward: { store.send(.swipeForward) },
                 onSwipeBackward: { store.send(.swipeBackward) },
-                onTapCard: { store.send(.tapCard($0)) }
+                onTapCard: { store.send(.tapCard($0)) },
+                onSaveToOtherRoom: { store.send(.tapSaveToOtherRoom($0)) }
             )
             .padding(.top, 112)   // 앞 카드 고정 위치. 풀 덱일 때 뒤 카드 최상단이 필터 32pt 아래(112−80)에 오도록
             .accessibilityIdentifier("Home.cardDeck")
@@ -333,7 +372,8 @@ struct HomeMascotView: View {
                 fetchRooms: PreviewFetchRooms(),
                 fetchPins: PreviewFetchPins(),
                 lastViewedRoom: PreviewLastViewedRoom(),
-                homeGuide: PreviewHomeGuide()
+                homeGuide: PreviewHomeGuide(),
+                savePin: PreviewSavePin()
             )
         )
     )
@@ -347,7 +387,8 @@ struct HomeMascotView: View {
                 fetchRooms: PreviewFetchRooms(),
                 fetchPins: PreviewFetchPins(),
                 lastViewedRoom: PreviewLastViewedRoom(),
-                homeGuide: PreviewHomeGuide()
+                homeGuide: PreviewHomeGuide(),
+                savePin: PreviewSavePin()
             )
         )
     )
@@ -368,6 +409,11 @@ private struct PreviewLastViewedRoom: LastViewedRoomUseCase {
 private struct PreviewHomeGuide: HomeGuideUseCase {
     func hasSeen() async -> Bool { true }
     func markSeen() async {}
+}
+
+/// 프리뷰 전용 — 저장은 아무것도 하지 않는다.
+private struct PreviewSavePin: SavePinToRoomsUseCase {
+    func execute(pinID: PinID, roomIDs: Set<String>) async throws {}
 }
 
 /// 프리뷰 전용 핀 UseCase. 빈 배열을 반환한다(카드 덱 없이 셸만 확인).

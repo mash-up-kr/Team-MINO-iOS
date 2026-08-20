@@ -61,7 +61,8 @@ public final class HomeCoordinator: Coordinator {
                 fetchRooms: deps.fetchRooms,
                 fetchPins: deps.fetchPins,
                 lastViewedRoom: deps.lastViewedRoom,
-                homeGuide: deps.homeGuide
+                homeGuide: deps.homeGuide,
+                savePin: deps.savePin
             )
         )
         store.observeNavigation { [weak self] in self?.handle($0) }
