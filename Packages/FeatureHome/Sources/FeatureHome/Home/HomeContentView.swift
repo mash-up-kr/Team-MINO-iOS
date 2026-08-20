@@ -77,6 +77,7 @@ struct HomeContentView: View {
             .presentationDetents([.height(SavePostSheetMetrics.height(roomCount: rooms.count,
                                                                      safeAreaBottom: 0))])
             .presentationDragIndicator(.hidden)   // 그래버는 시안대로 시트 안에서 직접 그린다
+            .presentationCornerRadius(20)         // 시안 radius 20 (시스템 기본 10 과 다름)
             .presentationBackground(.mhBackgroundElevatedNormal)
         }
     }
