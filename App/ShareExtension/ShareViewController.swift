@@ -12,14 +12,6 @@ import UniformTypeIdentifiers
 /// 익스텐션에는 Coordinator 가 없다. Store 를 만들고 `observeNavigation` 으로
 /// 화면 전환 의도를 받아 자기를 끝내는 것까지 이 컨트롤러가 맡는다.
 final class ShareViewController: UIViewController {
-    /// 공유로 들어온 입력의 종류.
-    private enum ShareEntry {
-        /// 사용자가 실제로 저장하려는 링크.
-        case link(URL)
-        /// 온보딩 튜토리얼이 연습용으로 띄운 것. 저장하지 않고 바로 닫는다.
-        case tutorial
-    }
-
     /// 종료를 한 번만 보낸다. `.dismiss` 를 만드는 경로가 둘(완료 후 자동 닫힘·사용자 닫기)이고,
     /// navigation 은 AsyncStream 이라 둘 사이에 동기 배리어가 없다 — 시트가 걷히는 동안 닫기를
     /// 한 번 더 누르면 completeRequest 가 두 번 불린다(Apple 이 정의하지 않은 동작).
@@ -41,7 +33,7 @@ final class ShareViewController: UIViewController {
 
     private func start() async {
         guard let url = await extractURL() else {
-            // 저장할 수 있는 링크가 없으면 우리가 할 수 있는 게 없다 — .tutorial 과 같이 조용히 닫는다.
+            // 저장할 수 있는 링크가 없으면 우리가 할 수 있는 게 없다 — 조용히 닫는다.
             // cancelRequest 를 쓰지 않는 이유: 넘긴 NSError 를 호스트가 자기 얼럿으로 띄울지,
             // 어떤 문구로 띄울지를 우리가 통제할 수 없다. 사용자에게 보이는 결과는 어차피 둘 다
             // "시트가 닫힌다" 로 같으므로, 남의 화면에 우리 에러가 새는 쪽을 피한다.
@@ -49,17 +41,10 @@ final class ShareViewController: UIViewController {
             return
         }
 
-        switch classify(url) {
-        case .link(let url):
-            // Store 를 여기서 만든다 — navigation 을 구독하려면 이 컨트롤러가 필요한데,
-            // View 의 makeStore 안에서 self 를 잡으면 옵셔널 처리 때문에 폴백 Store 를 지어내야 한다.
-            let store = makeSaveLinkStore(url: url)
-            embed(SaveLinkView(makeStore: { store }))
-        case .tutorial:
-            // 튜토리얼은 연습이라 저장하지 않는다. 축하는 본앱의 튜토리얼 완료 단계가 그리므로
-            // 여기서 화면을 띄우면 같은 말이 두 번 나온다 — 조용히 닫아 본앱으로 넘긴다.
-            close()
-        }
+        // Store 를 여기서 만든다 — navigation 을 구독하려면 이 컨트롤러가 필요한데,
+        // View 의 makeStore 안에서 self 를 잡으면 옵셔널 처리 때문에 폴백 Store 를 지어내야 한다.
+        let store = makeSaveLinkStore(url: url)
+        embed(SaveLinkView(makeStore: { store }))
     }
 
     // MARK: - 입력 해석
@@ -84,16 +69,6 @@ final class ShareViewController: UIViewController {
                 continuation.resume(returning: item as? URL)
             }
         }
-    }
-
-    /// 튜토리얼 전용 센티넬 URL 인지 가른다. 실제 처리는 호출부의 `case .tutorial` 이 한다.
-    ///
-    /// 센티넬 URL 하나만 보므로, 사용자가 이 주소를 다른 곳에서 공유해도 튜토리얼로 친다.
-    /// 본앱이 세우는 "튜토리얼 진행 중" 플래그를 함께 보면 막히는데, 그건 프로세스 간
-    /// 공유 저장소(App Group)가 필요해 미뤘다 — 튜토리얼 연동 PR 에서 함께 정한다.
-    /// (그 사이 오인을 줄이려고 센티넬 경로를 실재할 수 없는 값으로 둔다 — `TutorialShare` 참조)
-    private func classify(_ url: URL) -> ShareEntry {
-        url == TutorialShare.sentinelURL ? .tutorial : .link(url)
     }
 
     // MARK: - 화면
