@@ -204,12 +204,42 @@ page.pagination.hasNext     // 옵셔널이 아니다
 // 전체 조회 — page/pageSize 를 안 보내면 서버가 전부 준다(지도 전체 보기 등)
 let all = try await client.request(PinAPI.list(roomId: id))   // [PinDTO]
 
-// DTO → Entity 는 map 으로 페이지 정보를 유지한 채 옮긴다
-let domain: Page<Pin> = page.map { $0.toDomain() }
+// DTO → Entity 매핑은 Repository **안에서** 한다
+let entities = page.map { $0.toDomain() }.items
 ```
 
 - **짝이 타입으로 강제된다.** `paged()` 를 붙인 요청은 `request` 로 보낼 수 없고, 안 붙인 요청은 `requestPage` 로 보낼 수 없다 — `hasNext` 를 잃는 실수가 컴파일에서 막힌다
 - 페이지 요청인데 서버가 `pagination` 을 빠뜨리면 **계약 위반으로 에러**를 낸다(조용히 nil 로 넘기지 않는다)
+
+### ⚠️ `Page` 를 Domain 경계 밖으로 내보내지 않는다
+
+`Page` 는 **Networking 타입**이다. Repository 가 `Page<Pin>` 을 반환하면 Domain 의 프로토콜이
+그 타입을 알아야 하고, 그러면 **Domain 이 Networking 을 의존**하게 된다 —
+`Domain 은 의존 0` 규칙 위반이라 CI(`layer-guard`)가 막는다.
+
+```swift
+// ❌ Domain 이 Networking 을 알아야 한다
+public protocol PinRepository {
+    func pins(page: Int) async throws -> Page<Pin>
+}
+
+// ⭕ 페이지 정보가 필요하면 Domain 자기 타입으로 표현한다
+public struct PinPage: Sendable {          // Domain
+    public let pins: [Pin]
+    public let hasNext: Bool
+}
+public protocol PinRepository {
+    func pins(page: Int) async throws -> PinPage
+}
+```
+
+`Page.map` 은 **Data 안에서** DTO → Entity 로 옮길 때 쓰고, 경계에서는 Domain 타입으로 바꾼다.
+
+```swift
+// Data/Repositories/PinRepositoryImpl.swift
+let page = try await client.requestPage(PinAPI.list(roomId: id).paged(page: page, pageSize: 20))
+return PinPage(pins: page.items.map { $0.toDomain() }, hasNext: page.pagination.hasNext)
+```
 
 ---
 

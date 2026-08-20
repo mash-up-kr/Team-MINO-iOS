@@ -25,9 +25,14 @@ public struct Pagination: Decodable, Sendable, Equatable {
 
 /// 페이지네이션된 목록 응답.
 ///
-/// `Element` 에 `Decodable` 을 요구하지 않는다 — 요구하면 Repository 가 `Page<RoomDTO>` 를
-/// `Page<Room>`(Entity)으로 옮길 때 **Entity 에 `Decodable` 을 붙여야 해서**
+/// `Element` 에 `Decodable` 을 요구하지 않는다 — 요구하면 Repository 가 Data 안에서
+/// `Page<RoomDTO>` 를 `Page<Room>`(Entity)으로 옮길 때 **Entity 에 `Decodable` 을 붙여야 해서**
 /// "Entity 는 Codable 을 준수하지 않는다"(clean-architecture.md)와 충돌한다.
+///
+/// ⚠️ **이 타입을 Domain 경계 밖으로 내보내지 않는다.** Repository 가 `Page<Entity>` 를
+/// 반환하면 Domain 프로토콜이 Networking 타입을 알아야 하고, 그러면 `Domain 은 의존 0`
+/// 규칙이 깨진다(CI `layer-guard` 가 막는다). 페이지 정보가 필요하면 Domain 자기 타입으로
+/// 표현한다 — `README.md` 의 "Page 를 Domain 경계 밖으로 내보내지 않는다" 참조.
 public struct Page<Element: Sendable>: Sendable {
     public let items: [Element]
     public let pagination: Pagination
@@ -37,7 +42,8 @@ public struct Page<Element: Sendable>: Sendable {
         self.pagination = pagination
     }
 
-    /// DTO → Entity 매핑용. 페이지 정보를 유지한 채 알맹이만 바꾼다.
+    /// **Data 안에서** DTO → Entity 로 옮길 때 쓴다. 페이지 정보를 유지한 채 알맹이만 바꾼다.
+    /// 결과를 Domain 으로 그대로 넘기지 않는다(위 경고 참조).
     public func map<T>(_ transform: (Element) throws -> T) rethrows -> Page<T> {
         Page<T>(items: try items.map(transform), pagination: pagination)
     }
