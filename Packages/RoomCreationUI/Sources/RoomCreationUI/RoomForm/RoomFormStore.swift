@@ -2,6 +2,14 @@ import Foundation
 import MVI
 
 // [Convention] .claude/docs/mvi-coordinator-di.md 5절 — 화면 = Store 1개 = 폴더 1개, State/Action/Nav/reducer 한 파일
+/// 이 폼이 무엇을 하는 중인가. 제목·CTA 문구와 확인 절차가 여기서 갈린다.
+public enum RoomFormMode: Equatable, Sendable {
+    /// 공동방 만들기 (디자인 001-1)
+    case create
+    /// 방 편집 (디자인 004-5-3, 방장만)
+    case edit
+}
+
 /// 화면 위에 떠 있는 확인 다이얼로그. 없으면 `nil`.
 public enum RoomFormDialog: Equatable, Identifiable, Sendable {
     /// CTA 를 눌렀을 때 — "저장하시겠어요?" (디자인 001-1-4)
@@ -13,12 +21,27 @@ public enum RoomFormDialog: Equatable, Identifiable, Sendable {
 }
 
 public struct RoomFormState: Equatable {
-    public var roomName: String = ""
-    public var roomDescription: String = ""
+    public let mode: RoomFormMode
+    public var roomName: String
+    public var roomDescription: String
     public var selectedColorIndex: Int?
     public var dialog: RoomFormDialog?
 
-    public init() {}
+    /// 편집으로 열 때는 기존 방 값을 그대로 넣어 연다.
+    ///
+    /// > 색은 **인덱스**로 받는다. `Room.color` 는 hex 인데 hex → 인덱스 역매핑이 아직 없다
+    /// > (`MHRoomThumbnail` 의 표는 hex → enum 단방향). 편집 진입점을 붙이는 PR 에서 함께 만든다.
+    public init(
+        mode: RoomFormMode = .create,
+        roomName: String = "",
+        roomDescription: String = "",
+        selectedColorIndex: Int? = nil
+    ) {
+        self.mode = mode
+        self.roomName = roomName
+        self.roomDescription = roomDescription
+        self.selectedColorIndex = selectedColorIndex
+    }
 
     /// 방 이름이 규칙을 지키는가 — 길이 상한과 허용 문자 둘 다. 어기면 화면이 에러 상태로 그린다.
     public var isNameValid: Bool {
@@ -31,9 +54,9 @@ public struct RoomFormState: Equatable {
         roomDescription.count <= RoomFormLimit.description
     }
 
-    /// 공백만 있는 이름은 생성 비활성. 상한 초과·형식 오류도 막는다 —
+    /// 공백만 있는 이름은 확정 비활성. 상한 초과·형식 오류도 막는다 —
     /// 디자인 ⑤ "방 이름을 오류 입력 시 3·4번을 입력하더라도 비활성화 상태 유지".
-    public var isCreateEnabled: Bool {
+    public var isSubmitEnabled: Bool {
         !roomName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && isNameValid
             && isDescriptionValid
@@ -61,9 +84,9 @@ public enum RoomFormAction: Equatable {
     case roomNameChanged(String)
     case roomDescriptionChanged(String)
     case selectColor(Int)
-    case tapCreate
+    case tapSubmit
     case tapBack
-    case confirmCreate
+    case confirmSubmit
     case confirmCancel
     case dismissDialog
     case tapSkip
@@ -73,8 +96,9 @@ public enum RoomFormAction: Equatable {
 /// 방 생성 뒤 어디로 갈지는 진입점마다 다르다. `goToInviteFriends` 처럼 목적지를 박으면
 /// 다른 곳으로 보내는 소비자에서 이름이 거짓말이 된다.
 public enum RoomFormNav: Equatable, Sendable {
-    case didCreateRoom
-    /// 사용자가 만들기를 그만뒀다. 뒤로가기 → 확인 다이얼로그 → "나가기" 를 거친 결과다.
+    /// 사용자가 폼을 확정했다. 만든 건지 고친 건지는 store 를 만든 쪽이 mode 로 이미 안다.
+    case didSubmit
+    /// 사용자가 폼을 그만뒀다. 생성 모드에서는 확인 다이얼로그의 "나가기" 를 거친 결과다.
     case didCancel
     case didSkip
 }
@@ -102,21 +126,23 @@ public func roomFormReducer() -> (inout RoomFormState, RoomFormAction) -> Effect
         case .selectColor(let index):
             state.selectedColorIndex = index
             return .none
-        // CTA·뒤로가기는 곧장 전환하지 않고 확인 다이얼로그를 먼저 띄운다(디자인 ⑤⑦).
-        // 실제 전환은 confirm* 액션이 낸다.
-        case .tapCreate:
+        // 생성 모드에서 CTA·뒤로가기는 곧장 전환하지 않고 확인 다이얼로그를 먼저 띄운다(디자인 ⑤⑦).
+        // 편집 모드는 그대로 전환한다 — 편집 화면(004-5-3)에는 확인 모달 시안이 없다.
+        case .tapSubmit:
             // 뷰의 .disabled 는 UI 레이어 방어라 뷰가 바뀌면 뚫린다 — 전환 조건은 여기서도 지킨다.
             // (.tapSkip 은 건너뛰기라 조건 없이 통과한다)
-            guard state.isCreateEnabled else { return .none }
+            guard state.isSubmitEnabled else { return .none }
+            guard state.mode == .create else { return .navigate(.didSubmit) }
             state.dialog = .saveConfirm
             return .none
-        // 입력이 비어 있어도 묻는다 — 디자인 ⑦ 에 조건이 없다.
+        // 생성 모드는 입력이 비어 있어도 묻는다 — 디자인 ⑦ 에 조건이 없다.
         case .tapBack:
+            guard state.mode == .create else { return .navigate(.didCancel) }
             state.dialog = .cancelConfirm
             return .none
-        case .confirmCreate:
+        case .confirmSubmit:
             state.dialog = nil
-            return .navigate(.didCreateRoom)
+            return .navigate(.didSubmit)
         case .confirmCancel:
             state.dialog = nil
             return .navigate(.didCancel)

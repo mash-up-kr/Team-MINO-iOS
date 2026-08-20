@@ -7,19 +7,28 @@ import SwiftUI
 public struct RoomFormView: View {
     private let makeStore: @MainActor () -> RoomFormStore
     private let showsSkip: Bool
+    private let showsBack: Bool
     @State private var store: RoomFormStore?
 
-    /// - Parameter showsSkip: 상단바 건너뛰기 버튼 노출. 건너뛸 수 없는 진입점(방리스트 등)은 `false`.
-    ///   눌렀을 때 어디로 갈지는 `RoomFormNav.didSkip` 을 받는 소비자가 정한다.
-    public init(makeStore: @escaping @MainActor () -> RoomFormStore, showsSkip: Bool = true) {
+    /// - Parameters:
+    ///   - showsSkip: 상단바 건너뛰기 버튼 노출. 건너뛸 수 없는 진입점(방리스트·편집 등)은 `false`.
+    ///     눌렀을 때 어디로 갈지는 `RoomFormNav.didSkip` 을 받는 소비자가 정한다.
+    ///   - showsBack: 상단바 뒤로가기 노출. 온보딩은 돌아갈 곳이 없어 `false`(디자인 ⑦).
+    public init(
+        makeStore: @escaping @MainActor () -> RoomFormStore,
+        showsSkip: Bool = true,
+        showsBack: Bool = true
+    ) {
         self.makeStore = makeStore
         self.showsSkip = showsSkip
+        self.showsBack = showsBack
     }
 
     public var body: some View {
         Group {
             if let store {
                 RoomFormContent(
+                    mode: store.state.mode,
                     roomName: Binding(
                         get: { store.state.roomName },
                         set: { store.send(.roomNameChanged($0)) }
@@ -31,14 +40,14 @@ public struct RoomFormView: View {
                     selectedColorIndex: store.state.selectedColorIndex,
                     isNameValid: store.state.isNameValid,
                     isDescriptionValid: store.state.isDescriptionValid,
-                    isCreateEnabled: store.state.isCreateEnabled,
+                    isSubmitEnabled: store.state.isSubmitEnabled,
                     dialog: store.state.dialog,
                     onSelectColor: { store.send(.selectColor($0)) },
-                    onCreate: { store.send(.tapCreate) },
-                    onBack: { store.send(.tapBack) },
+                    onSubmit: { store.send(.tapSubmit) },
                     onDismissDialog: { store.send(.dismissDialog) },
-                    onConfirmCreate: { store.send(.confirmCreate) },
+                    onConfirmSubmit: { store.send(.confirmSubmit) },
                     onConfirmCancel: { store.send(.confirmCancel) },
+                    onBack: showsBack ? { store.send(.tapBack) } : nil,
                     onSkip: showsSkip ? { store.send(.tapSkip) } : nil
                 )
             } else {

@@ -22,6 +22,24 @@ private let roomColorSwatches: [MHSelectionGridItem] = [
     .color(fill: .mhPurple70, border: .mhPurple40),
 ]
 
+// MARK: - 모드별 문구
+
+private extension RoomFormMode {
+    var title: String {
+        switch self {
+        case .create: "공동방 만들기"
+        case .edit:   "방 편집"
+        }
+    }
+
+    var submitTitle: String {
+        switch self {
+        case .create: "방 생성하기"
+        case .edit:   "방 편집 완료"
+        }
+    }
+}
+
 // MARK: - RoomFormContent
 
 /// "공동방 만들기" 화면의 순수 마크업. Store·Coordinator 를 모른다 — 값과 클로저만 받는다.
@@ -29,20 +47,22 @@ private let roomColorSwatches: [MHSelectionGridItem] = [
 /// 카드 안 지도 썸네일은 실제 지도 에셋이 아직 없어 선택된 색으로 틴트되는 placeholder 로 그린다
 /// (색을 고르면 지도 색이 바뀌는 확정 동작을 반영하기 위함). 지도 에셋이 붙으면 교체 대상이다.
 struct RoomFormContent: View {
+    let mode: RoomFormMode
     @Binding var roomName: String
     @Binding var roomDescription: String
     let selectedColorIndex: Int?
     let isNameValid: Bool
     let isDescriptionValid: Bool
-    let isCreateEnabled: Bool
+    let isSubmitEnabled: Bool
     let dialog: RoomFormDialog?
     let onSelectColor: (Int) -> Void
-    let onCreate: () -> Void
-    let onBack: () -> Void
+    let onSubmit: () -> Void
     let onDismissDialog: () -> Void
-    let onConfirmCreate: () -> Void
+    let onConfirmSubmit: () -> Void
     let onConfirmCancel: () -> Void
-    /// `nil` 이면 상단바에 건너뛰기 버튼을 그리지 않는다 — 건너뛸 수 없는 진입점(방리스트 등)을 위해.
+    /// `nil` 이면 상단바에 뒤로가기를 그리지 않는다 — 온보딩엔 돌아갈 곳이 없다(디자인 ⑦).
+    let onBack: (() -> Void)?
+    /// `nil` 이면 상단바에 건너뛰기 버튼을 그리지 않는다 — 건너뛸 수 없는 진입점(방리스트·편집 등)을 위해.
     let onSkip: (() -> Void)?
 
     private let namePlaceholder = "방 이름을 입력해 주세요."
@@ -50,7 +70,7 @@ struct RoomFormContent: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            MHTopNavigation(title: "공동방 만들기", onBack: onBack, onSkip: onSkip)
+            MHTopNavigation(title: mode.title, onBack: onBack, onSkip: onSkip)
             ScrollView {
                 VStack(spacing: 30) {
                     previewCard
@@ -64,8 +84,8 @@ struct RoomFormContent: View {
             // 액션 영역을 VStack 자식으로 두면 키보드가 올라올 때 MHActionArea 의 하단 안전영역 측정에
             // 키보드 높이가 섞여 스크롤뷰가 찌그러진다. safeAreaInset 으로 붙여 키보드 회피를 맡긴다.
             .safeAreaInset(edge: .bottom) {
-                MHActionArea(main: MHAction("방 생성하기", action: onCreate), sticky: true, safeArea: false)
-                    .disabled(!isCreateEnabled)
+                MHActionArea(main: MHAction(mode.submitTitle, action: onSubmit), sticky: true, safeArea: false)
+                    .disabled(!isSubmitEnabled)
             }
         }
         .background(Color.mhBackgroundNormalNormal)
@@ -84,7 +104,7 @@ struct RoomFormContent: View {
                 title: "공동방을 저장하시겠어요?",
                 message: "공동방 편집에서 설정을 변경할 수 있어요.",
                 cancel: MHAction("취소", action: onDismissDialog),
-                confirm: MHAction("저장하기", action: onConfirmCreate)
+                confirm: MHAction("저장하기", action: onConfirmSubmit)
             )
         case .cancelConfirm:
             // 문구는 Figma 원문 그대로다("공동방을 만들기를"). 오타로 보이지만 임의로 고치지 않는다.
@@ -212,42 +232,64 @@ struct RoomFormContent: View {
     PreviewHost(roomName: "민호야 잘하자", roomDescription: "팀 회식 장소 모음", selectedColorIndex: 2, showsSkip: false)
 }
 
+#Preview("온보딩 — 뒤로가기 없음") {
+    PreviewHost(roomName: "", roomDescription: "", selectedColorIndex: nil, showsBack: false)
+}
+
+#Preview("편집 모드") {
+    PreviewHost(
+        mode: .edit,
+        roomName: "야호",
+        roomDescription: "야호호",
+        selectedColorIndex: 0,
+        showsSkip: false
+    )
+}
+
 /// 검증 결과를 손으로 넘기지 않고 실제 `RoomFormState` 에서 뽑는다 — 프리뷰가 reducer 규칙과 어긋나지 않게.
 private struct PreviewHost: View {
     @State var state = RoomFormState()
     var showsSkip: Bool = true
 
+    var showsBack: Bool = true
+
     init(
+        mode: RoomFormMode = .create,
         roomName: String,
         roomDescription: String,
         selectedColorIndex: Int?,
         dialog: RoomFormDialog? = nil,
-        showsSkip: Bool = true
+        showsSkip: Bool = true,
+        showsBack: Bool = true
     ) {
-        var state = RoomFormState()
-        state.roomName = roomName
-        state.roomDescription = roomDescription
-        state.selectedColorIndex = selectedColorIndex
+        var state = RoomFormState(
+            mode: mode,
+            roomName: roomName,
+            roomDescription: roomDescription,
+            selectedColorIndex: selectedColorIndex
+        )
         state.dialog = dialog
         self._state = State(initialValue: state)
         self.showsSkip = showsSkip
+        self.showsBack = showsBack
     }
 
     var body: some View {
         RoomFormContent(
+            mode: state.mode,
             roomName: $state.roomName,
             roomDescription: $state.roomDescription,
             selectedColorIndex: state.selectedColorIndex,
             isNameValid: state.isNameValid,
             isDescriptionValid: state.isDescriptionValid,
-            isCreateEnabled: state.isCreateEnabled,
+            isSubmitEnabled: state.isSubmitEnabled,
             dialog: state.dialog,
             onSelectColor: { state.selectedColorIndex = $0 },
-            onCreate: { state.dialog = .saveConfirm },
-            onBack: { state.dialog = .cancelConfirm },
+            onSubmit: { state.dialog = .saveConfirm },
             onDismissDialog: { state.dialog = nil },
-            onConfirmCreate: { state.dialog = nil },
+            onConfirmSubmit: { state.dialog = nil },
             onConfirmCancel: { state.dialog = nil },
+            onBack: showsBack ? { state.dialog = .cancelConfirm } : nil,
             onSkip: showsSkip ? {} : nil
         )
     }

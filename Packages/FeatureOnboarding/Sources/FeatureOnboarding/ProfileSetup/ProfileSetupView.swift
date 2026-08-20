@@ -19,7 +19,8 @@ public struct ProfileSetupView: View {
                 .navigationDestination(for: OnboardingRoute.self) { route in
                     switch route {
                     case .createRoom:
-                        RoomFormView(makeStore: coordinator.makeRoomFormStore)
+                        // 온보딩엔 돌아갈 곳이 없어 뒤로가기를 숨긴다(디자인 ⑦). 대신 건너뛰기가 있다(⑥).
+                        RoomFormView(makeStore: coordinator.makeRoomFormStore, showsBack: false)
                     case .inviteFriends:
                         InviteFriendsView(makeStore: coordinator.makeInviteFriendsStore)
                     case .tutorial:

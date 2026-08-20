@@ -11,12 +11,12 @@ struct RoomFormReducerTests {
         await store.send(.roomNameChanged("   ")) {
             $0.roomName = "   "
         }
-        #expect(!store.currentState.isCreateEnabled)
+        #expect(!store.currentState.isSubmitEnabled)
 
         await store.send(.roomNameChanged("민호야 잘하자")) {
             $0.roomName = "민호야 잘하자"
         }
-        #expect(store.currentState.isCreateEnabled)
+        #expect(store.currentState.isSubmitEnabled)
 
         store.finish()
     }
@@ -31,11 +31,11 @@ struct RoomFormReducerTests {
 
         await store.send(.roomNameChanged(atLimit)) { $0.roomName = atLimit }
         #expect(store.currentState.isNameValid)
-        #expect(store.currentState.isCreateEnabled)
+        #expect(store.currentState.isSubmitEnabled)
 
         await store.send(.roomNameChanged(overLimit)) { $0.roomName = overLimit }
         #expect(!store.currentState.isNameValid)
-        #expect(!store.currentState.isCreateEnabled)
+        #expect(!store.currentState.isSubmitEnabled)
 
         store.finish()
     }
@@ -49,7 +49,7 @@ struct RoomFormReducerTests {
 
         await store.send(.roomNameChanged("민호야 잘하자^^")) { $0.roomName = "민호야 잘하자^^" }
         #expect(!store.currentState.isNameValid)
-        #expect(!store.currentState.isCreateEnabled)
+        #expect(!store.currentState.isSubmitEnabled)
 
         store.finish()
     }
@@ -78,11 +78,11 @@ struct RoomFormReducerTests {
 
         await store.send(.roomDescriptionChanged(atLimit)) { $0.roomDescription = atLimit }
         #expect(store.currentState.isDescriptionValid)
-        #expect(store.currentState.isCreateEnabled)
+        #expect(store.currentState.isSubmitEnabled)
 
         await store.send(.roomDescriptionChanged(overLimit)) { $0.roomDescription = overLimit }
         #expect(!store.currentState.isDescriptionValid)
-        #expect(!store.currentState.isCreateEnabled)
+        #expect(!store.currentState.isSubmitEnabled)
 
         store.finish()
     }
@@ -100,7 +100,7 @@ struct RoomFormReducerTests {
 
     // Nav 는 목적지가 아니라 일어난 일을 알린다 — 어디로 갈지는 소비하는 flow 가 정하므로
     // 이 테스트는 "무엇이 일어났는지"만 단언한다.
-    @Test("L2 — tapCreate(방 생성하기): 곧장 전환하지 않고 저장 확인 다이얼로그를 띄운다")
+    @Test("L2 — tapSubmit(방 생성하기): 곧장 전환하지 않고 저장 확인 다이얼로그를 띄운다")
     func tapCreate_whenCreateEnabled_showsSaveDialog() async {
         let store = TestStore(RoomFormState(), reduce: roomFormReducer())
 
@@ -108,9 +108,9 @@ struct RoomFormReducerTests {
             $0.roomName = "민호야 잘하자"
         }
 
-        await store.send(.tapCreate) { $0.dialog = .saveConfirm }
-        await store.send(.confirmCreate) { $0.dialog = nil }
-        store.receiveNavigation(.didCreateRoom)
+        await store.send(.tapSubmit) { $0.dialog = .saveConfirm }
+        await store.send(.confirmSubmit) { $0.dialog = nil }
+        store.receiveNavigation(.didSubmit)
 
         store.finish()
     }
@@ -131,29 +131,29 @@ struct RoomFormReducerTests {
         let store = TestStore(RoomFormState(), reduce: roomFormReducer())
 
         await store.send(.roomNameChanged("민호야 잘하자")) { $0.roomName = "민호야 잘하자" }
-        await store.send(.tapCreate) { $0.dialog = .saveConfirm }
+        await store.send(.tapSubmit) { $0.dialog = .saveConfirm }
         await store.send(.dismissDialog) { $0.dialog = nil }
 
         // finish 가 미수신 navigation 잔여를 검사한다 — 취소했는데 전환이 나갔다면 여기서 실패한다
         store.finish()
     }
 
-    @Test("L2 — tapCreate: 생성 조건 미충족이면 아무것도 알리지 않는다 — 뷰의 .disabled 와 별개로 reduce 가 막는다")
+    @Test("L2 — tapSubmit: 생성 조건 미충족이면 아무것도 알리지 않는다 — 뷰의 .disabled 와 별개로 reduce 가 막는다")
     func tapCreate_whenCreateDisabled_notifiesNothing() async {
         let store = TestStore(RoomFormState(), reduce: roomFormReducer())
 
-        await store.send(.tapCreate)
+        await store.send(.tapSubmit)
 
         await store.send(.roomNameChanged("   ")) {
             $0.roomName = "   "
         }
-        await store.send(.tapCreate)
+        await store.send(.tapSubmit)
 
-        // finish 가 미수신 navigation 잔여를 검사한다 — didCreateRoom 이 나갔다면 여기서 실패한다
+        // finish 가 미수신 navigation 잔여를 검사한다 — didSubmit 이 나갔다면 여기서 실패한다
         store.finish()
     }
 
-    @Test("L2 — tapCreate: 색·설명을 채워도 이름이 오류면 막힌다 (디자인 ⑤)")
+    @Test("L2 — tapSubmit: 색·설명을 채워도 이름이 오류면 막힌다 (디자인 ⑤)")
     func tapCreate_whenNameInvalid_notifiesNothingEvenWithOtherFields() async {
         let store = TestStore(RoomFormState(), reduce: roomFormReducer())
 
@@ -161,7 +161,54 @@ struct RoomFormReducerTests {
         await store.send(.roomDescriptionChanged("팀 회식 장소 모음")) { $0.roomDescription = "팀 회식 장소 모음" }
         await store.send(.selectColor(1)) { $0.selectedColorIndex = 1 }
 
-        await store.send(.tapCreate)
+        await store.send(.tapSubmit)
+
+        store.finish()
+    }
+
+    // MARK: 편집 모드
+
+    @Test("L1 — 편집 모드: 기존 방 값으로 열리고 곧바로 확정할 수 있다")
+    func editMode_opensPrefilled() async {
+        let state = RoomFormState(mode: .edit, roomName: "야호", roomDescription: "야호호", selectedColorIndex: 0)
+        let store = TestStore(state, reduce: roomFormReducer())
+
+        #expect(store.currentState.mode == .edit)
+        #expect(store.currentState.roomName == "야호")
+        #expect(store.currentState.roomDescription == "야호호")
+        #expect(store.currentState.selectedColorIndex == 0)
+        #expect(store.currentState.isSubmitEnabled)
+
+        store.finish()
+    }
+
+    // 편집 화면(004-5-3)에는 확인 모달 시안이 없다 — 생성 모드와 갈리는 지점이라 고정해 둔다.
+    @Test("L2 — 편집 모드 tapSubmit: 확인 다이얼로그 없이 didSubmit 을 알린다")
+    func editMode_tapSubmit_notifiesWithoutDialog() async {
+        let store = TestStore(RoomFormState(mode: .edit, roomName: "야호"), reduce: roomFormReducer())
+
+        await store.send(.tapSubmit)
+        store.receiveNavigation(.didSubmit)
+
+        store.finish()
+    }
+
+    @Test("L2 — 편집 모드 tapBack: 확인 다이얼로그 없이 didCancel 을 알린다")
+    func editMode_tapBack_notifiesWithoutDialog() async {
+        let store = TestStore(RoomFormState(mode: .edit, roomName: "야호"), reduce: roomFormReducer())
+
+        await store.send(.tapBack)
+        store.receiveNavigation(.didCancel)
+
+        store.finish()
+    }
+
+    @Test("L2 — 편집 모드: 이름이 오류면 생성 모드와 똑같이 막힌다")
+    func editMode_whenNameInvalid_notifiesNothing() async {
+        let store = TestStore(RoomFormState(mode: .edit, roomName: "야호"), reduce: roomFormReducer())
+
+        await store.send(.roomNameChanged("야호^^")) { $0.roomName = "야호^^" }
+        await store.send(.tapSubmit)
 
         store.finish()
     }

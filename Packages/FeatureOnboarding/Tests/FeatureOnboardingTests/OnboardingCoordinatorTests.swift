@@ -48,12 +48,12 @@ struct OnboardingCoordinatorTests {
         }
     }
 
-    @Test("didCreateRoom nav → path 에 createRoom, inviteFriends 가 순서대로 push 된다")
+    @Test("didSubmit nav → path 에 createRoom, inviteFriends 가 순서대로 push 된다")
     func navigate_pushes_inviteFriends() {
         let coord = OnboardingCoordinator()
 
         coord.handle(ProfileSetupNav.didSave)
-        coord.handle(RoomFormNav.didCreateRoom)
+        coord.handle(RoomFormNav.didSubmit)
 
         #expect(coord.path == [.createRoom, .inviteFriends])
     }
@@ -132,7 +132,7 @@ struct OnboardingCoordinatorTests {
         coord.finish.bind { captured = $0 }
 
         coord.handle(ProfileSetupNav.didSave)
-        coord.handle(RoomFormNav.didCreateRoom)
+        coord.handle(RoomFormNav.didSubmit)
         coord.handle(InviteFriendsNav.complete)
 
         // 튜토리얼 완료 화면은 라우트가 아니라 튜토리얼 화면 안의 단계다.
@@ -209,8 +209,8 @@ struct OnboardingCoordinatorTests {
 
         let store = coord.makeRoomFormStore()
         store.send(.roomNameChanged("민호야 잘하자"))   // reduce 가 생성 조건을 가드하므로 이름을 먼저 넣는다
-        store.send(.tapCreate)                        // 확인 다이얼로그를 띄우기만 한다
-        store.send(.confirmCreate)
+        store.send(.tapSubmit)                        // 확인 다이얼로그를 띄우기만 한다
+        store.send(.confirmSubmit)
 
         await waitUntil { !coord.path.isEmpty }
         #expect(coord.path == [.inviteFriends])

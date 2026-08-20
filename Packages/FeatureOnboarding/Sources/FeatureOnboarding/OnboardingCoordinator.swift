@@ -83,7 +83,7 @@ public final class OnboardingCoordinator: Coordinator {
 
     func handle(_ nav: RoomFormNav) {
         switch nav {
-        case .didCreateRoom:
+        case .didSubmit:
             push(.inviteFriends)
         // 방을 만들지 않았으면 초대할 방도 없어 친구초대까지 함께 건너뛴다.
         case .didSkip:
