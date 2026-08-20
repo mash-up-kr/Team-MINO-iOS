@@ -70,13 +70,18 @@ public struct SavePostSheet: View {
     }
 
     private var header: some View {
+        // 라인 박스 높이는 시안 값(28 / 20)을 최소 높이로 준다 — SwiftUI 의 실제 라인 높이가
+        // Figma `lineHeight` 보다 줄당 ~2.6pt 짧아, 그냥 두면 헤더가 94 가 아니라 ~89 가 된다.
+        // `minHeight` 라 다이내믹 타입으로 글자가 커지면 그만큼 늘어난다(고정 높이면 잘린다).
         VStack(alignment: .leading, spacing: 4) {
             Text("게시물 저장")
                 .mhTypography(.heading2Bold)
                 .foregroundStyle(Color.mhLabelNormal)
+                .frame(minHeight: 28)
             Text("장소를 저장할 방을 선택해주세요.")
                 .mhTypography(.label1NormalRegular)
                 .foregroundStyle(Color.mhLabelNeutral)
+                .frame(minHeight: 20)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 20)
