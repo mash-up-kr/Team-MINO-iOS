@@ -216,7 +216,7 @@ struct HomeReducerTests {
             $0.selectedFilter = .nearby
             $0.isDeckLoading = true      // 아직 안 받아 본 기준이라 조회한다
         }
-        await store.receive(.filterPinsLoaded(pins: filtered, entry: .first)) {
+        await store.receive(.filterPinsLoaded(pins: filtered, entry: .first, for: .nearby)) {
             $0.isDeckLoading = false
             $0.pins = filtered
             $0.currentCardIndex = 0
@@ -234,7 +234,7 @@ struct HomeReducerTests {
             $0.selectedFilter = .nearby
             $0.isDeckLoading = true
         }
-        await store.receive(.filterPinsLoadFailed(revertTo: .recommended, index: 2)) {
+        await store.receive(.filterPinsLoadFailed(for: .nearby, revertTo: .recommended, index: 2)) {
             $0.isDeckLoading = false
             $0.selectedFilter = .recommended   // 못 받았으니 원래 기준으로
         }
@@ -254,7 +254,7 @@ struct HomeReducerTests {
             $0.selectedFilter = .recommended   // 최신순 → 꾹 Pick
             $0.isDeckLoading = true
         }
-        await store.receive(.filterPinsLoaded(pins: previousDeck, entry: .last)) {
+        await store.receive(.filterPinsLoaded(pins: previousDeck, entry: .last, for: .recommended)) {
             $0.isDeckLoading = false
             $0.pins = previousDeck
             $0.currentCardIndex = previousDeck.count - 1   // 마지막 방의 마지막 카드
@@ -288,7 +288,7 @@ struct HomeReducerTests {
             $0.selectedFilter = .latest
             $0.isDeckLoading = true
         }
-        await store.receive(.filterPinsLoaded(pins: latestDeck, entry: .first)) {
+        await store.receive(.filterPinsLoaded(pins: latestDeck, entry: .first, for: .latest)) {
             $0.isDeckLoading = false
             $0.pins = latestDeck
             $0.currentCardIndex = 0
@@ -320,7 +320,7 @@ struct HomeReducerTests {
             $0.selectedFilter = .latest
             $0.isDeckLoading = true
         }
-        await store.receive(.filterPinsLoaded(pins: latestDeck, entry: .first)) {
+        await store.receive(.filterPinsLoaded(pins: latestDeck, entry: .first, for: .latest)) {
             $0.isDeckLoading = false
             $0.pins = latestDeck
             $0.currentCardIndex = 0
@@ -336,6 +336,35 @@ struct HomeReducerTests {
         let state = HomeState(rooms: fixtureRooms, selectedFilter: .latest, pins: fixturePins)
         #expect(state.canReturnToPreviousFilter)
         #expect(state.previousDeckLastPin == nil)
+    }
+
+    @Test("L1 — 지나간 기준의 응답은 화면을 움직이지 않고 제 캐시에만 담긴다")
+    func filterPinsLoaded_staleResponseOnlyFillsItsOwnCache() async {
+        let latestDeck = multiRoomPins()
+        let store = makeStore(
+            state: HomeState(
+                rooms: fixtureRooms, selectedFilter: .nearby, pins: [], isDeckLoading: true
+            )
+        )
+        // 최신순으로 갔다가 곧바로 가까운순으로 옮긴 뒤, 최신순 응답이 뒤늦게 도착한 상황
+        await store.send(.filterPinsLoaded(pins: latestDeck, entry: .first, for: .latest)) {
+            $0.decks[.latest] = latestDeck   // 캐시엔 남는다 — 그 칩으로 돌아가면 재조회하지 않는다
+        }
+        #expect(store.currentState.isDeckLoading)   // 기다리는 건 여전히 가까운순 응답
+        store.finish()
+    }
+
+    @Test("L1 — 지나간 기준의 조회 실패는 지금 기준을 되돌리지 않는다")
+    func filterPinsLoadFailed_ignoresStaleFailure() async {
+        let store = makeStore(
+            state: HomeState(
+                rooms: fixtureRooms, selectedFilter: .nearby, pins: [], isDeckLoading: true
+            )
+        )
+        await store.send(.filterPinsLoadFailed(for: .latest, revertTo: .recommended, index: 0))
+        #expect(store.currentState.selectedFilter == .nearby)
+        #expect(store.currentState.isDeckLoading)
+        store.finish()
     }
 
     @Test("L1 — 같은 기준을 다시 고르면 아무 일도 하지 않는다(불필요한 재조회 방지)")
@@ -360,7 +389,7 @@ struct HomeReducerTests {
             $0.selectedFilter = .latest               // 꾹 Pick → 최신순
             $0.isDeckLoading = true
         }
-        await store.receive(.filterPinsLoaded(pins: nextDeck, entry: .first)) {
+        await store.receive(.filterPinsLoaded(pins: nextDeck, entry: .first, for: .latest)) {
             $0.isDeckLoading = false
             $0.pins = nextDeck
             $0.currentCardIndex = 0
@@ -384,7 +413,7 @@ struct HomeReducerTests {
             $0.isDeckLoading = true
         }
         // 전환 직전 인덱스가 덱 밖이라, 되돌릴 때 마지막 카드로 클램프된다
-        await store.receive(.filterPinsLoadFailed(revertTo: .recommended, index: fixturePins.count)) {
+        await store.receive(.filterPinsLoadFailed(for: .latest, revertTo: .recommended, index: fixturePins.count)) {
             $0.isDeckLoading = false
             $0.selectedFilter = .recommended
             $0.currentCardIndex = fixturePins.count - 1

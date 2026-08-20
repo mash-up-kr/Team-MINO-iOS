@@ -127,10 +127,11 @@ public enum HomeAction: Equatable {
     case loadFailed(DomainError)
     case selectFilter(PinFilter)
     /// 필터가 바뀌어(직접 선택·소진 자동 전환·뒤로 돌아가기) 새로 받은 덱과, 그 덱의 어느 끝에서 시작할지.
-    case filterPinsLoaded(pins: [Pin], entry: DeckEntry)
+    /// `for` 는 이 응답이 **어느 기준의 것인지** — 칩을 연속으로 눌러 응답이 엇갈려 도착해도 제 슬롯에 담기게 한다.
+    case filterPinsLoaded(pins: [Pin], entry: DeckEntry, for: PinFilter)
     /// 필터 전환용 덱 조회 실패 — 바꾸려던 기준을 되돌리고 기존 덱을 그대로 유지한다.
-    /// 연관값은 되돌릴 기준과, 전환 직전의 카드 인덱스.
-    case filterPinsLoadFailed(revertTo: PinFilter, index: Int)
+    /// 연관값은 실패한 조회의 기준, 되돌릴 기준, 전환 직전의 카드 인덱스.
+    case filterPinsLoadFailed(for: PinFilter, revertTo: PinFilter, index: Int)
     case tapCreateRoom
     /// 초기 로드 결과 — 핀 목록과, 이어 볼 방(마지막으로 본 방) id. 최초 실행이면 startRoomID 가 nil.
     case pinsLoaded(pins: [Pin], startRoomID: String?)
@@ -210,9 +211,9 @@ private func switchFilter(
     return .run { send in
         do {
             let pins = try await fetchPins.execute(rooms: rooms, filter: filter)
-            send(.filterPinsLoaded(pins: pins, entry: entry))
+            send(.filterPinsLoaded(pins: pins, entry: entry, for: filter))
         } catch {
-            send(.filterPinsLoadFailed(revertTo: previousFilter, index: previousIndex))
+            send(.filterPinsLoadFailed(for: filter, revertTo: previousFilter, index: previousIndex))
         }
     }
 }
@@ -286,14 +287,20 @@ public func homeReducer(
             guard filter != state.selectedFilter else { return .none }
             return switchFilter(to: filter, entering: .first, state: &state, fetchPins: fetchPins)
 
-        case .filterPinsLoaded(let pins, let entry):
+        case .filterPinsLoaded(let pins, let entry, let filter):
             let roomBeforeFilter = state.currentRoom?.id
+            // 받아 온 기준의 슬롯에 담는다(state.pins 는 "지금 보는 기준"에 쓰므로 늦게 온 응답이 남의 칸을 덮는다).
+            // 이렇게 두면 지나간 기준의 응답도 자기 캐시에 남아, 그 칩으로 돌아갈 때 재조회하지 않는다.
+            state.decks[filter] = pins.isEmpty ? nil : pins
+            // 화면을 움직이는 건 지금 보고 있는 기준의 응답일 때만. 아니면 다른 기준 덱이 잠깐 앉았다 사라진다.
+            guard filter == state.selectedFilter else { return .none }
             state.isDeckLoading = false
-            state.pins = pins
             state.currentCardIndex = entry.index(in: pins)
             return persistIfRoomChanged(from: roomBeforeFilter, to: state, using: lastViewedRoom)
 
-        case .filterPinsLoadFailed(let previousFilter, let index):
+        case .filterPinsLoadFailed(let filter, let previousFilter, let index):
+            // 이미 다른 기준으로 옮겨 갔으면 지나간 조회의 실패다 — 되돌리면 지금 화면을 엉뚱하게 끌고 간다.
+            guard filter == state.selectedFilter else { return .none }
             // 실패하면 바꾸려던 기준을 되돌려 기존 덱을 계속 보여준다. 기준을 새것으로 둔 채 로딩만 끄면
             // 그 덱이 비어 있어 빈 상태("공동방 만들기")가 뜬다 — 조회가 실패한 건데 장소가 없다고 말하게 된다.
             state.isDeckLoading = false
