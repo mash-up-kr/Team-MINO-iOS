@@ -44,6 +44,12 @@ struct MainTabView: View {
         MainTab(rawValue: selectedTabID) ?? .home
     }
 
+    /// 홈에서 딤을 직접 까는 시트(방 리스트 · 게시물 저장)가 떠 있는가.
+    /// 그 딤은 탭바보다 아래 레이어라 탭바가 밝게 남으므로, 탭바를 투명하게 만들어 뒤의 딤이 비치게 한다.
+    private var isHomeDimmedSheetPresented: Bool {
+        coordinator.home.isRoomListPresented || coordinator.home.isSavePostPresented
+    }
+
     /// 탭바 없이 화면 바닥까지 깔려야 하는 화면(방 상세 바텀시트 · 공동방 만들기 등)이 떠 있는가.
     private var isFullBleedContentPresented: Bool {
         coordinator.profile.isRoomDetailPresented
@@ -60,15 +66,15 @@ struct MainTabView: View {
                         items: MainTab.allCases.map(\.tabBarItem),
                         selectedID: $selectedTabID
                     )
-                    .opacity(coordinator.home.isRoomListPresented ? 0 : 1)
-                    .allowsHitTesting(!coordinator.home.isRoomListPresented)
+                    .opacity(isHomeDimmedSheetPresented ? 0 : 1)
+                    .allowsHitTesting(!isHomeDimmedSheetPresented)
                     // 딤은 시트가 뜨는 순간 빠르게 걸리고(0.1), 닫힐 땐 기존 속도로 풀린다(0.3).
                     // 닫힘까지 빠르게 하면 탭바가 시트보다 먼저 복귀해 깜빡일 수 있어 켜지는 쪽만 앞당긴다.
                     .animation(
-                        coordinator.home.isRoomListPresented
+                        isHomeDimmedSheetPresented
                             ? .easeOut(duration: 0.1)
                             : .easeInOut(duration: 0.3),
-                        value: coordinator.home.isRoomListPresented
+                        value: isHomeDimmedSheetPresented
                     )
                 }
             }

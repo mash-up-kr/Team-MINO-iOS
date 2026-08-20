@@ -34,6 +34,15 @@ public final class HomeCoordinator: Coordinator {
         homeStore?.state.isRoomListPresented ?? false
     }
 
+    /// 게시물 저장 시트가 떠 있는가 — 이 시트도 시스템 스크림을 끄고 딤을 직접 깔아서,
+    /// 방 리스트와 같은 이유로 MainTabView 가 탭바를 딤 뒤로 페이드시킬 때 본다.
+    ///
+    /// iOS 26 은 부분 높이 시트를 화면에서 띄워(인셋) 그리기 때문에 시트 아래·옆으로 탭바가 드러난다
+    /// — iOS 18 처럼 시트가 바닥까지 덮는다고 보고 이 페이드를 생략하면 그 자리만 딤이 빠진다.
+    public var isSavePostPresented: Bool {
+        homeStore?.state.savePost != nil
+    }
+
     /// 홈 사용 가이드가 떠 있는가 — 탭바 위까지 덮어야 해서 MainTabView 가 루트에서 그린다.
     public var isGuidePresented: Bool {
         homeStore?.state.isGuidePresented ?? false
