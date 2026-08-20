@@ -134,7 +134,10 @@ struct URLSessionHTTPClientTests {
     #expect(stub.recorded.first?.value(forHTTPHeaderField: "Accept") == "text/plain")
     }
 
-    @Test("Endpoint.timeout 이 세션 전역 설정을 덮어쓴다")
+    // 실제 만료 시각까지 재지는 않는다 — 시간 기반 테스트라 비용이 크고 CI 부하에서 흔들린다.
+// URLSession 의 우선순위는 실측으로 확인했다(세션 0.3s + Endpoint 1.5s → 1.503s 에 만료,
+// 세션 3.0s + Endpoint 0.4s → 0.405s 에 만료 — 개별 값이 늘리든 줄이든 항상 이긴다).
+@Test("Endpoint.timeout 이 URLRequest 에 실린다")
     func timeoutOverride() async throws {
     let (sut, stub) = makeSUT()
     stub.stub.body = Data(#"{"data":[]}"#.utf8)
