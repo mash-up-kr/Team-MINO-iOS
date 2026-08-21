@@ -95,7 +95,10 @@ struct RoomFormContent: View {
                 }
                 .padding(20)
             }
-            .scrollDismissesKeyboard(.interactively)
+            // .interactively 가 아니라 .immediately 다. interactively 는 드래그가 키보드 영역을
+            // 지나갈 때만 내려가서, 키보드 위쪽 콘텐츠를 스크롤하면 아무 일도 일어나지 않는다 —
+            // 정작 가려서 못 누르는 게 아래쪽 색상 그리드라 그게 이 화면의 목적을 못 채운다(이슈 #93).
+            .scrollDismissesKeyboard(.immediately)
             // 액션 영역을 VStack 자식으로 두면 키보드가 올라올 때 MHActionArea 의 하단 안전영역 측정에
             // 키보드 높이가 섞여 스크롤뷰가 찌그러진다. safeAreaInset 으로 붙여 키보드 회피를 맡긴다.
             .safeAreaInset(edge: .bottom) {
