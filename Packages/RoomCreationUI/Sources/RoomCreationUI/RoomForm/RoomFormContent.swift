@@ -41,16 +41,8 @@ private extension RoomFormMode {
 
     var cancelDialogTitle: String {
         switch self {
-        case .create: "공동방 만들기를 취소하시겠어요?"
-        case .edit:   "공동방 편집을 취소하시겠어요?"
-        }
-    }
-
-    /// 편집 취소에는 시안 문구가 없어 비운다 — 없는 문구를 지어내지 않는다(``MHDialog`` 는 설명이 선택).
-    var cancelDialogMessage: String? {
-        switch self {
-        case .create: "저장탭에서 공동방을 생성할 수 있어요"
-        case .edit:   nil
+        case .create: "공동방 만들기 화면에서 나가시겠어요?"
+        case .edit:   "공동방 편집 화면에서 나가시겠어요?"
         }
     }
 }
@@ -113,21 +105,22 @@ struct RoomFormContent: View {
         .mhDialog(item: .constant(dialog)) { confirmDialog($0) }
     }
 
-    // MARK: 확인 다이얼로그 (디자인 001-1-4)
+    // MARK: 확인 다이얼로그
+    //
+    // Figma `3798:167740`(저장) · `3798:167985`(만들기 나가기) · `3832:213756`(편집 나가기).
+    // 셋 다 타이틀 한 줄 + 버튼 두 개다 — 설명 문구는 없다.
 
     private func confirmDialog(_ dialog: RoomFormDialog) -> MHDialog {
         switch dialog {
         case .saveConfirm:
             MHDialog(
                 title: "공동방을 저장하시겠어요?",
-                message: "공동방 편집에서 설정을 변경할 수 있어요.",
                 cancel: MHAction("취소", action: onDismissDialog),
                 confirm: MHAction("저장하기", action: onConfirmSubmit)
             )
         case .cancelConfirm:
             MHDialog(
                 title: mode.cancelDialogTitle,
-                message: mode.cancelDialogMessage,
                 cancel: MHAction("취소", action: onDismissDialog),
                 confirm: MHAction("나가기", action: onConfirmCancel)
             )
