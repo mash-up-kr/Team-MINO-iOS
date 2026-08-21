@@ -57,6 +57,8 @@ enum RoomDetailMenuItemID: String, CaseIterable {
 enum RoomDetailOutput: Equatable {
     case close
     case shareLocation(RoomDetailLocation)
+    /// 방 편집 화면으로. 장소와 같은 이유로 방도 **값째** 싣는다.
+    case editRoom(RoomDetailRoom)
 }
 
 /// 헤더 아래 카테고리 칩.

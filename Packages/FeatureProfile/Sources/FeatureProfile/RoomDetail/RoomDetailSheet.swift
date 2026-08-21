@@ -33,7 +33,9 @@ struct RoomDetailSheet: View {
                     RoomDetailHeader(
                         room: room,
                         onAddMember: {},
-                        onMore: {},
+                        // 확인용 임시 배선 — 더보기를 누르면 방 편집으로 바로 간다.
+                        // 시안의 방 단위 메뉴(004-5 계열)가 정해지면 그 안의 "방 편집" 항목으로 옮긴다.
+                        onMore: { onOutput(.editRoom(room)) },
                         onClose: { onOutput(.close) }
                     )
 
