@@ -1,27 +1,6 @@
 import SwiftUI
 import DesignSystem
 
-// MARK: - 방 색상 스와치
-
-/// 방 색상 선택 12색. 순서는 피그마 4열×3행 그리드(좌→우, 상→하)와 동일하다.
-///
-/// 색상은 Figma `Atomic/*` 팔레트를 그대로 쓴다 — 사용자가 고르는 팔레트라 역할이 없어 시맨틱 토큰이 맞지 않는다.
-/// 계열마다 밝은 단계가 채움, 진한 단계가 테두리다.
-private let roomColorSwatches: [MHSelectionGridItem] = [
-    .color(fill: .mhRed60, border: .mhRed30),
-    .color(fill: .mhRedOrange70, border: .mhRedOrange40),
-    .color(fill: .mhOrange70, border: .mhOrange40),
-    .color(fill: .mhLime80, border: .mhLime37),
-    .color(fill: .mhGreen90, border: .mhGreen60),
-    .color(fill: .mhCyan90, border: .mhCyan50),
-    .color(fill: .mhViolet80, border: .mhViolet50),
-    .color(fill: .mhPink90, border: .mhPink60),
-    .color(fill: .mhBlue65, border: .mhBlue40),
-    .color(fill: .mhBrown70, border: .mhBrown40),
-    .color(fill: .mhLightBlue60, border: .mhLightBlue40),
-    .color(fill: .mhPurple70, border: .mhPurple40),
-]
-
 // MARK: - 모드별 문구
 
 private extension RoomFormMode {
@@ -71,6 +50,11 @@ struct RoomFormContent: View {
     let onBack: (() -> Void)?
     /// `nil` 이면 상단바에 건너뛰기 버튼을 그리지 않는다 — 건너뛸 수 없는 진입점(방리스트·편집 등)을 위해.
     let onSkip: (() -> Void)?
+
+    /// Figma `2314:95303` 실측 — 카드 padding 14 + 썸네일 80 → 카드 높이 108.
+    private enum Metric {
+        static let thumbnailSize: CGFloat = 80
+    }
 
     private let namePlaceholder = "방 이름을 입력해 주세요."
     private let descriptionPlaceholder = "어떤 장소들을 모으는 방인가요?"
@@ -131,7 +115,7 @@ struct RoomFormContent: View {
 
     private var previewCard: some View {
         HStack(spacing: 12) {
-            mapThumbnail
+            roomThumbnail
             VStack(alignment: .leading, spacing: 4) {
                 Text(roomName.isEmpty ? namePlaceholder : roomName)
                     .mhTypography(.body1NormalBold)
@@ -154,17 +138,13 @@ struct RoomFormContent: View {
         .accessibilityIdentifier("RoomForm.previewCard")
     }
 
-    // 색을 고르면 색이 바뀌는 지도 placeholder(실제 지도 에셋 도입 전까지).
-    private var mapThumbnail: some View {
-        RoundedRectangle(cornerRadius: 20)
-            .fill(selectedFillColor ?? Color.mhFillNormal)
-            .frame(width: 92, height: 92)
-            .overlay {
-                Image(MHIcon.pinFill)
-                    .resizable()
-                    .frame(width: 32, height: 32)
-                    .foregroundStyle(Color.mhStaticWhite)
-            }
+    // 고른 색의 방 썸네일. 아직 안 골랐으면 my-room 일러스트(Figma `Room Thumbnail_Empty` 기본 상태).
+    @ViewBuilder private var roomThumbnail: some View {
+        if let selectedColorIndex, let color = RoomColorPalette.thumbnail(at: selectedColorIndex) {
+            MHRoomThumbnail(color: color, size: Metric.thumbnailSize)
+        } else {
+            MHRoomThumbnail.myRoom(size: Metric.thumbnailSize)
+        }
     }
 
     // MARK: 입력 필드
@@ -200,7 +180,7 @@ struct RoomFormContent: View {
     private var colorPicker: some View {
         MHSelectionGrid(
             title: "방 색상 선택",
-            items: roomColorSwatches,
+            items: RoomColorPalette.gridItems,
             selectedIndex: selectedColorIndex,
             shape: .roundedSquare,
             identifierPrefix: "RoomForm.color",
@@ -208,12 +188,6 @@ struct RoomFormContent: View {
         )
     }
 
-    /// 선택된 칸의 채움색 — 지도 썸네일 틴트에 쓴다.
-    private var selectedFillColor: Color? {
-        guard let selectedColorIndex, roomColorSwatches.indices.contains(selectedColorIndex),
-              case .color(let fill, _) = roomColorSwatches[selectedColorIndex] else { return nil }
-        return fill
-    }
 }
 
 // MARK: - Preview
