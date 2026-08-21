@@ -73,7 +73,7 @@ private struct RoomListLoadedView: View {
         .sheet(isPresented: createPromptBinding) {
             RoomCreationPromptView(
                 onCreate: { store.send(.tapCreateRoom) },
-                onLater: { store.send(.dismissCreatePrompt) }
+                onLater: { store.send(.tapLater) }
             )
             .presentationDetents([.height(RoomCreationPromptView.detentHeight)])
             .presentationDragIndicator(.hidden)   // 그래버는 시트가 직접 그린다

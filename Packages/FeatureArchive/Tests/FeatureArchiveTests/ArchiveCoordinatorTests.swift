@@ -1,3 +1,5 @@
+import Core
+import Foundation
 import Testing
 import Domain
 import RoomCreationUI
@@ -9,6 +11,11 @@ private struct StubFetchRooms: FetchRoomsUseCase {
 
 private struct StubArchiveDeps: ArchiveDeps {
     var fetchRooms: FetchRoomsUseCase = StubFetchRooms()
+    var roomCreationPromptSnooze = SnoozeSwitch(
+        key: "ArchiveCoordinatorTests.prompt",
+        period: .days(14),
+        defaults: UserDefaults(suiteName: "ArchiveCoordinatorTests")!
+    )
 }
 
 @MainActor

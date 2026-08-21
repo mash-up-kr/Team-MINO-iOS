@@ -1,3 +1,4 @@
+import Core
 import Domain
 import FlowCoordination
 import MVI
@@ -36,7 +37,7 @@ public final class ArchiveCoordinator: Coordinator {
     public func makeRoomListStore() -> RoomListStore {
         let store = RoomListStore(
             RoomListState(),
-            reduce: roomListReducer(useCase: deps.fetchRooms)
+            reduce: roomListReducer(useCase: deps.fetchRooms, promptSnooze: deps.roomCreationPromptSnooze)
         )
         store.observeNavigation { [weak self] in self?.handle($0) }   // 구독·Task 관리는 Store 가 담당
         return store

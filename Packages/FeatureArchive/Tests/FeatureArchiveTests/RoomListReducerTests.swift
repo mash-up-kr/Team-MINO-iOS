@@ -1,3 +1,4 @@
+import Core
 import Foundation
 import Testing
 import Domain
@@ -29,18 +30,29 @@ private struct StubFetchRooms: FetchRoomsUseCase {
 
 @MainActor
 struct RoomListReducerTests {
+    /// 테스트끼리 스누즈 기록이 섞이지 않도록 매번 새 suite 를 쓴다.
+    private func makeSnooze(snoozed: Bool = false) -> SnoozeSwitch {
+        let name = "RoomListReducerTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: name)!
+        defaults.removePersistentDomain(forName: name)
+        let sut = SnoozeSwitch(key: "prompt", period: .days(14), defaults: defaults)
+        if snoozed { sut.snooze() }
+        return sut
+    }
+
     private func makeStore(
         _ useCase: FetchRoomsUseCase = StubFetchRooms(),
-        state: RoomListState = RoomListState()
+        state: RoomListState = RoomListState(),
+        snooze: SnoozeSwitch? = nil
     ) -> TestStore<RoomListState, RoomListAction, RoomListNav> {
-        TestStore(state, reduce: roomListReducer(useCase: useCase))
+        TestStore(state, reduce: roomListReducer(useCase: useCase, promptSnooze: snooze ?? makeSnooze()))
     }
 
     @Test("L2 — load 하면 rooms 를 반영한다. 공동방이 있으면 유도 시트는 뜨지 않는다")
     func load_success() async {
         let store = makeStore()
         await store.send(.load)
-        await store.receive(.loaded(fixtureRooms)) { $0.rooms = fixtureRooms }
+        await store.receive(.loaded(fixtureRooms, isPromptSnoozed: false)) { $0.rooms = fixtureRooms }
         #expect(!store.currentState.isCreatePromptPresented)
         store.finish()
     }
@@ -52,7 +64,7 @@ struct RoomListReducerTests {
         let store = makeStore(StubFetchRooms(result: .success(personalOnly)))
 
         await store.send(.load)
-        await store.receive(.loaded(personalOnly)) {
+        await store.receive(.loaded(personalOnly, isPromptSnoozed: false)) {
             $0.rooms = personalOnly
             $0.isCreatePromptPresented = true
         }
@@ -91,7 +103,7 @@ struct RoomListReducerTests {
 
         // 복귀 직후 1회 — 억제하고 플래그를 소비한다
         await store.send(.load)
-        await store.receive(.loaded(personalOnly)) {
+        await store.receive(.loaded(personalOnly, isPromptSnoozed: false)) {
             $0.rooms = personalOnly
             $0.skipsNextCreatePrompt = false
         }
@@ -99,18 +111,44 @@ struct RoomListReducerTests {
 
         // 다음 탭 진입 — 다시 뜬다
         await store.send(.load)
-        await store.receive(.loaded(personalOnly)) { $0.isCreatePromptPresented = true }
+        await store.receive(.loaded(personalOnly, isPromptSnoozed: false)) { $0.isCreatePromptPresented = true }
 
         store.finish()
     }
 
-    @Test("L1 — dismissCreatePrompt(나중에 만들래요) 는 시트만 닫는다")
+    @Test("L1 — dismissCreatePrompt(스와이프로 내림) 는 시트만 닫고 미루지 않는다")
     func dismissCreatePrompt_closesOnly() async {
-        let store = makeStore(state: RoomListState(isCreatePromptPresented: true))
+        let snooze = makeSnooze()
+        let store = makeStore(state: RoomListState(isCreatePromptPresented: true), snooze: snooze)
 
         await store.send(.dismissCreatePrompt) { $0.isCreatePromptPresented = false }
 
+        #expect(!snooze.isSnoozed)
         // finish 가 미수신 navigation 잔여를 검사한다 — 닫기만 했는데 전환이 나갔다면 실패한다
+        store.finish()
+    }
+
+    // 기획: "나중에 만들래요" 클릭 시 2주 동안 바텀시트를 활성화하지 않는다.
+    @Test("L2 — tapLater(나중에 만들래요) 는 시트를 닫고 2주 미룬다")
+    func tapLater_closesAndSnoozes() async {
+        let snooze = makeSnooze()
+        let store = makeStore(state: RoomListState(isCreatePromptPresented: true), snooze: snooze)
+
+        await store.send(.tapLater) { $0.isCreatePromptPresented = false }
+
+        #expect(snooze.isSnoozed)
+        store.finish()
+    }
+
+    @Test("L2 — 미뤄 둔 동안에는 공동방이 0개여도 시트가 뜨지 않는다")
+    func load_whileSnoozed_doesNotShowPrompt() async {
+        let personalOnly = [fixtureRooms[0]]
+        let store = makeStore(StubFetchRooms(result: .success(personalOnly)), snooze: makeSnooze(snoozed: true))
+
+        await store.send(.load)
+        await store.receive(.loaded(personalOnly, isPromptSnoozed: true)) { $0.rooms = personalOnly }
+
+        #expect(!store.currentState.isCreatePromptPresented)
         store.finish()
     }
 
@@ -124,7 +162,7 @@ struct RoomListReducerTests {
         )
 
         await store.send(.load)
-        await store.receive(.loaded(personalOnly)) { $0.isCreatePromptPresented = true }
+        await store.receive(.loaded(personalOnly, isPromptSnoozed: false)) { $0.isCreatePromptPresented = true }
 
         store.finish()
     }
