@@ -13,6 +13,8 @@ struct RoomDetailLocation: Identifiable, Equatable {
 struct RoomDetailRoom: Equatable {
     let title: String
     let memo: String
+    /// 방 대표 색(hex). 방 편집으로 넘길 때 피커 인덱스로 바뀐다.
+    let color: String
     let locationCountText: String
     let memberCount: Int
 }
@@ -76,6 +78,7 @@ extension RoomDetailRoom {
     static let sample = RoomDetailRoom(
         title: "가나다라마바사아자차카타파하다",
         memo: "memo",
+        color: "#00BDDE",   // Cyan — 방 색 피커의 6번째 칸
         locationCountText: "999+개",
         memberCount: 1
     )

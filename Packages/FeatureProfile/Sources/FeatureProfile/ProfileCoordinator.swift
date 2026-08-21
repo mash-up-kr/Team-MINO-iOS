@@ -41,15 +41,15 @@ public final class ProfileCoordinator: Coordinator {
 
     /// 방 편집 Store 팩토리. roomFormReducer 는 의존이 없어 그대로 조립한다(RoomCreationUI 는 UI 전용).
     ///
-    /// > 색은 넘기지 못한다. 방 상세가 아직 더미 표시 모델(`RoomDetailRoom`)로 도는데 거기에 색이 없고,
-    /// > 도메인 `Room.color`(hex) → 피커 인덱스 역매핑도 아직 없다. 방 상세를 실제 `Room` 에
-    /// > 연결하는 작업에서 함께 채운다.
+    /// 색은 hex 로 들고 있으므로 피커 인덱스로 바꿔 넘긴다. 팔레트 밖의 색이면 `nil` — 화면이
+    /// my-room 썸네일로 열리고 사용자가 다시 고르면 된다(잘못된 칸을 켜는 것보다 낫다).
     func makeRoomFormStore() -> RoomFormStore {
         let store = RoomFormStore(
             RoomFormState(
                 mode: .edit,
                 roomName: editingRoom?.title ?? "",
-                roomDescription: editingRoom?.memo ?? ""
+                roomDescription: editingRoom?.memo ?? "",
+                selectedColorIndex: editingRoom.flatMap { RoomColorPalette.index(ofHex: $0.color) }
             ),
             reduce: roomFormReducer()
         )
