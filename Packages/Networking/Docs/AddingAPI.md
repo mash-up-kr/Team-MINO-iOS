@@ -100,8 +100,12 @@ public final class RoomRepositoryImpl: RoomRepository {
             // 번역하지 못했다는 사실은 반드시 남긴다 — 어떤 DomainError 를 추가해야
             // 하는지 알 수 있는 유일한 단서다. 이 로그가 없으면 403·409·타임아웃이
             // 전부 "알 수 없는 오류" 로 수렴하고 아무도 눈치채지 못한다.
+            //
+            // 오류는 `label`(케이스 이름)로만 남긴다. `String(describing:)` 으로 통째로
+            // 찍으면 연관값의 서버 원문 message·에러 본문 preview 가 릴리즈 기기 로그에
+            // 평문으로 남는다(README §금지).
             Log.warning("도메인으로 번역되지 않음", metadata: [
-                "error": String(describing: error),
+                "error": error.label,
                 "status": error.statusCode.map(String.init) ?? "-",
                 "code": error.errorCode ?? "-",
             ])

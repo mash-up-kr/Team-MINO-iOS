@@ -31,4 +31,25 @@ struct NetworkErrorTests {
         #expect(NetworkError.unexpectedErrorFormat(statusCode: 409, preview: "<html>").errorCode == nil)
         #expect(NetworkError.unauthorized(code: nil, message: nil).errorCode == nil)
     }
+
+    @Test("label 은 케이스 이름을 준다")
+    func labelIsCaseName() {
+        #expect(NetworkError.notFound(code: "X", message: "없음").label == "notFound")
+        #expect(NetworkError.server(statusCode: 503).label == "server")
+        #expect(NetworkError.cancelled.label == "cancelled")
+        // 전송 실패는 갈래까지 — 우리가 닫아둔 고정 어휘라 서버 값이 섞이지 않는다.
+        #expect(NetworkError.transport(reason: .timedOut).label == "transport(timedOut)")
+    }
+
+    // 릴리즈 로그는 `.public` 이라 label 에 연관값이 섞이면 서버 원문·에러 본문이
+    // 그대로 기기에 남는다. `String(describing:)` 이라면 아래가 전부 통과한다.
+    @Test("label 은 연관값(서버 원문·본문 미리보기)을 담지 않는다", arguments: [
+        (NetworkError.notFound(code: "ROOM_NOT_FOUND", message: "방 '집들이' 를 찾을 수 없습니다"), "집들이"),
+        (.badRequest(code: "INVALID_EMAIL", message: "user@example.com"), "@example.com"),
+        (.unexpectedErrorFormat(statusCode: 404, preview: "<html>초대코드 ABC123XY</html>"), "ABC123XY"),
+        (.decodingFailed(description: "codingPath: [roomName]"), "roomName"),
+    ])
+    func labelDropsAssociatedValues(_ error: NetworkError, _ leaked: String) {
+        #expect(!error.label.contains(leaked))
+    }
 }

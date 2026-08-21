@@ -49,6 +49,7 @@ Packages/Data/Sources/Data/
 | Repository 안에서 `Endpoint(...)` 직접 생성 | 경로가 흩어진다. 반드시 `Data/API/` 의 `enum` 을 거친다 |
 | 오류를 **케이스로만** 분기 | 같은 404 가 `.notFound` 로도 `.unexpectedErrorFormat(404,_)` 로도 온다. `error.statusCode` 를 축으로 쓴다 |
 | 번역 안 된 오류를 조용히 `.unknown` 으로 | 어떤 `DomainError` 를 추가해야 하는지 알 단서가 사라진다. `default` 에 로그를 남긴다 |
+| 오류를 `String(describing:)` 으로 로그에 찍기 | 연관값의 서버 원문 `message`·에러 본문 `preview` 가 릴리즈 기기 로그에 평문으로 남는다(`OSLogger` 는 `.public`, 릴리즈 최소 레벨은 `warning`). 케이스 이름만 주는 `error.label` 을 쓴다 |
 
 ---
 

@@ -94,4 +94,30 @@ public extension NetworkError {
             nil
         }
     }
+
+    /// 로그에 남길 케이스 이름.
+    ///
+    /// ⚠️ **오류를 `String(describing:)` 으로 통째로 찍지 말고 이걸 쓴다.** 연관값에 서버 원문
+    /// `message` 와 에러 본문 `preview` 가 들어 있는데, `OSLogger` 는 `.public` 으로 찍고
+    /// 릴리즈 최소 레벨이 `warning` 이라 실패 경로의 값이 그대로 기기에 영구 기록된다 —
+    /// `LogRedaction.body` 가 릴리즈에서 본문을 떼어내는 의미가 사라진다.
+    /// 진단에 필요한 "무엇이 실패했나" 는 이름과 옆의 `statusCode`·`errorCode` 로 충분하다.
+    var label: String {
+        switch self {
+        case .invalidURL:            "invalidURL"
+        case .badRequest:            "badRequest"
+        case .unauthorized:          "unauthorized"
+        case .forbidden:             "forbidden"
+        case .notFound:              "notFound"
+        case .conflict:              "conflict"
+        case .client:                "client"
+        case .server:                "server"
+        case .unexpectedErrorFormat: "unexpectedErrorFormat"
+        case .decodingFailed:        "decodingFailed"
+        case .encodingFailed:        "encodingFailed"
+        // 갈래까지 붙인다 — `TransportFailure` 는 우리가 닫아둔 고정 어휘라 서버 값이 섞이지 않는다.
+        case .transport(let reason): "transport(\(reason.rawValue))"
+        case .cancelled:             "cancelled"
+        }
+    }
 }
