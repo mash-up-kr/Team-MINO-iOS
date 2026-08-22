@@ -10,11 +10,9 @@ let package = Package(
     dependencies: [
         .package(path: "../DesignSystem"),
         .package(path: "../FlowCoordination"),
-        .package(path: "../MVI"),
-        .package(path: "../RoomCreationUI"),
     ],
     targets: [
-        .target(name: "FeatureProfile", dependencies: ["DesignSystem", "FlowCoordination", "MVI", "RoomCreationUI"]),
+        .target(name: "FeatureProfile", dependencies: ["DesignSystem", "FlowCoordination"]),
         .testTarget(name: "FeatureProfileTests", dependencies: ["FeatureProfile"]),
     ],
     swiftLanguageModes: [.v6]

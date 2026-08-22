@@ -33,9 +33,6 @@ struct RoomDetailSheet: View {
                     RoomDetailHeader(
                         room: room,
                         onAddMember: {},
-                        // 방 단위 메뉴(시안 004-5 계열)가 정해지면 여기서 메뉴를 띄우고,
-                        // 그 안의 "방 편집" 항목이 `onOutput(.editRoom(room))` 를 낸다.
-                        // 받는 쪽(ProfileTabView·ProfileCoordinator)은 이미 준비돼 있다.
                         onMore: {},
                         onClose: { onOutput(.close) }
                     )

@@ -10,14 +10,9 @@ struct RoomDetailLocation: Identifiable, Equatable {
 }
 
 /// 방 헤더에 들어가는 방 정보.
-///
-/// `ProfileRoute.roomEdit` 의 연관값이라 public 이다 — 라우트가 public 인데(탭 flow 의 `path`)
-/// 연관값만 internal 일 수는 없다. 바깥에서 만들 일은 없어 memberwise init 은 internal 그대로 둔다.
-public struct RoomDetailRoom: Hashable, Sendable {
+struct RoomDetailRoom: Equatable {
     let title: String
     let memo: String
-    /// 방 대표 색(hex). 방 편집으로 넘길 때 피커 인덱스로 바뀐다.
-    let color: String
     let locationCountText: String
     let memberCount: Int
 }
@@ -62,8 +57,6 @@ enum RoomDetailMenuItemID: String, CaseIterable {
 enum RoomDetailOutput: Equatable {
     case close
     case shareLocation(RoomDetailLocation)
-    /// 방 편집 화면으로. 장소와 같은 이유로 방도 **값째** 싣는다.
-    case editRoom(RoomDetailRoom)
 }
 
 /// 헤더 아래 카테고리 칩.
@@ -81,7 +74,6 @@ extension RoomDetailRoom {
     static let sample = RoomDetailRoom(
         title: "가나다라마바사아자차카타파하다",
         memo: "memo",
-        color: "#00BDDE",   // Cyan — 방 색 피커의 6번째 칸
         locationCountText: "999+개",
         memberCount: 1
     )

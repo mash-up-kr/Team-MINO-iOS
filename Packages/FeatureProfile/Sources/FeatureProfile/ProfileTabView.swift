@@ -1,6 +1,5 @@
 import DesignSystem
 import FlowCoordination
-import RoomCreationUI
 import SwiftUI
 
 /// 마이 탭 진입 View. 실제 화면이 붙기 전까지 탭 이름과 방 상세 시트 확인용 버튼만 표시한다.
@@ -47,13 +46,6 @@ public struct ProfileTabView: View {
                 }
 
                 toast
-            }
-            .navigationDestination(for: ProfileRoute.self) { route in
-                switch route {
-                case .roomEdit(let room):
-                    // 편집에는 건너뛰기가 없다(showsSkip: false). 뒤로가기는 취소 확인 다이얼로그를 거친다.
-                    RoomFormView(makeStore: { coordinator.makeRoomFormStore(room: room) }, showsSkip: false)
-                }
             }
             .animation(.spring(duration: 0.3), value: coordinator.isRoomDetailPresented)
             .animation(.easeInOut(duration: 0.2), value: toastMessage)
@@ -110,11 +102,6 @@ public struct ProfileTabView: View {
             coordinator.isRoomDetailPresented = false
         case .shareLocation(let location):
             sharingLocation = location
-        case .editRoom(let room):
-            // 시트를 먼저 내린다 — 편집에서 돌아왔을 때 시트가 그대로 남아 있어야 자연스럽지만,
-            // 지금은 시트가 화면 전체를 덮는 비모달이라 push 화면과 겹친다.
-            coordinator.isRoomDetailPresented = false
-            coordinator.startRoomEdit(room)
         }
     }
 
