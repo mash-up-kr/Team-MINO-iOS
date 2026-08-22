@@ -1,11 +1,11 @@
 /// 튜토리얼이 넘겨 보여주는 예시 한 장. Figma `000-1 튜토리얼_step 1` ~ `000-5 튜토리얼_step 5`.
-struct TutorialStep: Equatable, Identifiable {
+struct TutorialStep: Identifiable {
     /// 화면의 번호 뱃지에 그대로 쓰는 1-based 순번.
     let id: Int
     let title: String
     let illustration: Illustration
 
-    enum Illustration: Equatable {
+    enum Illustration {
         /// `Illustration.xcassets` 의 이미지 이름.
         case asset(String)
         /// 아직 시안이 나오지 않은 자리. Figma 도 회색 카드에 설명 문구만 얹어 두었다.

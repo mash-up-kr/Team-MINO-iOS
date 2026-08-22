@@ -20,10 +20,9 @@ enum TutorialNav: Equatable, Sendable {
 
 typealias TutorialStore = Store<TutorialState, TutorialAction, TutorialNav>
 
-func tutorialReducer(
-    stepCount: Int = TutorialStep.all.count
-) -> (inout TutorialState, TutorialAction) -> Effect<TutorialAction, TutorialNav> {
-    { state, action in
+func tutorialReducer() -> (inout TutorialState, TutorialAction) -> Effect<TutorialAction, TutorialNav> {
+    let stepCount = TutorialStep.all.count
+    return { state, action in
         switch action {
         // 범위 밖 인덱스가 들어가면 뷰가 없는 페이지를 가리켜 화면이 빈 채로 굳는다.
         case .selectPage(let index):
