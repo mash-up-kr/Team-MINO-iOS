@@ -13,7 +13,6 @@ struct TutorialReducerTests {
         await store.send(.selectPage(2)) {
             $0.pageIndex = 2
         }
-        // 되돌아오는 스와이프도 같은 액션으로 들어온다
         await store.send(.selectPage(1)) {
             $0.pageIndex = 1
         }
@@ -44,8 +43,6 @@ struct TutorialReducerTests {
         store.finish()
     }
 
-    // 뷰가 마지막 스텝에서만 CTA 를 그리는 것과 별개로 reduce 가 스스로 막는지 본다
-    // (뷰의 조건을 지워도 통과하던 공백이라 가드와 함께 넣었다)
     @Test("L1 — 마지막이 아닌 스텝에서 온 tapStart 는 무시된다")
     func tapStart_beforeLastStep_isIgnored() async {
         let store = TestStore(TutorialState(), reduce: tutorialReducer())
@@ -56,7 +53,7 @@ struct TutorialReducerTests {
         }
         await store.send(.tapStart)
 
-        // finish 가 미수신 navigation 잔여를 검사한다 — didFinish 가 나갔다면 여기서 실패한다
+        // 단언은 finish 가 한다 — didFinish 가 나갔다면 미수신 navigation 으로 잡힌다
         store.finish()
     }
 

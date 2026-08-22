@@ -1,15 +1,10 @@
 /// 튜토리얼이 넘겨 보여주는 예시 한 장. Figma `000-1 튜토리얼_step 1` ~ `000-5 튜토리얼_step 5`.
-///
-/// 사용자 입력이나 서버 응답으로 바뀌지 않는 고정 콘텐츠라 State 가 아니라 상수로 둔다 —
-/// State 에 실으면 매 전이마다 다섯 장을 통째로 비교하게 되고, 테스트도 이 값을 다시 지어내야 한다.
 struct TutorialStep: Equatable, Identifiable {
     /// 화면의 번호 뱃지에 그대로 쓰는 1-based 순번.
     let id: Int
-    /// 시안이 두 줄로 끊어 둔 그대로 개행을 넣는다 — 폭에 맡기면 끊기는 지점이 시안과 달라진다.
     let title: String
     let illustration: Illustration
 
-    /// 스텝 카드에 들어가는 그림.
     enum Illustration: Equatable {
         /// `Illustration.xcassets` 의 이미지 이름.
         case asset(String)
@@ -19,6 +14,7 @@ struct TutorialStep: Equatable, Identifiable {
 }
 
 extension TutorialStep {
+    // 개행은 시안이 끊어 둔 그대로다 — 폭에 맡기면 끊기는 지점이 달라진다.
     static let all: [TutorialStep] = [
         TutorialStep(
             id: 1,

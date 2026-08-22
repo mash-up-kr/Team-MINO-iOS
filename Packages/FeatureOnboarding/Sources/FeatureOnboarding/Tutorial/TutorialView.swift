@@ -14,7 +14,6 @@ struct TutorialView: View {
         Group {
             if let store {
                 TutorialContent(
-                    steps: TutorialStep.all,
                     pageIndex: Binding(
                         get: { store.state.pageIndex },
                         set: { store.send(.selectPage($0)) }
@@ -23,7 +22,7 @@ struct TutorialView: View {
                     onTapStart: { store.send(.tapStart) }
                 )
             } else {
-                // 마크업이 자체 상단 내비를 그려 로딩 표시가 자리를 밀지 않도록 빈 배경으로 자리만 잡는다.
+                // ProgressView 를 쓰면 자체 상단 내비가 밀린다 — 빈 배경으로 자리만 잡는다.
                 Color.mhBackgroundNormalNormal
                     .ignoresSafeArea()
                     .task { store = makeStore() }
