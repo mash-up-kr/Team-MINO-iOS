@@ -13,6 +13,15 @@ public extension View {
         contentShape(Rectangle())
             .onTapGesture { mhResignFirstResponder() }
     }
+
+    /// 자유 입력이 있는 **폼 화면 루트**에 붙인다 — 여백 탭과 스크롤 해제를 함께 건다.
+    ///
+    /// `.scrollDismissesKeyboard` 는 환경으로 하위 `ScrollView` 에 전파되므로 루트 한 곳이면 된다.
+    /// 둘을 따로 붙이면 화면마다 하나를 빠뜨린다.
+    func mhFormKeyboardDismissal() -> some View {
+        scrollDismissesKeyboard(.immediately)
+            .mhDismissKeyboardOnTap()
+    }
 }
 
 /// 현재 first responder 에서 포커스를 뗀다. 어떤 필드가 포커스인지 몰라도 되도록 responder chain 에 던진다.

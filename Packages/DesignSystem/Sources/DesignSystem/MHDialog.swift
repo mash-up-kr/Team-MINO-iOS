@@ -9,7 +9,7 @@ import SwiftUI
 /// 바깥 터치 차단이 거기 들어 있다.
 ///
 /// ```swift
-/// .mhDialog(item: $dialog) { _ in
+/// .mhDialog(item: store.state.dialog) { _ in
 ///     MHDialog(
 ///         title: "공동방을 저장하시겠어요?",
 ///         message: "공동방 편집에서 설정을 변경할 수 있어요.",
@@ -116,12 +116,15 @@ public extension View {
     ///
     /// 딤은 탭을 **먹기만 하고 닫지 않는다** — 두 선택지 중 하나를 반드시 고르게 하는 게 이 다이얼로그의
     /// 목적이라, 바깥 탭으로 빠져나가면 "취소" 와 구분이 안 된다.
+    ///
+    /// > `Binding` 이 아니라 값을 받는다. 닫는 책임이 전부 호출처(reducer)에 있어 이 modifier 는
+    /// > 되쓸 일이 없다 — `Binding` 을 받으면 "닫기는 알아서 한다"는 없는 계약을 암시하게 된다.
     func mhDialog<Item: Identifiable>(
-        item: Binding<Item?>,
+        item: Item?,
         @ViewBuilder content: @escaping (Item) -> MHDialog
     ) -> some View {
         overlay {
-            if let value = item.wrappedValue {
+            if let value = item {
                 ZStack {
                     Color.mhMaterialDimmer
                         .ignoresSafeArea()
@@ -132,7 +135,7 @@ public extension View {
                 .transition(.opacity)
             }
         }
-        .animation(.easeInOut(duration: 0.2), value: item.wrappedValue != nil)
+        .animation(.easeInOut(duration: 0.2), value: item != nil)
     }
 }
 
@@ -141,7 +144,7 @@ public extension View {
 #Preview("저장 여부 묻기") {
     Color.mhBackgroundNormalAlternative
         .ignoresSafeArea()
-        .mhDialog(item: .constant(PreviewDialog.save)) { _ in
+        .mhDialog(item: PreviewDialog.save) { _ in
             MHDialog(
                 title: "공동방을 저장하시겠어요?",
                 message: "공동방 편집에서 설정을 변경할 수 있어요.",
@@ -154,7 +157,7 @@ public extension View {
 #Preview("설명 없음") {
     Color.mhBackgroundNormalAlternative
         .ignoresSafeArea()
-        .mhDialog(item: .constant(PreviewDialog.save)) { _ in
+        .mhDialog(item: PreviewDialog.save) { _ in
             MHDialog(
                 title: "정말 나가시겠어요?",
                 cancel: MHAction("취소") {},

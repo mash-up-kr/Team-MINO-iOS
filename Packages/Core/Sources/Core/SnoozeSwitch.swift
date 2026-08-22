@@ -50,11 +50,6 @@ public struct SnoozeSwitch: @unchecked Sendable {
     public func snooze() {
         defaults.set(now(), forKey: key)
     }
-
-    /// 미룬 기록을 지운다(테스트·디버그 메뉴용).
-    public func reset() {
-        defaults.removeObject(forKey: key)
-    }
 }
 
 public extension TimeInterval {

@@ -57,17 +57,6 @@ struct SnoozeSwitchTests {
         #expect(sut.isSnoozed)
     }
 
-    @Test("reset 하면 다시 노출된다")
-    func resetClearsSnooze() {
-        let defaults = makeDefaults()
-        let sut = makeSwitch(defaults: defaults) { self.start }
-
-        sut.snooze()
-        sut.reset()
-
-        #expect(!sut.isSnoozed)
-    }
-
     @Test("키가 다르면 서로 영향을 주지 않는다")
     func keysAreIndependent() {
         let defaults = makeDefaults()
