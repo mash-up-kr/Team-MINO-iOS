@@ -4,88 +4,26 @@ import MVI
 import RoomCreationUI
 import SwiftUI
 
-/// 방 리스트 바텀 시트 화면. Figma Frame 198(node 2236:45798) — 저장 탭 진입 화면.
-///
-/// 지도 위에 겹쳐 뜨는 비모달 시트(`MHBottomSheet`)로, 지도가 아직 없어 뒤는 중립 배경으로 채운다.
-/// 헤더(타이틀 + 추가 버튼)·필터(``MHCategory``)는 시트 상단에 고정하고, 방 카드 목록만
-/// ``MHBottomSheetScrollView`` 로 스크롤한다.
-///
-/// Store 는 ``ArchiveCoordinator`` 팩토리로 `.task` 에서 1회 lazy 생성한다(MemberHome 패턴).
-/// 진입 시 `.load` 로 방 목록을 불러오고, `store.state.rooms`(도메인 `Room`)를 표시 모델
-/// ``RoomListItem`` 으로 매핑해 순수 뷰 ``RoomListContentView`` 에 주입한다.
 struct RoomListView: View {
-    private let coordinator: ArchiveCoordinator
-    @State private var store: RoomListStore?
-
-    init(coordinator: ArchiveCoordinator) {
-        self.coordinator = coordinator
-    }
-
-    var body: some View {
-        content
-    }
-
-    @ViewBuilder
-    private var content: some View {
-        if let store {
-            RoomListLoadedView(store: store)
-        } else {
-            // store 없을 때만 실행 → 1회 생성 보장. 배경은 시트 뒤 중립 플레이스홀더 유지.
-            Color.mhBackgroundNormalAlternative
-                .ignoresSafeArea()
-                .task { store = coordinator.makeRoomListStore() }
-        }
-    }
-}
-
-// MARK: - RoomListLoadedView
-
-/// store 가 준비된 뒤의 실제 시트. store.state 를 읽어 그리고, 진입 시 `.load` 를 보낸다.
-private struct RoomListLoadedView: View {
     let store: RoomListStore
-    @State private var detent: MHBottomSheetDetent = .medium
-
-    /// 디자인 정책(003-2): half 는 공동방 수와 무관하게 헤더+칩+개인방 카드 합산 높이(고정)를 유지한다
-    /// (바텀 네비 제외). 스펙 이상치는 그래버(30)+헤더(60)+칩(50)+카드(104)=244 이지만,
-    /// 실제 그래버 간격 영역이 더 커(~54) 카드가 탭바에 잘려 실측 보정값 268 을 쓴다(lowPeek 112 와 동일 논리).
-    private let mediumPeek: CGFloat = 268
+    let isFull: Bool
+    let onCollapse: () -> Void
 
     var body: some View {
-        ZStack {
-            Color.mhBackgroundNormalAlternative
-                .ignoresSafeArea()
-
-            // low(peek) 는 그래버(30) + 헤더(60) 만, medium 은 카드 영역까지 — 둘 다 콘텐츠 pt 기반(MHBottomSheet 가 하단 safe-area 보정).
-            MHBottomSheet(detent: $detent, lowPeek: 112, mediumPeek: mediumPeek) {
-                RoomListContentView(
-                    rooms: store.state.rooms.map(RoomListItem.init(from:)),
-                    showEmptyState: !store.state.hasSharedRoom,
-                    isFull: detent == .full,
-                    filterSelection: filterBinding,
-                    onClose: { withAnimation(.spring(duration: 0.3)) { detent = .medium } },
-                    onCreateRoom: { store.send(.tapCreateRoom) }
-                )
-            }
-            .accessibilityIdentifier("RoomList.sheet")
-        }
-        // 저장 탭에 들어올 때마다 다시 판정한다 — 공동방이 없으면 유도 시트가 다시 뜬다(기획 001-2-1).
-        .task { store.send(.load) }
-        .sheet(isPresented: createPromptBinding) {
-            RoomCreationPromptView(
-                onCreate: { store.send(.tapCreateRoom) },
-                onLater: { store.send(.tapLater) }
-            )
-            .presentationDetents([.height(RoomCreationPromptView.detentHeight)])
-            .presentationDragIndicator(.hidden)   // 그래버는 시트가 직접 그린다
-        }
+        RoomListContentView(
+            rooms: store.state.rooms.map(RoomListItem.init(from:)),
+            showEmptyState: !store.state.hasSharedRoom,
+            isFull: isFull,
+            filterSelection: filterBinding,
+            onClose: onCollapse,
+            onSelectRoom: selectRoom,
+            onCreateRoom: { store.send(.tapCreateRoom) }
+        )
     }
 
-    // 스와이프 dismiss 도 reducer 를 거치게 한다 — state 와 실제 표시가 갈라지면 시트가 다시 안 뜬다.
-    private var createPromptBinding: Binding<Bool> {
-        Binding(
-            get: { store.state.isCreatePromptPresented },
-            set: { if !$0 { store.send(.dismissCreatePrompt) } }
-        )
+    private func selectRoom(_ id: RoomListItem.ID) {
+        guard let room = store.state.rooms.first(where: { $0.id == id }) else { return }
+        store.send(.tapRoom(room))
     }
 
     private var filterBinding: Binding<Int> {
@@ -107,6 +45,7 @@ struct RoomListContentView: View {
     let isFull: Bool
     @Binding var filterSelection: Int
     var onClose: (() -> Void)?
+    var onSelectRoom: ((RoomListItem.ID) -> Void)?
     /// 빈 상태 CTA 와 헤더 "+" 가 함께 쓰는 방 만들기 진입.
     var onCreateRoom: () -> Void = {}
 
@@ -169,6 +108,9 @@ struct RoomListContentView: View {
                         thumbnail: room.thumbnail,
                         members: room.members
                     )
+                    .contentShape(Rectangle())
+                    .onTapGesture { onSelectRoom?(room.id) }
+                    .accessibilityAddTraits(.isButton)
                     .accessibilityIdentifier("RoomList.card.\(room.id)")
                 }
                 if showEmptyState {

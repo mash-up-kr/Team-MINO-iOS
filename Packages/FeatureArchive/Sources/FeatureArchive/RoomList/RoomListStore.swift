@@ -8,6 +8,8 @@ public struct RoomListState: Equatable {
     public var rooms: [Room]
     /// 선택된 필터 칩 인덱스(전체/최근 저장 순/코멘트 순). 정렬 로직은 미구현(UI 상태만).
     public var filter: Int
+    public var roomFilter: Int
+    public var categoryFilter: Int
     /// 공동방 생성 유도 시트(001-2-1)가 떠 있는가.
     public var isCreatePromptPresented: Bool
     /// 다음 **로드 응답 1회**는 유도 시트를 띄우지 않는다 — 만들기 화면에 다녀온 직후의 복귀.
@@ -15,9 +17,17 @@ public struct RoomListState: Equatable {
     /// 시트가 조용히 안 뜬다.
     public var skipsNextCreatePrompt = false
 
-    public init(rooms: [Room] = [], filter: Int = 0, isCreatePromptPresented: Bool = false) {
+    public init(
+        rooms: [Room] = [],
+        filter: Int = 0,
+        roomFilter: Int = 0,
+        categoryFilter: Int = 0,
+        isCreatePromptPresented: Bool = false
+    ) {
         self.rooms = rooms
         self.filter = filter
+        self.roomFilter = roomFilter
+        self.categoryFilter = categoryFilter
         self.isCreatePromptPresented = isCreatePromptPresented
     }
 
@@ -40,6 +50,9 @@ public enum RoomListAction: Equatable {
     case loaded([Room], isPromptSnoozed: Bool)
     case loadFailed(DomainError)   // Response Action (실패)
     case selectFilter(Int)
+    case selectRoomFilter(Int)
+    case selectCategory(Int)
+    case tapRoom(Room)
     /// 유도 시트·빈 상태 CTA·헤더 "+" 가 공유하는 진입 액션.
     case tapCreateRoom
     /// "나중에 만들래요" — 닫고 2주 동안 다시 띄우지 않는다.
@@ -49,7 +62,8 @@ public enum RoomListAction: Equatable {
 }
 
 public enum RoomListNav: Equatable, Sendable {
-    /// 공동방 만들기 화면으로. (카드 탭 등 나머지 전환은 아직 없다)
+    case openRoomDetail(Room)
+    /// 공동방 만들기 화면으로.
     case goToCreateRoom
 }
 
@@ -92,6 +106,14 @@ public func roomListReducer(
         case .selectFilter(let index):
             state.filter = index   // TODO: 필터별 정렬 로직(최근 저장 순/코멘트 순) 후속 PR
             return .none
+        case .selectRoomFilter(let index):
+            state.roomFilter = index
+            return .none
+        case .selectCategory(let index):
+            state.categoryFilter = index
+            return .none
+        case .tapRoom(let room):
+            return .navigate(.openRoomDetail(room))
         case .tapCreateRoom:
             state.isCreatePromptPresented = false
             state.skipsNextCreatePrompt = true

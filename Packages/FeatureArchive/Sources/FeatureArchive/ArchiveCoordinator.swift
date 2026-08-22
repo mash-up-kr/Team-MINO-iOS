@@ -20,13 +20,21 @@ public final class ArchiveCoordinator: Coordinator {
     public var cover: Never? = nil
     public let finish = FlowFinish<Never>()
 
+    private let deps: ArchiveDeps
+
+    public private(set) var selectedRoom: Room?
+
+    public private(set) var selectedPin: Pin?
+
+    public var isRoomDetailPresented: Bool { selectedRoom != nil }
+
     /// 탭바 자체를 레이아웃에서 빼야 하는 전체화면 상태인가 — MainTabView 가 본다.
-    /// 공동방 만들기가 push 되면 자체 상단바를 가진 전체 화면이라 탭바를 감춘다(홈 탭과 같은 규칙).
+    /// 방 상세 시트, 그리고 자체 상단바를 가진 push 화면(공동방 만들기)이 여기 해당한다.
     public var isFullBleedContentPresented: Bool {
-        !path.isEmpty
+        isRoomDetailPresented || !path.isEmpty
     }
 
-    private let deps: ArchiveDeps
+    var sharingLocation: RoomDetailLocation?
 
     public init(deps: ArchiveDeps) {
         self.deps = deps
@@ -43,6 +51,24 @@ public final class ArchiveCoordinator: Coordinator {
         return store
     }
 
+    func makeRoomDetailStore(room: Room) -> RoomDetailStore {
+        let store = RoomDetailStore(
+            RoomDetailState(room: RoomDetailRoom(from: room)),
+            reduce: roomDetailReducer(useCase: deps.fetchPins, room: room)
+        )
+        store.observeNavigation { [weak self] in self?.handle($0) }
+        return store
+    }
+
+    func makePlaceDetailStore(pin: Pin) -> PlaceDetailStore {
+        let store = PlaceDetailStore(
+            PlaceDetailState(place: PlaceDetailPlace(from: pin, now: Date())),
+            reduce: placeDetailReducer(pin: pin)
+        )
+        store.observeNavigation { [weak self] in self?.handle($0) }
+        return store
+    }
+
     /// 공동방 만들기 Store 팩토리. roomFormReducer 는 의존이 없어 그대로 조립한다(RoomCreationUI 는 UI 전용).
     func makeRoomFormStore() -> RoomFormStore {
         let store = RoomFormStore(RoomFormState(mode: .create), reduce: roomFormReducer())
@@ -54,6 +80,8 @@ public final class ArchiveCoordinator: Coordinator {
 
     func handle(_ nav: RoomListNav) {
         switch nav {
+        case .openRoomDetail(let room):
+            selectedRoom = room
         case .goToCreateRoom:
             push(.createRoom)
         }
@@ -64,6 +92,27 @@ public final class ArchiveCoordinator: Coordinator {
         case .didSubmit, .didCancel, .didSkip:
             // 생성/취소 후 방 리스트로 복귀. (실제 방 생성 로직은 후속 — 현재 RoomCreationUI 는 UI 전용)
             pop()
+        }
+    }
+
+    func handle(_ nav: RoomDetailNav) {
+        switch nav {
+        case .close:
+            selectedRoom = nil
+            selectedPin = nil
+        case .shareLocation(let location):
+            sharingLocation = location
+        case .openPlaceDetail(let pin):
+            selectedPin = pin
+        }
+    }
+
+    func handle(_ nav: PlaceDetailNav) {
+        switch nav {
+        case .close:
+            selectedPin = nil
+        case .share(let location):
+            sharingLocation = location
         }
     }
 }

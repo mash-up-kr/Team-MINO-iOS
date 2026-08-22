@@ -35,12 +35,17 @@ extension EnvironmentValues {
 public struct MHBottomSheetScrollView<Inner: View>: View {
     @Environment(\.mhSheetScrollEnabled) private var scrollEnabled
     private let inner: Inner
+    private let onOffsetChange: (@MainActor (CGFloat) -> Void)?
 
     /// 스크롤이 맨 위인가. 임계값(0.5pt) 교차 시점에만 갱신 — 연속 오프셋을 state 로 받으면
     /// 스크롤 매 프레임 이 뷰와 preference 하류(시트)가 재평가된다.
     @State private var isAtTop = true
 
-    public init(@ViewBuilder content: () -> Inner) {
+    public init(
+        onOffsetChange: (@MainActor (CGFloat) -> Void)? = nil,
+        @ViewBuilder content: () -> Inner
+    ) {
+        self.onOffsetChange = onOffsetChange
         self.inner = content()
     }
 
@@ -50,6 +55,7 @@ public struct MHBottomSheetScrollView<Inner: View>: View {
                 .background(ScrollViewIntrospector { offset in
                     let atTop = offset <= 0.5
                     if atTop != isAtTop { isAtTop = atTop }
+                    onOffsetChange?(offset)
                 })
         }
         .scrollDisabled(!scrollEnabled)

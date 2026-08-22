@@ -1,4 +1,5 @@
 import Logging
+import MapUI
 import UIKit
 
 /// SwiftUI App lifecycle 에 `@UIApplicationDelegateAdaptor` 로 부속 연결되는 AppDelegate.
@@ -14,6 +15,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         #else
         Log.bootstrap(OSLogger(minimumLevel: .warning))
         #endif
+
+        MapService.configure(apiKey: Bundle.main.object(forInfoDictionaryKey: "GMSApiKey") as? String ?? "")
+
         return true
     }
 

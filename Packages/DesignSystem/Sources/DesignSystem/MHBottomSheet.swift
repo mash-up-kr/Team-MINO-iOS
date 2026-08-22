@@ -14,6 +14,7 @@ struct MHBottomSheetLayout: Equatable {
     let containerHeight: CGFloat
     let lowFraction: CGFloat      // 0 < low < medium < 1 (init 의 assert 가 보장)
     let mediumFraction: CGFloat
+    var detents: [MHBottomSheetDetent] = MHBottomSheetDetent.allCases
 
     func height(of detent: MHBottomSheetDetent) -> CGFloat {
         switch detent {
@@ -24,11 +25,13 @@ struct MHBottomSheetLayout: Equatable {
     }
 
     func clampedHeight(_ height: CGFloat) -> CGFloat {
-        min(max(height, self.height(of: .low)), self.height(of: .full))
+        let bounds = detents.map { self.height(of: $0) }
+        guard let lower = bounds.min(), let upper = bounds.max() else { return height }
+        return min(max(height, lower), upper)
     }
 
     func nearestDetent(to height: CGFloat) -> MHBottomSheetDetent {
-        MHBottomSheetDetent.allCases.min {
+        detents.min {
             abs(self.height(of: $0) - height) < abs(self.height(of: $1) - height)
         } ?? .medium
     }
@@ -62,6 +65,7 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
     private let lowPeek: CGFloat?
     /// 설정 시 medium 높이를 비율 대신 "콘텐츠 pt + 하단 safe-area" 로 계산한다(카드 영역까지 보이는 half).
     private let mediumPeek: CGFloat?
+    private let detents: [MHBottomSheetDetent]
     private let contentID: ID?
     private let content: (ID?) -> Content
 
@@ -105,15 +109,18 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
         erasedContentID: ID?,
         lowPeek: CGFloat? = nil,
         mediumPeek: CGFloat? = nil,
+        detents: [MHBottomSheetDetent] = MHBottomSheetDetent.allCases,
         content: @escaping (ID?) -> Content
     ) {
         assert(0 < lowFraction && lowFraction < mediumFraction && mediumFraction < 1,
                "0 < lowFraction < mediumFraction < 1 이어야 한다")
+        assert(!detents.isEmpty, "detents 는 최소 1단계여야 한다")
         self._detent = detent
         self.lowFraction = lowFraction
         self.mediumFraction = mediumFraction
         self.lowPeek = lowPeek
         self.mediumPeek = mediumPeek
+        self.detents = detents
         self.contentID = erasedContentID
         self.content = content
         self._appliedLow = State(initialValue: lowFraction)
@@ -155,7 +162,8 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
             let layout = MHBottomSheetLayout(
                 containerHeight: geometry.size.height,
                 lowFraction: effectiveLow,
-                mediumFraction: effectiveMedium
+                mediumFraction: effectiveMedium,
+                detents: detents
             )
             let height = layout.clampedHeight(layout.height(of: detent) - dragTranslation)
             let isFull = height >= layout.height(of: .full)
@@ -341,12 +349,13 @@ public extension MHBottomSheet where ID == Never {
     /// 탭바 위로 지정 pt 만큼 온전히 보인다(기기 무관).
     init(
         detent: Binding<MHBottomSheetDetent>,
-        lowPeek: CGFloat,
+        lowPeek: CGFloat? = nil,
         mediumPeek: CGFloat,
+        detents: [MHBottomSheetDetent] = MHBottomSheetDetent.allCases,
         @ViewBuilder content: @escaping () -> Content
     ) {
         self.init(detent: detent, lowFraction: 0.15, mediumFraction: 0.5,
-                  erasedContentID: nil, lowPeek: lowPeek, mediumPeek: mediumPeek,
+                  erasedContentID: nil, lowPeek: lowPeek, mediumPeek: mediumPeek, detents: detents,
                   content: { _ in content() })
     }
 }
