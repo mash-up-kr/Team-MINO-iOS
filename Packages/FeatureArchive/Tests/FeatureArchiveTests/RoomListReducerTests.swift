@@ -175,6 +175,34 @@ struct RoomListReducerTests {
         store.finish()
     }
 
+    // 실패가 플래그를 안 지우면 true 로 남아, 그 다음 정상 진입의 시트가 조용히 안 뜬다.
+    @Test("L2 — 복귀 로드가 실패해도 억제 플래그는 소비된다")
+    func loadFailure_afterReturningFromCreation_stillConsumesSkipFlag() async {
+        let personalOnly = [fixtureRooms[0]]
+        let store = makeStore(
+            StubFetchRooms(result: .success(personalOnly)),
+            state: RoomListState(isCreatePromptPresented: true)
+        )
+
+        await store.send(.tapCreateRoom) {
+            $0.isCreatePromptPresented = false
+            $0.skipsNextCreatePrompt = true
+        }
+        store.receiveNavigation(.goToCreateRoom)
+
+        // 복귀 로드가 실패 — 여기서 플래그를 소비해야 한다
+        await store.send(.loadFailed(.roomsFetchFailed)) { $0.skipsNextCreatePrompt = false }
+
+        // 다음 정상 진입에서는 정상적으로 뜬다
+        await store.send(.load)
+        await store.receive(.loaded(personalOnly, isPromptSnoozed: false)) {
+            $0.rooms = personalOnly
+            $0.isCreatePromptPresented = true
+        }
+
+        store.finish()
+    }
+
     @Test("L1 — selectFilter 는 filter 인덱스를 갱신한다")
     func selectFilter() async {
         let store = makeStore()

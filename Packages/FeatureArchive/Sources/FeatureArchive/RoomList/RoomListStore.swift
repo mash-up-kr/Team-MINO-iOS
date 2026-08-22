@@ -10,24 +10,26 @@ public struct RoomListState: Equatable {
     public var filter: Int
     /// 공동방 생성 유도 시트(001-2-1)가 떠 있는가.
     public var isCreatePromptPresented: Bool
-    /// 다음 재조회에서는 유도 시트를 띄우지 않는다 — 만들기 화면에 다녀온 직후의 복귀 1회.
-    public var skipsNextCreatePrompt: Bool
+    /// 다음 **로드 응답 1회**는 유도 시트를 띄우지 않는다 — 만들기 화면에 다녀온 직후의 복귀.
+    /// 성공·실패 어느 쪽으로 끝나든 소비된다. 실패에서 안 지우면 true 로 남아 다음 정상 진입의
+    /// 시트가 조용히 안 뜬다.
+    public var skipsNextCreatePrompt = false
 
-    public init(
-        rooms: [Room] = [],
-        filter: Int = 0,
-        isCreatePromptPresented: Bool = false,
-        skipsNextCreatePrompt: Bool = false
-    ) {
+    public init(rooms: [Room] = [], filter: Int = 0, isCreatePromptPresented: Bool = false) {
         self.rooms = rooms
         self.filter = filter
         self.isCreatePromptPresented = isCreatePromptPresented
-        self.skipsNextCreatePrompt = skipsNextCreatePrompt
     }
 
     /// 공동방을 하나라도 가졌는가. 빈 상태 노출과 유도 시트가 같은 기준을 봐야 해서 여기서 한 번만 정의한다.
     public var hasSharedRoom: Bool {
         rooms.contains { $0.type == .shared }
+    }
+
+    /// 억제 플래그를 읽고 지운다. 반환값이 `true` 면 이번 응답은 시트 판정을 건너뛴다.
+    mutating func consumeSkipFlag() -> Bool {
+        defer { skipsNextCreatePrompt = false }
+        return skipsNextCreatePrompt
     }
 }
 
@@ -79,14 +81,13 @@ public func roomListReducer(
             // 단, 만들기 화면에서 돌아온 직후는 건너뛴다. pop 하면 이 화면의 `.task` 가 다시 돌아
             // `.load` 가 나가는데, 방금 그 시트에서 출발한 사용자에게 같은 시트를 즉시 다시 띄우게 된다
             // (시뮬레이터에서 재현). 취소하고 나온 경우엔 "나가기 → 시트 → 나가기" 가 반복된다.
-            guard !state.skipsNextCreatePrompt else {
-                state.skipsNextCreatePrompt = false
-                return .none
-            }
+            guard !state.consumeSkipFlag() else { return .none }
             state.isCreatePromptPresented = !state.hasSharedRoom && !isPromptSnoozed
             return .none
         case .loadFailed:
             // 실패도 Response Action 으로 받아 흘리지 않는다. 다만 에러 UI 는 범위 밖이라 표시는 하지 않는다.
+            // 성공과 똑같이 플래그를 소비한다 — 실패 때 남겨 두면 다음 정상 진입이 조용히 막힌다.
+            _ = state.consumeSkipFlag()
             return .none
         case .selectFilter(let index):
             state.filter = index   // TODO: 필터별 정렬 로직(최근 저장 순/코멘트 순) 후속 PR
