@@ -23,10 +23,11 @@ struct TutorialContent: View {
             MHTopNavigation(title: "튜토리얼", onSkip: isLastPage ? nil : onTapSkip)
             pager
         }
-        .background(Color.mhBackgroundNormalNormal)
         // 페이저 밖에 둔다 — 안에 넣으면 다섯 장이 같은 그림인데도 스와이프마다 함께 밀린다.
         .overlay(alignment: .topTrailing) { mascot }
         .safeAreaInset(edge: .bottom) { bottomBar }
+        // safeAreaInset 뒤에 깐다 — 앞에 두면 하단 바 영역이 배경 밖으로 밀려 부모 색이 비친다.
+        .background(Color.mhBackgroundNormalNormal)
     }
 
     private var pager: some View {
