@@ -50,9 +50,9 @@ public struct ProfileTabView: View {
             }
             .navigationDestination(for: ProfileRoute.self) { route in
                 switch route {
-                case .roomEdit:
+                case .roomEdit(let room):
                     // 편집에는 건너뛰기가 없다(showsSkip: false). 뒤로가기는 취소 확인 다이얼로그를 거친다.
-                    RoomFormView(makeStore: coordinator.makeRoomFormStore, showsSkip: false)
+                    RoomFormView(makeStore: { coordinator.makeRoomFormStore(room: room) }, showsSkip: false)
                 }
             }
             .animation(.spring(duration: 0.3), value: coordinator.isRoomDetailPresented)

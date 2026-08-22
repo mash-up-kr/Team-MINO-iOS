@@ -15,7 +15,7 @@ struct ProfileCoordinatorTests {
 
         coordinator.startRoomEdit(.sample)
 
-        #expect(coordinator.path == [.roomEdit])
+        #expect(coordinator.path == [.roomEdit(.sample)])
         #expect(coordinator.isFullBleedContentPresented)
     }
 
@@ -24,7 +24,7 @@ struct ProfileCoordinatorTests {
         let coordinator = ProfileCoordinator()
         coordinator.startRoomEdit(.sample)
 
-        let store = coordinator.makeRoomFormStore()
+        let store = coordinator.makeRoomFormStore(room: .sample)
 
         #expect(store.state.mode == .edit)
         #expect(store.state.roomName == RoomDetailRoom.sample.title)
@@ -38,11 +38,10 @@ struct ProfileCoordinatorTests {
     @Test("팔레트에 없는 방 색이면 색이 선택되지 않은 채 열린다")
     func makeRoomFormStore_withUnknownColor_leavesSelectionEmpty() {
         let coordinator = ProfileCoordinator()
-        coordinator.startRoomEdit(
-            RoomDetailRoom(title: "방", memo: "", color: "#123456", locationCountText: "0개", memberCount: 1)
-        )
+        let room = RoomDetailRoom(title: "방", memo: "", color: "#123456", locationCountText: "0개", memberCount: 1)
+        coordinator.startRoomEdit(room)
 
-        #expect(coordinator.makeRoomFormStore().state.selectedColorIndex == nil)
+        #expect(coordinator.makeRoomFormStore(room: room).state.selectedColorIndex == nil)
     }
 
     @Test("편집 완료·취소·건너뛰기는 모두 방 상세로 pop 한다")

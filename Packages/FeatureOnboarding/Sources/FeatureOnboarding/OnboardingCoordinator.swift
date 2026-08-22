@@ -90,7 +90,7 @@ public final class OnboardingCoordinator: Coordinator {
             push(.tutorial)
         // 온보딩엔 뒤로가기가 없어(디자인 ⑦) 실제로는 오지 않는다. 와도 되돌아갈 곳이 프로필 설정뿐이라 pop.
         case .didCancel:
-            if !path.isEmpty { path.removeLast() }
+            pop()
         }
     }
 

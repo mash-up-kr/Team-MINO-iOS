@@ -10,7 +10,10 @@ struct RoomDetailLocation: Identifiable, Equatable {
 }
 
 /// 방 헤더에 들어가는 방 정보.
-struct RoomDetailRoom: Equatable {
+///
+/// `ProfileRoute.roomEdit` 의 연관값이라 public 이다 — 라우트가 public 인데(탭 flow 의 `path`)
+/// 연관값만 internal 일 수는 없다. 바깥에서 만들 일은 없어 memberwise init 은 internal 그대로 둔다.
+public struct RoomDetailRoom: Hashable, Sendable {
     let title: String
     let memo: String
     /// 방 대표 색(hex). 방 편집으로 넘길 때 피커 인덱스로 바뀐다.

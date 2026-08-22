@@ -74,7 +74,7 @@ public final class HomeCoordinator: Coordinator {
         switch nav {
         case .didSubmit, .didCancel, .didSkip:
             // 생성/취소 후 홈으로 복귀. (실제 방 생성 로직은 후속 — 현재 RoomCreationUI 는 UI 전용)
-            if !path.isEmpty { path.removeLast() }
+            pop()
         }
     }
 }
