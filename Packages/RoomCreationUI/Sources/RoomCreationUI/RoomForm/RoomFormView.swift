@@ -28,27 +28,10 @@ public struct RoomFormView: View {
         Group {
             if let store {
                 RoomFormContent(
-                    mode: store.state.mode,
-                    roomName: Binding(
-                        get: { store.state.roomName },
-                        set: { store.send(.roomNameChanged($0)) }
-                    ),
-                    roomDescription: Binding(
-                        get: { store.state.roomDescription },
-                        set: { store.send(.roomDescriptionChanged($0)) }
-                    ),
-                    selectedColorIndex: store.state.selectedColorIndex,
-                    isNameValid: store.state.isNameValid,
-                    isDescriptionValid: store.state.isDescriptionValid,
-                    isSubmitEnabled: store.state.isSubmitEnabled,
-                    dialog: store.state.dialog,
-                    onSelectColor: { store.send(.selectColor($0)) },
-                    onSubmit: { store.send(.tapSubmit) },
-                    onDismissDialog: { store.send(.dismissDialog) },
-                    onConfirmSubmit: { store.send(.confirmSubmit) },
-                    onConfirmCancel: { store.send(.confirmCancel) },
-                    onBack: showsBack ? { store.send(.tapBack) } : nil,
-                    onSkip: showsSkip ? { store.send(.tapSkip) } : nil
+                    state: store.state,
+                    send: store.send,
+                    showsSkip: showsSkip,
+                    showsBack: showsBack
                 )
             } else {
                 ProgressView()

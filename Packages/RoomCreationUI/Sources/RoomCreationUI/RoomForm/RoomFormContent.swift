@@ -28,28 +28,18 @@ private extension RoomFormMode {
 
 // MARK: - RoomFormContent
 
-/// "공동방 만들기" 화면의 순수 마크업. Store·Coordinator 를 모른다 — 값과 클로저만 받는다.
+/// 공동방 만들기/편집 화면의 순수 마크업. **Store·Coordinator 를 모른다** — 상태 값과 액션 싱크만 받는다.
 ///
-/// 카드 안 지도 썸네일은 실제 지도 에셋이 아직 없어 선택된 색으로 틴트되는 placeholder 로 그린다
-/// (색을 고르면 지도 색이 바뀌는 확정 동작을 반영하기 위함). 지도 에셋이 붙으면 교체 대상이다.
+/// `RoomFormState`·`RoomFormAction` 은 같은 모듈의 순수 value type 이라 이 둘을 받아도 원칙이 깨지지
+/// 않는다. 값 8개와 래퍼 클로저 5개를 따로 받던 것을 묶은 것으로, 액션이나 검증 프로퍼티가 늘 때마다
+/// Content·View·Preview 세 곳을 함께 고치던 일이 사라진다.
 struct RoomFormContent: View {
-    let mode: RoomFormMode
-    @Binding var roomName: String
-    @Binding var roomDescription: String
-    let selectedColorIndex: Int?
-    let isNameValid: Bool
-    let isDescriptionValid: Bool
-    let isSubmitEnabled: Bool
-    let dialog: RoomFormDialog?
-    let onSelectColor: (Int) -> Void
-    let onSubmit: () -> Void
-    let onDismissDialog: () -> Void
-    let onConfirmSubmit: () -> Void
-    let onConfirmCancel: () -> Void
-    /// `nil` 이면 상단바에 뒤로가기를 그리지 않는다 — 온보딩엔 돌아갈 곳이 없다(디자인 ⑦).
-    let onBack: (() -> Void)?
-    /// `nil` 이면 상단바에 건너뛰기 버튼을 그리지 않는다 — 건너뛸 수 없는 진입점(방리스트·편집 등)을 위해.
-    let onSkip: (() -> Void)?
+    let state: RoomFormState
+    let send: (RoomFormAction) -> Void
+    /// 상단바 건너뛰기 노출. 건너뛸 수 없는 진입점(방리스트·편집 등)은 `false`.
+    let showsSkip: Bool
+    /// 상단바 뒤로가기 노출. 온보딩은 돌아갈 곳이 없어 `false`(디자인 ⑦).
+    let showsBack: Bool
 
     /// Figma `2314:95303` 실측 — 카드 padding 14 + 썸네일 80 → 카드 높이 108.
     private enum Metric {
@@ -61,7 +51,11 @@ struct RoomFormContent: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            MHTopNavigation(title: mode.title, onBack: onBack, onSkip: onSkip)
+            MHTopNavigation(
+                title: state.mode.title,
+                onBack: showsBack ? { send(.tapBack) } : nil,
+                onSkip: showsSkip ? { send(.tapSkip) } : nil
+            )
             ScrollView {
                 VStack(spacing: 30) {
                     previewCard
@@ -71,22 +65,22 @@ struct RoomFormContent: View {
                 }
                 .padding(20)
             }
-            // .interactively 가 아니라 .immediately 다. interactively 는 드래그가 키보드 영역을
-            // 지나갈 때만 내려가서, 키보드 위쪽 콘텐츠를 스크롤하면 아무 일도 일어나지 않는다 —
-            // 정작 가려서 못 누르는 게 아래쪽 색상 그리드라 그게 이 화면의 목적을 못 채운다(이슈 #93).
-            .scrollDismissesKeyboard(.immediately)
             // 액션 영역을 VStack 자식으로 두면 키보드가 올라올 때 MHActionArea 의 하단 안전영역 측정에
             // 키보드 높이가 섞여 스크롤뷰가 찌그러진다. safeAreaInset 으로 붙여 키보드 회피를 맡긴다.
             .safeAreaInset(edge: .bottom) {
-                MHActionArea(main: MHAction(mode.submitTitle, action: onSubmit), sticky: true, safeArea: false)
-                    .disabled(!isSubmitEnabled)
+                MHActionArea(
+                    main: MHAction(state.mode.submitTitle) { send(.tapSubmit) },
+                    sticky: true,
+                    safeArea: false
+                )
+                .disabled(!state.isSubmitEnabled)
             }
         }
         .background(Color.mhBackgroundNormalNormal)
-        // 방 설명(MHTextArea)은 리턴키가 개행이라 리턴키로 못 닫는다. 스크롤 해제·툴바 '완료' 와 함께
-        // 여백 탭도 열어 둔다 — 키보드가 하단을 가리면 방 색상 그리드에 접근 자체가 안 된다(이슈 #93).
-        .mhDismissKeyboardOnTap()
-        .mhDialog(item: .constant(dialog)) { confirmDialog($0) }
+        // 방 설명(MHTextArea)은 리턴키가 개행이라 리턴키로 못 닫는다. 키보드가 하단을 가리면 방 색상
+        // 그리드에 접근 자체가 안 되므로(이슈 #93) 스크롤·여백 탭 두 탈출로를 함께 건다.
+        .mhFormKeyboardDismissal()
+        .mhDialog(item: state.dialog) { confirmDialog($0) }
     }
 
     // MARK: 확인 다이얼로그
@@ -99,14 +93,14 @@ struct RoomFormContent: View {
         case .saveConfirm:
             MHDialog(
                 title: "공동방을 저장하시겠어요?",
-                cancel: MHAction("취소", action: onDismissDialog),
-                confirm: MHAction("저장하기", action: onConfirmSubmit)
+                cancel: MHAction("취소") { send(.dismissDialog) },
+                confirm: MHAction("저장하기") { send(.confirmSubmit) }
             )
         case .cancelConfirm:
             MHDialog(
-                title: mode.cancelDialogTitle,
-                cancel: MHAction("취소", action: onDismissDialog),
-                confirm: MHAction("나가기", action: onConfirmCancel)
+                title: state.mode.cancelDialogTitle,
+                cancel: MHAction("취소") { send(.dismissDialog) },
+                confirm: MHAction("나가기") { send(.confirmCancel) }
             )
         }
     }
@@ -117,10 +111,10 @@ struct RoomFormContent: View {
         HStack(spacing: 12) {
             roomThumbnail
             VStack(alignment: .leading, spacing: 4) {
-                Text(roomName.isEmpty ? namePlaceholder : roomName)
+                Text(state.roomName.isEmpty ? namePlaceholder : state.roomName)
                     .mhTypography(.body1NormalBold)
                     .foregroundStyle(Color.mhLabelNormal)
-                Text(roomDescription.isEmpty ? descriptionPlaceholder : roomDescription)
+                Text(state.roomDescription.isEmpty ? descriptionPlaceholder : state.roomDescription)
                     .mhTypography(.caption2Medium)
                     .foregroundStyle(Color.mhLabelAlternative)
             }
@@ -140,7 +134,7 @@ struct RoomFormContent: View {
 
     // 고른 색의 방 썸네일. 아직 안 골랐으면 my-room 일러스트(Figma `Room Thumbnail_Empty` 기본 상태).
     @ViewBuilder private var roomThumbnail: some View {
-        if let selectedColorIndex, let color = RoomColorPalette.thumbnail(at: selectedColorIndex) {
+        if let index = state.selectedColorIndex, let color = RoomColorPalette.thumbnail(at: index) {
             MHRoomThumbnail(color: color, size: Metric.thumbnailSize)
         } else {
             MHRoomThumbnail.myRoom(size: Metric.thumbnailSize)
@@ -152,12 +146,12 @@ struct RoomFormContent: View {
     private var nameField: some View {
         MHTextField(
             namePlaceholder,
-            text: $roomName,
+            text: binding(\.roomName, RoomFormAction.roomNameChanged),
             heading: "방 이름",
             isRequired: true,
             // 오류 문구를 따로 두지 않는다 — 디자인(001-1-3)은 같은 안내문을 빨갛게 물들인다.
             description: "한글·영문·숫자만 입력 가능해요. (공백 포함 \(RoomFormLimit.name)자 이내)",
-            status: isNameValid ? .normal : .negative,
+            status: state.isNameValid ? .normal : .negative,
             identifier: "RoomForm.nameField"
         )
     }
@@ -165,12 +159,12 @@ struct RoomFormContent: View {
     private var descriptionField: some View {
         MHTextArea(
             descriptionPlaceholder,
-            text: $roomDescription,
+            text: binding(\.roomDescription, RoomFormAction.roomDescriptionChanged),
             heading: "방 설명",
-            status: isDescriptionValid ? .normal : .negative,
+            status: state.isDescriptionValid ? .normal : .negative,
             identifier: "RoomForm.descriptionField",
             bottomLeading: {
-                MHCharacterCounter(count: roomDescription.count, limit: RoomFormLimit.description)
+                MHCharacterCounter(count: state.roomDescription.count, limit: RoomFormLimit.description)
             }
         )
     }
@@ -181,11 +175,19 @@ struct RoomFormContent: View {
         MHSelectionGrid(
             title: "방 색상 선택",
             items: RoomColorPalette.gridItems,
-            selectedIndex: selectedColorIndex,
+            selectedIndex: state.selectedColorIndex,
             shape: .roundedSquare,
             identifierPrefix: "RoomForm.color",
-            onSelect: onSelectColor
+            onSelect: { send(.selectColor($0)) }
         )
+    }
+
+    /// 읽기는 state, 쓰기는 액션으로 — `@Binding` 두 개를 따로 받지 않아도 된다.
+    private func binding(
+        _ keyPath: KeyPath<RoomFormState, String>,
+        _ action: @escaping (String) -> RoomFormAction
+    ) -> Binding<String> {
+        Binding(get: { state[keyPath: keyPath] }, set: { send(action($0)) })
     }
 
 }
@@ -241,12 +243,12 @@ struct RoomFormContent: View {
     )
 }
 
-/// 검증 결과를 손으로 넘기지 않고 실제 `RoomFormState` 에서 뽑는다 — 프리뷰가 reducer 규칙과 어긋나지 않게.
+/// 실제 `roomFormReducer` 를 태운다 — 손으로 전이를 흉내 내면 프리뷰가 reducer 규칙과 갈라진다.
 private struct PreviewHost: View {
-    @State var state = RoomFormState()
-    var showsSkip: Bool = true
-
-    var showsBack: Bool = true
+    @State private var state: RoomFormState
+    private let showsSkip: Bool
+    private let showsBack: Bool
+    private let reduce = roomFormReducer()
 
     init(
         mode: RoomFormMode = .create,
@@ -271,21 +273,11 @@ private struct PreviewHost: View {
 
     var body: some View {
         RoomFormContent(
-            mode: state.mode,
-            roomName: $state.roomName,
-            roomDescription: $state.roomDescription,
-            selectedColorIndex: state.selectedColorIndex,
-            isNameValid: state.isNameValid,
-            isDescriptionValid: state.isDescriptionValid,
-            isSubmitEnabled: state.isSubmitEnabled,
-            dialog: state.dialog,
-            onSelectColor: { state.selectedColorIndex = $0 },
-            onSubmit: { state.dialog = .saveConfirm },
-            onDismissDialog: { state.dialog = nil },
-            onConfirmSubmit: { state.dialog = nil },
-            onConfirmCancel: { state.dialog = nil },
-            onBack: showsBack ? { state.dialog = .cancelConfirm } : nil,
-            onSkip: showsSkip ? {} : nil
+            state: state,
+            // 프리뷰에는 Store 가 없으므로 Effect(전환·비동기)는 버린다 — state 전이만 본다.
+            send: { _ = reduce(&state, $0) },
+            showsSkip: showsSkip,
+            showsBack: showsBack
         )
     }
 }

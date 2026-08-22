@@ -57,7 +57,8 @@ public struct RoomFormState: Equatable {
     /// 공백만 있는 이름은 확정 비활성. 상한 초과·형식 오류도 막는다 —
     /// 디자인 ⑤ "방 이름을 오류 입력 시 3·4번을 입력하더라도 비활성화 상태 유지".
     public var isSubmitEnabled: Bool {
-        !roomName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        // trimmingCharacters 는 버릴 String 을 새로 할당한다 — 첫 비공백에서 끊는 편이 싸다.
+        roomName.contains { !$0.isWhitespace }
             && isNameValid
             && isDescriptionValid
     }

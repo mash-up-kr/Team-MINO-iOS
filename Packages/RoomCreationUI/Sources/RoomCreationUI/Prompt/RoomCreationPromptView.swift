@@ -34,22 +34,8 @@ public struct RoomCreationPromptView: View {
         VStack(spacing: 0) {
             grabber
 
-            VStack(spacing: 24) {
-                Image(MHIllustration.emptyRoom)
-                    .accessibilityHidden(true)
-
-                VStack(spacing: 8) {
-                    Text("공동방을 생성해보세요!")
-                        .mhTypography(.title3Bold)
-                        .foregroundStyle(.mhPrimaryNormal)
-
-                    Text("\"저번에 말한 거기가 어디였지?\"\n더 이상 묻지 마세요.")
-                        .mhTypography(.label1NormalRegular)
-                        .foregroundStyle(.mhLabelAlternative)
-                        .multilineTextAlignment(.center)
-                }
-            }
-            .padding(20)
+            RoomCreationPromptMessage()
+                .padding(20)
 
             // safeArea: false — 시트가 이미 홈 인디케이터 높이를 확보한다(detentHeight 주석 참조).
             MHActionArea(
@@ -69,6 +55,7 @@ public struct RoomCreationPromptView: View {
             .fill(.mhFillNormal)
             .frame(width: 38, height: 4)
             .frame(height: 30)
+            .accessibilityHidden(true)   // 장식 — 이 시트는 드래그 대상이 아니다
     }
 }
 
