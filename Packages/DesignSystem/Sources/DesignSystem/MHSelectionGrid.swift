@@ -181,8 +181,8 @@ private extension MHSelectionGridShape {
     MHSelectionGrid(
         title: "방 색상 선택",
         items: [
-            .color(fill: .mhRed60, border: .mhRed30),
-            .color(fill: .mhCyan90, border: .mhCyan50),
+            .color(fill: .mhRed60, border: .mhRed40),
+            .color(fill: .mhCyan90, border: .mhCyan40),
             .color(fill: .mhPink90, border: .mhPink60),
             .color(fill: .mhBlue65, border: .mhBlue40),
         ],

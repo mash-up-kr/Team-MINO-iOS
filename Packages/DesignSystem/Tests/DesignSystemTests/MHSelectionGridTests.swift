@@ -4,7 +4,7 @@ import SwiftUI
 
 final class MHSelectionGridTests: XCTestCase {
     private static func swatches(_ count: Int) -> [MHSelectionGridItem] {
-        Array(repeating: .color(fill: .mhRed60, border: .mhRed30), count: count)
+        Array(repeating: .color(fill: .mhRed60, border: .mhRed40), count: count)
     }
 
     // 4열 고정 그리드 — 칸 70, 간격 10. 12칸이면 3행이라

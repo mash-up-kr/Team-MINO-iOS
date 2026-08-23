@@ -7,12 +7,12 @@ import Testing
 struct RoomColorPaletteTests {
     /// (인덱스, 채움 hex, 테두리 hex, 썸네일 색) — Figma 4열×3행 순서. `AtomicColor.xcassets` 실측값.
     private static let expected: [(index: Int, fill: String, border: String, thumbnail: MHRoomThumbnailColor)] = [
-        (0, "FF6363", "B00C0C", .red),
+        (0, "FF6363", "E52222", .red),
         (1, "FF9B61", "C94A00", .redOrange),
         (2, "FFC06E", "D47800", .orange),
         (3, "AEF779", "429E00", .lime),
-        (4, "ACFCC7", "1ED45A", .green),
-        (5, "B5F4FF", "00BDDE", .cyan),
+        (4, "ACFCC7", "009632", .green),
+        (5, "B5F4FF", "0098B2", .cyan),
         (6, "C0B0FF", "6541F2", .violet),
         (7, "FED3F7", "FA73E3", .pink),
         (8, "4F95FF", "0054D1", .blue),

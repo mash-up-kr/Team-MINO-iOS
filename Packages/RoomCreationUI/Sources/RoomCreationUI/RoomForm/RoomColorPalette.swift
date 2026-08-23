@@ -18,12 +18,12 @@ public enum RoomColorPalette {
     }
 
     public static let entries: [Entry] = [
-        Entry(fill: .mhRed60, border: .mhRed30, thumbnail: .red),
+        Entry(fill: .mhRed60, border: .mhRed40, thumbnail: .red),
         Entry(fill: .mhRedOrange70, border: .mhRedOrange40, thumbnail: .redOrange),
         Entry(fill: .mhOrange70, border: .mhOrange40, thumbnail: .orange),
         Entry(fill: .mhLime80, border: .mhLime37, thumbnail: .lime),
-        Entry(fill: .mhGreen90, border: .mhGreen60, thumbnail: .green),
-        Entry(fill: .mhCyan90, border: .mhCyan50, thumbnail: .cyan),
+        Entry(fill: .mhGreen90, border: .mhGreen40, thumbnail: .green),
+        Entry(fill: .mhCyan90, border: .mhCyan40, thumbnail: .cyan),
         Entry(fill: .mhViolet80, border: .mhViolet50, thumbnail: .violet),
         Entry(fill: .mhPink90, border: .mhPink60, thumbnail: .pink),
         Entry(fill: .mhBlue65, border: .mhBlue40, thumbnail: .blue),
