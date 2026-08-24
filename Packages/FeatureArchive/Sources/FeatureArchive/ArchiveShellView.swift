@@ -29,10 +29,11 @@ struct ArchiveShellView: View {
 
             if let roomListStore {
                 if placeStore == nil {
+                    // zIndex 로 시트 위에 올리지 않는다. 올리면 바깥탭 스크림이 시트를 덮는데,
+                    // 드래그는 onTapGesture 를 발동시키지 않아 시트가 움직이지도 메뉴가 닫히지도
+                    // 않는다(시뮬레이터 확인). 메뉴는 최대 400pt 라 하단이 y≈530 이고 시트 top 은
+                    // medium 에서 572, peek 에서 728 이라 이 순서로도 가려지지 않는다.
                     filterBar(roomList: roomListStore)
-                        // 열린 메뉴가 시트에 가리지 않도록 그 순간만 올린다. 상시 1 이면
-                        // full 에서 시트가 필터바를 덮어야 하는 동작이 깨진다.
-                        .zIndex(sortMenuOpen ? 1 : 0)
                 }
                 sheet(roomList: roomListStore)
                     // 루트에는 이미 공유 시트가 붙어 있다. 같은 뷰에 `.sheet` 를 둘 달면 하나만
