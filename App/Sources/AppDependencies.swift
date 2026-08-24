@@ -11,6 +11,8 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps {
     let fetchMember: FetchMemberUseCase
     let fetchRooms: FetchRoomsUseCase
     let fetchPins: FetchPinsUseCase
+    let lastViewedRoom: LastViewedRoomUseCase
+    let homeGuide: HomeGuideUseCase
 
     init() {
         // 백엔드 미연결 단계 — 시범용 Stub UseCase 를 주입한다.
@@ -25,6 +27,14 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps {
 
         // 홈 카드 핀: 실 API 미연결 → Mock Repository(하드코딩 장소 풀) 사용. 추후 PinRepositoryImpl 로 교체.
         self.fetchPins = DefaultFetchPinsUseCase(repository: MockPinRepository())
+
+        // 마지막으로 본 방: 방 id 하나만 남기면 되는 로컬 기록이라 UserDefaults 구현을 쓴다.
+        self.lastViewedRoom = DefaultLastViewedRoomUseCase(
+            repository: UserDefaultsLastViewedRoomRepository()
+        )
+
+        // 홈 사용 가이드 1회 표기 플래그도 같은 이유로 UserDefaults.
+        self.homeGuide = DefaultHomeGuideUseCase(repository: UserDefaultsHomeGuideRepository())
     }
 }
 

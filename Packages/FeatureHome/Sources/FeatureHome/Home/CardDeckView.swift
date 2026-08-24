@@ -6,6 +6,11 @@ import SwiftUI
 struct CardDeckView: View {
     let pins: [Pin]
     let currentIndex: Int
+    /// 첫 카드에서 뒤로 넘겼을 때 이전 덱(기준)으로 돌아갈 수 있는지. false 면 첫 카드가 덱의 끝이다.
+    let canReturnToPreviousDeck: Bool
+    /// 그때 돌아올 카드 — 이전 덱의 마지막 카드. 아직 그 덱을 받아 두지 않았으면 nil 이고,
+    /// 전환은 그대로 일어나되 복귀 애니메이션에 얹을 카드만 없다.
+    let previousDeckLastCard: Pin?
     let onSwipeForward: () -> Void
     let onSwipeBackward: () -> Void
     let onTapCard: (PinID) -> Void
@@ -94,9 +99,9 @@ struct CardDeckView: View {
         return Array(pins[CardDeckLayout.visibleRange(currentIndex: currentIndex, pinCount: pins.count)].reversed())
     }
 
+    /// 좌스와이프 때 우상단에서 돌아오는 카드. 덱 안이면 바로 앞 카드, 첫 카드면 이전 덱의 마지막 카드다.
     private var previousPin: Pin? {
-        guard currentIndex > 0 else { return nil }
-        return pins[currentIndex - 1]
+        currentIndex > 0 ? pins[currentIndex - 1] : previousDeckLastCard
     }
 
     // MARK: - 개별 카드
@@ -114,14 +119,12 @@ struct CardDeckView: View {
         )
     }
 
-    /// 카드 더보기(⋮) 메뉴 — Figma `Menu/Menu`. 항목 동작(다른 방 저장·장소 가리기)은 후속 작업이라
+    /// 카드 더보기(⋮) 메뉴 — Figma `Menu/Menu`. 항목 동작(다른 방 저장)은 후속 작업이라
     /// 지금은 **비활성(isDisabled)** 으로 노출한다 — 눌러도 아무 일 없는 무음 no-op 대신 "미구현"을 보이게.
     private func moreMenuItems(for pin: Pin) -> [MHMenuItem] {
         [
             // TODO: 다른 방에 저장 — 002-4-1 방 변경 바텀시트로 저장 진행. 구현 시 isDisabled 제거.
             MHMenuItem("다른 방 저장", isDisabled: true) {},
-            // TODO: 장소 가리기 — 이 장소를 덱에서 숨김. 구현 시 isDisabled 제거.
-            MHMenuItem("장소 가리기", isDisabled: true) {},
         ]
     }
 
@@ -147,7 +150,10 @@ struct CardDeckView: View {
                     // 우측 드래그 — 현재 카드 따라감
                     dragOffset = dx
                     returnProgress = 0
-                } else if currentIndex > 0 {
+                } else if CardDeckLayout.allowsBackwardDrag(
+                    currentIndex: currentIndex,
+                    canReturnToPreviousDeck: canReturnToPreviousDeck
+                ) {
                     // 좌측 드래그 — 현재 카드 고정, 이전 카드 등장
                     dragOffset = 0
                     returnProgress = min(1, abs(dx) / Anim.backwardDragRange)
@@ -166,7 +172,7 @@ struct CardDeckView: View {
                 case .backward:
                     completeBackward()
                 case .snapBack:
-                    // 마지막 카드이거나 충분히 밀지 않음 → 제자리로. 마지막 카드는 넘길 수 없어 화면에 고정된다.
+                    // 충분히 밀지 않음 → 제자리로. (마지막 카드도 넘길 수 있다 — 넘기면 덱이 비고 소진 화면)
                     withAnimation(.spring(duration: Anim.springDuration)) {
                         dragOffset = 0
                         returnProgress = 0
