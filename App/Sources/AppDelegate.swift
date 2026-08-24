@@ -1,3 +1,4 @@
+import FirebaseCore
 import Logging
 import MapUI
 import UIKit
@@ -9,6 +10,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
+        // Crashlytics 가 초기화 이후의 크래시만 잡으므로 가장 먼저 부른다.
+        FirebaseApp.configure()
+
         // 로그 백엔드 조립(Composition Root). 개발은 전부, 릴리즈는 warning↑만 남긴다.
         #if DEBUG
         Log.bootstrap(OSLogger(minimumLevel: .debug))
