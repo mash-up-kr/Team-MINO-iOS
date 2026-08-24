@@ -91,7 +91,7 @@ struct RoomDetailReducerTests {
             $0.sort = .latest
             $0.locations = locations(.latest)
         }
-        #expect(store.currentState.locations.count == 2)
+        #expect(store.currentState.locations.count == fixturePins.count)   // 최신순은 걸러내지 않는다
         store.finish()
     }
 
