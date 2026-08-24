@@ -126,17 +126,24 @@ struct ArchiveShellView: View {
         // 방 리스트용 메뉴가 방 상세 필터바에 그대로 남지 않게 — 두 분기가 같은 if/else 안이라
         // SwiftUI 가 같은 인스턴스로 볼 수 있다.
         sortMenuOpen = false
+        // 방 상세 "진입"만 Half 로 강제한다 — 스펙이 진입 기본값을 Half 로 못박고 있다.
+        // 그 밖의 전환(장소 상세 왕복, 방 리스트 복귀)은 단계를 유지한다.
         withAnimation(.spring(duration: 0.3)) { detent = .medium }
     }
 
     private func syncPlaceStore() {
         if let pin = coordinator.selectedPin {
             placeStore = coordinator.makePlaceDetailStore(pin: pin)
+            // 장소 상세는 low 를 쓰지 않으므로(detents: [.medium, .full]) low 였다면 medium 으로 올린다.
+            // 그 밖에는 사용자가 보던 단계를 그대로 둔다 — full 로 보던 사람은 full 로 이어 본다.
+            if detent == .low {
+                withAnimation(.spring(duration: 0.3)) { detent = .medium }
+            }
         } else {
+            // 방 상세로 복귀 — 단계를 건드리지 않는다.
             guard placeStore != nil else { return }
             placeStore = nil
         }
-        withAnimation(.spring(duration: 0.3)) { detent = .medium }
     }
 
     @ViewBuilder
