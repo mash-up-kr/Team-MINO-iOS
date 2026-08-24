@@ -53,6 +53,10 @@ public func roomListReducer(
             }
         case .loaded(let rooms):
             state.rooms = rooms
+            // 방 필터 옵션은 화면에서 `["전체"] + rooms` 로 만들어지므로 유효 인덱스 상한이
+            // rooms.count 다. 방이 줄어든 재조회 뒤 옛 인덱스가 남으면 옵션 배열을 넘어
+            // 크래시한다(MHFilterBar 가 sortOptions[selectedSort] 로 라벨을 읽는다).
+            state.roomFilter = min(state.roomFilter, rooms.count)
             return .none
         case .loadFailed:
             // 실패도 Response Action 으로 받아 흘리지 않는다. 다만 에러 UI 는 범위 밖이라 표시는 하지 않는다.
@@ -61,7 +65,8 @@ public func roomListReducer(
             state.filter = index   // TODO: 필터별 정렬 로직(최근 저장 순/코멘트 순) 후속 PR
             return .none
         case .selectRoomFilter(let index):
-            state.roomFilter = index
+            // 화면이 만든 옵션 배열 밖 인덱스가 들어오는 경로(경합·잘못된 호출)도 막는다.
+            state.roomFilter = min(max(0, index), state.rooms.count)
             return .none
         case .selectCategory(let index):
             state.categoryFilter = index
