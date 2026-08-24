@@ -38,16 +38,11 @@ struct RoomDetailSortingTests {
         #expect(RoomDetailSorting.apply(.pick, to: single, now: now).count == 1)
     }
 
-    @Test("최신순은 14일 이내만 최신 순으로 낸다")
+    @Test("최신순은 전체를 최신 순으로 재정렬한다 — 기간으로 걸러내지 않는다")
     func latest() {
         let result = RoomDetailSorting.apply(.latest, to: pins, now: now)
-        #expect(result.map(\.id.value) == ["p0", "p1", "p2"])
-    }
-
-    @Test("최신순은 경계(정확히 14일 전)를 포함한다")
-    func latestIncludesBoundary() {
-        let boundary = [pin("edge", daysAgo: 14)]
-        #expect(RoomDetailSorting.apply(.latest, to: boundary, now: now).count == 1)
+        #expect(result.map(\.id.value) == (0..<10).map { "p\($0)" })
+        #expect(result.count == pins.count)
     }
 
     @Test("거리순·코멘트순은 계산할 수 없어 원본을 그대로 낸다")
