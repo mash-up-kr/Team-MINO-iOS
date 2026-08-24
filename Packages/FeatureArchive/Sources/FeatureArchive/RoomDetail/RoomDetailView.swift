@@ -127,8 +127,8 @@ struct RoomDetailView: View {
         switch item {
         case .shareLocation:
             store.send(.tapShare(location))
-        // TODO: 시안이 확정되면 삭제·이동을 배선한다. 지금은 메뉴만 닫는다.
-        case .deleteLocation, .moveLocation:
+        // TODO: 삭제는 확인 모달·UseCase 가 필요해 별 이슈로 뺐다. 지금은 메뉴만 닫는다.
+        case .deleteLocation:
             break
         }
     }
