@@ -20,7 +20,7 @@ struct ArchiveShellView: View {
     var body: some View {
         @Bindable var coordinator = coordinator
         ZStack {
-            ArchiveMapLayer()
+            ArchiveMapLayer(bottomInset: mapBottomInset)
 
             if let roomListStore {
                 if placeStore == nil {
@@ -155,6 +155,18 @@ struct ArchiveShellView: View {
     private var sheetIdentifier: String {
         if placeStore != nil { return "PlaceDetail.sheet" }
         return detailStore == nil ? "RoomList.sheet" : "RoomDetail.sheet"
+    }
+
+    /// 시트가 지도를 가리는 높이. 구글 로고가 시트 위로 올라오도록 지도 padding 으로 넘긴다.
+    /// `MapView` 가 safe-area 를 더해 적용하므로(`paddingAdjustmentBehavior = .always`)
+    /// `MHBottomSheet` 에 주는 peek 원본 pt 를 그대로 준다 — 두 값의 기준이 같다.
+    /// full 은 지도가 전부 가려져 로고를 밀어올릴 여백이 없으므로 0.
+    private var mapBottomInset: CGFloat {
+        switch detent {
+        case .low: peek.low ?? peek.medium
+        case .medium: peek.medium
+        case .full: 0
+        }
     }
 
     private var peek: (low: CGFloat?, medium: CGFloat) {
