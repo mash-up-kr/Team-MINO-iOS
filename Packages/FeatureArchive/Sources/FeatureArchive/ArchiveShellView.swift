@@ -89,7 +89,7 @@ struct ArchiveShellView: View {
             .transition(.opacity)
             .task(id: toastToken) {
                 let token = toastToken
-                do { try await Task.sleep(for: .seconds(2)) } catch { return }
+                do { try await Task.sleep(for: .seconds(3)) } catch { return }
                 guard token == toastToken else { return }
                 self.toastMessage = nil
             }
