@@ -87,21 +87,31 @@ struct RoomListView: View {
         .accessibilityIdentifier("Home.roomList.create")
     }
 
+    /// 현재 방은 썸네일에 체크(딤 + ✓)로 표시하고 탭을 막는다 — 이미 보고 있는 방이라 재선택할 게 없다.
+    /// 시안(node 2809-139491)에는 이전의 핑크 테두리 대신 이 체크 상태만 있다.
+    ///
+    /// 선택된 셀은 `.disabled` 를 건 버튼이 아니라 **버튼이 아닌 정적 셀**로 그린다 —
+    /// `.disabled` 는 SwiftUI 가 라벨(방 이름 텍스트)까지 흐리게 만들어, 이름이 검정으로 남는
+    /// 시안과 달라진다(시뮬레이터에서 확인).
+    @ViewBuilder
     private func roomCell(_ room: Room) -> some View {
         let isSelected = room.id == currentRoomID
-        return Button { onSelectRoom(room.id) } label: {
-            cell(label: room.homeDisplayName) {   // 공동방 "…방" / 개인방("내 장소") 이름 그대로
-                cover(for: room)
-                    .overlay {
-                        if isSelected {
-                            RoundedRectangle(cornerRadius: coverRadius)
-                                .strokeBorder(Color.mhAccentForegroundPink, lineWidth: 2)
-                        }
-                    }
+        if isSelected {
+            cell(label: room.homeDisplayName) {   // 공동방 "…방" / 개인방 "내 장소"
+                cover(for: room, isSelected: true)
             }
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isSelected)
+            .accessibilityIdentifier("Home.roomList.room.\(room.id)")
+        } else {
+            Button { onSelectRoom(room.id) } label: {
+                cell(label: room.homeDisplayName) {
+                    cover(for: room, isSelected: false)
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("Home.roomList.room.\(room.id)")
         }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("Home.roomList.room.\(room.id)")
     }
 
     /// 커버(70×70) + 이름 라벨(12 간격) 공통 셀 레이아웃.
@@ -119,11 +129,11 @@ struct RoomListView: View {
 
     /// 방 커버 — 방 색이 팔레트에 있으면 그 색 썸네일, 없으면 my-room 썸네일.
     @ViewBuilder
-    private func cover(for room: Room) -> some View {
+    private func cover(for room: Room, isSelected: Bool) -> some View {
         if let color = MHRoomThumbnailColor(roomColorHex: room.color) {
-            MHRoomThumbnail(color: color, size: coverSize)
+            MHRoomThumbnail(color: color, size: coverSize, isSelected: isSelected)
         } else {
-            MHRoomThumbnail.myRoom(size: coverSize)
+            MHRoomThumbnail.myRoom(size: coverSize, isSelected: isSelected)
         }
     }
 }

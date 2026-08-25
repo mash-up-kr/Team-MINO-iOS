@@ -70,8 +70,11 @@ public struct HomeTabView: View {
         }
     }
 
-    /// 현재 방에 (현재 카드 포함) 2개 이하 남으면 플로팅 버튼 표시 — 방마다 끝자락에서 뜬다
+    /// 현재 방에 (현재 카드 포함) 2개 이하 남으면 플로팅 버튼 표시 — 방마다 끝자락에서 뜬다.
+    /// 전 방 소진 화면에는 CTA 를 두지 않는다(기획 결정) — 그때는 remainingInCurrentRoom 도 0 이라
+    /// 소진 여부를 함께 보지 않으면 "이 방 장소 더 보기"가 소진 화면에 딸려 나온다.
     private func shouldShowMoreButton(_ store: HomeStore) -> Bool {
-        !store.state.pins.isEmpty && store.state.remainingInCurrentRoom <= 2
+        let state = store.state
+        return !state.pins.isEmpty && !state.hasViewedAllPlaces && state.remainingInCurrentRoom <= 2
     }
 }

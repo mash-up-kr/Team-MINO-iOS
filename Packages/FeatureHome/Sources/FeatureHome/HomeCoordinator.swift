@@ -34,6 +34,16 @@ public final class HomeCoordinator: Coordinator {
         homeStore?.state.isRoomListPresented ?? false
     }
 
+    /// 홈 사용 가이드가 떠 있는가 — 탭바 위까지 덮어야 해서 MainTabView 가 루트에서 그린다.
+    public var isGuidePresented: Bool {
+        homeStore?.state.isGuidePresented ?? false
+    }
+
+    /// 가이드 X 탭 — 루트에서 그리는 오버레이가 홈 상태를 닫도록 위임받는다.
+    public func dismissGuide() {
+        homeStore?.send(.dismissGuide)
+    }
+
     private let deps: HomeDeps
     /// 홈 Store — 위 isRoomListPresented 가 시트 표시 상태를 읽어 탭바 딤 페이드를 구동한다.
     private var homeStore: HomeStore?
@@ -47,7 +57,12 @@ public final class HomeCoordinator: Coordinator {
     public func makeHomeStore() -> HomeStore {
         let store = HomeStore(
             HomeState(),
-            reduce: homeReducer(fetchRooms: deps.fetchRooms, fetchPins: deps.fetchPins)
+            reduce: homeReducer(
+                fetchRooms: deps.fetchRooms,
+                fetchPins: deps.fetchPins,
+                lastViewedRoom: deps.lastViewedRoom,
+                homeGuide: deps.homeGuide
+            )
         )
         store.observeNavigation { [weak self] in self?.handle($0) }
         homeStore = store

@@ -26,8 +26,8 @@ private let fixturePins: [Pin] = [0, 10, 20].map { daysAgo in
 private struct StubFetchPins: FetchPinsUseCase {
     var result: Result<[Pin], DomainError> = .success(fixturePins)
 
-    func execute(rooms: [Room]) async throws -> [Pin] { try pins() }
-    func execute(room: Room, page: Int) async throws -> [Pin] { try pins() }
+    func execute(rooms: [Room], filter: PinFilter) async throws -> [Pin] { try pins() }
+    func execute(room: Room, page: Int, filter: PinFilter) async throws -> [Pin] { try pins() }
 
     private func pins() throws -> [Pin] {
         switch result {

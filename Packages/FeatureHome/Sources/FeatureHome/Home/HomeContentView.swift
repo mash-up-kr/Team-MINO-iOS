@@ -13,7 +13,9 @@ struct HomeContentView: View {
             mainContent
             roomListDim          // 방 리스트 열릴 때 — 마스코트 아래(홈 콘텐츠만 덮는다)
             if store.state.showsRoomIdentity {
-                mascotCharacter  // 딤 위 — 밝게 유지. 개인방만 있고 비었을 때만 숨김 (Figma 002-6-1)
+                // 시안에서 바와 캐릭터는 한 그룹(Group 283)이라 함께 넣고, 캐릭터를 바 위에 얹는다.
+                mascotBar        // 딤 위 — 밝게 유지. 개인방만 있고 비었을 때만 숨김 (Figma 002-6-1)
+                mascotCharacter
             }
             roomChangeTooltip
         }
@@ -94,7 +96,9 @@ struct HomeContentView: View {
     /// 정책: 로딩이 끝나고 현재 정렬 기준으로 표시할 카드가 0장이면(방·공동방 유무 무관) 빈 상태를 띄운다.
     @ViewBuilder
     private var contentBody: some View {
-        if store.state.isLoading {
+        // 기준을 바꿔 덱을 받는 중이면(캐시 없을 때만) 로딩으로 둔다 — 그 사이 빈 상태·소진 화면이
+        // 한 프레임 끼어들면 화면이 깜빡인다. 받아 둔 기준으로 되돌아갈 땐 즉시 전환이라 여기 안 걸린다.
+        if store.state.isLoading || (store.state.isDeckLoading && store.state.pins.isEmpty) {
             Spacer()
             ProgressView()
                 .frame(maxWidth: .infinity)
@@ -102,10 +106,14 @@ struct HomeContentView: View {
             Spacer()
         } else if store.state.showsEmptyState {
             emptyStateBody
+        } else if store.state.hasViewedAllPlaces {
+            allViewedBody
         } else {
             CardDeckView(
                 pins: store.state.pins,
                 currentIndex: store.state.currentCardIndex,
+                canReturnToPreviousDeck: store.state.canReturnToPreviousFilter,
+                previousDeckLastCard: store.state.previousDeckLastPin,
                 onSwipeForward: { store.send(.swipeForward) },
                 onSwipeBackward: { store.send(.swipeBackward) },
                 onTapCard: { store.send(.tapCard($0)) }
@@ -121,7 +129,7 @@ struct HomeContentView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 12) {
             if store.state.showsRoomIdentity, let room = store.state.currentRoom {
-                MHContentBadge(room.homeDisplayName, size: .medium)   // 공동방 "…방" / 개인방 이름 그대로
+                MHContentBadge(room.homeDisplayName, size: .medium)   // 공동방 "…방" / 개인방 "내 장소"
                     .contentShape(Rectangle())
                     .onTapGesture { store.send(.tapRoomBadge) }   // 정책: 뱃지 탭 → 방 선택 바텀 시트
                     .accessibilityIdentifier("Home.roomBadge")
@@ -144,12 +152,13 @@ struct HomeContentView: View {
 
     // MARK: - 필터바
 
+    /// 칩 순서는 `PinFilter.allCases` 순서와 1:1 이다 — 표기(한글 라벨)만 Feature 가 매핑한다.
     private var filterBar: some View {
         MHCategory(
-            ["꾹 Pick", "최신순", "가까운순"],
+            PinFilter.allCases.map(\.chipTitle),
             selection: Binding(
-                get: { store.state.selectedFilter },
-                set: { store.send(.selectFilter($0)) }
+                get: { PinFilter.allCases.firstIndex(of: store.state.selectedFilter) ?? 0 },
+                set: { store.send(.selectFilter(PinFilter.allCases[$0])) }
             )
         )
         .accessibilityIdentifier("Home.filterBar")
@@ -161,15 +170,7 @@ struct HomeContentView: View {
     /// CTA 는 공동방 유무와 무관하게 항상 노출한다(팀 정책 — PRD [SYS-009] Flow D 와는 다름).
     private var emptyStateBody: some View {
         VStack(spacing: 20) {
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color.mhFillNormal)   // 실제 일러스트 교체 전 placeholder — 화면 배경(alternative)과 구분되는 색
-                .frame(width: 249, height: 249)   // Figma(2809:138533): 249×249, 중앙 정렬
-                .overlay {
-                    Text("이미지 교체 예정")
-                        .mhTypography(.body2NormalMedium)
-                        .foregroundStyle(.mhLabelAlternative)
-                }
-                .accessibilityIdentifier("Home.emptyState.illustration")
+            illustrationPlaceholder(identifier: "Home.emptyState.illustration")
 
             VStack(spacing: 0) {
                 Text("\"저번에 말한 거기가 어디였지?\"")
@@ -198,12 +199,59 @@ struct HomeContentView: View {
         .padding(.top, 58)
     }
 
-    // MARK: - 마스코트 캐릭터
+    // MARK: - 소진 본문 (모든 방의 장소를 다 봤을 때)
+
+    /// Figma 002-3 「모든 카드를 다 봤을 때」 — 일러스트 + 카피만. CTA("장소 더 보기")는 카드 덱일 때와 같은
+    /// 자리(탭바 위 플로팅)라 HomeTabView 가 그린다. 헤더·필터는 mainContent 가 공통으로 그린다.
+    private var allViewedBody: some View {
+        VStack(spacing: 20) {   // Figma: 일러스트 하단(572) → 카피 상단(592) = base lg 20
+            Image(dsImage: "homeAllViewedIllustration")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 249, height: 249)
+                .accessibilityIdentifier("Home.allViewed.illustration")
+
+            Text("꾹 눌러둔 장소를 모두 둘러봤어요")
+                .mhTypography(.label1NormalRegular)
+                .foregroundStyle(.mhPrimaryNormal)
+                .accessibilityIdentifier("Home.allViewed.copy")
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 75)   // Figma: 필터바 하단(248) → 일러스트 상단(323)
+        .accessibilityIdentifier("Home.allViewed")
+    }
+
+    /// 빈 상태 일러스트 자리(249×249)를 잡는 placeholder. 소진 화면은 실 에셋으로 교체됐고,
+    /// 빈 상태는 시안이 아직 정리되지 않아 자리만 잡아 둔다 — 에셋이 나오면 이 헬퍼를 Image 로 교체한다.
+    private func illustrationPlaceholder(identifier: String) -> some View {
+        RoundedRectangle(cornerRadius: 16)
+            .fill(Color.mhFillNormal)   // 화면 배경(alternative)과 구분되는 색
+            .frame(width: 249, height: 249)   // 소진 화면 일러스트와 같은 크기
+            .overlay {
+                Text("이미지 교체 예정")
+                    .mhTypography(.body2NormalMedium)
+                    .foregroundStyle(.mhLabelAlternative)
+            }
+            .accessibilityIdentifier(identifier)
+    }
+
+// MARK: - 마스코트 캐릭터
+
+    /// 마스코트 오른쪽으로 살짝 보이는 세로 바 (Figma `Rectangle 6323`, node 3395-201429).
+    /// 8×148, 화면 우측 끝에 붙고 상단 50(= 시안 94 − 상태바 44). 화면 밖으로 나가는 우측 모서리는 각지고
+    /// 안쪽(좌측) 모서리만 라운드 3.961 ≈ 4.
+    private var mascotBar: some View {
+        UnevenRoundedRectangle(topLeadingRadius: 4, bottomLeadingRadius: 4, style: .continuous)
+            .fill(Color.mhCoolNeutral80)
+            .frame(width: 8, height: 148)
+            .padding(.top, 50)
+            .accessibilityHidden(true)   // 장식 — 읽어줄 내용이 없다
+    }
 
     private var mascotCharacter: some View {
         HomeMascotView()
             .contentShape(Rectangle())
-            .onTapGesture { store.send(.tapRoomBadge) }   // 정책: 방 캐릭터 탭 → 방 선택 바텀 시트
+            .onTapGesture { store.send(.tapRoomBadge) }   // 정책: 방 캐릭터 탭 → 방 선택 바텀 시트 토글(열려 있으면 닫는다)
             .accessibilityIdentifier("Home.mascot")
     }
 
@@ -211,13 +259,14 @@ struct HomeContentView: View {
     /// 상단 우측 고정 배치로 디자인 좌표(화살표 ≈ 상단, 마스코트 왼쪽 가장자리)에 맞춘다.
     @ViewBuilder
     private var roomChangeTooltip: some View {
-        // 식별은 id, 표시 문구는 그 id 로 rooms 에서 방 이름을 파생한다(화면 출력은 이전과 동일).
+        // 식별은 id, 표시 문구는 그 id 로 rooms 에서 방을 찾아 파생한다.
         if let roomID = store.state.changedRoomToastID,
-           let name = store.state.rooms.first(where: { $0.id == roomID })?.name {
-            MHTooltip("\(name)방이에요.", position: .left)   // 표기: 방 이름 + "방이에요"
+           let room = store.state.rooms.first(where: { $0.id == roomID }) {
+            MHTooltip(room.homeToastText, position: .left)   // 공동방 "…방이에요." / 개인방 "내 장소예요."
                 .fixedSize()
-                // Figma(node 2809-144332): 툴팁 top 을 뱃지 행 top 에 맞추고(header 의 top 패딩과 동일한 32),
-                // 화살표 끝을 마스코트 왼쪽 가장자리(x=280)에 둔다 → 우측 인셋 = 화면폭 375 − 280 = 95.
+                // Figma 002-5-1(node 2809-143382)의 Tooltip 인스턴스: x=22, y=76, 258×36 →
+                // top = 76 − 상태바 44 = 32(뱃지 행과 같은 줄), 우측 인셋 = 375 − (22+258) = 95.
+                // 방 이름이 길면 뱃지·마스코트와 겹치는데 시안도 그렇다(툴팁이 위에 그려지고 잠깐 떴다 사라진다).
                 .padding(.top, 32)
                 .padding(.trailing, 95)
                 .transition(.opacity)
@@ -226,18 +275,45 @@ struct HomeContentView: View {
     }
 }
 
+// MARK: - 필터 표기
+
+/// 필터 칩 라벨 (Figma 002-1-1 Category). 도메인 값 → 화면 표기 매핑은 Feature 책임.
+private extension PinFilter {
+    var chipTitle: String {
+        switch self {
+        case .recommended: "꾹 Pick"
+        case .latest: "최신순"
+        case .nearby: "가까운순"
+        }
+    }
+}
+
 // MARK: - 마스코트
 
 /// 홈 우상단에서 살짝 걸쳐 보이는 방 마스코트.
+/// Figma `Group 283`(3395-200046): 126×164, 우측 화면 끝에 붙고 상단 70(= 상태바 44 + 26).
+/// 기울기가 에셋에 반영돼 있어 rotationEffect 로 돌리지 않는다(예전 에셋은 정면이라 코드에서 돌렸다).
+///
+/// 좌우 반전은 시안의 그룹 변환이다 — 익스포트되는 건 반전 전 원본이라 여기서 뒤집어야 시안과 같다.
+/// (시안에서 그룹은 x 249…375 인데 자식 좌표가 367·375 로 잡히는 게 그 반전의 흔적)
 struct HomeMascotView: View {
     var body: some View {
-        Image(dsImage: "homeMascot")
-            .resizable()
-            .scaledToFit()
-            .frame(width: 131)
-            .rotationEffect(.degrees(-27.52))
-            .padding(.top, 8)
-            .padding(.trailing, -55)
+        ZStack {
+            // 마스코트 눈은 채워진 흰 도형이 아니라 **뚫린 구멍**이라, 뒤에 있는 것이 그대로 비친다.
+            // 방 리스트 딤 위에 마스코트를 얹어도 이 구멍으로 딤이 새어 눈만 어두워진다 —
+            // 구멍 자리에 화면 배경색을 미리 깔아 막는다. (배경색은 시안에서 눈이 캔버스로 읽히는 것과 같다)
+            Image(dsImage: "homeMascotEyes")
+                .renderingMode(.template)
+                .resizable()
+                .frame(width: 126, height: 164)
+                .foregroundStyle(Color.mhBackgroundNormalAlternative)
+
+            Image(dsImage: "homeMascot")
+                .resizable()
+                .frame(width: 126, height: 164)
+        }
+        .scaleEffect(x: -1)   // 두 겹을 함께 뒤집어야 눈 자리가 어긋나지 않는다
+        .padding(.top, 26)
     }
 }
 
@@ -253,7 +329,12 @@ struct HomeMascotView: View {
                     createdAt: .now, pinCount: 3, memberCount: 2, users: []
                 ),
             ]),
-            reduce: homeReducer(fetchRooms: PreviewFetchRooms(), fetchPins: PreviewFetchPins())
+            reduce: homeReducer(
+                fetchRooms: PreviewFetchRooms(),
+                fetchPins: PreviewFetchPins(),
+                lastViewedRoom: PreviewLastViewedRoom(),
+                homeGuide: PreviewHomeGuide()
+            )
         )
     )
 }
@@ -262,7 +343,12 @@ struct HomeMascotView: View {
     HomeContentView(
         store: HomeStore(
             HomeState(),
-            reduce: homeReducer(fetchRooms: PreviewFetchRooms(), fetchPins: PreviewFetchPins())
+            reduce: homeReducer(
+                fetchRooms: PreviewFetchRooms(),
+                fetchPins: PreviewFetchPins(),
+                lastViewedRoom: PreviewLastViewedRoom(),
+                homeGuide: PreviewHomeGuide()
+            )
         )
     )
 }
@@ -272,8 +358,20 @@ private struct PreviewFetchRooms: FetchRoomsUseCase {
     func execute() async throws -> [Room] { [] }
 }
 
+/// 프리뷰 전용 — 마지막으로 본 방 기록 없음(항상 최초 실행처럼 첫 방부터).
+private struct PreviewLastViewedRoom: LastViewedRoomUseCase {
+    func load() async -> String? { nil }
+    func save(roomID: String) async {}
+}
+
+/// 프리뷰 전용 — 가이드는 이미 본 것으로 둬 프리뷰를 가리지 않는다.
+private struct PreviewHomeGuide: HomeGuideUseCase {
+    func hasSeen() async -> Bool { true }
+    func markSeen() async {}
+}
+
 /// 프리뷰 전용 핀 UseCase. 빈 배열을 반환한다(카드 덱 없이 셸만 확인).
 private struct PreviewFetchPins: FetchPinsUseCase {
-    func execute(rooms: [Room]) async throws -> [Pin] { [] }
-    func execute(room: Room, page: Int) async throws -> [Pin] { [] }
+    func execute(rooms: [Room], filter: PinFilter) async throws -> [Pin] { [] }
+    func execute(room: Room, page: Int, filter: PinFilter) async throws -> [Pin] { [] }
 }

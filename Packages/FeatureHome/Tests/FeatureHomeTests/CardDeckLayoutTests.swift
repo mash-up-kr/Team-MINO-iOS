@@ -15,9 +15,14 @@ struct CardDeckLayoutTests {
         #expect(Layout.swipeOutcome(predicted: 150, returnProgress: 0, currentIndex: 0, pinCount: 5) == .forward)
     }
 
-    @Test("마지막 카드에서는 우측으로 던져도 forward 가 아니라 snapBack (넘길 카드 없음)")
-    func swipe_snapBack_atLastCard() {
-        #expect(Layout.swipeOutcome(predicted: 300, returnProgress: 0, currentIndex: 4, pinCount: 5) == .snapBack)
+    @Test("마지막 카드에서도 우측으로 던지면 forward — 덱 밖으로 나가 소진 화면이 된다(002-3)")
+    func swipe_forward_atLastCard() {
+        #expect(Layout.swipeOutcome(predicted: 300, returnProgress: 0, currentIndex: 4, pinCount: 5) == .forward)
+    }
+
+    @Test("이미 덱 밖(소진)이면 우측으로 던져도 snapBack (넘길 카드 없음)")
+    func swipe_snapBack_pastDeck() {
+        #expect(Layout.swipeOutcome(predicted: 300, returnProgress: 0, currentIndex: 5, pinCount: 5) == .snapBack)
     }
 
     @Test("우측으로 살짝만 밀면(예측 ≤ 임계) 제자리 snapBack")
@@ -38,6 +43,23 @@ struct CardDeckLayoutTests {
     @Test("좌드래그 진행도는 낮아도 좌측 예측이 임계를 넘으면 backward (빠른 플릭)")
     func swipe_backward_whenFlickedLeft() {
         #expect(Layout.swipeOutcome(predicted: -150, returnProgress: 0.1, currentIndex: 2, pinCount: 5) == .backward)
+    }
+
+    // MARK: - allowsBackwardDrag (좌드래그 수용 여부)
+
+    @Test("덱 안에서는 좌드래그를 받는다")
+    func allowsBackwardDrag_insideDeck() {
+        #expect(Layout.allowsBackwardDrag(currentIndex: 2, canReturnToPreviousDeck: false))
+    }
+
+    @Test("첫 카드여도 돌아갈 이전 덱이 있으면 좌드래그를 받는다 (이전 기준의 마지막 카드로)")
+    func allowsBackwardDrag_atFirstCardWithPreviousDeck() {
+        #expect(Layout.allowsBackwardDrag(currentIndex: 0, canReturnToPreviousDeck: true))
+    }
+
+    @Test("첫 기준의 첫 카드에서는 좌드래그를 받지 않는다 (더 돌아갈 곳 없음)")
+    func allowsBackwardDrag_atFirstCardWithoutPreviousDeck() {
+        #expect(Layout.allowsBackwardDrag(currentIndex: 0, canReturnToPreviousDeck: false) == false)
     }
 
     // MARK: - visibleRange (렌더 슬라이스)

@@ -12,6 +12,8 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps {
     let fetchMember: FetchMemberUseCase
     let fetchRooms: FetchRoomsUseCase
     let fetchPins: FetchPinsUseCase
+    let lastViewedRoom: LastViewedRoomUseCase
+    let homeGuide: HomeGuideUseCase
     let roomCreationPromptSnooze: SnoozeSwitch
 
     init() {
@@ -27,6 +29,14 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps {
 
         // 홈 카드 핀: 실 API 미연결 → Mock Repository(하드코딩 장소 풀) 사용. 추후 PinRepositoryImpl 로 교체.
         self.fetchPins = DefaultFetchPinsUseCase(repository: MockPinRepository())
+
+        // 마지막으로 본 방: 방 id 하나만 남기면 되는 로컬 기록이라 UserDefaults 구현을 쓴다.
+        self.lastViewedRoom = DefaultLastViewedRoomUseCase(
+            repository: UserDefaultsLastViewedRoomRepository()
+        )
+
+        // 홈 사용 가이드 1회 표기 플래그도 같은 이유로 UserDefaults.
+        self.homeGuide = DefaultHomeGuideUseCase(repository: UserDefaultsHomeGuideRepository())
 
         // 공동방 생성 유도 시트: "나중에 만들래요" 를 누르면 2주 동안 띄우지 않는다(기획 001-2-1).
         self.roomCreationPromptSnooze = SnoozeSwitch(key: "roomCreationPrompt.snoozedAt", period: .days(14))
