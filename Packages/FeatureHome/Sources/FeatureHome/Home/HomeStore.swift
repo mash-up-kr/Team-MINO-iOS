@@ -28,6 +28,12 @@ public struct HomeState: Equatable {
     /// 방 리스트에서 명시적으로 고른 방 (nil = 미선택). 표시할 카드가 없을 때(빈 방들) 현재 방을 정하는 근거 —
     /// 카드가 있을 땐 덱의 맨 앞 카드가 현재 방을 정하므로 이 값은 쓰이지 않는다.
     public var selectedRoomID: String?
+    /// 게시물 저장 시트 상태 (nil = 닫힘). 카드 더보기 메뉴 "다른 방 저장" 으로 열린다.
+    public var savePost: SavePostState?
+    /// 저장 완료 토스트(Figma 013-2)의 식별자 (nil = 숨김). 저장할 때마다 1씩 올라가
+    /// 뷰의 자동 dismiss 타이머가 매번 새로 시작된다 — 연속 저장에서 앞 타이머가 뒤 토스트를 지우지 않게
+    /// dismiss action 이 이 id 를 실어 보낸다([[changedRoomToastID]] 와 같은 방어).
+    public var savedToastID: Int?
 
     public init(
         rooms: [Room] = [],
@@ -41,7 +47,9 @@ public struct HomeState: Equatable {
         isRoomListPresented: Bool = false,
         changedRoomToastID: String? = nil,
         isGuidePresented: Bool = false,
-        selectedRoomID: String? = nil
+        selectedRoomID: String? = nil,
+        savePost: SavePostState? = nil,
+        savedToastID: Int? = nil
     ) {
         self.rooms = rooms
         self.isLoading = isLoading
@@ -55,6 +63,8 @@ public struct HomeState: Equatable {
         self.changedRoomToastID = changedRoomToastID
         self.isGuidePresented = isGuidePresented
         self.selectedRoomID = selectedRoomID
+        self.savePost = savePost
+        self.savedToastID = savedToastID
     }
 
     /// 현재 기준의 카드 덱. 쓰기는 현재 기준의 덱만 갈아끼운다(다른 기준 캐시는 그대로).
@@ -124,6 +134,37 @@ public struct HomeState: Equatable {
     }
 }
 
+/// 게시물 저장 시트(Figma 013-1-3) 상태. 시트가 홈 화면 안에서 열고 닫히므로 별도 Store 없이
+/// 홈 상태의 한 조각으로 든다 — 저장 완료 토스트가 시트가 닫힌 **뒤** 홈 위에 뜨기 때문에
+/// 두 상태가 같은 reduce 안에 있어야 이어진다.
+public struct SavePostState: Equatable {
+    /// 저장하려는 장소(카드).
+    public var pinID: PinID
+    /// 이 장소가 이미 들어 있는 방. 체크된 채 비활성이고 `selectedRoomIDs` 와 섞지 않는다 —
+    /// 섞으면 "이미 저장된 방만 있는" 상태에서 저장 버튼이 켜진다.
+    public var alreadySavedRoomIDs: Set<String>
+    /// 사용자가 이번에 새로 고른 방.
+    public var selectedRoomIDs: Set<String>
+    public var isSaving: Bool
+
+    public init(
+        pinID: PinID,
+        alreadySavedRoomIDs: Set<String> = [],
+        selectedRoomIDs: Set<String> = [],
+        isSaving: Bool = false
+    ) {
+        self.pinID = pinID
+        self.alreadySavedRoomIDs = alreadySavedRoomIDs
+        self.selectedRoomIDs = selectedRoomIDs
+        self.isSaving = isSaving
+    }
+
+    public var canSubmit: Bool { !selectedRoomIDs.isEmpty && !isSaving }
+
+    /// 체크로 보이는 방 — 이미 저장된 방도 체크 상태다(Figma 013-1-2).
+    public var checkedRoomIDs: Set<String> { alreadySavedRoomIDs.union(selectedRoomIDs) }
+}
+
 public enum HomeAction: Equatable {
     case load
     case loaded([Room])
@@ -158,6 +199,18 @@ public enum HomeAction: Equatable {
     /// 방 변경 툴팁 숨기기 (선택 5초 후 자동 발생). 연관값은 이 타이머가 세운 방의 id —
     /// 5초가 도는 사이 다른 방으로 바꾸면 이전 타이머가 새 방 툴팁을 지우지 않도록 방어한다.
     case dismissRoomToast(String)
+    /// 카드 더보기 메뉴 "다른 방 저장" 탭 → 게시물 저장 시트 열기
+    case tapSaveToOtherRoom(PinID)
+    /// 게시물 저장 시트 닫기 (스와이프 dismiss 포함)
+    case dismissSavePost
+    case toggleSavePostRoom(String)
+    case tapSavePost
+    /// 저장 작업이 끝남 → 시트를 닫고 완료 토스트를 띄운다.
+    case savePostFinished
+    /// 저장 실패 — 시트를 저장 전 상태로 되돌린다.
+    case savePostFailed
+    /// 저장 완료 토스트 숨기기 (노출 2초 후 자동 발생). 연관값은 이 타이머가 띄운 토스트의 id.
+    case dismissSavedToast(Int)
 }
 
 public enum HomeNav: Equatable, Sendable {
@@ -237,7 +290,8 @@ public func homeReducer(
     fetchRooms: FetchRoomsUseCase,
     fetchPins: FetchPinsUseCase,
     lastViewedRoom: LastViewedRoomUseCase,
-    homeGuide: HomeGuideUseCase
+    homeGuide: HomeGuideUseCase,
+    savePin: SavePinToRoomsUseCase
 ) -> (inout HomeState, HomeAction) -> Effect<HomeAction, HomeNav> {
     { state, action in
         switch action {
@@ -433,6 +487,72 @@ public func homeReducer(
             // id 로 비교하므로 이름이 같은 방들끼리도 정확히 구분된다.
             if state.changedRoomToastID == roomID {
                 state.changedRoomToastID = nil
+            }
+            return .none
+
+        case .tapSaveToOtherRoom(let pinID):
+            // 카드가 지금 속한 방에는 이 장소가 이미 들어 있다 — 체크된 채 비활성으로 뜬다
+            // (Figma 002-1 「다른 방 저장 클릭 후 중복 저장 시」).
+            // TODO(백엔드 연동): 한 장소가 여러 방에 담길 수 있어 실제 목록은 서버가 준다.
+            //   지금은 카드가 속한 방 하나만 알 수 있어 그것만 표시한다.
+            let savedRoomID = state.pins.first { $0.id == pinID }?.roomID
+            state.savePost = SavePostState(
+                pinID: pinID,
+                alreadySavedRoomIDs: savedRoomID.map { [$0] } ?? []
+            )
+            return .none
+
+        case .dismissSavePost:
+            // 저장 중 스와이프로 닫아도 막지 않는다 — 시스템 시트는 이미 닫힌 뒤라 상태만 되살리면
+            // 시트가 도로 튀어 올라온다. 진행 중인 저장은 그대로 끝나 완료 토스트로 이어진다.
+            state.savePost = nil
+            return .none
+
+        case .toggleSavePostRoom(let roomID):
+            guard var sheet = state.savePost, !sheet.isSaving else { return .none }
+            // 이미 저장된 방은 끌 수 없다 — 뷰가 체크박스를 비활성으로 그리지만, 뷰를 고치면 뚫린다.
+            guard !sheet.alreadySavedRoomIDs.contains(roomID) else { return .none }
+            if sheet.selectedRoomIDs.contains(roomID) {
+                sheet.selectedRoomIDs.remove(roomID)
+            } else {
+                sheet.selectedRoomIDs.insert(roomID)
+            }
+            state.savePost = sheet
+            return .none
+
+        case .tapSavePost:
+            // 뷰의 비활성 처리는 UI 레이어 방어라 뷰가 바뀌면 뚫린다 — 조건은 여기서도 지킨다.
+            guard var sheet = state.savePost, sheet.canSubmit else { return .none }
+            sheet.isSaving = true
+            state.savePost = sheet
+            let pinID = sheet.pinID
+            let roomIDs = sheet.selectedRoomIDs
+            return .run { send in
+                do {
+                    try await savePin.execute(pinID: pinID, roomIDs: roomIDs)
+                    send(.savePostFinished)
+                } catch {
+                    send(.savePostFailed)
+                }
+            }
+
+        case .savePostFinished:
+            // 시트를 먼저 닫고 그 자리에 토스트만 남긴다(Figma 013-2).
+            state.savePost = nil
+            state.savedToastID = (state.savedToastID ?? 0) + 1
+            return .none
+
+        case .savePostFailed:
+            // TODO: 저장 실패 UI 미정(백엔드 미연동) — 실패 스낵바·재시도 정책 확정 후 붙인다.
+            //   지금은 시트를 저장 전 상태로 되돌려 다시 시도할 수 있게만 한다.
+            state.savePost?.isSaving = false
+            return .none
+
+        case .dismissSavedToast(let id):
+            // 이 타이머가 띄운 그 토스트일 때만 지운다 — 2초가 도는 사이 새로 저장하면
+            // 이전 타이머의 dismiss 가 방금 뜬 토스트를 지우는 걸 막는다.
+            if state.savedToastID == id {
+                state.savedToastID = nil
             }
             return .none
         }

@@ -48,7 +48,7 @@ public struct MHSnackbar: View {
         }
         .frame(minHeight: 32)
         .padding(.horizontal, 16)
-        .padding(.vertical, 11)
+        .padding(.vertical, 8)      // Figma 실측: 컨테이너 32 + 상하 8 = 단일 라인 48
         .background(background)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .frame(maxWidth: 420)
@@ -59,7 +59,7 @@ public struct MHSnackbar: View {
         HStack(spacing: 8) {
             if let icon {
                 Image(icon).resizable().scaledToFit()
-                    .frame(width: 20, height: 20)
+                    .frame(width: 22, height: 22)
                     .foregroundStyle(.mhStaticWhite)
                     .opacity(messageOpacity)
             }

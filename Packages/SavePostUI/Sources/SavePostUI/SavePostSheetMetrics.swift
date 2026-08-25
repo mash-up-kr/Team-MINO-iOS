@@ -1,6 +1,6 @@
 import CoreGraphics
 
-/// 링크 저장 시트의 높이 규칙. Figma 스펙 시트(node 2792:175979) — 값은 전부 action area 포함.
+/// 게시물 저장 시트의 높이 규칙. Figma 스펙 시트(node 2792:175979) — 값은 전부 action area 포함.
 ///
 /// 높이는 **열릴 때 방 개수로 정해지고 고정된다.** 콘텐츠를 재지 않고, 도중에 단계가 바뀌지도 않는다.
 ///
@@ -14,10 +14,14 @@ import CoreGraphics
 /// 남는 공간은 목록이 가져간다 — 목록 뷰포트 = 높이 − 헤더 94 − 액션 88 − safe 34.
 /// 헤더 94 = 그래버 30 + 텍스트 52(28+4+20) + 하단 12, 액션 88 = 상하 패딩 20×2 + 버튼 48(`MHButton` large).
 /// 644 → 428 = 카드 4장(104×4) + 12. 612 → 396 이라 4장(416)에 20 모자란다.
-enum SaveLinkSheetMetrics {
-    static let designSafeAreaBottom: CGFloat = 34
+///
+/// > 홈 진입 시안(node 2862:177988)은 목록 448 = 총 664 로 20 더 크다. 개수별 값을 모두 적어 둔
+/// > 스펙 시트를 기준으로 삼고 이 차이는 디자인 확인 대상으로 남긴다 — 확정되면 표만 갈아끼운다.
+public enum SavePostSheetMetrics {
+    /// 시안 기기의 하단 safe-area(홈 인디케이터).
+    public static let designSafeAreaBottom: CGFloat = 34
 
-    static func height(roomCount: Int, safeAreaBottom: CGFloat) -> CGFloat {
+    public static func height(roomCount: Int, safeAreaBottom: CGFloat) -> CGFloat {
         let design: CGFloat = switch roomCount {
         case 5...: 644
         case 4: 612

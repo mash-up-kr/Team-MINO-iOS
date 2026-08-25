@@ -14,6 +14,8 @@ struct CardDeckView: View {
     let onSwipeForward: () -> Void
     let onSwipeBackward: () -> Void
     let onTapCard: (PinID) -> Void
+    /// 카드 더보기 메뉴 "다른 방 저장" 탭 — 게시물 저장 바텀시트로 이어진다.
+    let onSaveToOtherRoom: (PinID) -> Void
 
     @State private var dragOffset: CGFloat = 0
     @State private var isFlingAnimating = false
@@ -119,12 +121,10 @@ struct CardDeckView: View {
         )
     }
 
-    /// 카드 더보기(⋮) 메뉴 — Figma `Menu/Menu`. 항목 동작(다른 방 저장)은 후속 작업이라
-    /// 지금은 **비활성(isDisabled)** 으로 노출한다 — 눌러도 아무 일 없는 무음 no-op 대신 "미구현"을 보이게.
+    /// 카드 더보기(⋮) 메뉴 — Figma `Menu/Menu`.
     private func moreMenuItems(for pin: Pin) -> [MHMenuItem] {
         [
-            // TODO: 다른 방에 저장 — 002-4-1 방 변경 바텀시트로 저장 진행. 구현 시 isDisabled 제거.
-            MHMenuItem("다른 방 저장", isDisabled: true) {},
+            MHMenuItem("다른 방 저장") { onSaveToOtherRoom(pin.id) },
         ]
     }
 
