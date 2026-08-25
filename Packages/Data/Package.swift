@@ -9,10 +9,9 @@ let package = Package(
     ],
     dependencies: [
         .package(path: "../Domain"),
-        .package(path: "../Networking"),
     ],
     targets: [
-        .target(name: "Data", dependencies: ["Domain", "Networking"]),
+        .target(name: "Data", dependencies: ["Domain"]),
         .testTarget(name: "DataTests", dependencies: ["Data"]),
     ],
     swiftLanguageModes: [.v6]
