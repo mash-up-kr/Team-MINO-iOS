@@ -72,6 +72,15 @@ struct MainTabView: View {
                     )
                 }
             }
+            // 홈 사용 가이드는 탭바까지 덮어야 해서 탭 콘텐츠 안이 아니라 여기(루트)에서 그린다.
+            // 상태·1회 표기 정책은 홈이 들고, 루트는 z-order 만 책임진다.
+            .overlay {
+                if selectedTab == .home, coordinator.home.isGuidePresented {
+                    HomeGuideOverlay { coordinator.home.dismissGuide() }
+                        .transition(.opacity)
+                }
+            }
+            .animation(.easeInOut(duration: 0.2), value: coordinator.home.isGuidePresented)
     }
 
     @ViewBuilder private var content: some View {

@@ -33,15 +33,17 @@ typealias RoomDetailStore = Store<RoomDetailState, RoomDetailAction, RoomDetailN
 
 func roomDetailReducer(
     useCase: FetchPinsUseCase,
-    room: Room,
-    now: @escaping () -> Date = Date.init
+    room: Room
 ) -> (inout RoomDetailState, RoomDetailAction) -> Effect<RoomDetailAction, RoomDetailNav> {
     { state, action in
         switch action {
         case .load:
             return .run { send in
                 do {
-                    let pins = try await useCase.execute(roomID: room.id, page: 0)
+                    // 방 상세는 서버 조회 기준이 없다 — 목록 정렬은 도메인 정책(PinCuration)을 Feature 가
+                    // dispatch 해 클라이언트에서 하고, `PinFilter` 는 홈 카드 덱의 칩(꾹 Pick/최신순/가까운순)
+                    // 개념이다. 기본 기준으로 받아온다.
+                    let pins = try await useCase.execute(roomID: room.id, page: 0, filter: .recommended)
                     send(.loaded(pins))
                 } catch let error as DomainError {
                     send(.loadFailed(error))
@@ -52,7 +54,7 @@ func roomDetailReducer(
 
         case .loaded(let pins):
             state.pins = pins
-            applySort(&state, now: now())
+            applySort(&state)
             return .none
 
         case .loadFailed:
@@ -60,7 +62,7 @@ func roomDetailReducer(
 
         case .selectSort(let sort):
             state.sort = sort
-            applySort(&state, now: now())
+            applySort(&state)
             return .none
 
         case .selectCategory(let category):
@@ -86,7 +88,7 @@ func roomDetailReducer(
 
 /// 화면의 정렬 선택지를 도메인 정책(PinCuration)으로 dispatch 한다.
 /// 거리순·코멘트순은 계산 근거(좌표·코멘트 수)가 아직 없어 원본을 그대로 낸다.
-private func applySort(_ state: inout RoomDetailState, now: Date) {
+private func applySort(_ state: inout RoomDetailState) {
     let sorted: [Pin]
     switch state.sort {
     case .all, .distance, .comment:
@@ -94,7 +96,7 @@ private func applySort(_ state: inout RoomDetailState, now: Date) {
     case .pick:
         sorted = PinCuration.pick(from: state.pins)
     case .latest:
-        sorted = PinCuration.latest(from: state.pins, now: now)
+        sorted = PinCuration.latest(from: state.pins)
     }
     state.locations = sorted.map(RoomDetailLocation.init(from:))
 }

@@ -20,9 +20,13 @@ struct SaveLinkReducerTests {
     }
 
     private static func makeStore(
-        _ dependencies: SaveLinkDependencies = instantDependencies()
+        _ dependencies: SaveLinkDependencies = instantDependencies(),
+        savedRoomIDs: Set<String> = []
     ) -> TestStore<SaveLinkState, SaveLinkAction, SaveLinkNav> {
-        TestStore(SaveLinkState(link: link, rooms: rooms), reduce: saveLinkReducer(dependencies))
+        TestStore(
+            SaveLinkState(link: link, rooms: rooms, savedRoomIDs: savedRoomIDs),
+            reduce: saveLinkReducer(dependencies)
+        )
     }
 
     @Test("L1 — toggleRoom: 선택이 토글되고 하나라도 고르면 저장이 활성된다")
@@ -151,6 +155,69 @@ struct SaveLinkReducerTests {
         store.receiveNavigation(.dismiss)
 
         #expect(!store.currentState.isSaved)
+        store.finish()
+    }
+
+    @Test("L2 — 저장 중에는 시트 밖을 눌러도 닫히지 않는다")
+    func tapClose_whileSaving_isIgnored() async {
+        let store = Self.makeStore()
+
+        await store.send(.toggleRoom("1")) { $0.selectedRoomIDs = ["1"] }
+        await store.send(.tapSave) { $0.isSaving = true }
+        await store.send(.tapClose)   // navigation 이 나가면 finish() 에서 걸린다
+
+        await store.receive(.saveFinished) {
+            $0.isSaving = false
+            $0.isSaved = true
+        }
+        await store.receive(.completionShown)
+        store.receiveNavigation(.dismiss)
+        store.finish()
+    }
+
+    // MARK: - 이미 저장된 방 (Figma 스펙 시트 2번 — 체크된 채 비활성)
+
+    @Test("L1 — 이미 저장된 방은 토글되지 않는다")
+    func toggleRoom_alreadySaved_isIgnored() async {
+        let store = Self.makeStore(savedRoomIDs: ["1"])
+
+        await store.send(.toggleRoom("1"))
+
+        #expect(store.currentState.selectedRoomIDs.isEmpty)
+        #expect(store.currentState.checkedRoomIDs == ["1"])   // 체크는 유지된다
+        store.finish()
+    }
+
+    @Test("L1 — 이미 저장된 방만 있으면 저장 버튼이 켜지지 않는다")
+    func canSubmit_withOnlySavedRooms_isFalse() async {
+        let store = Self.makeStore(savedRoomIDs: ["1"])
+
+        #expect(!store.currentState.canSubmit)
+
+        // 다른 방을 새로 고르면 그때 켜진다.
+        await store.send(.toggleRoom("2")) { $0.selectedRoomIDs = ["2"] }
+        #expect(store.currentState.canSubmit)
+        store.finish()
+    }
+
+    @Test("L2 — 저장 대상은 새로 고른 방뿐이다 (이미 저장된 방은 다시 보내지 않는다)")
+    func tapSave_sendsOnlyNewlySelectedRooms() async {
+        let recorder = SaveRecorder()
+        let store = Self.makeStore(
+            Self.instantDependencies { link, ids in recorder.record(link: link, ids: ids) },
+            savedRoomIDs: ["1"]
+        )
+
+        await store.send(.toggleRoom("2")) { $0.selectedRoomIDs = ["2"] }
+        await store.send(.tapSave) { $0.isSaving = true }
+        await store.receive(.saveFinished) {
+            $0.isSaving = false
+            $0.isSaved = true
+        }
+        await store.receive(.completionShown)
+        store.receiveNavigation(.dismiss)
+
+        #expect(recorder.ids == ["2"])
         store.finish()
     }
 }

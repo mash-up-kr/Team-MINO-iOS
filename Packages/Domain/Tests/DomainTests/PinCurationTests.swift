@@ -32,20 +32,16 @@ struct PinCurationTests {
         #expect(PinCuration.pick(from: single).count == 1)
     }
 
-    @Test("최신순은 14일 이내만 최신 순으로 낸다")
+    @Test("최신순은 전체를 최신 순으로 재정렬한다 — 기간으로 걸러내지 않는다")
     func latest() {
-        #expect(PinCuration.latest(from: pins, now: now).map(\.id.value) == ["p0", "p1", "p2"])
-    }
-
-    @Test("최신순은 경계(정확히 14일 전)를 포함한다")
-    func latestIncludesBoundary() {
-        let boundary = [pin("edge", daysAgo: 14)]
-        #expect(PinCuration.latest(from: boundary, now: now).count == 1)
+        let result = PinCuration.latest(from: pins)
+        #expect(result.map(\.id.value) == (0..<10).map { "p\($0)" })
+        #expect(result.count == pins.count)   // 14일 넘은 장소(p3~p9)도 지워지지 않는다
     }
 
     @Test("빈 목록은 두 정책 모두 빈 목록이다")
     func emptyInput() {
         #expect(PinCuration.pick(from: []).isEmpty)
-        #expect(PinCuration.latest(from: [], now: now).isEmpty)
+        #expect(PinCuration.latest(from: []).isEmpty)
     }
 }

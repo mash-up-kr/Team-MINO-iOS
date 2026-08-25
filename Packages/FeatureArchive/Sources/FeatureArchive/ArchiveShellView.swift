@@ -9,6 +9,10 @@ struct ArchiveShellView: View {
     @State private var detailStore: RoomDetailStore?
     @State private var placeStore: PlaceDetailStore?
 
+    /// 정렬 드롭다운 열림 상태를 화면이 쥔다 — 시트 드래그·단계 전환처럼 `MHFilterBar` 가
+    /// 알 수 없는 신호로 닫아야 하기 때문이다.
+    @State private var sortMenuOpen = false
+
     @State private var pendingToast: String?
     @State private var toastMessage: String?
     @State private var toastToken = 0
@@ -20,10 +24,14 @@ struct ArchiveShellView: View {
     var body: some View {
         @Bindable var coordinator = coordinator
         ZStack {
-            ArchiveMapLayer()
+            ArchiveMapLayer(bottomInset: mapBottomInset)
 
             if let roomListStore {
                 if placeStore == nil {
+                    // zIndex 로 시트 위에 올리지 않는다. 올리면 바깥탭 스크림이 시트를 덮는데,
+                    // 드래그는 onTapGesture 를 발동시키지 않아 시트가 움직이지도 메뉴가 닫히지도
+                    // 않는다(시뮬레이터 확인). 메뉴는 최대 400pt 라 하단이 y≈530 이고 시트 top 은
+                    // medium 에서 572, peek 에서 728 이라 이 순서로도 가려지지 않는다.
                     filterBar(roomList: roomListStore)
                 }
                 sheet(roomList: roomListStore)
@@ -32,6 +40,7 @@ struct ArchiveShellView: View {
             toast
         }
         .animation(.easeInOut(duration: 0.2), value: toastMessage)
+        .onChange(of: detent) { _, _ in sortMenuOpen = false }
         .task {
             guard roomListStore == nil else { return }
             let store = coordinator.makeRoomListStore()
@@ -80,7 +89,7 @@ struct ArchiveShellView: View {
             .transition(.opacity)
             .task(id: toastToken) {
                 let token = toastToken
-                do { try await Task.sleep(for: .seconds(2)) } catch { return }
+                do { try await Task.sleep(for: .seconds(3)) } catch { return }
                 guard token == toastToken else { return }
                 self.toastMessage = nil
             }
@@ -95,17 +104,27 @@ struct ArchiveShellView: View {
         let store = coordinator.makeRoomDetailStore(room: room)
         detailStore = store
         store.send(.load)
+        // 방 리스트용 메뉴가 방 상세 필터바에 그대로 남지 않게 — 두 분기가 같은 if/else 안이라
+        // SwiftUI 가 같은 인스턴스로 볼 수 있다.
+        sortMenuOpen = false
+        // 방 상세 "진입"만 Half 로 강제한다 — 스펙이 진입 기본값을 Half 로 못박고 있다.
+        // 그 밖의 전환(장소 상세 왕복, 방 리스트 복귀)은 단계를 유지한다.
         withAnimation(.spring(duration: 0.3)) { detent = .medium }
     }
 
     private func syncPlaceStore() {
         if let pin = coordinator.selectedPin {
             placeStore = coordinator.makePlaceDetailStore(pin: pin)
+            // 장소 상세는 low 를 쓰지 않으므로(detents: [.medium, .full]) low 였다면 medium 으로 올린다.
+            // 그 밖에는 사용자가 보던 단계를 그대로 둔다 — full 로 보던 사람은 full 로 이어 본다.
+            if detent == .low {
+                withAnimation(.spring(duration: 0.3)) { detent = .medium }
+            }
         } else {
+            // 방 상세로 복귀 — 단계를 건드리지 않는다.
             guard placeStore != nil else { return }
             placeStore = nil
         }
-        withAnimation(.spring(duration: 0.3)) { detent = .medium }
     }
 
     @ViewBuilder
@@ -116,14 +135,16 @@ struct ArchiveShellView: View {
                     sortOptions: RoomDetailSort.allCases.map(\.rawValue),
                     selectedSort: sortBinding(detailStore),
                     categories: RoomDetailCategory.allCases.map(\.rawValue),
-                    selectedCategory: categoryBinding(detailStore)
+                    selectedCategory: categoryBinding(detailStore),
+                    sortMenuPresented: $sortMenuOpen
                 )
             } else {
                 MHFilterBar(
                     sortOptions: roomOptions(roomList),
                     selectedSort: binding(roomList, \.roomFilter, RoomListAction.selectRoomFilter),
                     categories: Self.roomListCategories,
-                    selectedCategory: binding(roomList, \.categoryFilter, RoomListAction.selectCategory)
+                    selectedCategory: binding(roomList, \.categoryFilter, RoomListAction.selectCategory),
+                    sortMenuPresented: $sortMenuOpen
                 )
             }
             Spacer(minLength: 0)
@@ -155,6 +176,18 @@ struct ArchiveShellView: View {
     private var sheetIdentifier: String {
         if placeStore != nil { return "PlaceDetail.sheet" }
         return detailStore == nil ? "RoomList.sheet" : "RoomDetail.sheet"
+    }
+
+    /// 시트가 지도를 가리는 높이. 구글 로고가 시트 위로 올라오도록 지도 padding 으로 넘긴다.
+    /// `MapView` 가 safe-area 를 더해 적용하므로(`paddingAdjustmentBehavior = .always`)
+    /// `MHBottomSheet` 에 주는 peek 원본 pt 를 그대로 준다 — 두 값의 기준이 같다.
+    /// full 은 지도가 전부 가려져 로고를 밀어올릴 여백이 없으므로 0.
+    private var mapBottomInset: CGFloat {
+        switch detent {
+        case .low: peek.low ?? peek.medium
+        case .medium: peek.medium
+        case .full: 0
+        }
     }
 
     private var peek: (low: CGFloat?, medium: CGFloat) {

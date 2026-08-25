@@ -26,8 +26,8 @@ private let fixturePins: [Pin] = [0, 10, 20].map { daysAgo in
 private struct StubFetchPins: FetchPinsUseCase {
     var result: Result<[Pin], DomainError> = .success(fixturePins)
 
-    func execute(roomIDs: [RoomID]) async throws -> [Pin] { try pins() }
-    func execute(roomID: RoomID, page: Int) async throws -> [Pin] { try pins() }
+    func execute(roomIDs: [RoomID], filter: PinFilter) async throws -> [Pin] { try pins() }
+    func execute(roomID: RoomID, page: Int, filter: PinFilter) async throws -> [Pin] { try pins() }
 
     private func pins() throws -> [Pin] {
         switch result {
@@ -43,7 +43,7 @@ struct RoomDetailReducerTests {
         _ useCase: FetchPinsUseCase = StubFetchPins(),
         state: RoomDetailState = RoomDetailState(room: RoomDetailRoom(from: fixtureRoom))
     ) -> TestStore<RoomDetailState, RoomDetailAction, RoomDetailNav> {
-        TestStore(state, reduce: roomDetailReducer(useCase: useCase, room: fixtureRoom, now: { fixtureNow }))
+        TestStore(state, reduce: roomDetailReducer(useCase: useCase, room: fixtureRoom))
     }
 
     /// 기대 표시 목록 — reducer 의 dispatch 와 같은 규칙(전체·거리순·코멘트순은 원본 유지)으로 계산한다.
@@ -52,7 +52,7 @@ struct RoomDetailReducerTests {
         switch sort {
         case .all, .distance, .comment: sorted = fixturePins
         case .pick: sorted = PinCuration.pick(from: fixturePins)
-        case .latest: sorted = PinCuration.latest(from: fixturePins, now: fixtureNow)
+        case .latest: sorted = PinCuration.latest(from: fixturePins)
         }
         return sorted.map(RoomDetailLocation.init(from:))
     }
@@ -98,7 +98,7 @@ struct RoomDetailReducerTests {
             $0.sort = .latest
             $0.locations = locations(.latest)
         }
-        #expect(store.currentState.locations.count == 2)
+        #expect(store.currentState.locations.count == fixturePins.count)   // 최신순은 걸러내지 않는다
         store.finish()
     }
 

@@ -17,6 +17,10 @@ xcuserdata/
 .build/
 .swiftpm/
 Package.resolved
+# 외부 의존(Alamofire)의 잠금은 추적한다 — 없으면 사람·CI 마다 다른 패치 버전으로 빌드된다.
+# 다만 이 파일은 `swift build/test --package-path` 만 지배한다. **앱 빌드는 Xcode 가 따로
+# 해석**하므로, 실 배선 PR 에서 앱 워크스페이스의 Package.resolved 도 함께 추적해야 한다.
+!Packages/Networking/Package.resolved
 
 ### macOS
 .DS_Store
