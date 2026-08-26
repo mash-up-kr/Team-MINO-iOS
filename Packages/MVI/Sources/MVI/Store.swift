@@ -31,12 +31,30 @@ public final class Store<State, Action, Nav: Sendable> {
         (navigationEffects, navContinuation) = AsyncStream.makeStream()
     }
 
+    /// 생성과 동시에 navigation 을 구독한다.
+    ///
+    /// `observeNavigation` 을 빠뜨리면 화면 전환이 크래시·로그 없이 조용히 안 되므로
+    /// (`mvi-coordinator-di.md` §4), 두 줄을 하나로 묶어 누락을 구조적으로 불가능하게 만든다.
+    ///
+    /// Coordinator 가 아니라 여기 있는 이유: 구독은 `Store` 의 기능이고 수신자(Coordinator)를
+    /// 쓰지 않는다. Coordinator 확장에 두면 Coordinator 가 없는 진입점(`ShareViewController`)이
+    /// 같은 두 줄을 손으로 다시 쓰게 된다.
+    public convenience init(
+        _ initial: State,
+        reduce: @escaping (inout State, Action) -> Effect<Action, Nav>,
+        handle: @escaping @MainActor (Nav) -> Void
+    ) {
+        self.init(initial, reduce: reduce)
+        observeNavigation(handle)
+    }
+
     deinit {
         tasks.values.forEach { $0.cancel() }
         navContinuation.finish()
     }
 
-    /// 화면 전환 의도를 구독한다. Coordinator 가 store 생성 직후 한 번 호출한다.
+    /// 화면 전환 의도를 구독한다. 보통은 `init(_:reduce:handle:)` 가 대신 호출한다 —
+    /// 생성과 구독 사이에 다른 일이 끼어야 할 때만 직접 부른다.
     /// 구독 Task 는 store 의 tasks 로 관리되어 store 수명과 함께 정리된다(별도 effectTasks 불필요).
     public func observeNavigation(_ handler: @escaping @MainActor (Nav) -> Void) {
         guard !navObserved else {

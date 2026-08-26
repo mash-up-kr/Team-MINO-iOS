@@ -99,19 +99,18 @@ final class ShareViewController: UIViewController {
     // MARK: - 화면
 
     private func makeSaveLinkStore(url: URL) -> SaveLinkStore {
-        let store = SaveLinkStore(
+        SaveLinkStore(
             // TODO: 방 목록 API 가 붙으면 조회 결과로 바꾼다.
             //   savedRoomIDs(이미 이 링크가 들어 있는 방)도 그 응답에서 온다 — 지금은 시안의
             //   "체크된 채 비활성" 상태를 보이게 표본 하나를 지정한다.
             SaveLinkState(link: SharedLinkPreview(url: url), rooms: SharedRoom.samples, savedRoomIDs: ["2"]),
-            reduce: saveLinkReducer(.stub)   // TODO: 저장 API 가 붙으면 UseCase 주입으로 교체
-        )
-        store.observeNavigation { [weak self] nav in
-            switch nav {
-            case .dismiss: self?.close()
+            reduce: saveLinkReducer(.stub),   // TODO: 저장 API 가 붙으면 UseCase 주입으로 교체
+            handle: { [weak self] nav in
+                switch nav {
+                case .dismiss: self?.close()
+                }
             }
-        }
-        return store
+        )
     }
 
     private func embed(_ content: some View) {

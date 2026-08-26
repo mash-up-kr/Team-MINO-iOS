@@ -43,7 +43,7 @@ public final class ArchiveCoordinator: Coordinator {
     // MARK: - Store Factories
 
     public func makeRoomListStore() -> RoomListStore {
-        makeStore(
+        Store(
             RoomListState(),
             reduce: roomListReducer(useCase: deps.fetchRooms, promptSnooze: deps.roomCreationPromptSnooze),
             handle: { [weak self] in self?.handle($0) }
@@ -51,7 +51,7 @@ public final class ArchiveCoordinator: Coordinator {
     }
 
     func makeRoomDetailStore(room: Room) -> RoomDetailStore {
-        makeStore(
+        Store(
             RoomDetailState(room: RoomDetailRoom(from: room)),
             reduce: roomDetailReducer(useCase: deps.fetchPins, room: room),
             handle: { [weak self] in self?.handle($0) }
@@ -59,7 +59,7 @@ public final class ArchiveCoordinator: Coordinator {
     }
 
     func makePlaceDetailStore(pin: Pin) -> PlaceDetailStore {
-        makeStore(
+        Store(
             PlaceDetailState(place: PlaceDetailPlace(from: pin, now: Date())),
             reduce: placeDetailReducer(pin: pin),
             handle: { [weak self] in self?.handle($0) }
@@ -68,7 +68,7 @@ public final class ArchiveCoordinator: Coordinator {
 
     /// 공동방 만들기 Store 팩토리. roomFormReducer 는 의존이 없어 그대로 조립한다(RoomCreationUI 는 UI 전용).
     func makeRoomFormStore() -> RoomFormStore {
-        makeStore(RoomFormState(mode: .create), reduce: roomFormReducer(), handle: { [weak self] in self?.handle($0) })
+        Store(RoomFormState(mode: .create), reduce: roomFormReducer(), handle: { [weak self] in self?.handle($0) })
     }
 
     // MARK: - Effect Routing

@@ -1,4 +1,5 @@
 import FlowCoordination
+import MVI
 import SwiftUI
 
 /// 알림 탭 flow. 저장 오류 카드를 탭하면 안내 화면으로 push 된다(EC-013 — 어느 저장 오류 알림을
@@ -25,7 +26,7 @@ public final class NotificationCoordinator: Coordinator {
     // MARK: - Store Factory
 
     public func makeNotificationListStore() -> NotificationListStore {
-        makeStore(
+        Store(
             NotificationListState(),
             reduce: notificationListReducer(useCase: deps.fetchNotifications),
             handle: { [weak self] in self?.handle($0) }

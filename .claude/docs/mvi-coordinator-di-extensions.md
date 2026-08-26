@@ -5,8 +5,12 @@
 
 ---
 
-## makeStore 공통화 (P3 / framework 추출) — 두 번째 Coordinator 때
-`makeStore`의 "Store 생성 + observeNavigation 구독" 패턴이 Coordinator마다 반복된다. 두 번째 Coordinator가 생기면 이 패턴을 인프라 헬퍼로 추출하거나, **문서 체크리스트(본문 5절)로 누락을 방지**한다. (구독을 store 생성에 묶으면 누락이 구조적으로 불가능해지나, 모듈 의존을 엮어야 해 사례 2개를 보고 결정)
+## ~~makeStore 공통화~~ — **완료(트리거 소진)**
+"Store 생성 + observeNavigation 구독" 반복은 `Store.init(_:reduce:handle:)`(MVI) 로 묶어 해결했다.
+
+한 번 `Coordinator.makeStore` 확장으로 넣었다가 `Store` 로 옮겼다. 헬퍼가 수신자(`Coordinator`)를 전혀 쓰지 않아 `FlowCoordination → MVI` 의존만 늘렸고, 정작 Coordinator 가 없는 진입점(`ShareViewController`)은 같은 두 줄을 손으로 다시 써야 했기 때문이다. 이 문서가 애초에 선호한 "구독을 store 생성에 묶는다"를 모듈 의존 없이 얻은 형태다.
+
+**교훈**: 수신자를 안 쓰는 확장은 그 타입에 있을 이유가 없다 — 그 자리에 두면 의존만 늘고 적용 범위는 좁아진다.
 
 ## deps factory — 자식이 자기 UseCase를 가질 때
 자식 Coordinator가 부모와 **다른 의존**을 가지면, **데이터(deps)와 생성(factory)을 별도 프로토콜로 분리**한다.

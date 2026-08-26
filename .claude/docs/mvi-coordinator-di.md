@@ -8,7 +8,7 @@
 
 ```
 App ──▶ Feature* ──▶ Domain ──▶ Core
-   │       ├───────▶ FlowCoordination ──▶ MVI  (Coordinator 프로토콜·FlowFinish·flowRoot·makeStore 헬퍼 · SwiftUI)
+   │       ├───────▶ FlowCoordination        (Coordinator 프로토콜·FlowFinish·flowRoot · SwiftUI)
    │       ├───────▶ MVI                  (Effect·Store + MVITestSupport · Observation)
    │       └───────▶ *UI                  (공통 화면 — RoomCreationUI·MapUI …)
    │                   └──▶ DesignSystem · MVI
@@ -18,13 +18,13 @@ App ──▶ Feature* ──▶ Domain ──▶ Core
 
 | 패키지 | 역할 |
 |--------|------|
-| **FlowCoordination** | `Coordinator` 프로토콜, `FlowFinish`, `flowRoot` modifier, `Coordinator.makeStore` 헬퍼(영구 인프라) |
+| **FlowCoordination** | `Coordinator` 프로토콜, `FlowFinish`, `flowRoot` modifier (영구 인프라) |
 | **MVI** | `Effect`, `Store` / `MVITestSupport`의 `TestStore` (영구 인프라) |
 | **Feature\*** | flow 단위. Coordinator·Route·NavigationStack 을 소유하고 화면을 배치한다 |
 | **\*UI** | 여러 Feature 가 함께 쓰는 UI 모듈. 화면(`RoomCreationUI`)과 플랫폼·SDK 브릿지(`MapUI`) 둘 다. flow 를 소유하지 않는다 |
 
 - `Store`/`Effect`는 `Observation`만 의존(SwiftUI 비의존) → reduce 단위 테스트가 UI 비의존
-- `FlowCoordination`은 `Coordinator.makeStore` 헬퍼(§4 "Store factory + 구독" 참조)가 `Store` 생성·구독을 대신 해주기 위해 `MVI`를 의존한다(세 번째 Coordinator 시점에 추출 — [mvi-coordinator-di-extensions.md](mvi-coordinator-di-extensions.md) 「makeStore 공통화」). `MVI`는 `FlowCoordination`을 모른다 — 의존은 단방향이다
+- `FlowCoordination`과 `MVI`는 **서로를 모른다**. "Store 생성 + 구독"을 묶는 일은 `Store.init(_:reduce:handle:)`(§4 "Store factory + 구독")이 맡는데, 그건 `Store` 자신의 기능이라 Coordinator 를 필요로 하지 않는다 — 덕분에 Coordinator 가 없는 진입점(`ShareViewController`)도 같은 보장을 받는다
 
 ### 공통 UI 레이어(`*UI`)
 
@@ -234,7 +234,7 @@ public struct MemberHomeView: View {
 
 ### Store factory + 구독
 
-Coordinator의 `make<화면>Store`가 **DI 이음매**다: 주입받은 `deps.fetchXxx`(UseCase)를 reducer에 묶어 Store를 만들고, 직후 **`observeNavigation`을 반드시 호출**한다(누락 시 navigation이 크래시·로그 없이 안 됨). 전체 형태는 5절 작성법 4)의 `makeHomeStore` 참조.
+Coordinator의 `make<화면>Store`가 **DI 이음매**다: 주입받은 `deps.fetchXxx`(UseCase)를 reducer에 묶어 Store를 만든다. 이때 **`handle:` 을 받는 init 을 쓴다** — 구독이 생성에 묶여 있어 누락이 불가능하다(맨손 `init(_:reduce:)` + `observeNavigation` 은 누락 시 navigation 이 크래시·로그 없이 안 된다). 전체 형태는 5절 작성법 4)의 `makeHomeStore` 참조.
 
 ---
 
@@ -290,9 +290,11 @@ final class XxxCoordinator: Coordinator {
     let finish = FlowFinish<Never>()   // 종료 없는 flow → Never 로 발사를 컴파일 차단. 자식에 결과 보고 시 FlowFinish<XxxResult> 처럼 결과 타입(enum)으로
     init(deps: XxxDeps) { ... }   // 화면 식별자 등 추가 입력이 있으면 init(deps:, xxxID:) 처럼 함께 받는다
     func makeHomeStore() -> XxxStore {                                // make<화면>Store — 화면(Store)마다 하나
-        let store = XxxStore(XxxState(), reduce: xxxReducer(useCase: deps.fetchXxx))
-        store.observeNavigation { [weak self] in self?.handle($0) }   // 필수
-        return store
+        XxxStore(                                                     // handle: 이 구독까지 한다
+            XxxState(),
+            reduce: xxxReducer(useCase: deps.fetchXxx),
+            handle: { [weak self] in self?.handle($0) }
+        )
     }
     func handle(_ nav: XxxNav) { switch nav { ... } }   // 라우팅(테스트가 직접 호출)
 }
@@ -348,7 +350,7 @@ XxxHomeView(coordinator: appCoordinator.xxx)
 
 ### 체크리스트
 
-- [ ] `make<화면>Store` 안에서 **`store.observeNavigation { handle }` 호출** — 누락 시 navigation이 크래시·로그 없이 안 됨
+- [ ] `make<화면>Store` 는 **`Store(_:reduce:handle:)`** 로 만든다 — 구독이 생성에 묶여 누락이 불가능하다(맨손 `init(_:reduce:)` 는 `observeNavigation` 을 빠뜨리면 navigation 이 조용히 안 됨)
 - [ ] reduce는 Repository가 아니라 **UseCase**를 받는다 (Repository 직접 주입하면 비즈니스 로직이 Feature로 샘)
 - [ ] deps 프로토콜은 **자기 의존만** (번들 통째 주입은 `Feature→App` 역의존을 만들고, 다른 피쳐 UseCase까지 보임)
 - [ ] View는 **생성자 주입**(@Environment·전역 컨테이너 금지 — 주입 누락을 런타임 크래시가 아니라 컴파일 에러로 차단)
@@ -368,7 +370,7 @@ XxxHomeView(coordinator: appCoordinator.xxx)
 
 | 트리거 | 방향 |
 |---|---|
-| 두 번째 Coordinator | `makeStore` 공통화(인프라 헬퍼 추출 vs 체크리스트 유지) |
+| ~~두 번째 Coordinator~~ | ~~`makeStore` 공통화~~ → **완료**: `Store.init(_:reduce:handle:)` 로 해결 |
 | 자식이 자기 UseCase를 가짐 | deps/factory 프로토콜 분리 + 4단계 전환 절차 |
 | 두 번째 sheet 종류 | sheet enum 연관값에 자식 Coordinator 직접 담기 |
 | 2단 중첩(자식의 자식 flow) | 재귀 패턴(자체 NavigationStack + 손자에 flowRoot) |
