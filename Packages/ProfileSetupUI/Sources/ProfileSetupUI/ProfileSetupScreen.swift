@@ -16,39 +16,32 @@ import SwiftUI
 /// // 온보딩 — 빈 값에서 시작, 돌아갈 곳이 없어 뒤로가기 없음. 저장은 유저 등록.
 /// ProfileSetupScreen(makeStore: coordinator.makeProfileSetupStore)
 ///
-/// // 마이페이지 — 조회한 프로필로 프리필하고 뒤로가기를 그린다. 저장은 프로필 수정.
-/// ProfileSetupScreen(
-///     makeStore: {
-///         let store = ProfileSetupStore(
-///             ProfileSetupState(name: profile.name, selectedCharacterIndex: profile.characterIndex),
-///             reduce: profileSetupReducer()
-///         )
-///         store.observeNavigation { [weak self] in self?.handle($0) }   // 필수
-///         return store
-///     },
-///     showsBack: true
-/// )
+/// // 마이페이지 — 조회한 프로필로 프리필한다. 뒤로가기는 mode 가 알아서 그린다.
+/// ProfileSetupScreen(makeStore: {
+///     let store = ProfileSetupStore(
+///         ProfileSetupState(mode: .edit, name: profile.name, selectedCharacterIndex: profile.characterIndex),
+///         reduce: profileSetupReducer()
+///     )
+///     store.observeNavigation { [weak self] in self?.handle($0) }   // 필수
+///     return store
+/// })
 /// ```
 ///
 /// > 저장 API 는 아직 안 붙어 있다 — `profileSetupReducer` 주석 참조.
 public struct ProfileSetupScreen: View {
     private let makeStore: @MainActor () -> ProfileSetupStore
-    private let showsBack: Bool
     private let onBack: (() -> Void)?
     @State private var store: ProfileSetupStore?
 
     /// - Parameters:
-    ///   - makeStore: Store 생성. 마이페이지처럼 기존 값을 보여줘야 하는 진입점은
-    ///     `ProfileSetupState(name:selectedCharacterIndex:)` 로 프리필해 만든다.
-    ///   - showsBack: 상단바 뒤로가기 노출. 온보딩 최초 진입은 돌아갈 곳이 없어 `false`.
+    ///   - makeStore: Store 생성. 진입 목적과 초기값을 `ProfileSetupState(mode:name:selectedCharacterIndex:)`
+    ///     로 정한다 — 뒤로가기 노출도 `mode` 에서 파생되므로 따로 넘기지 않는다.
     ///   - onBack: 뒤로가기 동작. 생략하면 `dismiss` 환경값으로 pop 한다.
     public init(
         makeStore: @escaping @MainActor () -> ProfileSetupStore,
-        showsBack: Bool = false,
         onBack: (() -> Void)? = nil
     ) {
         self.makeStore = makeStore
-        self.showsBack = showsBack
         self.onBack = onBack
     }
 
@@ -79,7 +72,7 @@ public struct ProfileSetupScreen: View {
             onSelectCharacter: { store.send(.selectCharacter($0)) },
             onClear: { store.send(.tapClear) },
             onSave: { store.send(.tapSave) },
-            onBack: showsBack ? (onBack ?? { dismiss() }) : nil
+            onBack: store.state.mode.showsBack ? (onBack ?? { dismiss() }) : nil
         )
     }
 

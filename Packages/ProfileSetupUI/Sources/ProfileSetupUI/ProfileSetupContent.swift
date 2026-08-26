@@ -129,8 +129,8 @@ struct ProfileSetupContent: View {
     ProfileSetupContentPreviewWrapper(name: "민", selectedCharacterIndex: nil, isSaveEnabled: false)
 }
 
-// 온보딩 밖(마이페이지 등)에서 재사용할 때의 모습 — 상단에 뒤로가기가 생긴다.
-#Preview("뒤로가기 있음") {
+// 마이페이지 진입(`.edit`) — 조회한 값이 프리필되고 상단에 뒤로가기가 생긴다.
+#Preview("마이페이지 진입") {
     ProfileSetupContentPreviewWrapper(name: "민호", selectedCharacterIndex: 5, isSaveEnabled: true, showsBack: true)
 }
 

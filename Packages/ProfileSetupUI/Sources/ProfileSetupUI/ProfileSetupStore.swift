@@ -8,14 +8,34 @@ public enum ProfileSetupLimit {
     public static let minimumNameLength = 2
 }
 
+/// 이 화면에 무엇을 하러 들어왔는가. 진입점마다 초기값·저장 API·뒤로가기가 갈린다.
+public enum ProfileSetupMode: Equatable, Sendable {
+    /// 온보딩 최초 진입 — 빈 값에서 시작한다. 저장은 **유저 등록**.
+    case create
+    /// 마이페이지에서 프로필 수정 — **프로필 조회** 결과를 프리필한다. 저장은 **프로필 수정**.
+    case edit
+}
+
+public extension ProfileSetupMode {
+    /// 뒤로가기를 그릴지 — `create` 는 온보딩 최초 진입이라 돌아갈 곳이 없다(Figma `010` 스펙 3번).
+    var showsBack: Bool { self == .edit }
+}
+
 public struct ProfileSetupState: Equatable {
+    public let mode: ProfileSetupMode
     public var name: String
     public var selectedCharacterIndex: Int?
 
     /// - Parameters:
-    ///   - name: 초기 이름. 마이페이지 진입은 프로필 조회 결과를 넣어 프리필한다(온보딩은 빈 값).
+    ///   - mode: 진입 목적. 기본은 온보딩(`create`).
+    ///   - name: 초기 이름. `edit` 는 프로필 조회 결과를 넣어 프리필한다(`create` 는 빈 값).
     ///   - selectedCharacterIndex: 초기 캐릭터. 위와 같다.
-    public init(name: String = "", selectedCharacterIndex: Int? = nil) {
+    public init(
+        mode: ProfileSetupMode = .create,
+        name: String = "",
+        selectedCharacterIndex: Int? = nil
+    ) {
+        self.mode = mode
         self.name = name
         self.selectedCharacterIndex = selectedCharacterIndex
     }
@@ -80,9 +100,17 @@ public typealias ProfileSetupStore = Store<ProfileSetupState, ProfileSetupAction
 
 /// 프로필 설정 reduce.
 ///
-/// > 저장은 아직 서버에 아무것도 보내지 않는다 — `didSave` 를 알리고 끝난다. 붙일 API 가 진입점마다
-/// > 다르므로(온보딩=유저 등록 / 마이페이지=프로필 수정) UseCase 를 이 함수의 인자로 받아
-/// > `.tapSave` 에서 `.run` 으로 호출하고, 성공·실패를 Response Action 으로 되돌리면 된다.
+/// > 저장은 아직 서버에 아무것도 보내지 않는다 — `didSave` 를 알리고 끝난다.
+/// > API 를 붙일 때는 모드에 연관값을 달아 각 모드가 **자기 UseCase 만** 들게 한다:
+/// >
+/// > ```swift
+/// > case create(register: RegisterProfileUseCase)
+/// > case edit(fetch: FetchProfileUseCase, update: UpdateProfileUseCase)
+/// > ```
+/// >
+/// > 평평하게 셋을 다 받으면 `.create` 인데 `update` 가 주입된 조합이 그냥 컴파일된다.
+/// > `edit` 의 조회는 `.task` 진입 Action 에서 `.run` 으로 부르고, 성공·실패를 Response Action 으로
+/// > 되돌린다(로딩 상태는 그때 State 에 함께 넣는다).
 public func profileSetupReducer() -> (inout ProfileSetupState, ProfileSetupAction) -> Effect<ProfileSetupAction, ProfileSetupNav> {
     { state, action in
         switch action {

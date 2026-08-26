@@ -210,4 +210,22 @@ struct ProfileSetupReducerTests {
         // finish 가 미수신 navigation 잔여를 검사한다 — navigate 가 나갔다면 여기서 실패한다
         store.finish()
     }
+
+    @Test("L1 — 진입 목적이 뒤로가기 노출을 가른다 — 온보딩은 돌아갈 곳이 없다")
+    func mode_determinesBackVisibility() async {
+        #expect(!ProfileSetupMode.create.showsBack)
+        #expect(ProfileSetupMode.edit.showsBack)
+        #expect(!ProfileSetupState().mode.showsBack, "기본값은 온보딩 진입이다")
+    }
+
+    @Test("L1 — edit 진입은 조회한 프로필로 프리필한 채 시작한다")
+    func editMode_startsPrefilled() async {
+        let state = ProfileSetupState(mode: .edit, name: "민호", selectedCharacterIndex: 7)
+
+        #expect(state.name == "민호")
+        #expect(state.selectedCharacterIndex == 7)
+        // 프리필만으로 이미 저장 가능해야 한다 — 아무것도 안 고쳐도 되돌릴 게 있다.
+        #expect(state.isSaveEnabled)
+        #expect(state.isClearEnabled)
+    }
 }
