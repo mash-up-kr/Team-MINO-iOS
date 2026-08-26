@@ -1,8 +1,8 @@
 import SwiftUI
 import UIKit
 
-extension View {
-    /// nav bar 를 숨긴 화면(공동방 만들기 등)에서도 엣지 백스와이프 pop 이 동작하게 한다.
+public extension View {
+    /// nav bar 를 숨긴 화면(공동방 만들기·저장 오류 안내 등)에서도 엣지 백스와이프 pop 이 동작하게 한다.
     ///
     /// SwiftUI 는 `.toolbar(.hidden, for: .navigationBar)` 로 내비바를 숨기면
     /// `interactivePopGestureRecognizer` 를 비활성화한다. 이 헬퍼가 그 제스처의 delegate 를
