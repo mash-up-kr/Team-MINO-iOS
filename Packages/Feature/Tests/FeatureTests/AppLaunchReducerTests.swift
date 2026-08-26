@@ -3,6 +3,10 @@ import Domain
 import MVITestSupport
 @testable import Feature
 
+private struct CancellingEnsureSession: EnsureSessionUseCase {
+    func execute() async throws -> UserSession { throw CancellationError() }
+}
+
 private struct StubEnsureSession: EnsureSessionUseCase {
     var result: Result<UserSession, DomainError> = .success(UserSession(userID: "uid-1"))
     func execute() async throws -> UserSession {
@@ -96,6 +100,17 @@ struct AppLaunchReducerTests {
         let store = makeStore(state: AppLaunchState(phase: .loading))
 
         await store.send(.tapRetry)   // 세션 확보를 겹쳐 발사하지 않는다
+
+        store.finish()
+    }
+
+    // 취소를 실패로 흡수하면 이미 화면을 벗어난 뒤에 재시도 화면이 뜬다 —
+    // 사용자에겐 오지 않은 오류가 된다.
+    @Test("L2 — 취소는 실패로 뒤집히지 않는다")
+    func cancellation_doesNotBecomeFailure() async {
+        let store = makeStore(ensureSession: CancellingEnsureSession())
+
+        await store.send(.start) { $0.phase = .loading }   // 이후 아무 action 도 오지 않는다
 
         store.finish()
     }

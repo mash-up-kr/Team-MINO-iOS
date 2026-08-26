@@ -81,6 +81,11 @@ private func establishSession(
             _ = try await ensureSession.execute()
             let completed = await onboarding.hasCompleted()
             send(.sessionReady(needsOnboarding: !completed))
+        // 취소는 실패가 아니다. 흡수하면 재시도 화면이 뜨는데, 이미 화면을 벗어난 뒤라
+        // 사용자에겐 오지 않은 오류가 된다. (이 Store 는 앱 수명이라 실제 취소 경로가
+        // 지금은 없지만, 화면 reducer 가 이 파일을 본보기로 삼는다)
+        } catch is CancellationError {
+            return
         } catch {
             send(.sessionFailed)
         }
