@@ -3,8 +3,11 @@ import DesignSystem
 
 // MARK: - 캐릭터 스와치
 
+/// 캐릭터 목록. `CaseIterable.allCases` 는 호출마다 배열을 새로 지으므로 한 번만 받아 둔다.
+private let allCharacters = MHCharacter.allCases
+
 /// 캐릭터 선택 12종. 순서는 `MHCharacter` 선언 순서 = 피그마 4열×3행 그리드(좌→우, 상→하)다.
-private let characterSwatches: [MHSelectionGridItem] = MHCharacter.allCases.map { .image(Image($0)) }
+private let characterSwatches: [MHSelectionGridItem] = allCharacters.map { .image(Image($0)) }
 
 // [Convention] .claude/docs/mvi-coordinator-di.md — Store·Coordinator 를 모르는 순수 마크업.
 // Figma `010-1/2/3. 프로필 설정` (node 2314:95662 기본 / 2314:95709 입력 완료 / 2314:95754 입력 오류)
@@ -26,6 +29,9 @@ struct ProfileSetupContent: View {
     let onSave: () -> Void
     /// `nil` 이면 상단바에 뒤로가기를 그리지 않는다 — 온보딩 최초 진입처럼 돌아갈 곳이 없는 진입점을 위해.
     var onBack: (() -> Void)?
+    /// 저장 실패 안내. `nil` 이면 그리지 않는다. 시안에 없는 요소지만 실 API 를 붙인 이상
+    /// 실패가 조용히 묻히면 사용자는 버튼이 고장 난 걸로 본다.
+    var saveErrorMessage: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -73,28 +79,41 @@ struct ProfileSetupContent: View {
         // 키보드가 하단을 가리면 캐릭터 그리드와 저장 버튼에 손이 닿지 않는다 — 공동방 만들기와 같은
         // 두 탈출로(스크롤·여백 탭)를 건다.
         .mhFormKeyboardDismissal()
+        // 액션 영역 바로 위에 띄운다(저장 탭과 시선이 이어진다). ArchiveShellView 와 같은 배치.
+        // 애니메이션은 오버레이 안에만 건다 — 루트에 걸면 값이 바뀔 때 텍스트필드 테두리색·
+        // 선택 링까지 같은 트랜잭션에 들어가 함께 페이드된다.
+        .overlay(alignment: .bottom) {
+            saveErrorSnackbar
+                .animation(.easeInOut(duration: 0.2), value: saveErrorMessage)
+        }
+    }
+
+    @ViewBuilder private var saveErrorSnackbar: some View {
+        if let saveErrorMessage {
+            MHSnackbar(title: saveErrorMessage, icon: .circleExclamationFill)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 120)
+                .accessibilityIdentifier("ProfileSetup.saveError")
+                .transition(.opacity)
+        }
     }
 
     // MARK: - 큰 미리보기 원 (120x120)
 
-    // 캐릭터 아트가 옅은 원 배경까지 포함한 이미지라 테두리를 따로 두지 않는다 —
+    // 캐릭터 아트가 옅은 원 배경까지 포함한 이미지라 테두리를 0 으로 둔다 —
     // 링을 얹으면 시안(010-1 Container 120×120, 테두리 없음)보다 원이 한 겹 더 생겨 보인다.
     private var previewAvatar: some View {
-        Image(previewCharacter)
-            .resizable()
-            .scaledToFill()
-            .frame(width: 120, height: 120)
-            .clipShape(Circle())
+        MHAvatar(Image(previewCharacter), size: 120, borderWidth: 0)
             .accessibilityIdentifier("ProfileSetup.previewAvatar")
     }
 
     // 아무것도 안 고른 상태에서도 첫 캐릭터를 보여준다 — Figma `010-1` 기본 시안이 미리보기엔 1번 캐릭터를
     // 띄우고 그리드엔 선택 링을 안 그린 상태다. 그래서 `selectedCharacterIndex` 는 nil 로 그대로 넘긴다.
     private var previewCharacter: MHCharacter {
-        guard let selectedCharacterIndex, MHCharacter.allCases.indices.contains(selectedCharacterIndex) else {
-            return MHCharacter.allCases[0]
+        guard let selectedCharacterIndex, allCharacters.indices.contains(selectedCharacterIndex) else {
+            return allCharacters[0]
         }
-        return MHCharacter.allCases[selectedCharacterIndex]
+        return allCharacters[selectedCharacterIndex]
     }
 
     // MARK: - 캐릭터 선택 그리드

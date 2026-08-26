@@ -17,11 +17,6 @@ public enum ProfileSetupMode: Equatable, Sendable {
     case edit
 }
 
-public extension ProfileSetupMode {
-    /// 뒤로가기를 그릴지 — `create` 는 온보딩 최초 진입이라 돌아갈 곳이 없다(Figma `010` 스펙 3번).
-    var showsBack: Bool { self == .edit }
-}
-
 /// 진입 목적과 **그 목적에 필요한 UseCase 를 함께** 담는다.
 ///
 /// UseCase 는 `Equatable` 이 아니라 State 에 넣을 수 없으므로 State 의 ``ProfileSetupMode`` 와 나눠 둔다.
@@ -49,7 +44,8 @@ public struct ProfileSetupState: Equatable {
     public var isLoading: Bool
     /// 저장(등록·수정) 중. 두 번 눌러 두 번 보내는 걸 막는다.
     public var isSaving: Bool
-    /// 조회 실패. 화면이 재시도를 유도한다.
+    /// 조회 실패. **아직 화면이 읽지 않는다** — `edit` 진입점(마이페이지)이 붙을 때
+    /// 재시도 UI 와 함께 연결한다. 그때까지 조회가 실패하면 빈 폼이 뜬다.
     public var loadError: DomainError?
     /// 저장 실패.
     public var saveError: DomainError?
@@ -73,22 +69,33 @@ public struct ProfileSetupState: Equatable {
         self.saveError = nil
     }
 
-    /// 이름이 규칙을 지키는가 — 최소 길이와 허용 문자 둘 다.
-    public var isNameValid: Bool {
-        name.trimmingCharacters(in: .whitespacesAndNewlines).count >= ProfileSetupLimit.minimumNameLength
-            && name.unicodeScalars.allSatisfy(Self.allowedNameScalars.contains)
+    private var trimmedName: String {
+        name.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// 에러로 그릴지 판정. 비어 있으면 아직 아무것도 틀리지 않았다 — 화면에 처음 들어왔을 때
-    /// 빨간 테두리가 떠 있으면 안 되므로 빈 입력은 규칙 위반으로 치지 않는다.
+    /// 최소 길이를 넘는가.
+    private var isLongEnough: Bool {
+        trimmedName.count >= ProfileSetupLimit.minimumNameLength
+    }
+
+    /// 길이와 허용 문자를 함께 본다. 어느 집합을 쓰느냐로 "입력 중"과 "저장 가능"이 갈린다.
+    private func isAcceptable(_ allowed: CharacterSet) -> Bool {
+        isLongEnough && name.unicodeScalars.allSatisfy(allowed.contains)
+    }
+
+    /// 에러로 그릴지 판정 — **입력 중 기준이라 자모를 봐준다.**
+    /// 비어 있으면 아직 아무것도 틀리지 않았다(진입 직후 빨간 테두리 금지).
     public var shouldShowNameError: Bool {
-        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isNameValid
+        !trimmedName.isEmpty && !isAcceptable(Self.typingScalars)
     }
 
     /// 저장 활성 — Figma `010` 스펙 5번 "'이름 또는 닉네임' 정상 입력 시 활성화".
-    /// 보내는 중에는 다시 못 누르게 막는다.
+    ///
+    /// **입력 중 기준보다 엄격하다.** 서버는 완성형만 받는다 — 자모를 보내면
+    /// `400 VALIDATION_ERROR`(실측). 조합이 덜 끝난 상태에서는 버튼을 잠가 실패할 요청이
+    /// 아예 나가지 않게 한다. 보내는 중에도 다시 못 누르게 막는다.
     public var isSaveEnabled: Bool {
-        isNameValid && !isSaving
+        isAcceptable(Self.submittableScalars) && !isSaving
     }
 
     /// 지울 것이 있으면 지울 수 있다 — 스펙 4번이 "클릭 시 1, 2 초기화"라 캐릭터만 골라도 지울 게 있다.
@@ -102,23 +109,33 @@ public struct ProfileSetupState: Equatable {
 
     /// 서버로 보낼 아바타 자리. 아무것도 안 골랐으면 첫 캐릭터로 본다 — 화면이 무선택일 때도
     /// 1번 캐릭터를 미리보기에 띄우므로(시안 010-1), 그대로 저장되는 게 사용자가 본 것과 같다.
-    public var avatarIndexToSave: Int {
+    var avatarIndexToSave: Int {
         selectedCharacterIndex ?? 0
     }
 
-    /// 이름 허용 문자 — 한글·영문·공백. 방 이름과 달리 **숫자를 허용하지 않는다**(스펙 "한글·영문").
+    /// **서버에 보낼 수 있는** 문자 — 한글 완성형·영문·공백. 방 이름과 달리 숫자를 허용하지 않는다.
     ///
-    /// 한글은 완성형(가–힣)만이 아니라 **자모까지 허용**한다. 조합 중간 상태(`ㄱ`, `ㅏ`)가 잠깐
-    /// state 로 들어오는데 이걸 막으면 한글을 치는 내내 에러 테두리가 깜빡인다.
+    /// 서버 규칙과 같은 집합이다. 자모를 보내면 `400 VALIDATION_ERROR`
+    /// ("닉네임은 한글/영문(공백 포함)만 사용할 수 있습니다") 가 온다 — 실측으로 확인했다.
     /// `CharacterSet.alphanumerics` 를 쓰지 않는 건 그게 일본어·키릴까지 통과시키기 때문.
-    private static let allowedNameScalars: CharacterSet = {
+    private static let submittableScalars: CharacterSet = {
         var set = CharacterSet()
         set.insert(charactersIn: "a"..."z")
         set.insert(charactersIn: "A"..."Z")
         set.insert(charactersIn: "\u{AC00}"..."\u{D7A3}")   // 한글 완성형
-        set.insert(charactersIn: "\u{3131}"..."\u{318E}")   // 호환 자모 — iOS 조합 중간 상태
-        set.insert(charactersIn: "\u{1100}"..."\u{11FF}")   // 조합형 자모
         set.insert(" ")
+        return set
+    }()
+
+    /// **입력 중** 허용 문자 — 보낼 수 있는 집합에 자모를 더한 것.
+    ///
+    /// 조합 중간 상태(`ㄱ`, `ㅏ`)가 잠깐 state 로 들어오는데 이걸 에러로 치면 한글을 치는 내내
+    /// 빨간 테두리가 깜빡인다. 그래서 **보여주는 기준만 느슨하게** 두고, 저장은
+    /// ``submittableScalars`` 로 막는다 — 조합이 끝나면 버튼이 저절로 열린다.
+    private static let typingScalars: CharacterSet = {
+        var set = submittableScalars
+        set.insert(charactersIn: "\u{3131}"..."\u{318E}")   // 호환 자모
+        set.insert(charactersIn: "\u{1100}"..."\u{11FF}")   // 조합형 자모
         return set
     }()
 }
@@ -134,6 +151,8 @@ public enum ProfileSetupAction: Equatable {
     case tapSave
     case saveSucceeded
     case saveFailed(DomainError)
+    /// 실패 안내를 닫는다 — 화면이 잠깐 띄웠다 스스로 거둔다.
+    case dismissSaveError
 }
 
 /// 목적지가 아니라 일어난 일로 이름 붙인다 — 저장 뒤 어디로 갈지는 진입점마다 다르다
@@ -223,6 +242,10 @@ public func profileSetupReducer(
         case .saveFailed(let error):
             state.isSaving = false
             state.saveError = error
+            return .none
+
+        case .dismissSaveError:
+            state.saveError = nil
             return .none
         }
     }

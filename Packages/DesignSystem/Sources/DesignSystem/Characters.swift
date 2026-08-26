@@ -23,10 +23,6 @@ public enum MHCharacter: String, CaseIterable, Sendable {
     case character12
 }
 
-public extension MHCharacter {
-    var image: Image { Image(self) }
-}
-
 public extension Image {
     /// Figma 프로필 캐릭터를 로드한다. 멀티컬러라 템플릿 렌더링이 아니다.
     init(_ character: MHCharacter) {

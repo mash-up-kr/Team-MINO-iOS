@@ -1,5 +1,15 @@
 import Domain
 import Foundation
+import MVITestSupport
+@testable import ProfileSetupUI
+
+/// 대부분의 케이스는 온보딩(create) 경로의 순수 State 판정을 본다 — 매번 같은 조립을 반복하지 않는다.
+@MainActor
+func makeCreateTestStore(
+    _ state: ProfileSetupState = ProfileSetupState()
+) -> TestStore<ProfileSetupState, ProfileSetupAction, ProfileSetupNav> {
+    TestStore(state, reduce: profileSetupReducer(.create(register: StubRegisterProfileUseCase())))
+}
 
 /// 테스트용 프로필 고정값.
 enum StubProfile {

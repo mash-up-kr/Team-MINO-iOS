@@ -1,3 +1,4 @@
+import Domain
 import SwiftUI
 
 // [Convention] .claude/docs/mvi-coordinator-di.md 5절 — Store 는 .task 에서 1회 lazy 생성
@@ -16,12 +17,15 @@ import SwiftUI
 /// // 온보딩 — 빈 값에서 시작, 뒤로가기 없음. 저장은 유저 등록.
 /// ProfileSetupScreen(makeStore: coordinator.makeProfileSetupStore)
 ///
-/// // 마이페이지 — 진입하면서 조회해 채운다. 뒤로가기는 mode 가 알아서 그린다.
-/// ProfileSetupScreen(makeStore: {
-///     let store = makeProfileSetupStore(.edit(fetch: deps.fetchProfile, update: deps.updateProfile))
-///     store.observeNavigation { [weak self] in self?.handle($0) }   // 필수
-///     return store
-/// })
+/// // 마이페이지 — 진입하면서 조회해 채운다. 뒤로가기는 onBack 을 넘겨야 그려진다.
+/// ProfileSetupScreen(
+///     makeStore: {
+///         let store = makeProfileSetupStore(.edit(fetch: deps.fetchProfile, update: deps.updateProfile))
+///         store.observeNavigation { [weak self] in self?.handle($0) }   // 필수
+///         return store
+///     },
+///     onBack: { dismiss() }
+/// )
 /// ```
 public struct ProfileSetupScreen: View {
     private let makeStore: @MainActor () -> ProfileSetupStore
@@ -29,9 +33,10 @@ public struct ProfileSetupScreen: View {
     @State private var store: ProfileSetupStore?
 
     /// - Parameters:
-    ///   - makeStore: Store 생성. 진입 목적과 초기값을 `ProfileSetupState(mode:name:selectedCharacterIndex:)`
-    ///     로 정한다 — 뒤로가기 노출도 `mode` 에서 파생되므로 따로 넘기지 않는다.
-    ///   - onBack: 뒤로가기 동작. 생략하면 `dismiss` 환경값으로 pop 한다.
+    ///   - makeStore: Store 생성. 진입 목적은 `makeProfileSetupStore(_:)` 에 넘기는 deps 가 정하고,
+    ///     `edit` 의 초기값은 진입 후 조회로 채워진다.
+    ///   - onBack: 뒤로가기 동작. **넘기지 않으면 뒤로가기를 그리지 않는다** — 온보딩 최초 진입처럼
+    ///     돌아갈 곳이 없는 화면을 위해. 띄운 쪽이 아는 사실이라 화면이 판단하지 않는다.
     public init(
         makeStore: @escaping @MainActor () -> ProfileSetupStore,
         onBack: (() -> Void)? = nil
@@ -75,10 +80,31 @@ public struct ProfileSetupScreen: View {
                 onSelectCharacter: { store.send(.selectCharacter($0)) },
                 onClear: { store.send(.tapClear) },
                 onSave: { store.send(.tapSave) },
-                onBack: store.state.mode.showsBack ? (onBack ?? { dismiss() }) : nil
+                onBack: onBack,
+                saveErrorMessage: store.state.saveError.map(Self.saveErrorMessage)
             )
+            // 안내는 잠깐 띄웠다 거둔다(저장 탭과 같은 자리라 계속 두면 버튼을 가린다).
+            // id 를 걸어 새 실패가 오면 타이머가 다시 시작된다.
+            .task(id: store.state.saveError) {
+                guard store.state.saveError != nil else { return }
+                try? await Task.sleep(for: .seconds(3))
+                guard !Task.isCancelled else { return }
+                store.send(.dismissSaveError)
+            }
         }
     }
 
-    @Environment(\.dismiss) private var dismiss
+    /// 저장 실패를 사용자 문구로 옮긴다.
+    ///
+    /// `DomainError` 의 extension 으로 두지 않는다 — 화면 전용 문구가 공용 타입의 public 표면에
+    /// 영구히 붙고, 다음 화면이 같은 방식으로 각자 붙이면 "세션 만료" 같은 공통 문구가 갈라진다.
+    /// 두 번째 화면이 같은 문구를 필요로 할 때 공용 자리로 올린다.
+    private static func saveErrorMessage(_ error: DomainError) -> String {
+        switch error {
+        case .unauthorized, .sessionUnavailable:
+            "로그인이 만료됐어요. 앱을 다시 열어주세요."
+        default:
+            "저장하지 못했어요. 잠시 후 다시 시도해주세요."
+        }
+    }
 }
