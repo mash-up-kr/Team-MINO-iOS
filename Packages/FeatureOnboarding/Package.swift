@@ -14,11 +14,12 @@ let package = Package(
         .package(path: "../DesignSystem"),
         .package(path: "../Domain"),
         .package(path: "../RoomCreationUI"),
+        .package(path: "../ProfileSetupUI"),
     ],
     targets: [
         .target(
             name: "FeatureOnboarding",
-            dependencies: ["Core", "FlowCoordination", "MVI", "DesignSystem", "Domain", "RoomCreationUI"],
+            dependencies: ["Core", "FlowCoordination", "MVI", "DesignSystem", "Domain", "RoomCreationUI", "ProfileSetupUI"],
             resources: [.process("Resources")]
         ),
         .testTarget(

@@ -2,6 +2,7 @@ import Domain
 import Foundation
 import RoomCreationUI
 import Testing
+import ProfileSetupUI
 @testable import FeatureOnboarding
 
 private struct StubCreateRoom: CreateRoomUseCase {

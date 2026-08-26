@@ -1,6 +1,6 @@
 import MVITestSupport
 import Testing
-@testable import FeatureOnboarding
+@testable import ProfileSetupUI
 
 @MainActor
 struct ProfileSetupReducerTests {

@@ -1,37 +1,39 @@
-import Core
 import Foundation
 import MVI
 
 // [Convention] .claude/docs/mvi-coordinator-di.md 5절 — 화면 = Store 1개 = 폴더 1개, State/Action/Nav/reducer 한 파일
 /// 이름 최소 길이. 화면이 안내 문구로 보여주는 값과 저장 활성 판정이 어긋나지 않도록 한 곳에서만 정의한다
 /// (`ProfileSetupContent` 가 같은 값을 읽는다).
-enum ProfileSetupLimit {
-    static let minimumNameLength = 2
+public enum ProfileSetupLimit {
+    public static let minimumNameLength = 2
 }
 
-struct ProfileSetupState: Equatable {
-    var name: String
-    var selectedCharacterIndex: Int?
+public struct ProfileSetupState: Equatable {
+    public var name: String
+    public var selectedCharacterIndex: Int?
 
-    init(name: String = "", selectedCharacterIndex: Int? = nil) {
+    /// - Parameters:
+    ///   - name: 초기 이름. 마이페이지 진입은 프로필 조회 결과를 넣어 프리필한다(온보딩은 빈 값).
+    ///   - selectedCharacterIndex: 초기 캐릭터. 위와 같다.
+    public init(name: String = "", selectedCharacterIndex: Int? = nil) {
         self.name = name
         self.selectedCharacterIndex = selectedCharacterIndex
     }
 
     /// 이름이 규칙을 지키는가 — 최소 길이와 허용 문자 둘 다.
-    var isNameValid: Bool {
-        name.trimmed.count >= ProfileSetupLimit.minimumNameLength
+    public var isNameValid: Bool {
+        name.trimmingCharacters(in: .whitespacesAndNewlines).count >= ProfileSetupLimit.minimumNameLength
             && name.unicodeScalars.allSatisfy(Self.allowedNameScalars.contains)
     }
 
     /// 에러로 그릴지 판정. 비어 있으면 아직 아무것도 틀리지 않았다 — 화면에 처음 들어왔을 때
     /// 빨간 테두리가 떠 있으면 안 되므로 빈 입력은 규칙 위반으로 치지 않는다.
-    var shouldShowNameError: Bool {
-        !name.trimmed.isEmpty && !isNameValid
+    public var shouldShowNameError: Bool {
+        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isNameValid
     }
 
     /// 저장 활성 — Figma `010` 스펙 5번 "'이름 또는 닉네임' 정상 입력 시 활성화".
-    var isSaveEnabled: Bool {
+    public var isSaveEnabled: Bool {
         isNameValid
     }
 
@@ -40,7 +42,7 @@ struct ProfileSetupState: Equatable {
     /// > 시안(010-3)은 오류 입력일 때 지우기도 회색으로 그려 저장과 같은 상태로 보이지만, 그러면
     /// > 잘못 친 이름을 지우기로 되돌릴 수 없다(필드 안 × 버튼으로만 가능). 되돌릴 대상이 있으면
     /// > 열어두는 쪽을 택했다 — 의도적인 차이다.
-    var isClearEnabled: Bool {
+    public var isClearEnabled: Bool {
         !name.isEmpty || selectedCharacterIndex != nil
     }
 
@@ -61,22 +63,27 @@ struct ProfileSetupState: Equatable {
     }()
 }
 
-enum ProfileSetupAction: Equatable {
+public enum ProfileSetupAction: Equatable {
     case nameChanged(String)
     case selectCharacter(Int)
     case tapClear
     case tapSave
 }
 
-/// 목적지가 아니라 일어난 일로 이름 붙인다 — 저장 뒤 어디로 갈지는 진입 경로마다 다르다
-/// (일반 온보딩은 공동방 생성으로, 초대로 들어왔으면 튜토리얼로 간다).
-enum ProfileSetupNav: Equatable, Sendable {
+/// 목적지가 아니라 일어난 일로 이름 붙인다 — 저장 뒤 어디로 갈지는 진입점마다 다르다
+/// (온보딩은 공동방 생성으로, 마이페이지는 왔던 화면으로 돌아간다).
+public enum ProfileSetupNav: Equatable, Sendable {
     case didSave
 }
 
-typealias ProfileSetupStore = Store<ProfileSetupState, ProfileSetupAction, ProfileSetupNav>
+public typealias ProfileSetupStore = Store<ProfileSetupState, ProfileSetupAction, ProfileSetupNav>
 
-func profileSetupReducer() -> (inout ProfileSetupState, ProfileSetupAction) -> Effect<ProfileSetupAction, ProfileSetupNav> {
+/// 프로필 설정 reduce.
+///
+/// > 저장은 아직 서버에 아무것도 보내지 않는다 — `didSave` 를 알리고 끝난다. 붙일 API 가 진입점마다
+/// > 다르므로(온보딩=유저 등록 / 마이페이지=프로필 수정) UseCase 를 이 함수의 인자로 받아
+/// > `.tapSave` 에서 `.run` 으로 호출하고, 성공·실패를 Response Action 으로 되돌리면 된다.
+public func profileSetupReducer() -> (inout ProfileSetupState, ProfileSetupAction) -> Effect<ProfileSetupAction, ProfileSetupNav> {
     { state, action in
         switch action {
         case .nameChanged(let name):

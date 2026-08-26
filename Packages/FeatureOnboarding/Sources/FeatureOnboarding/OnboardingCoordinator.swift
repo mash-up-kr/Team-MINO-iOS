@@ -1,6 +1,7 @@
 import Core
 import FlowCoordination
 import Observation
+import ProfileSetupUI
 import RoomCreationUI
 
 // [Convention] .claude/docs/mvi-coordinator-di.md 5절 — flow 루트에 Coordinator(Route enum 포함), 화면마다 폴더
