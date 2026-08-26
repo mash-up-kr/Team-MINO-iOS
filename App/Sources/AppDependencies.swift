@@ -4,11 +4,12 @@ import Domain
 import Feature
 import FeatureArchive
 import FeatureHome
+import Networking
 
 /// 컴포지션 루트(Composition Root).
 /// 앱 타깃만이 구체 타입을 알고, 의존성 그래프를 손으로 조립한다.
 /// 각 Coordinator 의 deps 프로토콜(`MemberDeps`·`HomeDeps`·`ArchiveDeps` 등)을 이 한 타입이 준수한다.
-struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps {
+struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, LaunchDeps {
     let fetchMember: FetchMemberUseCase
     let fetchRooms: FetchRoomsUseCase
     let fetchPins: FetchPinsUseCase
@@ -16,6 +17,13 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps {
     let homeGuide: HomeGuideUseCase
     let savePin: SavePinToRoomsUseCase
     let roomCreationPromptSnooze: SnoozeSwitch
+    let ensureSession: EnsureSessionUseCase
+    let onboarding: OnboardingUseCase
+    /// 실 API 를 붙일 때 `URLSessionHTTPClient(baseURL:tokenProvider:)` 에 **그대로 넘긴다.**
+    /// 빠뜨리면 컴파일은 통과한 채 인증이 필요한 API 가 전부 401 을 받는다.
+    /// baseURL 공급 경로가 아직 없어 여기서 클라이언트를 만들지 않는다
+    /// (절차: Packages/Networking/README.md §최초 1회 배선).
+    let authTokenProvider: AuthTokenProvider
 
     init() {
         // 백엔드 미연결 단계 — 시범용 Stub UseCase 를 주입한다.
@@ -42,6 +50,14 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps {
 
         // 공동방 생성 유도 시트: "나중에 만들래요" 를 누르면 2주 동안 띄우지 않는다(기획 001-2-1).
         self.roomCreationPromptSnooze = SnoozeSwitch(key: "roomCreationPrompt.snoozedAt", period: .days(14))
+
+        // 가입 없는 익명 인증. 구현이 Data 가 아니라 App 에 있는 건 Firebase SDK 의존을
+        // 로컬 패키지로 내리지 않기 위해서다 — SDK 어댑터는 컴포지션 루트가 갖는다.
+        self.ensureSession = DefaultEnsureSessionUseCase(repository: FirebaseAuthRepository())
+        self.authTokenProvider = FirebaseAuthTokenProvider()
+
+        // 온보딩 1회 표기 플래그도 홈 가이드와 같은 이유로 UserDefaults.
+        self.onboarding = DefaultOnboardingUseCase(repository: UserDefaultsOnboardingRepository())
     }
 }
 

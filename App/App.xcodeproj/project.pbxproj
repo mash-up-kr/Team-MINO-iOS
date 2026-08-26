@@ -19,6 +19,7 @@
 		78492A156C1A471498E4D6C0 /* FeatureHome in Frameworks */ = {isa = PBXBuildFile; productRef = 9DB4CFD6500044279D5152C0 /* FeatureHome */; };
 		EF2B6F16D71C431694B01429 /* FeatureArchive in Frameworks */ = {isa = PBXBuildFile; productRef = 28D80F7784D54B5E900E11C8 /* FeatureArchive */; };
 		A7C1F0E23B5D4C819A2E6F01 /* FeatureProfile in Frameworks */ = {isa = PBXBuildFile; productRef = C3D9E4B7182A45F6B7C08D12 /* FeatureProfile */; };
+		A7C1F0E23B5D4C819A2E6F02 /* FeatureOnboarding in Frameworks */ = {isa = PBXBuildFile; productRef = C3D9E4B7182A45F6B7C08D13 /* FeatureOnboarding */; };
 		6A1D4F0C2B7E4E1D9C3A5F71 /* MapUI in Frameworks */ = {isa = PBXBuildFile; productRef = 6A1D4F0C2B7E4E1D9C3A5F72 /* MapUI */; };
 		1E9A0431691248E1AF7498F7 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 870EC38E78064219B6961460 /* MainTabView.swift */; };
 		3EF75B20CDF46D5CBCADEDF8 /* Core in Frameworks */ = {isa = PBXBuildFile; productRef = 2FEFAD4646D1EBA99E6E7E08 /* Core */; };
@@ -30,6 +31,9 @@
 		D3595F6B764F0A8C5C5B394C /* DesignSystem in Frameworks */ = {isa = PBXBuildFile; productRef = 069920554A729CBEA8A1355E /* DesignSystem */; };
 		EF181DA0B0BF234230F6166A /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7D5B97B3011ED2B8B8D6A82 /* SceneDelegate.swift */; };
 		F020EE47FD9AFF29CB232A2C /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3698F892C87398A1AB1FF12E /* AppDelegate.swift */; };
+		AU10000000000000000000B1 /* FirebaseAuthRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = AU10000000000000000000F1 /* FirebaseAuthRepository.swift */; };
+		AU10000000000000000000B2 /* FirebaseAuthTokenProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = AU10000000000000000000F2 /* FirebaseAuthTokenProvider.swift */; };
+		LA10000000000000000000B1 /* LaunchSplashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = LA10000000000000000000F1 /* LaunchSplashView.swift */; };
 		F12A80D53AF08C9E442B7395 /* AppDependencies.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6E10081ACCCE1687F63903A /* AppDependencies.swift */; };
 		5E100000000000000000000A /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E1000000000000000000009 /* ShareViewController.swift */; };
 		5E1000000000000000000018 /* ShareExtensionUI in Frameworks */ = {isa = PBXBuildFile; productRef = 5E1000000000000000000017 /* ShareExtensionUI */; };
@@ -42,6 +46,9 @@
 		35D426C5753A372F270C6E9D /* Networking */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Networking; path = ../Packages/Networking; sourceTree = SOURCE_ROOT; };
 		FAB1000000000000000000F1 /* Logging */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Logging; path = ../Packages/Logging; sourceTree = SOURCE_ROOT; };
 		3698F892C87398A1AB1FF12E /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		AU10000000000000000000F1 /* FirebaseAuthRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirebaseAuthRepository.swift; sourceTree = "<group>"; };
+		AU10000000000000000000F2 /* FirebaseAuthTokenProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirebaseAuthTokenProvider.swift; sourceTree = "<group>"; };
+		LA10000000000000000000F1 /* LaunchSplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchSplashView.swift; sourceTree = "<group>"; };
 		49D88A349FD70A9153DD2C03 /* Mino-iOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Mino-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		4B8003BACE60BD969B4B0C47 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		5C1000000000000000000001 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
@@ -53,6 +60,7 @@
 		83E429DB5B9444888F2889BD /* FeatureHome */ = {isa = PBXFileReference; lastKnownFileType = folder; name = FeatureHome; path = ../Packages/FeatureHome; sourceTree = SOURCE_ROOT; };
 		90E12A0E04B542289EBE33C6 /* FeatureArchive */ = {isa = PBXFileReference; lastKnownFileType = folder; name = FeatureArchive; path = ../Packages/FeatureArchive; sourceTree = SOURCE_ROOT; };
 		D5E8A1C90F2B43D6A81C7E34 /* FeatureProfile */ = {isa = PBXFileReference; lastKnownFileType = folder; name = FeatureProfile; path = ../Packages/FeatureProfile; sourceTree = SOURCE_ROOT; };
+		D5E8A1C90F2B43D6A81C7E35 /* FeatureOnboarding */ = {isa = PBXFileReference; lastKnownFileType = folder; name = FeatureOnboarding; path = ../Packages/FeatureOnboarding; sourceTree = SOURCE_ROOT; };
 		6A1D4F0C2B7E4E1D9C3A5F73 /* MapUI */ = {isa = PBXFileReference; lastKnownFileType = folder; name = MapUI; path = ../Packages/MapUI; sourceTree = SOURCE_ROOT; };
 		6A1D4F0C2B7E4E1D9C3A5F75 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 		870EC38E78064219B6961460 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
@@ -99,6 +107,7 @@
 				78492A156C1A471498E4D6C0 /* FeatureHome in Frameworks */,
 				EF2B6F16D71C431694B01429 /* FeatureArchive in Frameworks */,
 				A7C1F0E23B5D4C819A2E6F01 /* FeatureProfile in Frameworks */,
+				A7C1F0E23B5D4C819A2E6F02 /* FeatureOnboarding in Frameworks */,
 				6A1D4F0C2B7E4E1D9C3A5F71 /* MapUI in Frameworks */,
 				95C38BB4FB56187972591E16 /* Data in Frameworks */,
 				1C2828AB6F056A7680FC41D9 /* Domain in Frameworks */,
@@ -137,6 +146,23 @@
 			);
 			sourceTree = "<group>";
 		};
+		AU10000000000000000000G1 /* Auth */ = {
+			isa = PBXGroup;
+			children = (
+				AU10000000000000000000F1 /* FirebaseAuthRepository.swift */,
+				AU10000000000000000000F2 /* FirebaseAuthTokenProvider.swift */,
+			);
+			path = Auth;
+			sourceTree = "<group>";
+		};
+		LA10000000000000000000G1 /* Launch */ = {
+			isa = PBXGroup;
+			children = (
+				LA10000000000000000000F1 /* LaunchSplashView.swift */,
+			);
+			path = Launch;
+			sourceTree = "<group>";
+		};
 		7F78907537685DA9B94ECD46 /* Sources */ = {
 			isa = PBXGroup;
 			children = (
@@ -146,6 +172,8 @@
 				A6E10081ACCCE1687F63903A /* AppDependencies.swift */,
 				3698F892C87398A1AB1FF12E /* AppDelegate.swift */,
 				F7D5B97B3011ED2B8B8D6A82 /* SceneDelegate.swift */,
+				AU10000000000000000000G1 /* Auth */,
+				LA10000000000000000000G1 /* Launch */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
@@ -161,6 +189,7 @@
 				90E12A0E04B542289EBE33C6 /* FeatureArchive */,
 				83E429DB5B9444888F2889BD /* FeatureHome */,
 				D5E8A1C90F2B43D6A81C7E34 /* FeatureProfile */,
+				D5E8A1C90F2B43D6A81C7E35 /* FeatureOnboarding */,
 				6A1D4F0C2B7E4E1D9C3A5F73 /* MapUI */,
 				35D426C5753A372F270C6E9D /* Networking */,
 				FAB1000000000000000000F1 /* Logging */,
@@ -249,6 +278,7 @@
 				9DB4CFD6500044279D5152C0 /* FeatureHome */,
 				28D80F7784D54B5E900E11C8 /* FeatureArchive */,
 				C3D9E4B7182A45F6B7C08D12 /* FeatureProfile */,
+				C3D9E4B7182A45F6B7C08D13 /* FeatureOnboarding */,
 				6A1D4F0C2B7E4E1D9C3A5F72 /* MapUI */,
 				30221BF92B4CCDE0D6CEA9E9 /* Data */,
 				E0F40E08DDD41C8DB3E42732 /* Domain */,
@@ -346,6 +376,9 @@
 				F12A80D53AF08C9E442B7395 /* AppDependencies.swift in Sources */,
 				F020EE47FD9AFF29CB232A2C /* AppDelegate.swift in Sources */,
 				EF181DA0B0BF234230F6166A /* SceneDelegate.swift in Sources */,
+				AU10000000000000000000B1 /* FirebaseAuthRepository.swift in Sources */,
+				AU10000000000000000000B2 /* FirebaseAuthTokenProvider.swift in Sources */,
+				LA10000000000000000000B1 /* LaunchSplashView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -650,6 +683,10 @@
 		C3D9E4B7182A45F6B7C08D12 /* FeatureProfile */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = FeatureProfile;
+		};
+		C3D9E4B7182A45F6B7C08D13 /* FeatureOnboarding */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = FeatureOnboarding;
 		};
 		6A1D4F0C2B7E4E1D9C3A5F72 /* MapUI */ = {
 			isa = XCSwiftPackageProductDependency;
