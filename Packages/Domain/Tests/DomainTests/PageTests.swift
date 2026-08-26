@@ -38,6 +38,30 @@ struct PageTests {
         #expect(page.next == nil)
     }
 
+    @Test("page 가 음수면 다음 장을 만들지 않는다", arguments: [-1, -20])
+    func nextStopsWhenPageIsNegative(page: Int) {
+        // 그대로 이으면 wire 에서 0 으로 clamp 돼 같은 장을 무한히 다시 받는다.
+        let page = Page(items: [1, 2, 3], page: page, pageSize: 20, hasNext: true)
+
+        #expect(page.next == nil)
+    }
+
+    /// `page + 1` 오버플로는 `#expect` 로 잡히는 실패가 아니라 **트랩**이다 — 회귀하면 이 테스트
+    /// 하나가 빨개지는 게 아니라 번들 프로세스가 통째로 죽어 같은 번들의 다른 결과까지 사라진다.
+    /// 그래서 자식 프로세스에서 돌려 격리한다. 트랩이든 잘못된 값이든 자식이 비정상 종료하고,
+    /// 부모는 그걸 평범한 실패로 기록하면서 나머지 테스트를 정상 보고한다.
+    /// 프로세스 생성이 필요해 호스트(macOS) 실행 전용이다 — iOS 타깃에서는 컴파일에서 빠진다.
+    #if os(macOS)
+    @Test("page 가 Int.max 면 크래시 대신 다음 장을 만들지 않는다")
+    func nextStopsInsteadOfOverflowing() async {
+        await #expect(processExitsWith: .success) {
+            // `page` 는 서버 응답을 옮긴 값이라 이 입력이 들어오는 걸 우리가 막을 수 없다.
+            let page = Page(items: [1, 2, 3], page: Int.max, pageSize: 20, hasNext: true)
+            #expect(page.next == nil)
+        }
+    }
+    #endif
+
     @Test("첫 장에서 다음 장으로 연속된 page 를 만든다")
     func firstThenNextWalksConsecutivePages() {
         let first = PageRequest.first(pageSize: 20)

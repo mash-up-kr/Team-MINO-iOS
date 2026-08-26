@@ -20,11 +20,18 @@ public struct Page<Item> {
 
     /// 다음 장 요청. 마지막 장이면 nil.
     /// 호출부가 `page + 1` 을 손으로 계산하지 않게 여기서 닫는다.
-    /// `pageSize <= 0` 은 `PageRequest.init` 이 이미 막지만, `Page` 를 직접 만드는 경로가 열려 있어
-    /// 이중 방어로 남긴다 — 그런 값이 들어오면 무한히 빈 페이지를 요청하는 대신 멈춘다.
+    ///
+    /// `page` 는 서버 응답을 그대로 옮긴 값이라 우리가 고른 값이 아니다 — 아래 세 가지는 모두
+    /// **서버가 이상한 값을 줘도 앱이 죽거나 헛돌지 않게** 막는 자리다. 셋 다 "다음 장이 없다" 로
+    /// 흡수해 무한히 빈 페이지를 요청하는 대신 멈춘다.
+    /// - `pageSize <= 0`: `PageRequest.init` 이 이미 막지만 `Page` 를 직접 만드는 경로가 열려 있다
+    /// - `page < 0`: 그대로 이으면 `Endpoint.paged` 가 wire 에서 0 으로 clamp 해 같은 장을 계속 다시 받는다
+    /// - `page == Int.max`: `page + 1` 이 정수 오버플로 트랩으로 크래시한다
     public var next: PageRequest? {
-        guard hasNext, pageSize > 0 else { return nil }
-        return PageRequest(page: page + 1, pageSize: pageSize)
+        guard hasNext, pageSize > 0, page >= 0 else { return nil }
+        let (nextPage, overflowed) = page.addingReportingOverflow(1)
+        guard !overflowed else { return nil }
+        return PageRequest(page: nextPage, pageSize: pageSize)
     }
 }
 
