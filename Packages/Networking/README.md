@@ -68,7 +68,9 @@ Endpoint(path: "api/v1/users", method: .post, body: .json(dto), requiresAuth: fa
 URLSessionHTTPClient(baseURL: url, tokenProvider: FirebaseAuthTokenProvider())
 ```
 
-- `requiresAuth` 가 true 인 요청에만 `Authorization: Bearer <토큰>` 이 붙는다
+- **토큰이 있으면 모든 요청에 `Authorization: Bearer <토큰>` 이 붙는다** — `requiresAuth` 로 거르지 않는다.
+  서버가 토큰의 uid 로 사용자를 식별하므로 **회원 등록에도 토큰이 필요하다**(그 플래그는
+  "서버가 등록 여부 검사를 건너뛴다" 는 뜻이다). 걸러 보내면 최초 진입의 회원 등록이 통째로 실패한다
 - **호출부가 `headers` 로 넘긴 `Authorization` 이 이긴다** (토큰 주입이 먼저 일어난다)
 - 401 을 받으면 토큰을 **강제 갱신해 1회만** 재시도한다. 평소엔 여기까지 오지 않는다 —
   공급자가 만료 임박분을 알아서 갱신하기 때문이다(기기 시계 오차 대비 안전망)

@@ -17,17 +17,18 @@ struct AuthTokenInjectionTests {
         #expect(stub.recorded.first?.authorizationHeader == "Bearer abc")
     }
 
-    // 회원가입·초대조회는 토큰 없이 나가야 한다. 여기가 깨지면 세션 없는 최초 진입이 막힌다.
-    @Test("requiresAuth false 면 붙이지 않는다")
-    func skipsBearerWhenNotRequired() async throws {
-        let provider = SpyTokenProvider()
+    // 회원 등록에도 토큰이 필요하다 — 서버가 토큰의 uid 로 누구를 등록할지 정하기 때문이다.
+    // requiresAuth 는 "등록 여부 검사를 건너뛴다" 는 뜻이지 토큰이 불필요하다는 게 아니다.
+    // 이게 깨지면 최초 진입에서 회원 등록이 통째로 실패한다.
+    @Test("requiresAuth false 여도 토큰을 붙인다")
+    func attachesBearerEvenWhenNotRequired() async throws {
+        let provider = SpyTokenProvider(initial: "abc")
         let (sut, stub) = makeSUT(tokenProvider: provider)
         stub.stub.body = Self.okBody
 
         _ = try await sut.request(Endpoint<OkResponse>(path: "api/v1/users", requiresAuth: false))
 
-        #expect(stub.recorded.first?.authorizationHeader == nil)
-        #expect(provider.tokenCalls == 0)   // 토큰을 물어보지도 않는다
+        #expect(stub.recorded.first?.authorizationHeader == "Bearer abc")
     }
 
     @Test("공급자가 없으면 인증 없이 나간다")
@@ -106,18 +107,17 @@ struct AuthRefreshRetryTests {
         #expect(error == .unauthorized(code: "UNAUTHORIZED", message: "만료"))
     }
 
-    @Test("인증이 필요 없는 요청의 401 은 갱신하지 않는다")
-    func doesNotRefreshForUnauthenticatedEndpoint() async throws {
-        let provider = SpyTokenProvider()
+    // 재시도 판단은 requiresAuth 가 아니라 "토큰을 붙였는가" 로 한다.
+    @Test("requiresAuth false 인 요청의 401 도 갱신 후 재시도한다")
+    func refreshesEvenForUnauthenticatedEndpoint() async throws {
+        let provider = SpyTokenProvider(initial: "old", refreshed: "new")
         let (sut, stub) = makeSUT(tokenProvider: provider)
-        stub.stub = Self.unauthorized
+        stub.enqueue([Self.unauthorized, URLProtocolStub.Stub(body: Self.okBody)])
 
-        _ = await capture {
-            try await sut.request(Endpoint<OkResponse>(path: "api/v1/users", requiresAuth: false))
-        }
+        _ = try await sut.request(Endpoint<OkResponse>(path: "api/v1/users", requiresAuth: false))
 
-        #expect(stub.recorded.count == 1)
-        #expect(provider.refreshCalls == 0)
+        #expect(stub.recorded.count == 2)
+        #expect(stub.recorded.last?.authorizationHeader == "Bearer new")
     }
 
     @Test("공급자가 없으면 401 을 그대로 전파한다")

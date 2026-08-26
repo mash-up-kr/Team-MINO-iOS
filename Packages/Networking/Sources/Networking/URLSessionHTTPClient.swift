@@ -15,7 +15,7 @@ public final class URLSessionHTTPClient: HTTPClient {
 
     /// 앱이 쓰는 유일한 초기화 경로. **Alamofire 타입이 시그니처에 드러나지 않는다.**
     ///
-    /// `tokenProvider` 를 주면 `requiresAuth` 인 요청에 `Authorization: Bearer` 가 붙는다.
+    /// `tokenProvider` 를 주면 토큰이 있는 한 모든 요청에 `Authorization: Bearer` 가 붙는다.
     /// nil 이면 인증 없이 나간다.
     public convenience init(baseURL: URL, tokenProvider: AuthTokenProvider? = nil) {
         self.init(baseURL: baseURL, session: .mino, tokenProvider: tokenProvider)
@@ -65,7 +65,7 @@ public final class URLSessionHTTPClient: HTTPClient {
         do {
             return try await perform(endpoint, forceRefreshToken: false)
         } catch let error as NetworkError {
-            guard case .unauthorized = error, endpoint.requiresAuth, tokenProvider != nil else {
+            guard case .unauthorized = error, tokenProvider != nil else {
                 throw error
             }
             Log.info("401 — 토큰을 갱신해 1회 재시도", metadata: [
@@ -175,9 +175,12 @@ public final class URLSessionHTTPClient: HTTPClient {
         }
 
         // 인증 토큰. **호출부 헤더보다 앞에 둔다** — 명시적으로 넘긴 Authorization 이 이겨야 한다.
-        // `requiresAuth` 를 여기서 직접 읽는 게 이 위치를 고른 이유다. 세션 레벨 어댑터는
-        // URLRequest 만 보므로 이 플래그를 알 수 없고, 인증 예외 요청에까지 토큰을 붙인다.
-        if endpoint.requiresAuth, let tokenProvider {
+        //
+        // `requiresAuth` 로 거르지 않는다. 서버가 토큰의 uid 로 사용자를 식별하므로,
+        // **인증 예외인 회원 등록에도 토큰이 실려야** 서버가 누구를 등록할지 안다
+        // (실측: 토큰 없이 부르면 "인증 정보가 없습니다", 유효한 토큰이면 "등록되지 않은 유저입니다").
+        // 그 플래그는 "서버의 회원 등록 여부 검사를 건너뛴다" 는 뜻이지 토큰이 불필요하다는 게 아니다.
+        if let tokenProvider {
             let token = forceRefreshToken
                 ? await tokenProvider.refreshedToken()
                 : await tokenProvider.token()
