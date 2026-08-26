@@ -93,12 +93,26 @@ URLSessionHTTPClient(baseURL: url, tokenProvider: FirebaseAuthTokenProvider())
 
 ---
 
-## 최초 1회 배선
+## 배선
 
-아직 아무도 `AppDependencies` 에서 실제 클라이언트를 만들지 않았다. 첫 실 API 연동자가 함께 한다.
+클라이언트는 `App/Sources/AppDependencies.swift` 에서 **한 번만** 만들어 공유한다.
 
-- `APIEnvironment`(local `http://localhost:3000` / production `https://api.gguk.org`) 와 baseURL 공급 경로(xcconfig → Info.plist)
-- **ATS 예외** — local 이 `http` 라 `NSAllowsLocalNetworking` 이 없으면 로컬 서버에 못 붙는다. **Debug 전용**으로 두고 Release 로 새지 않게 한다
+```swift
+let httpClient: HTTPClient
+private static let baseURL = URL(string: "https://api.gguk.org")!
+
+self.httpClient = URLSessionHTTPClient(baseURL: Self.baseURL, tokenProvider: FirebaseAuthTokenProvider())
+```
+
+Repository 구현은 이 `httpClient` 를 받는다 — 새로 만들지 않는다.
+
+```swift
+self.fetchRooms = DefaultFetchRoomsUseCase(repository: RoomRepositoryImpl(client: httpClient))
+```
+
+**서버가 하나라 환경 분기가 없다.** 주소를 xcconfig 로 빼지도 않았다 — 관리 대상이 값 하나뿐이라
+장치 비용이 더 크다. 로컬·스테이징이 생기면 그때 `AppDependencies.baseURL` 을 출발점으로 분기한다
+(`http` 로컬 서버를 쓰게 되면 `NSAllowsLocalNetworking` ATS 예외가 함께 필요하다).
 
 ---
 
@@ -106,7 +120,6 @@ URLSessionHTTPClient(baseURL: url, tokenProvider: FirebaseAuthTokenProvider())
 
 | | 상태 |
 |---|---|
-| 실 클라이언트 조립 | `AppDependencies` 가 아직 `URLSessionHTTPClient` 를 만들지 않는다(실 API 미연결). 토큰 주입 코드는 준비돼 있고 조립만 남았다 |
 | 파일·이미지 업로드 | 스펙에 업로드 엔드포인트가 없다. 계약 확정 후 |
 | 429 `Retry-After` 존중 | 429 가 스펙에 정의되면 |
 

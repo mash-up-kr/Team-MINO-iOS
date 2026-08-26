@@ -4,6 +4,7 @@ import Domain
 import Feature
 import FeatureArchive
 import FeatureHome
+import Foundation
 import Networking
 
 /// 컴포지션 루트(Composition Root).
@@ -19,13 +20,21 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, LaunchDeps {
     let roomCreationPromptSnooze: SnoozeSwitch
     let ensureSession: EnsureSessionUseCase
     let onboarding: OnboardingUseCase
-    /// 실 API 를 붙일 때 `URLSessionHTTPClient(baseURL:tokenProvider:)` 에 **그대로 넘긴다.**
-    /// 빠뜨리면 컴파일은 통과한 채 인증이 필요한 API 가 전부 401 을 받는다.
-    /// baseURL 공급 경로가 아직 없어 여기서 클라이언트를 만들지 않는다
-    /// (절차: Packages/Networking/README.md §최초 1회 배선).
-    let authTokenProvider: AuthTokenProvider
+    /// 실 API 를 태우는 클라이언트. Repository 구현에 그대로 넘긴다
+    /// (절차: Packages/Networking/Docs/AddingAPI.md).
+    let httpClient: HTTPClient
+
+    /// 서버가 하나라 여기서 직접 든다. 로컬·스테이징이 생기면 그때 환경 분기를 만든다.
+    private static let baseURL = URL(string: "https://api.gguk.org")!
 
     init() {
+        // 인증 토큰은 클라이언트가 요청마다 붙인다. 여기서 빠뜨리면 컴파일은 통과한 채
+        // 인증이 필요한 API 가 전부 401 을 받는다.
+        self.httpClient = URLSessionHTTPClient(
+            baseURL: Self.baseURL,
+            tokenProvider: FirebaseAuthTokenProvider()
+        )
+
         // 백엔드 미연결 단계 — 시범용 Stub UseCase 를 주입한다.
         // 실 API 연결 절차는 Packages/Networking/Docs/AddingAPI.md 참조.
         self.fetchMember = StubFetchMemberUseCase()
@@ -54,7 +63,6 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, LaunchDeps {
         // 가입 없는 익명 인증. 구현이 Data 가 아니라 App 에 있는 건 Firebase SDK 의존을
         // 로컬 패키지로 내리지 않기 위해서다 — SDK 어댑터는 컴포지션 루트가 갖는다.
         self.ensureSession = DefaultEnsureSessionUseCase(repository: FirebaseAuthRepository())
-        self.authTokenProvider = FirebaseAuthTokenProvider()
 
         // 온보딩 1회 표기 플래그도 홈 가이드와 같은 이유로 UserDefaults.
         self.onboarding = DefaultOnboardingUseCase(repository: UserDefaultsOnboardingRepository())
