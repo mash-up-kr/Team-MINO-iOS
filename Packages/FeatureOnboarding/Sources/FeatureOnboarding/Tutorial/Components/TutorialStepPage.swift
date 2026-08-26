@@ -47,30 +47,13 @@ struct TutorialStepPage: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
-    @ViewBuilder
     private var illustration: some View {
-        switch step.illustration {
-        case .asset(let name):
-            Image(name, bundle: .module)
-                .resizable()
-                .accessibilityHidden(true)
-        case .placeholder(let text):
-            Color.mhBackgroundNormalAlternative
-                .overlay {
-                    Text(text)
-                        .mhTypography(.body1NormalMedium)
-                        .foregroundStyle(Color.mhLabelAlternative)
-                        .multilineTextAlignment(.center)
-                }
-                .accessibilityHidden(true)
-        }
+        Image(step.illustration, bundle: .module)
+            .resizable()
+            .accessibilityHidden(true)
     }
 }
 
-#Preview("에셋") {
+#Preview {
     TutorialStepPage(step: TutorialStep.all[0])
-}
-
-#Preview("플레이스홀더") {
-    TutorialStepPage(step: TutorialStep.all[4])
 }
