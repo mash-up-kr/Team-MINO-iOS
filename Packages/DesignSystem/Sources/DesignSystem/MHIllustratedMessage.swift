@@ -42,7 +42,7 @@ public struct MHIllustratedMessage: View {
 
     /// - Parameters:
     ///   - illustration: 스팟 일러스트. 호출부 번들의 이미지를 그대로 넘긴다. `nil` 이면 생략된다.
-    ///   - title: 제목 한 줄.
+    ///   - title: 제목. 줄 수는 고정하지 않는다 — 길면 줄바꿈된다.
     ///   - messages: 제목 아래 본문. 비우면 제목만 그린다. 줄 수는 고정하지 않는다.
     ///   - alignment: 가로 정렬.
     ///   - illustrationSpacing: 일러스트와 제목 사이 간격.
