@@ -11,10 +11,14 @@ public final class URLSessionHTTPClient: HTTPClient {
     private let session: Session
     private let decoder: JSONDecoder
     private let encoder: JSONEncoder
+    private let tokenProvider: AuthTokenProvider?
 
     /// 앱이 쓰는 유일한 초기화 경로. **Alamofire 타입이 시그니처에 드러나지 않는다.**
-    public convenience init(baseURL: URL) {
-        self.init(baseURL: baseURL, session: .mino)
+    ///
+    /// `tokenProvider` 를 주면 `requiresAuth` 인 요청에 `Authorization: Bearer` 가 붙는다.
+    /// nil 이면 인증 없이 나간다.
+    public convenience init(baseURL: URL, tokenProvider: AuthTokenProvider? = nil) {
+        self.init(baseURL: baseURL, session: .mino, tokenProvider: tokenProvider)
     }
 
     /// 세션·디코더를 갈아끼우는 경로. 테스트 전용이라 `internal` 로 닫는다
@@ -23,12 +27,14 @@ public final class URLSessionHTTPClient: HTTPClient {
         baseURL: URL,
         session: Session,
         decoder: JSONDecoder = APIDecoder.make(),
-        encoder: JSONEncoder = APIEncoder.make()
+        encoder: JSONEncoder = APIEncoder.make(),
+        tokenProvider: AuthTokenProvider? = nil
     ) {
         self.baseURL = baseURL
         self.session = session
         self.decoder = decoder
         self.encoder = encoder
+        self.tokenProvider = tokenProvider
     }
 
     public func request<T>(_ endpoint: Endpoint<T>) async throws -> T {
@@ -48,8 +54,29 @@ public final class URLSessionHTTPClient: HTTPClient {
 
     // MARK: - 전송
 
+    /// 401 을 받으면 토큰을 강제 갱신해 **한 번만** 다시 보낸다.
+    ///
+    /// 평소엔 여기까지 오지 않는다 — 토큰 공급자가 만료 임박분을 알아서 갱신하기 때문이다.
+    /// 기기 시계 오차처럼 그 예측이 빗나가는 경우를 위한 안전망이다.
+    /// 갱신 후에도 401 이면 그대로 던진다. 서버가 거부한 것이지 토큰이 낡은 게 아니다.
+    ///
+    /// `Session.mino` 의 `RetryPolicy` 는 408·500·502·503·504 만 재시도하므로 여기와 겹치지 않는다.
     private func send<T>(_ endpoint: Endpoint<T>) async throws -> APIEnvelope<T> {
-        let urlRequest = try makeURLRequest(endpoint)
+        do {
+            return try await perform(endpoint, forceRefreshToken: false)
+        } catch let error as NetworkError {
+            guard case .unauthorized = error, endpoint.requiresAuth, tokenProvider != nil else {
+                throw error
+            }
+            Log.info("401 — 토큰을 갱신해 1회 재시도", metadata: [
+                "path": LogRedaction.path(endpoint.path),
+            ])
+            return try await perform(endpoint, forceRefreshToken: true)
+        }
+    }
+
+    private func perform<T>(_ endpoint: Endpoint<T>, forceRefreshToken: Bool) async throws -> APIEnvelope<T> {
+        let urlRequest = try await makeURLRequest(endpoint, forceRefreshToken: forceRefreshToken)
         // `validate` 는 재시도를 위해 필요하다 — 이게 없으면 Alamofire 가 5xx 를 "성공" 으로 보고
         // `RetryPolicy` 를 아예 부르지 않는다. 상태코드 범위만 검사한다(콘텐츠 타입 검증은 뺀다).
         // 빈 본문은 모든 상태코드에서 허용한다. Alamofire 기본값은 `[204, 205]` 뿐이라
@@ -113,7 +140,7 @@ public final class URLSessionHTTPClient: HTTPClient {
 
     // MARK: - 요청 조립
 
-    private func makeURLRequest<T>(_ endpoint: Endpoint<T>) throws -> URLRequest {
+    private func makeURLRequest<T>(_ endpoint: Endpoint<T>, forceRefreshToken: Bool) async throws -> URLRequest {
         guard var components = URLComponents(
             url: baseURL.appendingPathComponent(endpoint.path),
             resolvingAgainstBaseURL: false
@@ -144,6 +171,18 @@ public final class URLSessionHTTPClient: HTTPClient {
                 }
                 // body 가 있을 때만 붙인다 — GET 에 Content-Type 을 붙이면 일부 프록시가 이상하게 다룬다.
                 request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            }
+        }
+
+        // 인증 토큰. **호출부 헤더보다 앞에 둔다** — 명시적으로 넘긴 Authorization 이 이겨야 한다.
+        // `requiresAuth` 를 여기서 직접 읽는 게 이 위치를 고른 이유다. 세션 레벨 어댑터는
+        // URLRequest 만 보므로 이 플래그를 알 수 없고, 인증 예외 요청에까지 토큰을 붙인다.
+        if endpoint.requiresAuth, let tokenProvider {
+            let token = forceRefreshToken
+                ? await tokenProvider.refreshedToken()
+                : await tokenProvider.token()
+            if let token {
+                request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             }
         }
 

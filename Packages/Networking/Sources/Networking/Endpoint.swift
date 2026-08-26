@@ -28,10 +28,9 @@ public struct Endpoint<Response: Decodable & Sendable>: Sendable {
     public let body: HTTPBody?
     /// 스펙상 인증 예외는 `POST /api/v1/users`, `GET /api/v1/invitations/{code}` 둘뿐이다.
     ///
-    /// ⚠️ **아직 아무도 이 값을 읽지 않는다**(인증 미구현). 붙일 때 주의할 점:
-    /// 세션 레벨 `RequestAdapter` 는 `URLRequest` 만 보므로 이 플래그를 알 수 없다.
-    /// 세션 어댑터로 토큰을 주입하면 **회원가입 요청에도 토큰이 붙고, 401 갱신까지 돌아간다.**
-    /// 요청별 인터셉터를 넘기거나 마커 헤더로 전달하는 경로가 필요하다.
+    /// `URLSessionHTTPClient` 가 요청을 조립하며 이 값을 읽어 `Authorization` 을 붙일지 정한다.
+    /// 세션 레벨 `RequestAdapter` 를 쓰지 않은 이유가 여기 있다 — 어댑터는 `URLRequest` 만 보므로
+    /// 이 플래그를 알 수 없고, **인증 예외 요청에까지 토큰이 붙고 401 갱신까지 돌게 된다.**
     public let requiresAuth: Bool
     /// nil 이면 세션 전역 설정을 따른다.
     public let timeout: TimeInterval?
