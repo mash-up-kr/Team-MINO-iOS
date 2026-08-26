@@ -24,6 +24,7 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
     let roomCreationPromptSnooze: SnoozeSwitch
     let ensureSession: EnsureSessionUseCase
     let onboarding: OnboardingUseCase
+    let registerProfile: RegisterProfileUseCase
     /// 실 API 를 태우는 클라이언트. Repository 구현에 그대로 넘긴다
     /// (절차: Packages/Networking/Docs/AddingAPI.md).
     let httpClient: HTTPClient
@@ -78,6 +79,10 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
 
         // 온보딩 1회 표기 플래그도 홈 가이드와 같은 이유로 UserDefaults.
         self.onboarding = DefaultOnboardingUseCase(repository: UserDefaultsOnboardingRepository())
+
+        // 프로필 등록: 실 API 미연결 → Mock Repository(Swagger 응답 형태) 사용.
+        // 추후 ProfileRepositoryImpl(POST /api/v1/users) 로 교체한다.
+        self.registerProfile = DefaultRegisterProfileUseCase(repository: MockProfileRepository())
     }
 }
 

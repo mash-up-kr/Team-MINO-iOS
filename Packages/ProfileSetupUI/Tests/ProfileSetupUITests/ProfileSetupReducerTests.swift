@@ -1,3 +1,4 @@
+import Domain
 import MVITestSupport
 import Testing
 @testable import ProfileSetupUI
@@ -6,7 +7,7 @@ import Testing
 struct ProfileSetupReducerTests {
     @Test("L1 — nameChanged 는 State 에 이름을 반영하고 저장을 활성화한다")
     func nameChanged_updatesNameAndEnablesSave() async {
-        let store = TestStore(ProfileSetupState(), reduce: profileSetupReducer())
+        let store = TestStore(ProfileSetupState(), reduce: profileSetupReducer(.create(register: StubRegisterProfileUseCase())))
 
         await store.send(.nameChanged("민호")) {
             $0.name = "민호"
@@ -18,7 +19,7 @@ struct ProfileSetupReducerTests {
 
     @Test("L1 — 공백만 입력하면 저장이 비활성 상태로 유지된다")
     func nameChanged_whitespaceOnly_keepsSaveDisabled() async {
-        let store = TestStore(ProfileSetupState(), reduce: profileSetupReducer())
+        let store = TestStore(ProfileSetupState(), reduce: profileSetupReducer(.create(register: StubRegisterProfileUseCase())))
 
         await store.send(.nameChanged("   ")) {
             $0.name = "   "
@@ -30,7 +31,7 @@ struct ProfileSetupReducerTests {
 
     @Test("L1 — 최소 길이(2자) 미만이면 저장이 비활성이다 — 화면 안내 문구와 같은 기준")
     func nameChanged_shorterThanMinimum_keepsSaveDisabled() async {
-        let store = TestStore(ProfileSetupState(), reduce: profileSetupReducer())
+        let store = TestStore(ProfileSetupState(), reduce: profileSetupReducer(.create(register: StubRegisterProfileUseCase())))
 
         await store.send(.nameChanged("민")) {
             $0.name = "민"
@@ -48,7 +49,7 @@ struct ProfileSetupReducerTests {
 
     @Test("L1 — 이름 1글자는 저장은 막고 지우기는 연다 — 두 버튼 조건이 갈리는 유일한 구간")
     func nameChanged_singleCharacter_disablesSaveButEnablesClear() async {
-        let store = TestStore(ProfileSetupState(), reduce: profileSetupReducer())
+        let store = TestStore(ProfileSetupState(), reduce: profileSetupReducer(.create(register: StubRegisterProfileUseCase())))
 
         await store.send(.nameChanged("민")) {
             $0.name = "민"
@@ -61,7 +62,7 @@ struct ProfileSetupReducerTests {
 
     @Test("L1 — 이름이 비면 지우기도 비활성이다")
     func emptyName_disablesClear() async {
-        let store = TestStore(ProfileSetupState(), reduce: profileSetupReducer())
+        let store = TestStore(ProfileSetupState(), reduce: profileSetupReducer(.create(register: StubRegisterProfileUseCase())))
 
         #expect(!store.currentState.isClearEnabled)
 
@@ -80,7 +81,7 @@ struct ProfileSetupReducerTests {
 
     @Test("L1 — selectCharacter 는 선택된 캐릭터 인덱스를 State 에 반영한다")
     func selectCharacter_updatesSelectedIndex() async {
-        let store = TestStore(ProfileSetupState(), reduce: profileSetupReducer())
+        let store = TestStore(ProfileSetupState(), reduce: profileSetupReducer(.create(register: StubRegisterProfileUseCase())))
 
         await store.send(.selectCharacter(5)) {
             $0.selectedCharacterIndex = 5
@@ -91,7 +92,7 @@ struct ProfileSetupReducerTests {
 
     @Test("L1 — tapClear 는 이름과 캐릭터 선택을 함께 되돌린다 — 스펙 4번 '클릭 시 1, 2 초기화'")
     func tapClear_clearsNameAndCharacterSelection() async {
-        let store = TestStore(ProfileSetupState(), reduce: profileSetupReducer())
+        let store = TestStore(ProfileSetupState(), reduce: profileSetupReducer(.create(register: StubRegisterProfileUseCase())))
 
         await store.send(.nameChanged("민호")) {
             $0.name = "민호"
@@ -110,7 +111,7 @@ struct ProfileSetupReducerTests {
 
     @Test("L1 — 이름이 비어도 캐릭터를 골랐으면 지우기가 열린다 — 지울 대상이 둘이다")
     func selectCharacterOnly_enablesClear() async {
-        let store = TestStore(ProfileSetupState(), reduce: profileSetupReducer())
+        let store = TestStore(ProfileSetupState(), reduce: profileSetupReducer(.create(register: StubRegisterProfileUseCase())))
 
         #expect(!store.currentState.isClearEnabled)
 
@@ -126,7 +127,7 @@ struct ProfileSetupReducerTests {
     @Test("L1 — 한글·영문·공백이 아닌 문자가 섞이면 저장이 막히고 에러를 표시한다")
     func nameChanged_disallowedCharacters_blocksSaveAndShowsError() async {
         for invalid in ["민호1", "민호!", "민호😀", "みんほ", "Мино"] {
-            let store = TestStore(ProfileSetupState(), reduce: profileSetupReducer())
+            let store = TestStore(ProfileSetupState(), reduce: profileSetupReducer(.create(register: StubRegisterProfileUseCase())))
 
             await store.send(.nameChanged(invalid)) {
                 $0.name = invalid
@@ -141,7 +142,7 @@ struct ProfileSetupReducerTests {
     @Test("L1 — 한글·영문·공백 조합은 저장이 열리고 에러가 없다")
     func nameChanged_allowedCharacters_enablesSave() async {
         for valid in ["민호", "Mino", "mi no", "민 호", "민호 Mino"] {
-            let store = TestStore(ProfileSetupState(), reduce: profileSetupReducer())
+            let store = TestStore(ProfileSetupState(), reduce: profileSetupReducer(.create(register: StubRegisterProfileUseCase())))
 
             await store.send(.nameChanged(valid)) {
                 $0.name = valid
@@ -155,7 +156,7 @@ struct ProfileSetupReducerTests {
 
     @Test("L1 — 입력이 비어 있으면 에러를 표시하지 않는다 — 진입 직후 빨간 테두리가 뜨면 안 된다")
     func emptyName_doesNotShowError() async {
-        let store = TestStore(ProfileSetupState(), reduce: profileSetupReducer())
+        let store = TestStore(ProfileSetupState(), reduce: profileSetupReducer(.create(register: StubRegisterProfileUseCase())))
 
         #expect(!store.currentState.shouldShowNameError)
 
@@ -169,7 +170,7 @@ struct ProfileSetupReducerTests {
 
     @Test("L1 — 조합 중간 자모는 허용 문자다 — 한글을 치는 내내 에러가 깜빡이지 않게")
     func nameChanged_hangulJamo_isAllowedCharacter() async {
-        let store = TestStore(ProfileSetupState(), reduce: profileSetupReducer())
+        let store = TestStore(ProfileSetupState(), reduce: profileSetupReducer(.create(register: StubRegisterProfileUseCase())))
 
         // 자모 2개는 문자종·길이를 모두 통과한다. 1개면 길이 미달로 저장만 막힌다.
         await store.send(.nameChanged("ㅁㄴ")) {
@@ -184,13 +185,14 @@ struct ProfileSetupReducerTests {
 
     @Test("L2 — 저장 가능한 이름이면 tapSave 가 didSave 를 알린다")
     func tapSave_whenSaveEnabled_notifiesDidSave() async {
-        let store = TestStore(ProfileSetupState(), reduce: profileSetupReducer())
+        let store = TestStore(ProfileSetupState(), reduce: profileSetupReducer(.create(register: StubRegisterProfileUseCase())))
 
         await store.send(.nameChanged("민호")) {
             $0.name = "민호"
         }
 
-        await store.send(.tapSave)
+        await store.send(.tapSave) { $0.isSaving = true }
+        await store.receive(.saveSucceeded) { $0.isSaving = false }
         store.receiveNavigation(.didSave)
 
         store.finish()
@@ -198,7 +200,7 @@ struct ProfileSetupReducerTests {
 
     @Test("L2 — 저장 조건 미충족이면 tapSave 가 navigate 하지 않는다 — 뷰의 .disabled 와 별개로 reduce 가 막는다")
     func tapSave_whenSaveDisabled_doesNotNavigate() async {
-        let store = TestStore(ProfileSetupState(), reduce: profileSetupReducer())
+        let store = TestStore(ProfileSetupState(), reduce: profileSetupReducer(.create(register: StubRegisterProfileUseCase())))
 
         await store.send(.tapSave)
 

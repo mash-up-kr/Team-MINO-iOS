@@ -1,3 +1,4 @@
+import Domain
 import Foundation
 import MVI
 
@@ -8,11 +9,11 @@ public enum ProfileSetupLimit {
     public static let minimumNameLength = 2
 }
 
-/// 이 화면에 무엇을 하러 들어왔는가. 진입점마다 초기값·저장 API·뒤로가기가 갈린다.
+/// 이 화면에 무엇을 하러 들어왔는가. State 에 담기는 **순수 값**이다.
 public enum ProfileSetupMode: Equatable, Sendable {
-    /// 온보딩 최초 진입 — 빈 값에서 시작한다. 저장은 **유저 등록**.
+    /// 온보딩 최초 진입 — 빈 값에서 시작한다. 저장은 유저 등록.
     case create
-    /// 마이페이지에서 프로필 수정 — **프로필 조회** 결과를 프리필한다. 저장은 **프로필 수정**.
+    /// 마이페이지에서 프로필 수정 — 진입하면서 조회해 채운다. 저장은 프로필 수정.
     case edit
 }
 
@@ -21,14 +22,41 @@ public extension ProfileSetupMode {
     var showsBack: Bool { self == .edit }
 }
 
+/// 진입 목적과 **그 목적에 필요한 UseCase 를 함께** 담는다.
+///
+/// UseCase 는 `Equatable` 이 아니라 State 에 넣을 수 없으므로 State 의 ``ProfileSetupMode`` 와 나눠 둔다.
+/// 둘이 어긋나지 않게 Store 는 ``makeProfileSetupStore(_:)`` 로만 만든다.
+///
+/// > 모드마다 자기 UseCase 만 든다 — 셋을 평평하게 받으면 `.create` 인데 `update` 가 주입된 조합이
+/// > 그냥 컴파일된다.
+public enum ProfileSetupDeps: Sendable {
+    case create(register: RegisterProfileUseCase)
+    case edit(fetch: FetchProfileUseCase, update: UpdateProfileUseCase)
+
+    public var mode: ProfileSetupMode {
+        switch self {
+        case .create: .create
+        case .edit: .edit
+        }
+    }
+}
+
 public struct ProfileSetupState: Equatable {
     public let mode: ProfileSetupMode
     public var name: String
     public var selectedCharacterIndex: Int?
+    /// `edit` 진입 조회 중. 이 동안에는 화면 대신 로딩을 그린다.
+    public var isLoading: Bool
+    /// 저장(등록·수정) 중. 두 번 눌러 두 번 보내는 걸 막는다.
+    public var isSaving: Bool
+    /// 조회 실패. 화면이 재시도를 유도한다.
+    public var loadError: DomainError?
+    /// 저장 실패.
+    public var saveError: DomainError?
 
     /// - Parameters:
     ///   - mode: 진입 목적. 기본은 온보딩(`create`).
-    ///   - name: 초기 이름. `edit` 는 프로필 조회 결과를 넣어 프리필한다(`create` 는 빈 값).
+    ///   - name: 초기 이름. `edit` 는 진입하면서 조회해 덮어쓴다.
     ///   - selectedCharacterIndex: 초기 캐릭터. 위와 같다.
     public init(
         mode: ProfileSetupMode = .create,
@@ -38,6 +66,11 @@ public struct ProfileSetupState: Equatable {
         self.mode = mode
         self.name = name
         self.selectedCharacterIndex = selectedCharacterIndex
+        // edit 는 조회가 끝나야 보여줄 게 생긴다 — 첫 프레임부터 로딩으로 시작한다.
+        self.isLoading = mode == .edit
+        self.isSaving = false
+        self.loadError = nil
+        self.saveError = nil
     }
 
     /// 이름이 규칙을 지키는가 — 최소 길이와 허용 문자 둘 다.
@@ -53,8 +86,9 @@ public struct ProfileSetupState: Equatable {
     }
 
     /// 저장 활성 — Figma `010` 스펙 5번 "'이름 또는 닉네임' 정상 입력 시 활성화".
+    /// 보내는 중에는 다시 못 누르게 막는다.
     public var isSaveEnabled: Bool {
-        isNameValid
+        isNameValid && !isSaving
     }
 
     /// 지울 것이 있으면 지울 수 있다 — 스펙 4번이 "클릭 시 1, 2 초기화"라 캐릭터만 골라도 지울 게 있다.
@@ -63,7 +97,13 @@ public struct ProfileSetupState: Equatable {
     /// > 잘못 친 이름을 지우기로 되돌릴 수 없다(필드 안 × 버튼으로만 가능). 되돌릴 대상이 있으면
     /// > 열어두는 쪽을 택했다 — 의도적인 차이다.
     public var isClearEnabled: Bool {
-        !name.isEmpty || selectedCharacterIndex != nil
+        (!name.isEmpty || selectedCharacterIndex != nil) && !isSaving
+    }
+
+    /// 서버로 보낼 아바타 자리. 아무것도 안 골랐으면 첫 캐릭터로 본다 — 화면이 무선택일 때도
+    /// 1번 캐릭터를 미리보기에 띄우므로(시안 010-1), 그대로 저장되는 게 사용자가 본 것과 같다.
+    public var avatarIndexToSave: Int {
+        selectedCharacterIndex ?? 0
     }
 
     /// 이름 허용 문자 — 한글·영문·공백. 방 이름과 달리 **숫자를 허용하지 않는다**(스펙 "한글·영문").
@@ -84,10 +124,16 @@ public struct ProfileSetupState: Equatable {
 }
 
 public enum ProfileSetupAction: Equatable {
+    /// 화면 진입. `edit` 면 여기서 조회를 시작한다.
+    case task
+    case loaded(Profile)
+    case loadFailed(DomainError)
     case nameChanged(String)
     case selectCharacter(Int)
     case tapClear
     case tapSave
+    case saveSucceeded
+    case saveFailed(DomainError)
 }
 
 /// 목적지가 아니라 일어난 일로 이름 붙인다 — 저장 뒤 어디로 갈지는 진입점마다 다르다
@@ -98,37 +144,86 @@ public enum ProfileSetupNav: Equatable, Sendable {
 
 public typealias ProfileSetupStore = Store<ProfileSetupState, ProfileSetupAction, ProfileSetupNav>
 
-/// 프로필 설정 reduce.
+/// 진입 목적과 State 가 어긋날 수 없게 Store 를 한 번에 만든다.
 ///
-/// > 저장은 아직 서버에 아무것도 보내지 않는다 — `didSave` 를 알리고 끝난다.
-/// > API 를 붙일 때는 모드에 연관값을 달아 각 모드가 **자기 UseCase 만** 들게 한다:
-/// >
-/// > ```swift
-/// > case create(register: RegisterProfileUseCase)
-/// > case edit(fetch: FetchProfileUseCase, update: UpdateProfileUseCase)
-/// > ```
-/// >
-/// > 평평하게 셋을 다 받으면 `.create` 인데 `update` 가 주입된 조합이 그냥 컴파일된다.
-/// > `edit` 의 조회는 `.task` 진입 Action 에서 `.run` 으로 부르고, 성공·실패를 Response Action 으로
-/// > 되돌린다(로딩 상태는 그때 State 에 함께 넣는다).
-public func profileSetupReducer() -> (inout ProfileSetupState, ProfileSetupAction) -> Effect<ProfileSetupAction, ProfileSetupNav> {
+/// ```swift
+/// let store = makeProfileSetupStore(.edit(fetch: deps.fetchProfile, update: deps.updateProfile))
+/// store.observeNavigation { [weak self] in self?.handle($0) }   // 필수
+/// ```
+@MainActor
+public func makeProfileSetupStore(_ deps: ProfileSetupDeps) -> ProfileSetupStore {
+    ProfileSetupStore(ProfileSetupState(mode: deps.mode), reduce: profileSetupReducer(deps))
+}
+
+public func profileSetupReducer(
+    _ deps: ProfileSetupDeps
+) -> (inout ProfileSetupState, ProfileSetupAction) -> Effect<ProfileSetupAction, ProfileSetupNav> {
     { state, action in
         switch action {
+        case .task:
+            // create 는 빈 화면에서 시작한다 — 불러올 게 없다.
+            guard case .edit(let fetch, _) = deps else { return .none }
+            state.isLoading = true
+            state.loadError = nil
+            return .run { send in
+                do { send(.loaded(try await fetch.execute())) }
+                catch { send(.loadFailed(error as? DomainError ?? .profileFetchFailed)) }
+            }
+
+        case .loaded(let profile):
+            state.isLoading = false
+            state.name = profile.nickname
+            state.selectedCharacterIndex = profile.avatarIndex
+            return .none
+
+        case .loadFailed(let error):
+            state.isLoading = false
+            state.loadError = error
+            return .none
+
         case .nameChanged(let name):
             state.name = name
             return .none
+
         case .selectCharacter(let index):
             state.selectedCharacterIndex = index
             return .none
+
         case .tapClear:
             // 스펙 4번 "클릭 시 1, 2 초기화" — 이름과 캐릭터 선택을 함께 되돌린다.
             state.name = ""
             state.selectedCharacterIndex = nil
             return .none
+
         case .tapSave:
             // 뷰의 .disabled 는 UI 레이어 방어라 뷰가 바뀌면 뚫린다 — 전환 조건은 여기서도 지킨다.
             guard state.isSaveEnabled else { return .none }
+            state.isSaving = true
+            state.saveError = nil
+            let nickname = state.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            let avatarIndex = state.avatarIndexToSave
+            return .run { send in
+                do {
+                    switch deps {
+                    case .create(let register):
+                        _ = try await register.execute(nickname: nickname, avatarIndex: avatarIndex)
+                    case .edit(_, let update):
+                        _ = try await update.execute(nickname: nickname, avatarIndex: avatarIndex)
+                    }
+                    send(.saveSucceeded)
+                } catch {
+                    send(.saveFailed(error as? DomainError ?? .profileSaveFailed))
+                }
+            }
+
+        case .saveSucceeded:
+            state.isSaving = false
             return .navigate(.didSave)
+
+        case .saveFailed(let error):
+            state.isSaving = false
+            state.saveError = error
+            return .none
         }
     }
 }

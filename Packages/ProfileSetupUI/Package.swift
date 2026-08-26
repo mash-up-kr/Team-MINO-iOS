@@ -10,11 +10,12 @@ let package = Package(
     dependencies: [
         .package(path: "../MVI"),
         .package(path: "../DesignSystem"),
+        .package(path: "../Domain"),
     ],
     targets: [
         .target(
             name: "ProfileSetupUI",
-            dependencies: ["MVI", "DesignSystem"]
+            dependencies: ["MVI", "DesignSystem", "Domain"]
         ),
         .testTarget(
             name: "ProfileSetupUITests",

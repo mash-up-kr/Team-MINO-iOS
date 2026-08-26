@@ -12,5 +12,9 @@ public enum DomainError: Error, Equatable, Sendable {
     /// 세션을 확보하지 못했다. 인증 수단에 닿지 못한 경우(네트워크 단절 등)로,
     /// **서버가 거부한 `unauthorized` 와 구분한다** — 이쪽은 재시도가 의미 있다.
     case sessionUnavailable
+    /// 프로필을 읽지 못했다(조회 실패). 재시도가 의미 있다.
+    case profileFetchFailed
+    /// 프로필을 저장하지 못했다 — 등록·수정 공통.
+    case profileSaveFailed
     case unknown
 }

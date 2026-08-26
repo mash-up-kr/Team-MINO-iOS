@@ -53,7 +53,8 @@ public final class OnboardingCoordinator: Coordinator {
     // 반대로 스택에 남아 있는 화면(pop 해서 돌아간 화면)은 뷰가 살아 있어 입력값이 그대로 유지된다.
 
     func makeProfileSetupStore() -> ProfileSetupStore {
-        let store = ProfileSetupStore(ProfileSetupState(), reduce: profileSetupReducer())
+        // 온보딩은 프로필을 만들기만 한다 — 조회·수정 UseCase 를 들지 않는다.
+        let store = ProfileSetupUI.makeProfileSetupStore(.create(register: deps.registerProfile))
         store.observeNavigation { [weak self] in self?.handle($0) }
         return store
     }
