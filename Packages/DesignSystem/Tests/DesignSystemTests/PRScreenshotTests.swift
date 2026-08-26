@@ -2,15 +2,22 @@ import XCTest
 import SwiftUI
 @testable import DesignSystem
 
-/// PR 첨부용 디바이스 스크린샷 생성 테스트.
-/// `/tmp/pr_screenshots/` 에 iPhone 16 크기(393pt, @3x) PNG 를 저장한다.
+/// PR 첨부용 디바이스 스크린샷 생성 테스트. iPhone 16 크기(393pt, @3x) PNG 를 저장한다.
+///
+/// 파일 쓰기는 `PR_SCREENSHOT_DIR` 이 있을 때만 한다 — 이 스위트는 앱 스킴 테스트에 함께
+/// 실려 매 CI 실행마다 도는데, PR 첨부용 산출물을 그때마다 디스크에 뿌릴 이유는 없다.
+/// 렌더 자체는 항상 수행해 컴포넌트가 그려지는지는 계속 검사한다.
+///
+///     PR_SCREENSHOT_DIR=/tmp/pr_screenshots xcodebuild -scheme DesignSystem test
 final class PRScreenshotTests: XCTestCase {
-    private let dir = "/tmp/pr_screenshots"
+    private let dir = ProcessInfo.processInfo.environment["PR_SCREENSHOT_DIR"]
     private let w: CGFloat = 393
 
     override func setUp() {
         super.setUp()
-        try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        if let dir {
+            try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        }
         MHFontRegistrar.registerIfNeeded()
     }
 
@@ -176,6 +183,63 @@ final class PRScreenshotTests: XCTestCase {
         }
     }
 
+    // MARK: - PR3 — 알림 컴포넌트
+
+    @MainActor func testNotificationCellTypes() throws {
+        let photo = Image(systemName: "photo.fill")
+        try snap("notification_cell_types") {
+            screen {
+                VStack(spacing: 0) {
+                    MHNotificationCell(title: "이미 저장해둔 곳이에요", subtitle: "연남동 스탠딩 커피",
+                                        time: "방금", thumbnail: .place(photo))
+                    MHNotificationCell(title: "장소를 저장하지 못했어요.", subtitle: "잠시 후 다시 시도해주세요",
+                                        time: "1시간 전", thumbnail: .icon)
+                    MHNotificationCell(title: "근처에 저장한 장소가 있어요", subtitle: "강남역 스타벅스",
+                                        time: "23시간 전", thumbnail: .place(photo))
+                    MHNotificationCell(title: "코멘트가 제일 많이 달린 장소에요", subtitle: "연남동 스탠딩 커피",
+                                        time: "7일 전", thumbnail: .place(photo))
+                    MHNotificationCell(title: "지은님이 들어왔어요", subtitle: "언젠가 가야지 방",
+                                        time: "8월 10일", thumbnail: .icon)
+                    MHNotificationCell(title: "방에 참가했어요", subtitle: "언젠가 가야지 방",
+                                        time: "11월 30일", thumbnail: .icon)
+                }
+            }
+        }
+    }
+
+    @MainActor func testStatusMessageStates() throws {
+        try snap("status_message_states") {
+            screen {
+                VStack(spacing: 32) {
+                    MHStatusMessage(message: "알림을 불러오는 중이에요")
+                    MHStatusMessage(message: "알림을 불러오지 못했어요",
+                                     kind: .failure(retryTitle: "다시 시도") {})
+                }
+            }
+        }
+    }
+
+    @MainActor func testIllustratedMessageVariants() throws {
+        try snap("illustrated_message_variants") {
+            screen {
+                VStack(spacing: 40) {
+                    MHIllustratedMessage(illustration: Image(systemName: "bell.slash"),
+                                          title: "받은 알림이 없어요")
+                    MHIllustratedMessage(
+                        illustration: Image(systemName: "exclamationmark.triangle"),
+                        title: "확인해주세요",
+                        messages: [
+                            "현재 한국 내 장소만 지원됩니다.",
+                            "사진 속 장소인식은 아직 지원하지 않습니다",
+                            "본문에 주소나 장소명을 포함해주세요",
+                        ],
+                        alignment: .leading, illustrationSpacing: 103
+                    )
+                }
+            }
+        }
+    }
+
     // MARK: - Helpers
 
     @MainActor
@@ -192,6 +256,7 @@ final class PRScreenshotTests: XCTestCase {
         renderer.scale = 3
         let img = try XCTUnwrap(renderer.uiImage, "\(name) 렌더 실패")
         let data = try XCTUnwrap(img.pngData())
+        guard let dir else { return }
         try data.write(to: URL(fileURLWithPath: "\(dir)/\(name).png"))
         print("SCREENSHOT_SAVED: \(dir)/\(name).png")
     }
