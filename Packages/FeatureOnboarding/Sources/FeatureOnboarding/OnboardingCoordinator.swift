@@ -10,7 +10,7 @@ public enum OnboardingRoute: Hashable {
     case tutorial
 }
 
-/// 온보딩 종료 보고. 수집값(이름·컬러 등)은 동반하지 않는다 — plan/pr1/persistent/decisions.md 결정 B
+/// 온보딩 종료 보고. 수집값(이름·컬러 등)은 동반하지 않는다 — 부모가 그 값을 쓰지 않는다.
 ///
 /// 초대 코드만 예외로 동반한다 — 부모가 어느 방을 열지 이 값 없이는 알 수 없다.
 /// 두 case 로 나눠 부모가 초대 착지를 빠뜨리면 switch 누락으로 잡히게 한다
