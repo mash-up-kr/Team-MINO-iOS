@@ -89,8 +89,8 @@ struct ProfileSetupReducerTests {
         store.finish()
     }
 
-    @Test("L1 — tapClear 는 이름만 비우고 캐릭터 선택은 유지한다")
-    func tapClear_clearsNameOnly_keepsCharacterSelection() async {
+    @Test("L1 — tapClear 는 이름과 캐릭터 선택을 함께 되돌린다 — 스펙 4번 '클릭 시 1, 2 초기화'")
+    func tapClear_clearsNameAndCharacterSelection() async {
         let store = TestStore(ProfileSetupState(), reduce: profileSetupReducer())
 
         await store.send(.nameChanged("민호")) {
@@ -101,11 +101,86 @@ struct ProfileSetupReducerTests {
         }
         await store.send(.tapClear) {
             $0.name = ""
+            $0.selectedCharacterIndex = nil
         }
 
-        #expect(store.currentState.selectedCharacterIndex == 3)
+        #expect(!store.currentState.isClearEnabled)
         store.finish()
     }
+
+    @Test("L1 — 이름이 비어도 캐릭터를 골랐으면 지우기가 열린다 — 지울 대상이 둘이다")
+    func selectCharacterOnly_enablesClear() async {
+        let store = TestStore(ProfileSetupState(), reduce: profileSetupReducer())
+
+        #expect(!store.currentState.isClearEnabled)
+
+        await store.send(.selectCharacter(7)) {
+            $0.selectedCharacterIndex = 7
+        }
+
+        #expect(store.currentState.isClearEnabled)
+        #expect(!store.currentState.isSaveEnabled)
+        store.finish()
+    }
+
+    @Test("L1 — 한글·영문·공백이 아닌 문자가 섞이면 저장이 막히고 에러를 표시한다")
+    func nameChanged_disallowedCharacters_blocksSaveAndShowsError() async {
+        for invalid in ["민호1", "민호!", "민호😀", "みんほ", "Мино"] {
+            let store = TestStore(ProfileSetupState(), reduce: profileSetupReducer())
+
+            await store.send(.nameChanged(invalid)) {
+                $0.name = invalid
+            }
+
+            #expect(!store.currentState.isSaveEnabled, "\(invalid) 는 저장이 막혀야 한다")
+            #expect(store.currentState.shouldShowNameError, "\(invalid) 는 에러를 표시해야 한다")
+            store.finish()
+        }
+    }
+
+    @Test("L1 — 한글·영문·공백 조합은 저장이 열리고 에러가 없다")
+    func nameChanged_allowedCharacters_enablesSave() async {
+        for valid in ["민호", "Mino", "mi no", "민 호", "민호 Mino"] {
+            let store = TestStore(ProfileSetupState(), reduce: profileSetupReducer())
+
+            await store.send(.nameChanged(valid)) {
+                $0.name = valid
+            }
+
+            #expect(store.currentState.isSaveEnabled, "\(valid) 는 저장이 열려야 한다")
+            #expect(!store.currentState.shouldShowNameError, "\(valid) 는 에러가 없어야 한다")
+            store.finish()
+        }
+    }
+
+    @Test("L1 — 입력이 비어 있으면 에러를 표시하지 않는다 — 진입 직후 빨간 테두리가 뜨면 안 된다")
+    func emptyName_doesNotShowError() async {
+        let store = TestStore(ProfileSetupState(), reduce: profileSetupReducer())
+
+        #expect(!store.currentState.shouldShowNameError)
+
+        await store.send(.nameChanged("   ")) {
+            $0.name = "   "
+        }
+        #expect(!store.currentState.shouldShowNameError)
+
+        store.finish()
+    }
+
+    @Test("L1 — 조합 중간 자모는 허용 문자다 — 한글을 치는 내내 에러가 깜빡이지 않게")
+    func nameChanged_hangulJamo_isAllowedCharacter() async {
+        let store = TestStore(ProfileSetupState(), reduce: profileSetupReducer())
+
+        // 자모 2개는 문자종·길이를 모두 통과한다. 1개면 길이 미달로 저장만 막힌다.
+        await store.send(.nameChanged("ㅁㄴ")) {
+            $0.name = "ㅁㄴ"
+        }
+        #expect(store.currentState.isSaveEnabled)
+        #expect(!store.currentState.shouldShowNameError)
+
+        store.finish()
+    }
+
 
     @Test("L2 — 저장 가능한 이름이면 tapSave 가 didSave 를 알린다")
     func tapSave_whenSaveEnabled_notifiesDidSave() async {
