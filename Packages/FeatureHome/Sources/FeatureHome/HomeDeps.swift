@@ -6,4 +6,5 @@ public protocol HomeDeps {
     var fetchPins: FetchPinsUseCase { get }
     var lastViewedRoom: LastViewedRoomUseCase { get }
     var homeGuide: HomeGuideUseCase { get }
+    var savePin: SavePinToRoomsUseCase { get }
 }

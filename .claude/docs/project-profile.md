@@ -23,8 +23,8 @@
 
 | 대상 | 명령 |
 |---|---|
-| macOS 선언 패키지 (`MVI`·`FlowCoordination`·`Feature`·`Logging`) | `swift test --package-path Packages/<P>` |
-| iOS 전용 패키지 (`Core`·`Domain`·`Data`·`Networking`·`DesignSystem`·`FeatureOnboarding`·`RoomCreationUI`·`ShareExtensionUI`) | `xcodebuild test -scheme <P> -destination 'platform=iOS Simulator,id=<UDID>'` |
+| macOS 선언 패키지 (`MVI`·`FlowCoordination`·`Feature`·`Logging`·`Networking`) | `swift test --package-path Packages/<P>` |
+| iOS 전용 패키지 (`Core`·`Domain`·`Data`·`DesignSystem`·`FeatureOnboarding`·`RoomCreationUI`·`ShareExtensionUI`) | `xcodebuild test -scheme <P> -destination 'platform=iOS Simulator,id=<UDID>'` |
 | 앱 통합 | `xcodebuild test -project App/App.xcodeproj -scheme App -destination 'platform=iOS Simulator,id=<UDID>'` |
 
 - **시뮬레이터 UDID 조회**: `xcrun simctl list devices available` — 이름 단독 지정은 동명 중복 위험이 있어 UDID 를 쓴다.

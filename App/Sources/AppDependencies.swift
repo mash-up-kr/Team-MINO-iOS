@@ -14,14 +14,12 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps {
     let fetchPins: FetchPinsUseCase
     let lastViewedRoom: LastViewedRoomUseCase
     let homeGuide: HomeGuideUseCase
+    let savePin: SavePinToRoomsUseCase
     let roomCreationPromptSnooze: SnoozeSwitch
 
     init() {
         // 백엔드 미연결 단계 — 시범용 Stub UseCase 를 주입한다.
-        // 실제 API 준비 시 아래 한 줄을 교체한다 (import Networking 추가):
-        //   let client = URLSessionHTTPClient(baseURL: URL(string: "<real-base-url>")!)
-        //   let repository = MemberRepositoryImpl(client: client)
-        //   self.fetchMember = DefaultFetchMemberUseCase(repository: repository)
+        // 실 API 연결 절차는 Packages/Networking/Docs/AddingAPI.md 참조.
         self.fetchMember = StubFetchMemberUseCase()
 
         // 방 목록: 실 API 미연결 → Mock Repository(하드코딩 JSON) 사용. 추후 RoomRepositoryImpl 로 교체.
@@ -37,6 +35,10 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps {
 
         // 홈 사용 가이드 1회 표기 플래그도 같은 이유로 UserDefaults.
         self.homeGuide = DefaultHomeGuideUseCase(repository: UserDefaultsHomeGuideRepository())
+
+        // 다른 방 저장: 저장 API 미연결 → Mock Repository(지연만 주고 성공) 사용.
+        // 추후 SavePinRepositoryImpl 로 교체한다.
+        self.savePin = DefaultSavePinToRoomsUseCase(repository: MockSavePinRepository())
 
         // 공동방 생성 유도 시트: "나중에 만들래요" 를 누르면 2주 동안 띄우지 않는다(기획 001-2-1).
         self.roomCreationPromptSnooze = SnoozeSwitch(key: "roomCreationPrompt.snoozedAt", period: .days(14))

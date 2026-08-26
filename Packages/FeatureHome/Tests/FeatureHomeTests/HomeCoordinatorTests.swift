@@ -8,6 +8,7 @@ private struct StubDeps: HomeDeps {
     var fetchPins: FetchPinsUseCase = StubFetchPins()
     var lastViewedRoom: LastViewedRoomUseCase = StubLastViewedRoom()
     var homeGuide: HomeGuideUseCase = StubHomeGuide()
+    var savePin: SavePinToRoomsUseCase = StubSavePin()
 }
 
 private struct StubFetchRooms: FetchRoomsUseCase {
@@ -27,6 +28,10 @@ private struct StubLastViewedRoom: LastViewedRoomUseCase {
 private struct StubHomeGuide: HomeGuideUseCase {
     func hasSeen() async -> Bool { true }
     func markSeen() async {}
+}
+
+private struct StubSavePin: SavePinToRoomsUseCase {
+    func execute(pinID: PinID, roomIDs: Set<String>) async throws {}
 }
 
 @MainActor

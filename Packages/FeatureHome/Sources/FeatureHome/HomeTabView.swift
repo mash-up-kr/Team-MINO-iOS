@@ -37,6 +37,30 @@ public struct HomeTabView: View {
             // 같은 트랜잭션에서 바뀐 카드 덱 레이아웃까지 재애니메이션돼 덱이 흔들린다.
             moreButton
                 .animation(.easeInOut(duration: 0.3), value: showMore)
+            savedToast
+        }
+        .animation(.easeInOut(duration: 0.2), value: store?.state.savedToastID)
+    }
+
+    /// 저장 완료 스낵바 (Figma `013-2`). 플로팅 버튼과 같은 이유로 NavigationStack **바깥**에 둔다 —
+    /// 안에 두면 탭바에 가린다. 노출 2초 뒤 스스로 사라진다.
+    @ViewBuilder
+    private var savedToast: some View {
+        if let store, let toastID = store.state.savedToastID {
+            MHSnackbar(title: "저장이 완료됐습니다.", icon: .checkThick)
+                .padding(.horizontal, 20)
+                // 시안(013-2, node 2862:178010)의 "화면 바닥에서 40" 을 탭바 위로 옮긴 값 —
+                // 시안 프레임에는 탭바가 없어 그대로 40 을 주면 탭바에 겹친다.
+                .padding(.bottom, 40)
+                .allowsHitTesting(false)   // 장식 — 뒤의 카드 덱 스와이프를 가리지 않는다
+                .transition(.opacity)
+                .accessibilityIdentifier("Home.savedToast")
+                .task(id: toastID) {
+                    // 취소를 삼키면 안 된다. try? 로 받으면 새 토스트가 이 task 를 취소했을 때
+                    // sleep 이 즉시 반환하고, 이어지는 dismiss 가 **방금 뜬 토스트**를 지운다.
+                    do { try await Task.sleep(for: .seconds(2)) } catch { return }
+                    store.send(.dismissSavedToast(toastID))
+                }
         }
     }
 

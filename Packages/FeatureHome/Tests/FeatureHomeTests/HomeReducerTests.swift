@@ -70,6 +70,20 @@ private actor SpyLastViewedRoom: LastViewedRoomUseCase {
     func save(roomID: String) async { saved.append(roomID) }
 }
 
+/// 저장 스파이 — 어떤 장소를 어느 방들에 저장했는지 모은다.
+private actor SpySavePin: SavePinToRoomsUseCase {
+    private(set) var saved: [(pinID: PinID, roomIDs: Set<String>)] = []
+
+    func execute(pinID: PinID, roomIDs: Set<String>) async throws {
+        saved.append((pinID, roomIDs))
+    }
+}
+
+/// 저장이 항상 실패하는 스텁 — 실패 경로(시트 되돌리기)를 검증한다.
+private struct ThrowingSavePin: SavePinToRoomsUseCase {
+    func execute(pinID: PinID, roomIDs: Set<String>) async throws { throw DomainError.unknown }
+}
+
 /// 핀 조회가 항상 실패하는 스텁 — 실패 경로(로드 실패 라우팅 / 더 보기 무시)를 검증한다.
 private struct ThrowingFetchPins: FetchPinsUseCase {
     var error: DomainError = .unknown
@@ -84,6 +98,7 @@ struct HomeReducerTests {
         fetchPins: FetchPinsUseCase = StubFetchPins(),
         lastViewedRoom: LastViewedRoomUseCase = SpyLastViewedRoom(),
         homeGuide: HomeGuideUseCase = SpyHomeGuide(seen: true),   // 기본은 "이미 본" — 가이드 없는 흐름
+        savePin: SavePinToRoomsUseCase = SpySavePin(),
         state: HomeState = HomeState()
     ) -> TestStore<HomeState, HomeAction, HomeNav> {
         TestStore(
@@ -92,7 +107,8 @@ struct HomeReducerTests {
                 fetchRooms: fetchRooms,
                 fetchPins: fetchPins,
                 lastViewedRoom: lastViewedRoom,
-                homeGuide: homeGuide
+                homeGuide: homeGuide,
+                savePin: savePin
             )
         )
     }
@@ -884,6 +900,156 @@ struct HomeReducerTests {
         let store = makeStore(state: HomeState(rooms: fixtureRooms, isRoomListPresented: true))
         await store.send(.tapCreateRoom) { $0.isRoomListPresented = false }
         store.receiveNavigation(.goToCreateRoom)
+        store.finish()
+    }
+
+    // MARK: - 게시물 저장 시트 (Figma 013-1-3 / 013-2)
+
+    /// 시트를 연 상태 — 카드 `pin-0`(방 "1" 소속)의 저장 시트.
+    private var openedSavePostState: HomeState {
+        HomeState(
+            rooms: fixtureRooms,
+            pins: fixturePins,
+            savePost: SavePostState(pinID: PinID("pin-0"), alreadySavedRoomIDs: ["1"])
+        )
+    }
+
+    @Test("L1 — tapSaveToOtherRoom 은 카드가 속한 방을 '이미 저장된 방'으로 두고 시트를 연다")
+    func tapSaveToOtherRoom_opensSheetWithCurrentRoomChecked() async {
+        let store = makeStore(state: HomeState(rooms: fixtureRooms, pins: fixturePins))
+        await store.send(.tapSaveToOtherRoom(PinID("pin-0"))) {
+            $0.savePost = SavePostState(pinID: PinID("pin-0"), alreadySavedRoomIDs: ["1"])
+        }
+        // 중복 저장 방지: 그 방은 체크로 보이되 저장 대상(selected)에는 안 들어간다.
+        #expect(store.currentState.savePost?.checkedRoomIDs == ["1"])
+        #expect(store.currentState.savePost?.canSubmit == false)
+        store.finish()
+    }
+
+    @Test("L1 — 덱에 없는 카드로 열면 이미 저장된 방 없이 시트만 연다")
+    func tapSaveToOtherRoom_unknownPinHasNoSavedRoom() async {
+        let store = makeStore(state: HomeState(rooms: fixtureRooms, pins: fixturePins))
+        await store.send(.tapSaveToOtherRoom(PinID("없는-핀"))) {
+            $0.savePost = SavePostState(pinID: PinID("없는-핀"))
+        }
+        store.finish()
+    }
+
+    @Test("L1 — toggleSavePostRoom 은 선택을 켜고 끄며, 켜지면 저장 버튼이 열린다")
+    func toggleSavePostRoom_togglesSelection() async {
+        let store = makeStore(state: openedSavePostState)
+        await store.send(.toggleSavePostRoom("2")) { $0.savePost?.selectedRoomIDs = ["2"] }
+        #expect(store.currentState.savePost?.canSubmit == true)
+        #expect(store.currentState.savePost?.checkedRoomIDs == ["1", "2"])
+        await store.send(.toggleSavePostRoom("2")) { $0.savePost?.selectedRoomIDs = [] }
+        #expect(store.currentState.savePost?.canSubmit == false)
+        store.finish()
+    }
+
+    @Test("L1 — 이미 저장된 방은 토글되지 않는다(중복 저장 차단)")
+    func toggleSavePostRoom_ignoresAlreadySavedRoom() async {
+        let store = makeStore(state: openedSavePostState)
+        await store.send(.toggleSavePostRoom("1"))   // 변화 없음
+        #expect(store.currentState.savePost?.selectedRoomIDs.isEmpty == true)
+        store.finish()
+    }
+
+    @Test("L1 — 저장 중에는 선택을 바꿀 수 없다(화면과 실제 저장 대상이 어긋나지 않게)")
+    func toggleSavePostRoom_ignoredWhileSaving() async {
+        var state = openedSavePostState
+        state.savePost?.selectedRoomIDs = ["2"]
+        state.savePost?.isSaving = true
+        let store = makeStore(state: state)
+        await store.send(.toggleSavePostRoom("2"))   // 변화 없음
+        #expect(store.currentState.savePost?.selectedRoomIDs == ["2"])
+        store.finish()
+    }
+
+    @Test("L2 — tapSavePost 는 고른 방으로 저장하고, 끝나면 시트를 닫고 완료 토스트를 띄운다")
+    func tapSavePost_savesThenShowsToast() async {
+        let spy = SpySavePin()
+        var state = openedSavePostState
+        state.savePost?.selectedRoomIDs = ["2"]
+        let store = makeStore(savePin: spy, state: state)
+
+        await store.send(.tapSavePost) { $0.savePost?.isSaving = true }
+        await store.receive(.savePostFinished) {
+            $0.savePost = nil
+            $0.savedToastID = 1
+        }
+        store.finish()
+
+        let saved = await spy.saved
+        #expect(saved.count == 1)
+        #expect(saved.first?.pinID == PinID("pin-0"))
+        #expect(saved.first?.roomIDs == ["2"])   // 이미 저장된 방("1")은 안 보낸다
+    }
+
+    @Test("L1 — 고른 방이 없으면 tapSavePost 는 아무것도 하지 않는다")
+    func tapSavePost_ignoredWithoutSelection() async {
+        let spy = SpySavePin()
+        let store = makeStore(savePin: spy, state: openedSavePostState)
+        await store.send(.tapSavePost)   // 변화 없음
+        store.finish()
+        #expect(await spy.saved.isEmpty)
+    }
+
+    @Test("L1 — 저장 중 저장하기를 다시 눌러도 저장이 두 번 나가지 않는다")
+    func tapSavePost_ignoredWhileSaving() async {
+        let spy = SpySavePin()
+        var state = openedSavePostState
+        state.savePost?.selectedRoomIDs = ["2"]
+        state.savePost?.isSaving = true
+        let store = makeStore(savePin: spy, state: state)
+        await store.send(.tapSavePost)   // 변화 없음 — effect 도 나가지 않는다(finish 가 검사)
+        store.finish()
+        #expect(await spy.saved.isEmpty)
+    }
+
+    @Test("L2 — 저장이 실패하면 시트를 저장 전 상태로 되돌려 다시 시도할 수 있다")
+    func tapSavePost_failureRestoresSheet() async {
+        var state = openedSavePostState
+        state.savePost?.selectedRoomIDs = ["2"]
+        let store = makeStore(savePin: ThrowingSavePin(), state: state)
+
+        await store.send(.tapSavePost) { $0.savePost?.isSaving = true }
+        await store.receive(.savePostFailed) { $0.savePost?.isSaving = false }
+        // 시트가 살아 있고 선택도 그대로라 그대로 재시도된다.
+        #expect(store.currentState.savePost?.selectedRoomIDs == ["2"])
+        #expect(store.currentState.savedToastID == nil)   // 실패는 완료 토스트를 띄우지 않는다
+        store.finish()
+    }
+
+    @Test("L2 — 저장 중 시트를 닫아도 저장은 끝까지 진행돼 완료 토스트가 뜬다")
+    func dismissSavePost_whileSavingStillCompletes() async {
+        let spy = SpySavePin()
+        var state = openedSavePostState
+        state.savePost?.selectedRoomIDs = ["2"]
+        let store = makeStore(savePin: spy, state: state)
+
+        await store.send(.tapSavePost) { $0.savePost?.isSaving = true }
+        // 저장이 도는 사이 스와이프로 시트를 닫는다.
+        await store.send(.dismissSavePost) { $0.savePost = nil }
+        // 진행 중이던 저장은 잘리지 않고 끝나 토스트로 이어진다 — 시트가 없어도 토스트는 뜬다.
+        await store.receive(.savePostFinished) { $0.savedToastID = 1 }
+        store.finish()
+
+        #expect(await spy.saved.count == 1)   // 닫혔다고 저장이 취소되지 않는다
+    }
+
+    @Test("L1 — 연속 저장은 토스트 id 를 올려 자동 dismiss 타이머를 다시 시작시킨다")
+    func savePostFinished_incrementsToastID() async {
+        let store = makeStore(state: HomeState(rooms: fixtureRooms, savedToastID: 1))
+        await store.send(.savePostFinished) { $0.savedToastID = 2 }
+        store.finish()
+    }
+
+    @Test("L1 — dismissSavedToast 는 같은 id 일 때만 토스트를 지운다")
+    func dismissSavedToast_ignoresStaleID() async {
+        let store = makeStore(state: HomeState(rooms: fixtureRooms, savedToastID: 2))
+        await store.send(.dismissSavedToast(1))   // 이전 타이머의 뒤늦은 dismiss — 무시
+        #expect(store.currentState.savedToastID == 2)
+        await store.send(.dismissSavedToast(2)) { $0.savedToastID = nil }
         store.finish()
     }
 
