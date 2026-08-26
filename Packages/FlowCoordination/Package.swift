@@ -7,8 +7,11 @@ let package = Package(
     products: [
         .library(name: "FlowCoordination", targets: ["FlowCoordination"]),
     ],
+    dependencies: [
+        .package(path: "../MVI"),
+    ],
     targets: [
-        .target(name: "FlowCoordination"),
+        .target(name: "FlowCoordination", dependencies: ["MVI"]),
         .testTarget(name: "FlowCoordinationTests", dependencies: ["FlowCoordination"]),
     ],
     swiftLanguageModes: [.v6]

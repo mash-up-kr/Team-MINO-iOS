@@ -8,7 +8,7 @@
 
 ```
 App ──▶ Feature* ──▶ Domain ──▶ Core
-   │       ├───────▶ FlowCoordination     (Coordinator 프로토콜·FlowFinish·flowRoot · SwiftUI)
+   │       ├───────▶ FlowCoordination ──▶ MVI  (Coordinator 프로토콜·FlowFinish·flowRoot·makeStore 헬퍼 · SwiftUI)
    │       ├───────▶ MVI                  (Effect·Store + MVITestSupport · Observation)
    │       └───────▶ *UI                  (공통 화면 — RoomCreationUI·MapUI …)
    │                   └──▶ DesignSystem · MVI
@@ -18,13 +18,13 @@ App ──▶ Feature* ──▶ Domain ──▶ Core
 
 | 패키지 | 역할 |
 |--------|------|
-| **FlowCoordination** | `Coordinator` 프로토콜, `FlowFinish`, `flowRoot` modifier (영구 인프라) |
+| **FlowCoordination** | `Coordinator` 프로토콜, `FlowFinish`, `flowRoot` modifier, `Coordinator.makeStore` 헬퍼(영구 인프라) |
 | **MVI** | `Effect`, `Store` / `MVITestSupport`의 `TestStore` (영구 인프라) |
 | **Feature\*** | flow 단위. Coordinator·Route·NavigationStack 을 소유하고 화면을 배치한다 |
 | **\*UI** | 여러 Feature 가 함께 쓰는 UI 모듈. 화면(`RoomCreationUI`)과 플랫폼·SDK 브릿지(`MapUI`) 둘 다. flow 를 소유하지 않는다 |
 
 - `Store`/`Effect`는 `Observation`만 의존(SwiftUI 비의존) → reduce 단위 테스트가 UI 비의존
-- `FlowCoordination`과 `MVI`는 서로 모른다. 둘을 잇는 건 Feature의 Coordinator
+- `FlowCoordination`은 `Coordinator.makeStore` 헬퍼(§4 "Store factory + 구독" 참조)가 `Store` 생성·구독을 대신 해주기 위해 `MVI`를 의존한다(세 번째 Coordinator 시점에 추출 — [mvi-coordinator-di-extensions.md](mvi-coordinator-di-extensions.md) 「makeStore 공통화」). `MVI`는 `FlowCoordination`을 모른다 — 의존은 단방향이다
 
 ### 공통 UI 레이어(`*UI`)
 
