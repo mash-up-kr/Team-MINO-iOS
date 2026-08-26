@@ -13,6 +13,7 @@
 		1CA998C627766237F2232BEB /* Feature in Frameworks */ = {isa = PBXBuildFile; productRef = C0D4F0FC8286D9C61BB32BF4 /* Feature */; };
 		78492A156C1A471498E4D6C0 /* FeatureHome in Frameworks */ = {isa = PBXBuildFile; productRef = 9DB4CFD6500044279D5152C0 /* FeatureHome */; };
 		EF2B6F16D71C431694B01429 /* FeatureArchive in Frameworks */ = {isa = PBXBuildFile; productRef = 28D80F7784D54B5E900E11C8 /* FeatureArchive */; };
+		CC3A8EE8C79148C2B7DD9601 /* FeatureNotification in Frameworks */ = {isa = PBXBuildFile; productRef = 4CC2353632FD45B68F6452C7 /* FeatureNotification */; };
 		A7C1F0E23B5D4C819A2E6F01 /* FeatureProfile in Frameworks */ = {isa = PBXBuildFile; productRef = C3D9E4B7182A45F6B7C08D12 /* FeatureProfile */; };
 		6A1D4F0C2B7E4E1D9C3A5F71 /* MapUI in Frameworks */ = {isa = PBXBuildFile; productRef = 6A1D4F0C2B7E4E1D9C3A5F72 /* MapUI */; };
 		1E9A0431691248E1AF7498F7 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 870EC38E78064219B6961460 /* MainTabView.swift */; };
@@ -46,6 +47,7 @@
 		AE14BBEBA89FD412C42C94EB /* Feature */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Feature; path = ../Packages/Feature; sourceTree = SOURCE_ROOT; };
 		83E429DB5B9444888F2889BD /* FeatureHome */ = {isa = PBXFileReference; lastKnownFileType = folder; name = FeatureHome; path = ../Packages/FeatureHome; sourceTree = SOURCE_ROOT; };
 		90E12A0E04B542289EBE33C6 /* FeatureArchive */ = {isa = PBXFileReference; lastKnownFileType = folder; name = FeatureArchive; path = ../Packages/FeatureArchive; sourceTree = SOURCE_ROOT; };
+		ED413E43B15C4457B5D3450C /* FeatureNotification */ = {isa = PBXFileReference; lastKnownFileType = folder; name = FeatureNotification; path = ../Packages/FeatureNotification; sourceTree = SOURCE_ROOT; };
 		D5E8A1C90F2B43D6A81C7E34 /* FeatureProfile */ = {isa = PBXFileReference; lastKnownFileType = folder; name = FeatureProfile; path = ../Packages/FeatureProfile; sourceTree = SOURCE_ROOT; };
 		6A1D4F0C2B7E4E1D9C3A5F73 /* MapUI */ = {isa = PBXFileReference; lastKnownFileType = folder; name = MapUI; path = ../Packages/MapUI; sourceTree = SOURCE_ROOT; };
 		6A1D4F0C2B7E4E1D9C3A5F75 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
@@ -92,6 +94,7 @@
 				1CA998C627766237F2232BEB /* Feature in Frameworks */,
 				78492A156C1A471498E4D6C0 /* FeatureHome in Frameworks */,
 				EF2B6F16D71C431694B01429 /* FeatureArchive in Frameworks */,
+				CC3A8EE8C79148C2B7DD9601 /* FeatureNotification in Frameworks */,
 				A7C1F0E23B5D4C819A2E6F01 /* FeatureProfile in Frameworks */,
 				6A1D4F0C2B7E4E1D9C3A5F71 /* MapUI in Frameworks */,
 				95C38BB4FB56187972591E16 /* Data in Frameworks */,
@@ -150,6 +153,7 @@
 				AE14BBEBA89FD412C42C94EB /* Feature */,
 				90E12A0E04B542289EBE33C6 /* FeatureArchive */,
 				83E429DB5B9444888F2889BD /* FeatureHome */,
+				ED413E43B15C4457B5D3450C /* FeatureNotification */,
 				D5E8A1C90F2B43D6A81C7E34 /* FeatureProfile */,
 				6A1D4F0C2B7E4E1D9C3A5F73 /* MapUI */,
 				35D426C5753A372F270C6E9D /* Networking */,
@@ -216,6 +220,7 @@
 				C0D4F0FC8286D9C61BB32BF4 /* Feature */,
 				9DB4CFD6500044279D5152C0 /* FeatureHome */,
 				28D80F7784D54B5E900E11C8 /* FeatureArchive */,
+				4CC2353632FD45B68F6452C7 /* FeatureNotification */,
 				C3D9E4B7182A45F6B7C08D12 /* FeatureProfile */,
 				6A1D4F0C2B7E4E1D9C3A5F72 /* MapUI */,
 				30221BF92B4CCDE0D6CEA9E9 /* Data */,
@@ -571,6 +576,10 @@
 		9DB4CFD6500044279D5152C0 /* FeatureHome */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = FeatureHome;
+		};
+		4CC2353632FD45B68F6452C7 /* FeatureNotification */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = FeatureNotification;
 		};
 		28D80F7784D54B5E900E11C8 /* FeatureArchive */ = {
 			isa = XCSwiftPackageProductDependency;

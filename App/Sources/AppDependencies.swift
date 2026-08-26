@@ -4,14 +4,16 @@ import Domain
 import Feature
 import FeatureArchive
 import FeatureHome
+import FeatureNotification
 
 /// 컴포지션 루트(Composition Root).
 /// 앱 타깃만이 구체 타입을 알고, 의존성 그래프를 손으로 조립한다.
 /// 각 Coordinator 의 deps 프로토콜(`MemberDeps`·`HomeDeps`·`ArchiveDeps` 등)을 이 한 타입이 준수한다.
-struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps {
+struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps {
     let fetchMember: FetchMemberUseCase
     let fetchRooms: FetchRoomsUseCase
     let fetchPins: FetchPinsUseCase
+    let fetchNotifications: FetchNotificationsUseCase
     let lastViewedRoom: LastViewedRoomUseCase
     let homeGuide: HomeGuideUseCase
     let savePin: SavePinToRoomsUseCase
@@ -27,6 +29,9 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps {
 
         // 홈 카드 핀: 실 API 미연결 → Mock Repository(하드코딩 장소 풀) 사용. 추후 PinRepositoryImpl 로 교체.
         self.fetchPins = DefaultFetchPinsUseCase(repository: MockPinRepository())
+
+        // 알림 목록: 실 API 미연결 → Mock Repository(하드코딩 JSON) 사용. 추후 NotificationRepositoryImpl 로 교체.
+        self.fetchNotifications = DefaultFetchNotificationsUseCase(repository: MockNotificationRepository())
 
         // 마지막으로 본 방: 방 id 하나만 남기면 되는 로컬 기록이라 UserDefaults 구현을 쓴다.
         self.lastViewedRoom = DefaultLastViewedRoomUseCase(
