@@ -32,6 +32,26 @@
             skipped = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
+               BlueprintIdentifier = "DataTests"
+               BuildableName = "DataTests"
+               BlueprintName = "DataTests"
+               ReferencedContainer = "container:../Packages/Data">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "DesignSystemTests"
+               BuildableName = "DesignSystemTests"
+               BlueprintName = "DesignSystemTests"
+               ReferencedContainer = "container:../Packages/DesignSystem">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
                BlueprintIdentifier = "FeatureProfileTests"
                BuildableName = "FeatureProfileTests"
                BlueprintName = "FeatureProfileTests"
@@ -46,6 +66,16 @@
                BuildableName = "FeatureHomeTests"
                BlueprintName = "FeatureHomeTests"
                ReferencedContainer = "container:../Packages/FeatureHome">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "FeatureNotificationTests"
+               BuildableName = "FeatureNotificationTests"
+               BlueprintName = "FeatureNotificationTests"
+               ReferencedContainer = "container:../Packages/FeatureNotification">
             </BuildableReference>
          </TestableReference>
          <TestableReference
