@@ -43,37 +43,32 @@ public final class ArchiveCoordinator: Coordinator {
     // MARK: - Store Factories
 
     public func makeRoomListStore() -> RoomListStore {
-        let store = RoomListStore(
+        makeStore(
             RoomListState(),
-            reduce: roomListReducer(useCase: deps.fetchRooms, promptSnooze: deps.roomCreationPromptSnooze)
+            reduce: roomListReducer(useCase: deps.fetchRooms, promptSnooze: deps.roomCreationPromptSnooze),
+            handle: { [weak self] in self?.handle($0) }
         )
-        store.observeNavigation { [weak self] in self?.handle($0) }   // 구독·Task 관리는 Store 가 담당
-        return store
     }
 
     func makeRoomDetailStore(room: Room) -> RoomDetailStore {
-        let store = RoomDetailStore(
+        makeStore(
             RoomDetailState(room: RoomDetailRoom(from: room)),
-            reduce: roomDetailReducer(useCase: deps.fetchPins, room: room)
+            reduce: roomDetailReducer(useCase: deps.fetchPins, room: room),
+            handle: { [weak self] in self?.handle($0) }
         )
-        store.observeNavigation { [weak self] in self?.handle($0) }
-        return store
     }
 
     func makePlaceDetailStore(pin: Pin) -> PlaceDetailStore {
-        let store = PlaceDetailStore(
+        makeStore(
             PlaceDetailState(place: PlaceDetailPlace(from: pin, now: Date())),
-            reduce: placeDetailReducer(pin: pin)
+            reduce: placeDetailReducer(pin: pin),
+            handle: { [weak self] in self?.handle($0) }
         )
-        store.observeNavigation { [weak self] in self?.handle($0) }
-        return store
     }
 
     /// 공동방 만들기 Store 팩토리. roomFormReducer 는 의존이 없어 그대로 조립한다(RoomCreationUI 는 UI 전용).
     func makeRoomFormStore() -> RoomFormStore {
-        let store = RoomFormStore(RoomFormState(mode: .create), reduce: roomFormReducer())
-        store.observeNavigation { [weak self] in self?.handle($0) }
-        return store
+        makeStore(RoomFormState(mode: .create), reduce: roomFormReducer(), handle: { [weak self] in self?.handle($0) })
     }
 
     // MARK: - Effect Routing

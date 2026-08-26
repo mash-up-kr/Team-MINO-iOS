@@ -64,7 +64,7 @@ public final class HomeCoordinator: Coordinator {
     // MARK: - Store Factory
 
     public func makeHomeStore() -> HomeStore {
-        let store = HomeStore(
+        let store = makeStore(
             HomeState(),
             reduce: homeReducer(
                 fetchRooms: deps.fetchRooms,
@@ -72,18 +72,16 @@ public final class HomeCoordinator: Coordinator {
                 lastViewedRoom: deps.lastViewedRoom,
                 homeGuide: deps.homeGuide,
                 savePin: deps.savePin
-            )
+            ),
+            handle: { [weak self] in self?.handle($0) }
         )
-        store.observeNavigation { [weak self] in self?.handle($0) }
         homeStore = store
         return store
     }
 
     /// 공동방 만들기 Store 팩토리. roomFormReducer 는 의존이 없어 그대로 조립한다(RoomCreationUI 는 UI 전용).
     func makeRoomFormStore() -> RoomFormStore {
-        let store = RoomFormStore(RoomFormState(), reduce: roomFormReducer())
-        store.observeNavigation { [weak self] in self?.handle($0) }
-        return store
+        makeStore(RoomFormState(), reduce: roomFormReducer(), handle: { [weak self] in self?.handle($0) })
     }
 
     // MARK: - Navigation Routing
