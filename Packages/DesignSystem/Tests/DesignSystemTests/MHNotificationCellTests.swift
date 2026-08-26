@@ -86,26 +86,28 @@ final class MHNotificationCellTests: XCTestCase {
         let cellRenderer = ImageRenderer(content:
             MHNotificationCell(title: "제목", subtitle: "부제", time: longTime, thumbnail: .icon)
                 .frame(width: 375))
-        cellRenderer.scale = 1
+        cellRenderer.scale = RenderScale.ink   // 픽셀 스캔이라 배율이 필요하다 — RenderScale 주석 참조
         let cellImage = try XCTUnwrap(cellRenderer.uiImage, "셀 렌더 실패")
         let cellCGImage = try XCTUnwrap(cellImage.cgImage)
         // 시간 영역은 셀 우측 padding 20 안쪽, y=12~28(높이 16) 부근. 넉넉히 우측 115pt 를 본다.
+        // 좌표는 pt 로 적고 배율을 곱해 픽셀로 환산한다. 폭도 pt 로 되돌려 비교한다.
+        let s = RenderScale.inkInt
         let actualWidth = try XCTUnwrap(
-            Self.inkWidth(cellCGImage, xRange: 260..<355, yRange: 10..<30),
+            Self.inkWidth(cellCGImage, xRange: 260 * s..<355 * s, yRange: 10 * s..<30 * s),
             "셀 안에서 시간 잉크 픽셀을 찾지 못했다"
-        )
+        ) / RenderScale.ink
 
         // 잘릴 걱정이 없는 단독 렌더의 자연 잉크 폭 — 같은 `Text` + 같은 타이포 토큰을 그대로 쓴다.
         let naturalRenderer = ImageRenderer(content:
             Text(longTime).mhTypography(.caption1Regular).foregroundStyle(.mhLabelAlternative)
                 .fixedSize())
-        naturalRenderer.scale = 1
+        naturalRenderer.scale = RenderScale.ink
         let naturalImage = try XCTUnwrap(naturalRenderer.uiImage, "단독 렌더 실패")
         let naturalCGImage = try XCTUnwrap(naturalImage.cgImage)
         let naturalWidth = try XCTUnwrap(
             Self.inkWidth(naturalCGImage, xRange: 0..<naturalCGImage.width, yRange: 0..<naturalCGImage.height),
             "단독 렌더에서 잉크 픽셀을 찾지 못했다"
-        )
+        ) / RenderScale.ink
 
         XCTAssertEqual(
             actualWidth, naturalWidth, accuracy: 3,

@@ -17,7 +17,7 @@ final class MHIllustratedMessageTests: XCTestCase {
                     alignment: alignment,
                     illustrationSpacing: 32
                 ).frame(width: 375))
-            r.scale = 1
+            r.scale = RenderScale.ink   // 픽셀 비교라 배율이 필요하다 — RenderScale 주석 참조
             let img = try XCTUnwrap(r.uiImage, "렌더 실패")
             return try XCTUnwrap(img.pngData(), "PNG 인코딩 실패")
         }
