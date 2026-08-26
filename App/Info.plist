@@ -20,6 +20,11 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<!-- 푸시를 아직 붙이지 않았다(코드도 aps-environment 엔타이틀먼트도 없다).
+	     켜두면 FirebaseApp.configure() 가 콜드런치마다 쓰지도 않을 FCM 등록 토큰을
+	     네트워크로 받아온다. 푸시를 붙이는 PR 에서 이 키를 지운다. -->
+	<key>FirebaseMessagingAutoInitEnabled</key>
+	<false/>
 	<key>GMSApiKey</key>
 	<string>$(GOOGLE_MAPS_API_KEY)</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
