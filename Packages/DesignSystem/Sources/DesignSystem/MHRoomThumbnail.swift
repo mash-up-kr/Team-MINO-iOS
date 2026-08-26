@@ -28,12 +28,12 @@ public extension MHRoomThumbnailColor {
     /// 매칭되도록 **둘 다** 등록한다. 값 출처는 `AtomicColor.xcassets`(피커와 같은 토큰) — 팔레트가
     /// 바뀌면 이 표도 함께 고친다.
     private static let paletteHex: [String: MHRoomThumbnailColor] = [
-        "FF6363": .red,       "B00C0C": .red,
+        "FF6363": .red,       "E52222": .red,
         "FF9B61": .redOrange, "C94A00": .redOrange,
         "FFC06E": .orange,    "D47800": .orange,
         "AEF779": .lime,      "429E00": .lime,
-        "ACFCC7": .green,     "1ED45A": .green,
-        "B5F4FF": .cyan,      "00BDDE": .cyan,
+        "ACFCC7": .green,     "009632": .green,
+        "B5F4FF": .cyan,      "0098B2": .cyan,
         "C0B0FF": .violet,    "6541F2": .violet,
         "FED3F7": .pink,      "FA73E3": .pink,
         "4F95FF": .blue,      "0054D1": .blue,

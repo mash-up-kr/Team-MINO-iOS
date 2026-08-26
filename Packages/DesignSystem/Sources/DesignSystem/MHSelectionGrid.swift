@@ -58,6 +58,12 @@ public struct MHSelectionGrid: View {
         self.onSelect = onSelect
     }
 
+    // 매 body 재평가마다 새로 만들 이유가 없다 — 열 수·간격이 고정이라 한 번만 짓는다.
+    private static let columns = Array(
+        repeating: GridItem(.flexible(), spacing: Metric.spacing),
+        count: Metric.columns
+    )
+
     public var body: some View {
         VStack(alignment: .leading, spacing: shape.titleSpacing) {
             Text(title)
@@ -65,10 +71,7 @@ public struct MHSelectionGrid: View {
                 .foregroundStyle(Color.mhLabelNeutral)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            LazyVGrid(
-                columns: Array(repeating: GridItem(.flexible(), spacing: Metric.spacing), count: Metric.columns),
-                spacing: Metric.spacing
-            ) {
+            LazyVGrid(columns: Self.columns, spacing: Metric.spacing) {
                 ForEach(items.indices, id: \.self) { index in
                     cell(index)
                 }
@@ -178,8 +181,8 @@ private extension MHSelectionGridShape {
     MHSelectionGrid(
         title: "방 색상 선택",
         items: [
-            .color(fill: .mhRed60, border: .mhRed30),
-            .color(fill: .mhCyan90, border: .mhCyan50),
+            .color(fill: .mhRed60, border: .mhRed40),
+            .color(fill: .mhCyan90, border: .mhCyan40),
             .color(fill: .mhPink90, border: .mhPink60),
             .color(fill: .mhBlue65, border: .mhBlue40),
         ],

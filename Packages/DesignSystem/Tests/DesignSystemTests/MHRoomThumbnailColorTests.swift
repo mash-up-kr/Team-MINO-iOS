@@ -26,12 +26,12 @@ final class MHRoomThumbnailColorTests: XCTestCase {
     // 선택 시 채움색(진한 단계) hex 로도 같은 색에 매칭된다 — 백엔드가 어느 tier 를 보내도 대응.
     func testSelectedTierHexMatchesSameColor() {
         let cases: [(String, MHRoomThumbnailColor)] = [
-            ("#B00C0C", .red),
+            ("#E52222", .red),
             ("#C94A00", .redOrange),
             ("#D47800", .orange),
             ("#429E00", .lime),
-            ("#1ED45A", .green),
-            ("#00BDDE", .cyan),
+            ("#009632", .green),
+            ("#0098B2", .cyan),
             ("#6541F2", .violet),
             ("#FA73E3", .pink),
             ("#0054D1", .blue),

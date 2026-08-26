@@ -1,10 +1,15 @@
+import Core
 import Domain
 import FlowCoordination
 import MVI
+import RoomCreationUI
 import SwiftUI
 
-/// 저장 탭 flow. 아직 하위 화면이 없어 Route 는 비어 있다(카드 탭·"+" 인터랙션 비활성).
-public enum ArchiveRoute: Hashable {}
+/// 저장 탭 flow 의 하위 화면. (카드 탭 등 나머지 전환은 아직 없다)
+public enum ArchiveRoute: Hashable {
+    /// 공동방 만들기 (RoomCreationUI.RoomFormView) — 유도 시트·빈 상태 CTA·헤더 "+" 진입.
+    case createRoom
+}
 
 /// 탭 flow 는 앱 생존 내내 유지되므로 종료가 없다 — Output = Never.
 @Observable
@@ -23,6 +28,12 @@ public final class ArchiveCoordinator: Coordinator {
 
     public var isRoomDetailPresented: Bool { selectedRoom != nil }
 
+    /// 탭바 자체를 레이아웃에서 빼야 하는 전체화면 상태인가 — MainTabView 가 본다.
+    /// 방 상세 시트, 그리고 자체 상단바를 가진 push 화면(공동방 만들기)이 여기 해당한다.
+    public var isFullBleedContentPresented: Bool {
+        isRoomDetailPresented || !path.isEmpty
+    }
+
     var sharingLocation: RoomDetailLocation?
 
     public init(deps: ArchiveDeps) {
@@ -34,7 +45,7 @@ public final class ArchiveCoordinator: Coordinator {
     public func makeRoomListStore() -> RoomListStore {
         let store = RoomListStore(
             RoomListState(),
-            reduce: roomListReducer(useCase: deps.fetchRooms)
+            reduce: roomListReducer(useCase: deps.fetchRooms, promptSnooze: deps.roomCreationPromptSnooze)
         )
         store.observeNavigation { [weak self] in self?.handle($0) }   // 구독·Task 관리는 Store 가 담당
         return store
@@ -58,12 +69,29 @@ public final class ArchiveCoordinator: Coordinator {
         return store
     }
 
+    /// 공동방 만들기 Store 팩토리. roomFormReducer 는 의존이 없어 그대로 조립한다(RoomCreationUI 는 UI 전용).
+    func makeRoomFormStore() -> RoomFormStore {
+        let store = RoomFormStore(RoomFormState(mode: .create), reduce: roomFormReducer())
+        store.observeNavigation { [weak self] in self?.handle($0) }
+        return store
+    }
+
     // MARK: - Effect Routing
 
     func handle(_ nav: RoomListNav) {
         switch nav {
         case .openRoomDetail(let room):
             selectedRoom = room
+        case .goToCreateRoom:
+            push(.createRoom)
+        }
+    }
+
+    func handle(_ nav: RoomFormNav) {
+        switch nav {
+        case .didSubmit, .didCancel, .didSkip:
+            // 생성/취소 후 방 리스트로 복귀. (실제 방 생성 로직은 후속 — 현재 RoomCreationUI 는 UI 전용)
+            pop()
         }
     }
 

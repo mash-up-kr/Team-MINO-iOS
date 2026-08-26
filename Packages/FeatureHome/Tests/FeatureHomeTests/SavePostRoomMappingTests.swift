@@ -56,7 +56,7 @@ struct SavePostRoomMappingTests {
     @Test("방 색이 팔레트에 있으면 그 색 썸네일을 쓴다")
     func thumbnailUsesRoomColor() {
         #expect(SavePostRoom(room(type: .shared, name: "방", color: "#FFC06E")).thumbnail == .color(.orange))
-        #expect(SavePostRoom(room(type: .personal, name: "방", color: "#00BDDE")).thumbnail == .color(.cyan))
+        #expect(SavePostRoom(room(type: .personal, name: "방", color: "#0098B2")).thumbnail == .color(.cyan))
     }
 
     @Test("팔레트에 없는 색은 my-room 썸네일로 떨어진다")

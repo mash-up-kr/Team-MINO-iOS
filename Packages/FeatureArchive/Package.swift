@@ -12,12 +12,15 @@ let package = Package(
         .package(path: "../DesignSystem"),
         .package(path: "../MVI"),
         .package(path: "../Domain"),
+        .package(path: "../Core"),
+        .package(path: "../RoomCreationUI"),
         .package(path: "../MapUI"),
     ],
     targets: [
         .target(
             name: "FeatureArchive",
-            dependencies: ["FlowCoordination", "DesignSystem", "MVI", "Domain", "MapUI"],
+            dependencies: ["FlowCoordination", "DesignSystem", "MVI", "Domain", "Core", "RoomCreationUI", "MapUI"],
+            // develop 이 emptyCommentIllustration 을 이 카탈로그에 넣었다 — 내 쪽에서 지웠던 선언을 되살린다.
             resources: [.process("Resources")]
         ),
         .testTarget(
@@ -25,6 +28,7 @@ let package = Package(
             dependencies: [
                 "FeatureArchive",
                 "Domain",
+                "Core",
                 .product(name: "MVITestSupport", package: "MVI"),
             ]
         ),

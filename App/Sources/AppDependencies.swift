@@ -1,3 +1,4 @@
+import Core
 import Data
 import Domain
 import Feature
@@ -14,6 +15,7 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps {
     let lastViewedRoom: LastViewedRoomUseCase
     let homeGuide: HomeGuideUseCase
     let savePin: SavePinToRoomsUseCase
+    let roomCreationPromptSnooze: SnoozeSwitch
 
     init() {
         // 백엔드 미연결 단계 — 시범용 Stub UseCase 를 주입한다.
@@ -37,6 +39,9 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps {
         // 다른 방 저장: 저장 API 미연결 → Mock Repository(지연만 주고 성공) 사용.
         // 추후 SavePinRepositoryImpl 로 교체한다.
         self.savePin = DefaultSavePinToRoomsUseCase(repository: MockSavePinRepository())
+
+        // 공동방 생성 유도 시트: "나중에 만들래요" 를 누르면 2주 동안 띄우지 않는다(기획 001-2-1).
+        self.roomCreationPromptSnooze = SnoozeSwitch(key: "roomCreationPrompt.snoozedAt", period: .days(14))
     }
 }
 

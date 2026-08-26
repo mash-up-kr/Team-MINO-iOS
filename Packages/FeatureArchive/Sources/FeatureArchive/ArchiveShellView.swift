@@ -1,4 +1,5 @@
 import DesignSystem
+import RoomCreationUI
 import SwiftUI
 
 struct ArchiveShellView: View {
@@ -27,6 +28,16 @@ struct ArchiveShellView: View {
                     filterBar(roomList: roomListStore)
                 }
                 sheet(roomList: roomListStore)
+                    // 루트에는 이미 공유 시트가 붙어 있다. 같은 뷰에 `.sheet` 를 둘 달면 하나만
+                    // 뜨므로 방 리스트 시트 쪽에 붙인다.
+                    .sheet(isPresented: createPromptBinding) {
+                        RoomCreationPromptView(
+                            onCreate: { roomListStore.send(.tapCreateRoom) },
+                            onLater: { roomListStore.send(.tapLater) }
+                        )
+                        .presentationDetents([.height(RoomCreationPromptView.detentHeight)])
+                        .presentationDragIndicator(.hidden)   // 그래버는 시트가 직접 그린다
+                    }
             }
 
             toast
@@ -55,6 +66,14 @@ struct ArchiveShellView: View {
             .presentationDragIndicator(.hidden)
             .presentationBackground(.mhBackgroundElevatedNormal)
         }
+    }
+
+    /// 스와이프 dismiss 도 reducer 를 거치게 한다 — state 와 실제 표시가 갈라지면 시트가 다시 안 뜬다.
+    private var createPromptBinding: Binding<Bool> {
+        Binding(
+            get: { roomListStore?.state.isCreatePromptPresented ?? false },
+            set: { if !$0 { roomListStore?.send(.dismissCreatePrompt) } }
+        )
     }
 
     private var shareRooms: [RoomShareRoom] {

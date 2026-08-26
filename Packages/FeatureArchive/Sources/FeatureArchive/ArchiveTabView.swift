@@ -1,4 +1,5 @@
 import FlowCoordination
+import RoomCreationUI
 import SwiftUI
 
 public struct ArchiveTabView: View {
@@ -13,6 +14,13 @@ public struct ArchiveTabView: View {
         NavigationStack(path: $coordinator.path) {
             ArchiveShellView(coordinator: coordinator)
                 .toolbar(.hidden, for: .navigationBar)
+                .navigationDestination(for: ArchiveRoute.self) { route in
+                    switch route {
+                    case .createRoom:
+                        // 저장 탭에서 진입 → 건너뛰기 없음(showsSkip: false)
+                        RoomFormView(makeStore: coordinator.makeRoomFormStore, showsSkip: false)
+                    }
+                }
         }
     }
 }

@@ -6,7 +6,7 @@ import SwiftUI
 
 /// 홈 탭 flow. 방 생성 등 하위 화면이 추가되면 Route 를 확장한다.
 public enum HomeRoute: Hashable {
-    /// 공동방 만들기 (RoomCreationUI.CreateRoomView) — 방 리스트 시트의 "방 만들기" 진입.
+    /// 공동방 만들기 (RoomCreationUI.RoomFormView) — 방 리스트 시트의 "방 만들기" 진입.
     case createRoom
 }
 
@@ -79,9 +79,9 @@ public final class HomeCoordinator: Coordinator {
         return store
     }
 
-    /// 공동방 만들기 Store 팩토리. createRoomReducer 는 의존이 없어 그대로 조립한다(RoomCreationUI 는 UI 전용).
-    func makeCreateRoomStore() -> CreateRoomStore {
-        let store = CreateRoomStore(CreateRoomState(), reduce: createRoomReducer())
+    /// 공동방 만들기 Store 팩토리. roomFormReducer 는 의존이 없어 그대로 조립한다(RoomCreationUI 는 UI 전용).
+    func makeRoomFormStore() -> RoomFormStore {
+        let store = RoomFormStore(RoomFormState(), reduce: roomFormReducer())
         store.observeNavigation { [weak self] in self?.handle($0) }
         return store
     }
@@ -95,11 +95,11 @@ public final class HomeCoordinator: Coordinator {
         }
     }
 
-    func handle(_ nav: CreateRoomNav) {
+    func handle(_ nav: RoomFormNav) {
         switch nav {
-        case .didCreateRoom, .didSkip:
+        case .didSubmit, .didCancel, .didSkip:
             // 생성/취소 후 홈으로 복귀. (실제 방 생성 로직은 후속 — 현재 RoomCreationUI 는 UI 전용)
-            if !path.isEmpty { path.removeLast() }
+            pop()
         }
     }
 }

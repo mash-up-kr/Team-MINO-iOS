@@ -1,6 +1,7 @@
 import DesignSystem
 import Domain
 import MVI
+import RoomCreationUI
 import SwiftUI
 
 struct RoomListView: View {
@@ -11,11 +12,12 @@ struct RoomListView: View {
     var body: some View {
         RoomListContentView(
             rooms: store.state.rooms.map(RoomListItem.init(from:)),
-            showEmptyState: !store.state.rooms.contains { $0.type == .shared },
+            showEmptyState: !store.state.hasSharedRoom,
             isFull: isFull,
             filterSelection: filterBinding,
             onClose: onCollapse,
-            onSelectRoom: selectRoom
+            onSelectRoom: selectRoom,
+            onCreateRoom: { store.send(.tapCreateRoom) }
         )
     }
 
@@ -44,8 +46,10 @@ struct RoomListContentView: View {
     @Binding var filterSelection: Int
     var onClose: (() -> Void)?
     var onSelectRoom: ((RoomListItem.ID) -> Void)?
+    /// 빈 상태 CTA 와 헤더 "+" 가 함께 쓰는 방 만들기 진입.
+    var onCreateRoom: () -> Void = {}
 
-    private let filterItems = ["전체", "최근 저장 순", "코멘트 순"]
+    private static let filterItems = ["전체", "최근 저장 순", "코멘트 순"]
 
     var body: some View {
         VStack(spacing: 0) {
@@ -64,7 +68,7 @@ struct RoomListContentView: View {
                 .accessibilityIdentifier("RoomList.title")
             Spacer()
             HStack(spacing: 8) {
-                MHIconButton(icon: .plus, accessibilityLabel: "방 추가") {}
+                MHIconButton(icon: .plus, accessibilityLabel: "방 추가", action: onCreateRoom)
                     .accessibilityIdentifier("RoomList.addButton")
                 if isFull {
                     MHIconButton(icon: .close, accessibilityLabel: "시트 접기") {
@@ -86,10 +90,10 @@ struct RoomListContentView: View {
     // 없어 읽을 수 없으므로, 컨테이너(`RoomList.filter`)에 현재 선택된 칩 텍스트를
     // `accessibilityValue` 로 노출해 자동화가 선택 상태를 검증할 수 있게 한다.
     private var filter: some View {
-        MHCategory(filterItems, selection: $filterSelection, variant: .normal, size: .medium, horizontalPadding: true)
+        MHCategory(Self.filterItems, selection: $filterSelection, variant: .normal, size: .medium, horizontalPadding: true)
             .frame(height: 50)
             .accessibilityIdentifier("RoomList.filter")
-            .accessibilityValue(filterItems[filterSelection])
+            .accessibilityValue(Self.filterItems[filterSelection])
     }
 
     // Figma Frame 460: 좌우 padding 20. 카드만 스크롤 영역(헤더·필터는 고정).
@@ -125,25 +129,12 @@ struct RoomListContentView: View {
         VStack(spacing: 0) {
             Spacer(minLength: 24)
 
+            // 유도 시트와 같은 블록이다(RoomCreationUI). CTA 만 자리마다 다르다.
             VStack(spacing: 24) {
-                Image("emptyRoomIllustration", bundle: .module)
-                    .accessibilityHidden(true)
+                RoomCreationPromptMessage()
 
-                VStack(spacing: 8) {
-                    Text("공동방을 생성해보세요!")
-                        .mhTypography(.title3Bold)
-                        .foregroundStyle(.mhPrimaryNormal)
-
-                    Text("\"저번에 말한 거기가 어디였지?\"\n더 이상 묻지 마세요.")
-                        .mhTypography(.label1NormalRegular)
-                        .foregroundStyle(.mhLabelAlternative)
-                        .multilineTextAlignment(.center)
-                }
-
-                MHButton("공동방 만들기", size: .medium, leadingIcon: .plus) {
-                    // TODO: 공동방 생성 플로우 연결
-                }
-                .accessibilityIdentifier("RoomList.createRoomButton")
+                MHButton("공동방 만들기", size: .medium, leadingIcon: .plus, action: onCreateRoom)
+                    .accessibilityIdentifier("RoomList.createRoomButton")
             }
 
             Spacer(minLength: 24)

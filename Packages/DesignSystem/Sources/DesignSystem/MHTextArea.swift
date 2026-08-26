@@ -152,6 +152,18 @@ public struct MHTextArea<Leading: View, Trailing: View>: View {
                 }
                 TextField("", text: $text, axis: .vertical)
                     .focused($isFocused)
+                    // 멀티라인이라 리턴키가 개행으로 소비돼 리턴키로는 키보드를 못 닫는다(단일행 MHTextField 와
+                    // 갈리는 지점). 툴바가 이 컴포넌트의 탈출로다 — 포커스일 때만 기여해 같은 화면에
+                    // TextArea 가 여럿이어도 '완료' 가 중복되지 않는다.
+                    .toolbar {
+                        if isFocused {
+                            ToolbarItemGroup(placement: .keyboard) {
+                                Spacer()
+                                Button("완료") { isFocused = false }
+                                    .accessibilityIdentifier("MHTextArea.doneButton")
+                            }
+                        }
+                    }
                     // 입력 요소에만 붙인다 — 바깥 modifier 는 heading·카운터까지 물들여 선택자가 다중 매치된다.
                     .accessibilityIdentifier(identifier ?? "MHTextArea.input")
                     .foregroundStyle(spec.valueTextColor)

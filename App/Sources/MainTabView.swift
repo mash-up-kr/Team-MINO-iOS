@@ -52,7 +52,7 @@ struct MainTabView: View {
 
     /// 탭바 없이 화면 바닥까지 깔려야 하는 화면(방 상세 바텀시트 · 공동방 만들기 등)이 떠 있는가.
     private var isFullBleedContentPresented: Bool {
-        coordinator.archive.isRoomDetailPresented
+        coordinator.archive.isFullBleedContentPresented
             || coordinator.home.isFullBleedContentPresented
     }
 

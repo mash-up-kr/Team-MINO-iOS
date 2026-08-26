@@ -55,8 +55,8 @@ public final class OnboardingCoordinator: Coordinator {
         return store
     }
 
-    func makeCreateRoomStore() -> CreateRoomStore {
-        let store = CreateRoomStore(CreateRoomState(), reduce: createRoomReducer())
+    func makeRoomFormStore() -> RoomFormStore {
+        let store = RoomFormStore(RoomFormState(), reduce: roomFormReducer())
         store.observeNavigation { [weak self] in self?.handle($0) }
         return store
     }
@@ -81,13 +81,16 @@ public final class OnboardingCoordinator: Coordinator {
         }
     }
 
-    func handle(_ nav: CreateRoomNav) {
+    func handle(_ nav: RoomFormNav) {
         switch nav {
-        case .didCreateRoom:
+        case .didSubmit:
             push(.inviteFriends)
         // 방을 만들지 않았으면 초대할 방도 없어 친구초대까지 함께 건너뛴다.
         case .didSkip:
             push(.tutorial)
+        // 온보딩엔 뒤로가기가 없어(디자인 ⑦) 실제로는 오지 않는다. 와도 되돌아갈 곳이 프로필 설정뿐이라 pop.
+        case .didCancel:
+            pop()
         }
     }
 

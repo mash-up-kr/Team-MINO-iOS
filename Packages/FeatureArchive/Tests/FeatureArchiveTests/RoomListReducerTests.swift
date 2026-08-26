@@ -1,3 +1,4 @@
+import Core
 import Foundation
 import Testing
 import Domain
@@ -29,18 +30,140 @@ private struct StubFetchRooms: FetchRoomsUseCase {
 
 @MainActor
 struct RoomListReducerTests {
-    private func makeStore(
-        _ useCase: FetchRoomsUseCase = StubFetchRooms(),
-        state: RoomListState = RoomListState()
-    ) -> TestStore<RoomListState, RoomListAction, RoomListNav> {
-        TestStore(state, reduce: roomListReducer(useCase: useCase))
+    /// 테스트끼리 스누즈 기록이 섞이지 않도록 매번 새 suite 를 쓴다.
+    private func makeSnooze(snoozed: Bool = false) -> SnoozeSwitch {
+        let name = "RoomListReducerTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: name)!
+        defaults.removePersistentDomain(forName: name)
+        let sut = SnoozeSwitch(key: "prompt", period: .days(14), defaults: defaults)
+        if snoozed { sut.snooze() }
+        return sut
     }
 
-    @Test("L2 — load 하면 rooms 를 반영한다")
+    private func makeStore(
+        _ useCase: FetchRoomsUseCase = StubFetchRooms(),
+        state: RoomListState = RoomListState(),
+        snooze: SnoozeSwitch? = nil
+    ) -> TestStore<RoomListState, RoomListAction, RoomListNav> {
+        TestStore(state, reduce: roomListReducer(useCase: useCase, promptSnooze: snooze ?? makeSnooze()))
+    }
+
+    @Test("L2 — load 하면 rooms 를 반영한다. 공동방이 있으면 유도 시트는 뜨지 않는다")
     func load_success() async {
         let store = makeStore()
         await store.send(.load)
-        await store.receive(.loaded(fixtureRooms)) { $0.rooms = fixtureRooms }
+        await store.receive(.loaded(fixtureRooms, isPromptSnoozed: false)) { $0.rooms = fixtureRooms }
+        #expect(!store.currentState.isCreatePromptPresented)
+        store.finish()
+    }
+
+    // 기획 001-2-1 — 활성 조건은 "공동방 미생성". 개인방만 있는 건 없는 것으로 친다.
+    @Test("L2 — 공동방이 하나도 없으면 load 후 생성 유도 시트가 뜬다")
+    func load_withoutSharedRoom_showsCreatePrompt() async {
+        let personalOnly = [fixtureRooms[0]]
+        let store = makeStore(StubFetchRooms(result: .success(personalOnly)))
+
+        await store.send(.load)
+        await store.receive(.loaded(personalOnly, isPromptSnoozed: false)) {
+            $0.rooms = personalOnly
+            $0.isCreatePromptPresented = true
+        }
+
+        store.finish()
+    }
+
+    @Test("L2 — tapCreateRoom 은 유도 시트를 닫고 만들기 화면으로 보낸다")
+    func tapCreateRoom_dismissesPromptAndNavigates() async {
+        let store = makeStore(state: RoomListState(isCreatePromptPresented: true))
+
+        await store.send(.tapCreateRoom) {
+            $0.isCreatePromptPresented = false
+            $0.skipsNextCreatePrompt = true
+        }
+        store.receiveNavigation(.goToCreateRoom)
+
+        store.finish()
+    }
+
+    // pop 하면 이 화면의 .task 가 다시 돌아 .load 가 나간다. 억제하지 않으면 방금 그 시트에서
+    // 출발한 사용자에게 같은 시트가 즉시 다시 뜬다("나가기 → 시트 → 나가기" 반복).
+    @Test("L2 — 만들기 화면에서 돌아온 직후의 재조회는 유도 시트를 다시 띄우지 않는다")
+    func reload_rightAfterReturningFromCreation_skipsPromptOnce() async {
+        let personalOnly = [fixtureRooms[0]]
+        let store = makeStore(
+            StubFetchRooms(result: .success(personalOnly)),
+            state: RoomListState(isCreatePromptPresented: true)
+        )
+
+        await store.send(.tapCreateRoom) {
+            $0.isCreatePromptPresented = false
+            $0.skipsNextCreatePrompt = true
+        }
+        store.receiveNavigation(.goToCreateRoom)
+
+        // 복귀 직후 1회 — 억제하고 플래그를 소비한다
+        await store.send(.load)
+        await store.receive(.loaded(personalOnly, isPromptSnoozed: false)) {
+            $0.rooms = personalOnly
+            $0.skipsNextCreatePrompt = false
+        }
+        #expect(!store.currentState.isCreatePromptPresented)
+
+        // 다음 탭 진입 — 다시 뜬다
+        await store.send(.load)
+        await store.receive(.loaded(personalOnly, isPromptSnoozed: false)) { $0.isCreatePromptPresented = true }
+
+        store.finish()
+    }
+
+    @Test("L1 — dismissCreatePrompt(스와이프로 내림) 는 시트만 닫고 미루지 않는다")
+    func dismissCreatePrompt_closesOnly() async {
+        let snooze = makeSnooze()
+        let store = makeStore(state: RoomListState(isCreatePromptPresented: true), snooze: snooze)
+
+        await store.send(.dismissCreatePrompt) { $0.isCreatePromptPresented = false }
+
+        #expect(!snooze.isSnoozed)
+        // finish 가 미수신 navigation 잔여를 검사한다 — 닫기만 했는데 전환이 나갔다면 실패한다
+        store.finish()
+    }
+
+    // 기획: "나중에 만들래요" 클릭 시 2주 동안 바텀시트를 활성화하지 않는다.
+    @Test("L2 — tapLater(나중에 만들래요) 는 시트를 닫고 2주 미룬다")
+    func tapLater_closesAndSnoozes() async {
+        let snooze = makeSnooze()
+        let store = makeStore(state: RoomListState(isCreatePromptPresented: true), snooze: snooze)
+
+        await store.send(.tapLater) { $0.isCreatePromptPresented = false }
+
+        #expect(snooze.isSnoozed)
+        store.finish()
+    }
+
+    @Test("L2 — 미뤄 둔 동안에는 공동방이 0개여도 시트가 뜨지 않는다")
+    func load_whileSnoozed_doesNotShowPrompt() async {
+        let personalOnly = [fixtureRooms[0]]
+        let store = makeStore(StubFetchRooms(result: .success(personalOnly)), snooze: makeSnooze(snoozed: true))
+
+        await store.send(.load)
+        await store.receive(.loaded(personalOnly, isPromptSnoozed: true)) { $0.rooms = personalOnly }
+
+        #expect(!store.currentState.isCreatePromptPresented)
+        store.finish()
+    }
+
+    // 거절을 기억하지 않는다 — 저장 탭에 다시 들어오면(.load 재실행) 또 뜬다(기획서 그대로).
+    @Test("L2 — 시트를 닫아도 재조회하면 다시 뜬다")
+    func reload_afterDismiss_showsPromptAgain() async {
+        let personalOnly = [fixtureRooms[0]]
+        let store = makeStore(
+            StubFetchRooms(result: .success(personalOnly)),
+            state: RoomListState(rooms: personalOnly, isCreatePromptPresented: false)
+        )
+
+        await store.send(.load)
+        await store.receive(.loaded(personalOnly, isPromptSnoozed: false)) { $0.isCreatePromptPresented = true }
+
         store.finish()
     }
 
@@ -49,6 +172,34 @@ struct RoomListReducerTests {
         let store = makeStore(StubFetchRooms(result: .failure(.roomsFetchFailed)))
         await store.send(.load)
         await store.receive(.loadFailed(.roomsFetchFailed))
+        store.finish()
+    }
+
+    // 실패가 플래그를 안 지우면 true 로 남아, 그 다음 정상 진입의 시트가 조용히 안 뜬다.
+    @Test("L2 — 복귀 로드가 실패해도 억제 플래그는 소비된다")
+    func loadFailure_afterReturningFromCreation_stillConsumesSkipFlag() async {
+        let personalOnly = [fixtureRooms[0]]
+        let store = makeStore(
+            StubFetchRooms(result: .success(personalOnly)),
+            state: RoomListState(isCreatePromptPresented: true)
+        )
+
+        await store.send(.tapCreateRoom) {
+            $0.isCreatePromptPresented = false
+            $0.skipsNextCreatePrompt = true
+        }
+        store.receiveNavigation(.goToCreateRoom)
+
+        // 복귀 로드가 실패 — 여기서 플래그를 소비해야 한다
+        await store.send(.loadFailed(.roomsFetchFailed)) { $0.skipsNextCreatePrompt = false }
+
+        // 다음 정상 진입에서는 정상적으로 뜬다
+        await store.send(.load)
+        await store.receive(.loaded(personalOnly, isPromptSnoozed: false)) {
+            $0.rooms = personalOnly
+            $0.isCreatePromptPresented = true
+        }
+
         store.finish()
     }
 

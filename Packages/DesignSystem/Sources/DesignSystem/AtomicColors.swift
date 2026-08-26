@@ -16,8 +16,8 @@ fileprivate extension Color {
 public extension ShapeStyle where Self == Color {
     /// Figma atomic `Red/60` (#FF6363).
     static var mhRed60: Color { Color(atomic: "Red/60") }
-    /// Figma atomic `Red/30` (#B00C0C).
-    static var mhRed30: Color { Color(atomic: "Red/30") }
+    /// Figma atomic `Red/40` (#E52222).
+    static var mhRed40: Color { Color(atomic: "Red/40") }
 
     /// Figma atomic `Red Orange/70` (#FF9B61).
     static var mhRedOrange70: Color { Color(atomic: "Red Orange/70") }
@@ -36,13 +36,13 @@ public extension ShapeStyle where Self == Color {
 
     /// Figma atomic `Green/90` (#ACFCC7).
     static var mhGreen90: Color { Color(atomic: "Green/90") }
-    /// Figma atomic `Green/60` (#1ED45A).
-    static var mhGreen60: Color { Color(atomic: "Green/60") }
+    /// Figma atomic `Green/40` (#009632).
+    static var mhGreen40: Color { Color(atomic: "Green/40") }
 
     /// Figma atomic `Cyan/90` (#B5F4FF).
     static var mhCyan90: Color { Color(atomic: "Cyan/90") }
-    /// Figma atomic `Cyan/50` (#00BDDE).
-    static var mhCyan50: Color { Color(atomic: "Cyan/50") }
+    /// Figma atomic `Cyan/40` (#0098B2).
+    static var mhCyan40: Color { Color(atomic: "Cyan/40") }
 
     /// Figma atomic `Violet/80` (#C0B0FF).
     static var mhViolet80: Color { Color(atomic: "Violet/80") }

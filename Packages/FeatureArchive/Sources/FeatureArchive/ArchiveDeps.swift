@@ -1,3 +1,4 @@
+import Core
 import Domain
 
 /// ArchiveCoordinator 가 요구하는 좁은 의존성 묶음.
@@ -8,4 +9,7 @@ import Domain
 public protocol ArchiveDeps {
     var fetchRooms: FetchRoomsUseCase { get }
     var fetchPins: FetchPinsUseCase { get }
+    /// 공동방 생성 유도 시트를 "나중에 만들래요" 로 미뤄 둔 상태(2주). 서버가 모르는 기기 로컬
+    /// 표시 정책이라 UseCase 가 아니라 ``SnoozeSwitch`` 를 그대로 받는다.
+    var roomCreationPromptSnooze: SnoozeSwitch { get }
 }
