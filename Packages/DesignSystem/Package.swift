@@ -14,6 +14,7 @@ let package = Package(
                 .process("Resources/SemanticColor.xcassets"),
                 .process("Resources/AtomicColor.xcassets"),
                 .process("Resources/Icon.xcassets"),
+                .process("Resources/Character.xcassets"),
                 .process("Resources/Illustration.xcassets"),
                 .process("Resources/Fonts"),
             ]
