@@ -1,24 +1,37 @@
 import DesignSystem
 import SwiftUI
 
-/// 친구초대 화면의 순수 마크업. Figma `001-3. 친구 초대`(node 1529:84745).
+/// 친구초대 화면의 순수 마크업. Figma `009-1 친구 초대`(node 2314:95550).
 ///
 /// Store/Coordinator 를 모른다 — 값과 콜백만 받는다. 버튼 동작(공유·초대 링크)은 아직 미연결이라
 /// 콜백은 기본값 `{}` 로 열어두기만 한다.
 struct InviteFriendsContent: View {
-    var onTapBack: () -> Void = {}
-    /// `nil` 이면 상단바에 건너뛰기 버튼을 그리지 않는다 — 건너뛸 수 없는 진입점을 위해.
-    var onTapSkip: (() -> Void)?
+    /// `nil` 이면 상단바에 닫기(X) 버튼을 그리지 않는다 — 닫을 수 없는 진입점을 위해.
+    /// 시안에 좌측 뒤로가기는 없다 — 우상단 X 하나로 튜토리얼까지 건너뛴다(스펙 2번).
+    var onTapClose: (() -> Void)?
     var onTapInvite: () -> Void = {}
     var onTapCopyLink: () -> Void = {}
 
     var body: some View {
         VStack(spacing: 0) {
-            MHTopNavigation(onBack: onTapBack, onSkip: onTapSkip)
+            MHTopNavigation(onClose: onTapClose)
             titleAndDescription
             actionArea
         }
+        .background(alignment: .bottom) { cloudBackground }
         .background(Color.mhBackgroundNormalNormal)
+        .ignoresSafeArea(edges: .bottom)
+    }
+
+    /// 화면 하단을 채우는 옅은 구름 장식(Figma `BG` 375×325 — 튜토리얼 화면과 같은 에셋).
+    private var cloudBackground: some View {
+        Image(MHIllustration.cloudBackground)
+            .resizable()
+            .scaledToFill()
+            .frame(height: 325)
+            .frame(maxWidth: .infinity)
+            .clipped()
+            .accessibilityHidden(true)
     }
 
     // MARK: - Title / Illustration / Description
@@ -33,6 +46,8 @@ struct InviteFriendsContent: View {
                 // 이 화면은 상단바에 타이틀이 없어 도달 검증을 이 문구로 한다.
                 .accessibilityIdentifier("InviteFriends.title")
 
+            // 위아래 양쪽에 둔다 — 한쪽만 두면 블록이 액션 영역까지 밀려 내려간다.
+            // 시안(009-1)은 타이틀 아래 65 / 액션 영역 위 44 로 거의 가운데다.
             Spacer(minLength: 24)
 
             VStack(spacing: 40) {
@@ -43,17 +58,19 @@ struct InviteFriendsContent: View {
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
             }
+
+            Spacer(minLength: 24)
         }
         .padding(20)
         .frame(maxHeight: .infinity)
     }
 
-    // NOTE(에셋): Figma 원본도 실제 일러스트 없이 단색(#D9D9D9) placeholder 다 — 디자인팀 에셋 미출고 상태.
-    // 하드코딩 hex 대신 가장 가까운 중립 채움 토큰(Fill/Normal)으로 대체. 실제 일러스트 에셋 다운로드 필요.
     private var illustration: some View {
-        Rectangle()
-            .fill(Color.mhFillNormal)
-            .frame(width: 220, height: 220)
+        Image(MHIllustration.inviteFriends)
+            .resizable()
+            .scaledToFit()
+            .frame(width: 267, height: 289)
+            .accessibilityHidden(true)
     }
 
     // MARK: - Action Area
@@ -74,10 +91,10 @@ struct InviteFriendsContent: View {
     }
 }
 
-#Preview("건너뛰기 있음") {
-    InviteFriendsContent(onTapSkip: {})
+#Preview("닫기 있음") {
+    InviteFriendsContent(onTapClose: {})
 }
 
-#Preview("건너뛰기 없음") {
+#Preview("닫기 없음") {
     InviteFriendsContent()
 }

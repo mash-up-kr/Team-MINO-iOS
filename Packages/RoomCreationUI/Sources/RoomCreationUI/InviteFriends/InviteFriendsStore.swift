@@ -6,9 +6,9 @@ public struct InviteFriendsState: Equatable {
     public init() {}
 }
 
-// 뒤로가기는 Action 이 없다 — pop 은 View 의 dismiss 환경값이 담당하고 reduce 가 볼 상태가 없어서다.
+// 시안(009-1)에 뒤로가기가 없다 — 상단바는 우상단 X 하나뿐이고, 그게 tapComplete 로 이어진다.
 public enum InviteFriendsAction: Equatable {
-    case tapComplete   // 건너뛰기 — 이 화면을 마쳤다는 사건만 알리고 목적지는 소비자가 정한다
+    case tapComplete   // 닫기(X) — 이 화면을 마쳤다는 사건만 알리고 목적지는 소비자가 정한다
     case tapInvite     // 친구 초대하기 — 공유 시트 미연결(확정 사항), 상태 변화 없음
     case tapCopyLink   // 초대 링크 복사 — 링크 생성 미연결(확정 사항), 상태 변화 없음
 }

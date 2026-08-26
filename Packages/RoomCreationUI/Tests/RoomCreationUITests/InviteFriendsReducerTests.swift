@@ -4,7 +4,7 @@ import Testing
 
 @MainActor
 struct InviteFriendsReducerTests {
-    @Test("L2 — 건너뛰기(tapComplete) 는 complete 를 알린다 — 목적지는 받는 쪽이 정한다")
+    @Test("L2 — 닫기(tapComplete) 는 complete 를 알린다 — 목적지는 받는 쪽이 정한다")
     func tapComplete_notifiesComplete() async {
         let store = TestStore(InviteFriendsState(), reduce: inviteFriendsReducer())
 
