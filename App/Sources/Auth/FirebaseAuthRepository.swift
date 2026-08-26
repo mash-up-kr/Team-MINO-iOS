@@ -10,19 +10,13 @@ import Logging
 /// 다만 기기를 바꾸거나 초기화하면 다른 사용자가 된다 — 익명 계정은 기기에 묶이고
 /// 되찾을 수단이 없다. 그래서 **`signOut` 을 부르지 않는다**(부르는 순간 그 계정은 유실된다).
 ///
-/// `Auth.auth()` 는 프로퍼티로 들지 않고 메서드 안에서 매번 얻는다. `AppDependencies` 가
-/// `MINOApp.init()` 에서 만들어지는데 그게 `FirebaseApp.configure()`(AppDelegate)보다
-/// 먼저 도는지 보장되지 않아, **Firebase 접촉을 전부 async 메서드 안으로 미루는** 것이다.
+/// `Auth.auth()` 는 프로퍼티로 들지 않고 메서드 안에서 매번 얻는다. `AppDependencies` 는
+/// `MINOApp.init()` 에서 만들어지는데 `FirebaseApp.configure()` 는 그 **뒤에** 도는
+/// `didFinishLaunching` 에 있다 — **Firebase 접촉을 전부 async 메서드 안으로 미뤄** 그 순서를 피한다.
 struct FirebaseAuthRepository: AuthRepository {
     /// 익명 로그인 상한. Firebase 는 네트워크가 죽으면 URLSession 기본값(60초)에 가깝게
     /// 매달리는데, 그동안 스플래시가 멈춰 있어 사용자는 앱이 죽은 걸로 본다.
     private static let signInTimeout: Duration = .seconds(15)
-
-    private struct SignInTimedOut: Error {}
-
-    func currentSession() async -> UserSession? {
-        Auth.auth().currentUser.map { UserSession(userID: $0.uid) }
-    }
 
     func ensureSession() async throws -> UserSession {
         // 이미 있으면 네트워크를 타지 않는다. 앱 진입마다 불리므로 이 분기가 평소 경로다.
@@ -37,11 +31,13 @@ struct FirebaseAuthRepository: AuthRepository {
                 }
                 group.addTask {
                     try await Task.sleep(for: Self.signInTimeout)
-                    throw SignInTimedOut()
+                    throw DomainError.sessionUnavailable
                 }
                 defer { group.cancelAll() }
-                guard let first = try await group.next() else { throw SignInTimedOut() }
-                return first
+                // 먼저 끝난 쪽이 결과다. 루프를 빠져나오려면 그룹이 비어야 하는데
+                // 여기선 자식이 둘이라 그럴 수 없다.
+                for try await uid in group { return uid }
+                throw DomainError.sessionUnavailable
             }
             Log.info("익명 세션을 새로 만들었다", metadata: ["uid": String(uid.prefix(6))])
             return UserSession(userID: uid)

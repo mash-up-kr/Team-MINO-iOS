@@ -120,6 +120,32 @@ struct AuthRefreshRetryTests {
         #expect(stub.recorded.last?.authorizationHeader == "Bearer new")
     }
 
+    // 토큰 없이 나간 요청을 다시 보내면 바이트까지 같은 요청이 한 번 더 나갈 뿐이다.
+    @Test("토큰이 없었으면 401 에도 재시도하지 않는다")
+    func doesNotRetryWhenNoTokenWasAttached() async throws {
+        let provider = SpyTokenProvider(initial: nil, refreshed: nil)
+        let (sut, stub) = makeSUT(tokenProvider: provider)
+        stub.stub = Self.unauthorized
+
+        _ = await capture { try await sut.request(Endpoint<OkResponse>(path: "api/v1/rooms")) }
+
+        #expect(stub.recorded.count == 1)
+        #expect(provider.refreshCalls == 0)
+    }
+
+    // 갱신했는데 같은 값이면 결과도 같다 — 왕복만 늘어난다.
+    @Test("갱신 토큰이 기존과 같으면 재시도하지 않는다")
+    func doesNotRetryWhenRefreshedTokenIsUnchanged() async throws {
+        let provider = SpyTokenProvider(initial: "same", refreshed: "same")
+        let (sut, stub) = makeSUT(tokenProvider: provider)
+        stub.stub = Self.unauthorized
+
+        _ = await capture { try await sut.request(Endpoint<OkResponse>(path: "api/v1/rooms")) }
+
+        #expect(stub.recorded.count == 1)
+        #expect(provider.refreshCalls == 1)   // 갱신은 시도하되 결과가 같아 멈춘다
+    }
+
     @Test("공급자가 없으면 401 을 그대로 전파한다")
     func noProviderPropagates401() async throws {
         let (sut, stub) = makeSUT()

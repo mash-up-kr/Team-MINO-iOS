@@ -4,6 +4,9 @@ import MVI
 /// 앱 진입 화면의 상태. 어느 화면을 띄울지가 `phase` 하나로 정해진다.
 public struct AppLaunchState: Equatable {
     public enum Phase: Equatable {
+        /// 아직 시작 전. `.start` 는 이 상태에서만 유효하다 — SwiftUI `.task` 의 실행 횟수에
+        /// 기대지 않고 reduce 가 직접 막아 테스트로 고정한다.
+        case idle
         /// 세션을 확보하는 중. 런치스크린과 이어지는 구간이다.
         case loading
         /// 세션을 못 얻었다(네트워크 단절 등). 사용자가 다시 시도할 수 있다.
@@ -13,13 +16,9 @@ public struct AppLaunchState: Equatable {
     }
 
     public var phase: Phase
-    /// `.start` 는 앱 수명 동안 1회만 유효하다. SwiftUI `.task` 의 실행 횟수에 기대지 않고
-    /// reduce 가 직접 막아 테스트로 고정한다.
-    public var didStart: Bool
 
-    public init(phase: Phase = .loading, didStart: Bool = false) {
+    public init(phase: Phase = .idle) {
         self.phase = phase
-        self.didStart = didStart
     }
 }
 
@@ -43,8 +42,7 @@ public func appLaunchReducer(
     { state, action in
         switch action {
         case .start:
-            guard !state.didStart else { return .none }
-            state.didStart = true
+            guard state.phase == .idle else { return .none }
             state.phase = .loading
             return establishSession(ensureSession, onboarding)
 

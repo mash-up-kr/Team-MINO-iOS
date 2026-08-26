@@ -1,4 +1,3 @@
-import Foundation
 import Testing
 import Domain
 import MVITestSupport
@@ -15,24 +14,17 @@ private struct StubEnsureSession: EnsureSessionUseCase {
 }
 
 /// 완료 표시가 실제로 기록되는지 세어 본다 — 기록 누락이 온보딩 재노출의 원인이었다.
-private final class SpyOnboarding: OnboardingUseCase, @unchecked Sendable {
-    private let lock = NSLock()
-    private var _completed: Bool
-    private var _markCalls = 0
+private actor SpyOnboarding: OnboardingUseCase {
+    private var completed: Bool
+    private(set) var markCalls = 0
 
-    init(completed: Bool) { _completed = completed }
+    init(completed: Bool) { self.completed = completed }
 
-    var markCalls: Int { lock.withLock { _markCalls } }
-
-    func hasCompleted() async -> Bool {
-        lock.withLock { _completed }
-    }
+    func hasCompleted() async -> Bool { completed }
 
     func markCompleted() async {
-        lock.withLock {
-            _markCalls += 1
-            _completed = true
-        }
+        markCalls += 1
+        completed = true
     }
 }
 
@@ -50,10 +42,7 @@ struct AppLaunchReducerTests {
     func start_completedOnboarding_goesToMain() async {
         let store = makeStore(onboarding: SpyOnboarding(completed: true))
 
-        await store.send(.start) {
-            $0.phase = .loading
-            $0.didStart = true
-        }
+        await store.send(.start) { $0.phase = .loading }
         await store.receive(.sessionReady(needsOnboarding: false)) { $0.phase = .main }
 
         store.finish()
@@ -63,10 +52,7 @@ struct AppLaunchReducerTests {
     func start_pendingOnboarding_goesToOnboarding() async {
         let store = makeStore(onboarding: SpyOnboarding(completed: false))
 
-        await store.send(.start) {
-            $0.phase = .loading
-            $0.didStart = true
-        }
+        await store.send(.start) { $0.phase = .loading }
         await store.receive(.sessionReady(needsOnboarding: true)) { $0.phase = .onboarding }
 
         store.finish()
@@ -77,10 +63,7 @@ struct AppLaunchReducerTests {
     func start_failure_showsRetry() async {
         let store = makeStore(ensureSession: StubEnsureSession(result: .failure(.sessionUnavailable)))
 
-        await store.send(.start) {
-            $0.phase = .loading
-            $0.didStart = true
-        }
+        await store.send(.start) { $0.phase = .loading }
         await store.receive(.sessionFailed) { $0.phase = .retry }
 
         store.finish()
@@ -88,7 +71,7 @@ struct AppLaunchReducerTests {
 
     @Test("L2 — 재시도가 성공하면 진입이 뚫린다")
     func tapRetry_success_recovers() async {
-        let store = makeStore(state: AppLaunchState(phase: .retry, didStart: true))
+        let store = makeStore(state: AppLaunchState(phase: .retry))
 
         await store.send(.tapRetry) { $0.phase = .loading }
         await store.receive(.sessionReady(needsOnboarding: false)) { $0.phase = .main }
@@ -101,10 +84,7 @@ struct AppLaunchReducerTests {
     func start_isIdempotent() async {
         let store = makeStore()
 
-        await store.send(.start) {
-            $0.phase = .loading
-            $0.didStart = true
-        }
+        await store.send(.start) { $0.phase = .loading }
         await store.receive(.sessionReady(needsOnboarding: false)) { $0.phase = .main }
         await store.send(.start)   // 상태 변화도, effect 도 없다
 
@@ -113,7 +93,7 @@ struct AppLaunchReducerTests {
 
     @Test("L1 — 로딩 중 재시도 연타는 무시된다")
     func tapRetry_ignoredWhileLoading() async {
-        let store = makeStore(state: AppLaunchState(phase: .loading, didStart: true))
+        let store = makeStore(state: AppLaunchState(phase: .loading))
 
         await store.send(.tapRetry)   // 세션 확보를 겹쳐 발사하지 않는다
 
@@ -127,7 +107,7 @@ struct AppLaunchReducerTests {
 
         await store.send(.onboardingFinished) { $0.phase = .main }
 
-        #expect(spy.markCalls == 1)
+        #expect(await spy.markCalls == 1)
         store.finish()
     }
 
@@ -141,10 +121,7 @@ struct AppLaunchReducerTests {
         first.finish()
 
         let second = makeStore(onboarding: spy)
-        await second.send(.start) {
-            $0.phase = .loading
-            $0.didStart = true
-        }
+        await second.send(.start) { $0.phase = .loading }
         await second.receive(.sessionReady(needsOnboarding: false)) { $0.phase = .main }
         second.finish()
     }

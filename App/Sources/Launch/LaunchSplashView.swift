@@ -8,13 +8,10 @@ import SwiftUI
 /// 배경이 시맨틱 컬러가 아니라 고정 흰색인 것도 스토리보드와 같은 이유다 —
 /// 워드마크가 검정으로 구워져 있어 다크 모드에서 뒤집히면 보이지 않는다.
 struct LaunchSplashView: View {
-    /// 재시도 UI. nil 이면 로딩 중이다.
-    struct Failure {
-        let message: String
-        let onRetry: () -> Void
-    }
+    /// nil 이면 로딩 중이다. 값이 있으면 재시도 UI 를 얹는다.
+    var onRetry: (() -> Void)?
 
-    var failure: Failure?
+    private static let failureMessage = "인터넷 연결을 확인한 뒤 다시 시도해 주세요"
 
     // 스토리보드 constraint 의 multiplier 를 그대로 옮긴 값이다. 한쪽만 고치면 전환이 튄다.
     private enum Ratio {
@@ -33,7 +30,7 @@ struct LaunchSplashView: View {
         GeometryReader { proxy in
             let size = proxy.size
 
-            ZStack(alignment: .top) {
+            ZStack {
                 Color.white
 
                 Image("splashCloud")
@@ -41,10 +38,7 @@ struct LaunchSplashView: View {
                     .aspectRatio(contentMode: .fill)
                     .frame(width: size.width, height: size.height * Ratio.cloudHeight)
                     .clipped()
-                    .position(
-                        x: size.width / 2,
-                        y: size.height - (size.height * Ratio.cloudHeight) / 2
-                    )
+                    .frame(maxHeight: .infinity, alignment: .bottom)
 
                 Image("splashCharacters")
                     .resizable()
@@ -53,20 +47,20 @@ struct LaunchSplashView: View {
                         width: size.width * Ratio.charactersWidth,
                         height: size.height * Ratio.charactersHeight
                     )
-                    .position(x: size.width / 2, y: size.height * Ratio.charactersCenterY)
+                    .centered(in: size, atY: Ratio.charactersCenterY)
 
                 Image("splashWordmark")
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: size.width, height: size.height * Ratio.wordmarkHeight)
-                    .position(x: size.width / 2, y: size.height * Ratio.wordmarkCenterY)
+                    .centered(in: size, atY: Ratio.wordmarkCenterY)
 
-                if let failure {
+                if let onRetry {
                     // 캐릭터 아래·워드마크 위의 빈 띠에 앉힌다. 화면 바닥에 두면
                     // 워드마크에 구워진 캡션과 겹친다(둘 사이 여백이 그만큼 없다).
-                    retry(failure)
+                    retry(onRetry)
                         .frame(width: size.width)
-                        .position(x: size.width / 2, y: size.height * Ratio.retryCenterY)
+                        .centered(in: size, atY: Ratio.retryCenterY)
                 }
             }
         }
@@ -74,18 +68,25 @@ struct LaunchSplashView: View {
         .accessibilityIdentifier("Launch.splash")
     }
 
-    private func retry(_ failure: Failure) -> some View {
+    private func retry(_ onRetry: @escaping () -> Void) -> some View {
         VStack(spacing: 16) {
-            Text(failure.message)
+            Text(Self.failureMessage)
                 .mhTypography(.body1NormalMedium)
                 .foregroundStyle(Color.mhLabelNeutral)
                 .multilineTextAlignment(.center)
                 .accessibilityIdentifier("Launch.errorMessage")
 
-            MHButton("다시 시도", action: failure.onRetry)
+            MHButton("다시 시도", action: onRetry)
                 .accessibilityIdentifier("Launch.retryButton")
         }
         .padding(.horizontal, 24)
+    }
+}
+
+private extension View {
+    /// 가로 중앙, 세로는 높이 비율. 스토리보드 constraint 를 그대로 옮기기 위한 형태다.
+    func centered(in size: CGSize, atY ratio: CGFloat) -> some View {
+        position(x: size.width / 2, y: size.height * ratio)
     }
 }
 
@@ -94,5 +95,5 @@ struct LaunchSplashView: View {
 }
 
 #Preview("재시도") {
-    LaunchSplashView(failure: .init(message: "인터넷 연결을 확인해 주세요", onRetry: {}))
+    LaunchSplashView(onRetry: {})
 }

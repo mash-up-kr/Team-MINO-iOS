@@ -13,6 +13,9 @@ struct MINOApp: App {
     var body: some Scene {
         WindowGroup {
             RootView(coordinator: app)
+                // RootView 는 WindowGroup 안에서 identity 가 고정이라 1회만 실행된다
+                // (reduce 의 `.idle` 가드가 2차 방어).
+                .task { app.launch.send(.start) }
             // .onOpenURL { url in app.handle(url) }   // 딥링크 진입점 자리 (후속)
         }
     }
@@ -23,25 +26,11 @@ struct RootView: View {
     let coordinator: AppCoordinator
 
     var body: some View {
-        // `.task` 를 아래 스위치에 직접 붙이면 phase 가 바뀔 때마다 뷰 identity 가 달라져
-        // 재실행된다. 수명이 고정된 컨테이너에 붙여 1회를 보장한다
-        // (reduce 의 `didStart` 가 2차 방어).
-        ZStack {
-            content
-        }
-        .task { coordinator.launch.send(.start) }
-    }
-
-    @ViewBuilder
-    private var content: some View {
         switch coordinator.launch.state.phase {
-        case .loading:
+        case .idle, .loading:
             LaunchSplashView()
         case .retry:
-            LaunchSplashView(failure: .init(
-                message: "인터넷 연결을 확인한 뒤 다시 시도해 주세요",
-                onRetry: { coordinator.launch.send(.tapRetry) }
-            ))
+            LaunchSplashView(onRetry: { coordinator.launch.send(.tapRetry) })
         case .onboarding:
             OnboardingHost(coordinator: coordinator)
         case .main:
