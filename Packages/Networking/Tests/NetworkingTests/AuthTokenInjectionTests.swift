@@ -6,7 +6,7 @@ import Testing
 struct AuthTokenInjectionTests {
     private static let okBody = Data(#"{"data":{"ok":true}}"#.utf8)
 
-    @Test("requiresAuth 요청에 Bearer 를 붙인다")
+    @Test("인증이 필요한 요청에 Bearer 를 붙인다")
     func attachesBearerWhenRequired() async throws {
         let provider = SpyTokenProvider(initial: "abc")
         let (sut, stub) = makeSUT(tokenProvider: provider)
@@ -18,15 +18,14 @@ struct AuthTokenInjectionTests {
     }
 
     // 회원 등록에도 토큰이 필요하다 — 서버가 토큰의 uid 로 누구를 등록할지 정하기 때문이다.
-    // requiresAuth 는 "등록 여부 검사를 건너뛴다" 는 뜻이지 토큰이 불필요하다는 게 아니다.
     // 이게 깨지면 최초 진입에서 회원 등록이 통째로 실패한다.
-    @Test("requiresAuth false 여도 토큰을 붙인다")
+    @Test("unregisteredUser 에도 토큰을 붙인다")
     func attachesBearerEvenWhenNotRequired() async throws {
         let provider = SpyTokenProvider(initial: "abc")
         let (sut, stub) = makeSUT(tokenProvider: provider)
         stub.stub.body = Self.okBody
 
-        _ = try await sut.request(Endpoint<OkResponse>(path: "api/v1/users", requiresAuth: false))
+        _ = try await sut.request(Endpoint<OkResponse>(path: "api/v1/users", auth: .unregisteredUser))
 
         #expect(stub.recorded.first?.authorizationHeader == "Bearer abc")
     }
@@ -107,14 +106,14 @@ struct AuthRefreshRetryTests {
         #expect(error == .unauthorized(code: "UNAUTHORIZED", message: "만료"))
     }
 
-    // 재시도 판단은 requiresAuth 가 아니라 "토큰을 붙였는가" 로 한다.
-    @Test("requiresAuth false 인 요청의 401 도 갱신 후 재시도한다")
+    // 재시도 판단은 auth 요구 수준이 아니라 "토큰을 붙였는가" 로 한다.
+    @Test("unregisteredUser 요청의 401 도 갱신 후 재시도한다")
     func refreshesEvenForUnauthenticatedEndpoint() async throws {
         let provider = SpyTokenProvider(initial: "old", refreshed: "new")
         let (sut, stub) = makeSUT(tokenProvider: provider)
         stub.enqueue([Self.unauthorized, URLProtocolStub.Stub(body: Self.okBody)])
 
-        _ = try await sut.request(Endpoint<OkResponse>(path: "api/v1/users", requiresAuth: false))
+        _ = try await sut.request(Endpoint<OkResponse>(path: "api/v1/users", auth: .unregisteredUser))
 
         #expect(stub.recorded.count == 2)
         #expect(stub.recorded.last?.authorizationHeader == "Bearer new")

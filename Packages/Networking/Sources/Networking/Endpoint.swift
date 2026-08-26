@@ -14,6 +14,21 @@ public enum HTTPBody: Sendable {
     case json(any Encodable & Sendable)
 }
 
+/// 이 엔드포인트가 서버 인증을 어디까지 거치는가. **실측으로 확인한 3상태다.**
+///
+/// 서버 인증은 두 단계다 — ① `Authorization` 의 토큰 검증, ② 그 uid 로 회원이 등록됐는지 확인.
+/// 어디까지 거치는지가 엔드포인트마다 달라 `Bool` 로는 표현되지 않는다.
+public enum AuthRequirement: Sendable {
+    /// ①② 모두. 대부분의 API.
+    case full
+    /// ①만. 토큰은 **반드시 보내야 하지만**(서버가 누구를 등록할지 그 uid 로 안다)
+    /// 등록 여부는 묻지 않는다 — 등록 시점엔 그 검사를 통과할 수 없기 때문이다.
+    /// `POST /api/v1/users`.
+    case unregisteredUser
+    /// 인증 미들웨어를 아예 타지 않는다. `GET /api/v1/invitations/{code}`.
+    case none
+}
+
 /// 하나의 API 요청. **응답 타입을 제네릭에 담아** 호출부가 타입을 다시 적지 않게 한다.
 ///
 /// 제네릭 파라미터는 서버 응답의 `data` **안쪽 알맹이**다.
@@ -26,15 +41,15 @@ public struct Endpoint<Response: Decodable & Sendable>: Sendable {
     public let queryItems: [URLQueryItem]
     public let headers: [String: String]
     public let body: HTTPBody?
-    /// 스펙상 인증 예외는 `POST /api/v1/users`, `GET /api/v1/invitations/{code}` 둘뿐이다.
+    /// 이 요청이 서버 인증을 어디까지 거치는가.
     ///
-    /// ⚠️ **"토큰을 붙이지 않는다" 는 뜻이 아니다.** 서버는 토큰의 uid 로 사용자를 식별하므로
-    /// 회원 등록에도 `Authorization` 이 필요하다. 이 플래그가 뜻하는 건 **서버가 "이미 등록된
-    /// 회원인가" 검사를 건너뛴다**는 것이다 — 등록 시점엔 그 검사를 통과할 수 없기 때문이다.
+    /// ⚠️ **클라이언트는 이 값과 무관하게 토큰이 있으면 붙인다.** `.none` 이어도 서버가
+    /// 인증을 타지 않아 무해하고, `.unregisteredUser` 는 토큰이 **반드시** 필요하다.
+    /// 걸러 보내면 최초 진입의 회원 등록이 통째로 실패한다.
     ///
-    /// 그래서 `URLSessionHTTPClient` 는 이 값과 무관하게 토큰이 있으면 붙인다.
-    /// 지금 이 값을 읽는 코드는 없고, 서버 스펙을 코드에 남겨두는 표시로 유지한다.
-    public let requiresAuth: Bool
+    /// 지금 이 값을 읽는 코드는 없다 — 서버 스펙을 코드에 남기고, 세션 없이 호출 가능한
+    /// 경로(`.none`)를 나중에 판별할 수 있게 두는 것이 목적이다.
+    public let auth: AuthRequirement
     /// nil 이면 세션 전역 설정을 따른다.
     public let timeout: TimeInterval?
 
@@ -44,7 +59,7 @@ public struct Endpoint<Response: Decodable & Sendable>: Sendable {
         queryItems: [URLQueryItem] = [],
         headers: [String: String] = [:],
         body: HTTPBody? = nil,
-        requiresAuth: Bool = true,
+        auth: AuthRequirement = .full,
         timeout: TimeInterval? = nil
     ) {
         self.path = path
@@ -52,7 +67,7 @@ public struct Endpoint<Response: Decodable & Sendable>: Sendable {
         self.queryItems = queryItems
         self.headers = headers
         self.body = body
-        self.requiresAuth = requiresAuth
+        self.auth = auth
         self.timeout = timeout
     }
 }
@@ -93,7 +108,7 @@ public extension Endpoint {
             ],
             headers: headers,
             body: body,
-            requiresAuth: requiresAuth,
+            auth: auth,
             timeout: timeout
         ))
     }

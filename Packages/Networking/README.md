@@ -6,7 +6,7 @@ HTTP 통신 인프라. **화면에 API 를 붙이는 절차는 [`Docs/AddingAPI.
 
 | 영역 | 진입점 |
 |------|--------|
-| 요청 정의 | `Endpoint<Response>` — path·method·query·headers·body·requiresAuth·timeout |
+| 요청 정의 | `Endpoint<Response>` — path·method·query·headers·body·auth·timeout |
 | 호출 | `HTTPClient.request(_:)` / 목록은 `requestPage(_:)` |
 | 목록 응답 | `Page<Element>` (`items` + `pagination`) |
 | 빈 성공 응답 | `OkResponse` |
@@ -55,11 +55,23 @@ Packages/Data/Sources/Data/
 
 ## 인증
 
-**대부분의 API 는 토큰이 필요하다.** 스펙상 인증 예외는 `POST /api/v1/users` 와 `GET /api/v1/invitations/{code}` **둘뿐**이다.
+**대부분의 API 는 토큰이 필요하다.** 서버 인증은 두 단계이고(① 토큰 검증 ② 그 uid 로 회원이
+등록됐는지 확인), 엔드포인트마다 어디까지 거치는지가 다르다 — `AuthRequirement` 3상태다.
+
+| | ① 토큰 검증 | ② 회원 등록 확인 | |
+|---|---|---|---|
+| `.full`(기본) | ✓ | ✓ | 대부분의 API |
+| `.unregisteredUser` | ✓ | — | `POST /api/v1/users` |
+| `.none` | — | — | `GET /api/v1/invitations/{code}` |
 
 ```swift
-Endpoint(path: "api/v1/users", method: .post, body: .json(dto), requiresAuth: false)
+Endpoint(path: "api/v1/users", method: .post, body: .json(dto), auth: .unregisteredUser)
+Endpoint(path: "api/v1/invitations/\(code)", auth: .none)
 ```
+
+⚠️ **`.unregisteredUser` 에 토큰을 빼면 안 된다.** 서버가 토큰의 uid 로 누구를 등록할지 정하므로,
+빼면 최초 진입의 회원 등록이 통째로 실패한다(실측: 토큰 없이 부르면 "인증 정보가 없습니다",
+유효한 토큰이면 "등록되지 않은 유저입니다").
 
 토큰은 **`AuthTokenProvider`** 가 공급한다. Networking 은 인증 수단을 알지 못하고, 앱이 구현을 주입한다
 (현재 구현은 Firebase 익명 인증 — `App/Sources/Auth/FirebaseAuthTokenProvider.swift`).
@@ -68,9 +80,8 @@ Endpoint(path: "api/v1/users", method: .post, body: .json(dto), requiresAuth: fa
 URLSessionHTTPClient(baseURL: url, tokenProvider: FirebaseAuthTokenProvider())
 ```
 
-- **토큰이 있으면 모든 요청에 `Authorization: Bearer <토큰>` 이 붙는다** — `requiresAuth` 로 거르지 않는다.
-  서버가 토큰의 uid 로 사용자를 식별하므로 **회원 등록에도 토큰이 필요하다**(그 플래그는
-  "서버가 등록 여부 검사를 건너뛴다" 는 뜻이다). 걸러 보내면 최초 진입의 회원 등록이 통째로 실패한다
+- **토큰이 있으면 모든 요청에 `Authorization: Bearer <토큰>` 이 붙는다** — `auth` 로 거르지 않는다.
+  `.none` 이어도 서버가 인증을 타지 않아 무해하고, `.unregisteredUser` 는 토큰이 반드시 필요하다
 - **호출부가 `headers` 로 넘긴 `Authorization` 이 이긴다** (토큰 주입이 먼저 일어난다)
 - 401 을 받으면 토큰을 **강제 갱신해 1회만** 재시도한다. 평소엔 여기까지 오지 않는다 —
   공급자가 만료 임박분을 알아서 갱신하기 때문이다(기기 시계 오차 대비 안전망)

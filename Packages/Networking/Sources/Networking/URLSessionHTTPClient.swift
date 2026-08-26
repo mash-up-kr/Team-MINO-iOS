@@ -182,10 +182,9 @@ public final class URLSessionHTTPClient: HTTPClient {
 
         // 인증 토큰. **호출부 헤더보다 앞에 둔다** — 명시적으로 넘긴 Authorization 이 이겨야 한다.
         //
-        // `requiresAuth` 로 거르지 않는다. 서버가 토큰의 uid 로 사용자를 식별하므로,
-        // **인증 예외인 회원 등록에도 토큰이 실려야** 서버가 누구를 등록할지 안다
-        // (실측: 토큰 없이 부르면 "인증 정보가 없습니다", 유효한 토큰이면 "등록되지 않은 유저입니다").
-        // 그 플래그는 "서버의 회원 등록 여부 검사를 건너뛴다" 는 뜻이지 토큰이 불필요하다는 게 아니다.
+        // `endpoint.auth` 로 거르지 않는다. 서버가 토큰의 uid 로 사용자를 식별하므로
+        // **`.unregisteredUser`(회원 등록)에도 토큰이 실려야** 누구를 등록할지 알 수 있고,
+        // `.none`(초대 조회)은 서버가 인증을 타지 않아 붙어도 무해하다 — 둘 다 실측했다.
         if let token {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
