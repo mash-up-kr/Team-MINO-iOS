@@ -8,6 +8,9 @@ public enum DomainError: Error, Equatable, Sendable {
     /// 방을 만들거나 고치지 못했다.
     case roomSaveFailed
     case notificationsFetchFailed
+    /// 공유받은 링크를 방에 담지 못함. 방 저장(`roomSaveFailed`)과 갈라 둔다 —
+    /// 익스텐션은 이 실패만 스낵바로 보여주고 방 편집 화면은 이 오류를 받지 않는다.
+    case linkSaveFailed
     case unauthorized
     /// 세션은 있지만 이 uid 로 **회원 등록이 되어 있지 않다**(서버 `USER_NOT_REGISTERED`).
     ///
