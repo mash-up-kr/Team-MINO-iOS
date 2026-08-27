@@ -22,12 +22,17 @@ enum FirebaseSession {
         do {
             try Auth.auth().useUserAccessGroup(SharedKeychain.accessGroup)
         } catch {
-            // 던지지 않는다 — 그룹 지정이 실패해도 기본 그룹의 세션은 그대로라 본앱은 정상 동작하고,
-            // 익스텐션만 인증을 못 한다. 여기서 죽이면 공유 기능 하나 때문에 앱 전체가 못 뜬다.
+            // **반드시 기본 그룹으로 되돌린다.** 로그만 남기고 넘어가면 SDK 가 접근 권한 없는 그룹을
+            // 계속 쓰려 해 **익명 로그인 자체가 실패한다**(`AuthErrorCodeKeychainError`, code 8).
+            // 그러면 공유 기능 하나 때문에 앱 전체를 못 쓴다 — 실제로 재현했다.
+            //
+            // 되돌리면 익스텐션만 세션을 못 보고 본앱은 정상 동작한다. Keychain Sharing capability 가
+            // 없는 프로비저닝(무료 Personal Team 등)으로 빌드하면 여기로 떨어진다.
             Log.error("Keychain 그룹 지정 실패 — 익스텐션이 세션을 보지 못한다", metadata: [
                 "group": SharedKeychain.accessGroup,
                 "reason": String(describing: error),
             ])
+            try? Auth.auth().useUserAccessGroup(nil)
         }
     }
 }
