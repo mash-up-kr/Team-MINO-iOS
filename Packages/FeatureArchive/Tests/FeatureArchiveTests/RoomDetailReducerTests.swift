@@ -13,7 +13,7 @@ private let fixtureRoom = Room(
 )
 
 private let fixturePins: [Pin] = [0, 10, 20].map { daysAgo in
-    Pin(
+    PinFixture.pin(
         id: PinID("p\(daysAgo)"),
         roomID: fixtureRoom.id,
         category: .worthVisiting,
