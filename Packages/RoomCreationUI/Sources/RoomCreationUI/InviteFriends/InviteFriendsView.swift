@@ -16,11 +16,7 @@ public struct InviteFriendsView: View {
     public var body: some View {
         Group {
             if let store {
-                InviteFriendsContent(
-                    onTapClose: showsClose ? { store.send(.tapComplete) } : nil,
-                    onTapInvite: { store.send(.tapInvite) },
-                    onTapCopyLink: { store.send(.tapCopyLink) }
-                )
+                content(store)
             } else {
                 ProgressView()
                     .task { store = makeStore() }
@@ -28,5 +24,32 @@ public struct InviteFriendsView: View {
         }
         // 마크업이 자체 상단 내비바를 그린다 — 시스템 내비바를 두면 뒤로가기가 두 개로 보인다.
         .toolbar(.hidden, for: .navigationBar)
+    }
+
+    private func content(_ store: InviteFriendsStore) -> some View {
+        InviteFriendsContent(
+            onTapClose: showsClose ? { store.send(.tapComplete) } : nil,
+            isInviteEnabled: store.state.isInviteEnabled,
+            notice: store.state.notice,
+            onTapInvite: { store.send(.tapInvite) },
+            onTapCopyLink: { store.send(.tapCopyLink) }
+        )
+        .sheet(item: sharingLink(store)) { ShareSheet(url: $0.url) }
+        // 안내는 잠깐 띄웠다 거둔다. id 를 걸어 새 안내가 오면 타이머가 다시 시작된다.
+        .task(id: store.state.notice) {
+            guard store.state.notice != nil else { return }
+            try? await Task.sleep(for: .seconds(2))
+            guard !Task.isCancelled else { return }
+            store.send(.dismissNotice)
+        }
+    }
+
+    /// 시트는 사용자가 스와이프로도 닫으므로 닫힘을 Store 에 되돌려준다 — 안 그러면 링크가 state 에
+    /// 남아 시트가 다시 뜬다.
+    private func sharingLink(_ store: InviteFriendsStore) -> Binding<SharedInviteLink?> {
+        Binding(
+            get: { store.state.sharingLink },
+            set: { if $0 == nil { store.send(.dismissShareSheet) } }
+        )
     }
 }

@@ -16,5 +16,7 @@ public enum DomainError: Error, Equatable, Sendable {
     case profileFetchFailed
     /// 프로필을 저장하지 못했다 — 등록·수정 공통.
     case profileSaveFailed
+    /// 초대 코드를 얻지 못했다. 재시도가 의미 있다.
+    case inviteCodeFetchFailed
     case unknown
 }

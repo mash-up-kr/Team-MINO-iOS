@@ -1,14 +1,18 @@
 import DesignSystem
 import SwiftUI
 
-/// 친구초대 화면의 순수 마크업. Figma `009-1 친구 초대`(node 2314:95550).
+/// 친구초대 화면의 순수 마크업. Figma `009-1 친구 초대`(node 2314:95550) ·
+/// `009-2 초대링크 복사`(node 2370:67386).
 ///
-/// Store/Coordinator 를 모른다 — 값과 콜백만 받는다. 버튼 동작(공유·초대 링크)은 아직 미연결이라
-/// 콜백은 기본값 `{}` 로 열어두기만 한다.
+/// Store/Coordinator 를 모른다 — 값과 콜백만 받는다.
 struct InviteFriendsContent: View {
     /// `nil` 이면 상단바에 닫기(X) 버튼을 그리지 않는다 — 닫을 수 없는 진입점을 위해.
     /// 시안에 좌측 뒤로가기는 없다 — 우상단 X 하나로 튜토리얼까지 건너뛴다(스펙 2번).
     var onTapClose: (() -> Void)?
+    /// 초대 버튼을 열지. 판정은 Store 몫 — 여기서는 받은 값으로만 활성/비활성을 그린다.
+    var isInviteEnabled: Bool = true
+    /// 하단 안내. `nil` 이면 그리지 않는다.
+    var notice: InviteFriendsNotice?
     var onTapInvite: () -> Void = {}
     var onTapCopyLink: () -> Void = {}
 
@@ -17,6 +21,15 @@ struct InviteFriendsContent: View {
             MHTopNavigation(onClose: onTapClose)
             titleAndDescription
             actionArea
+                // 안내는 액션 영역 **바로 위**에 띄운다(시안 009-2: 스낵바 아래변 = 액션 영역 윗변).
+                // 오버레이라 자리를 차지하지 않는다 — 레이아웃에 끼우면 안내가 뜰 때마다
+                // 일러스트와 문구가 위로 밀린다(시안은 두 화면의 본문 위치가 같다).
+                .overlay(alignment: .top) {
+                    noticeSnackbar
+                        // 오버레이의 "위" 기준선을 자기 아래변으로 바꿔 액션 영역 위로 올린다.
+                        .alignmentGuide(.top) { $0[.bottom] }
+                        .animation(.easeInOut(duration: 0.2), value: notice)
+                }
         }
         .background(alignment: .bottom) { cloudBackground }
         .background(Color.mhBackgroundNormalNormal)
@@ -73,6 +86,32 @@ struct InviteFriendsContent: View {
             .accessibilityHidden(true)
     }
 
+    // MARK: - 안내(스낵바)
+
+    // 문구·아이콘 매핑은 여기 둔다 — State 가 MHIcon 을 들면 reducer 테스트까지 DS 를 링크한다.
+    @ViewBuilder private var noticeSnackbar: some View {
+        if let notice {
+            MHSnackbar(title: Self.message(for: notice), icon: Self.icon(for: notice))
+                .padding(.horizontal, 20)
+                .accessibilityIdentifier("InviteFriends.notice")
+                .transition(.opacity)
+        }
+    }
+
+    private static func message(for notice: InviteFriendsNotice) -> String {
+        switch notice {
+        case .linkCopied: "클립 보드에 초대링크가 복사되었어요"   // 시안 009-2 문구 그대로
+        case .linkFailed: "초대 링크를 만들지 못했어요. 잠시 후 다시 시도해주세요."
+        }
+    }
+
+    private static func icon(for notice: InviteFriendsNotice) -> MHIcon {
+        switch notice {
+        case .linkCopied: .checkThick
+        case .linkFailed: .circleExclamationFill
+        }
+    }
+
     // MARK: - Action Area
 
     // NOTE: MHActionArea(.strong) 이 구조는 동일(main solid + alternative outlined, 세로 스택)하지만
@@ -86,15 +125,25 @@ struct InviteFriendsContent: View {
                 .mhButtonFillWidth()
                 .accessibilityIdentifier("InviteFriends.copyLink")
         }
+        .disabled(!isInviteEnabled)
         .padding(.horizontal, 20)
         .padding(.vertical, 20)
     }
 }
 
-#Preview("닫기 있음") {
+#Preview("009-1 친구 초대") {
     InviteFriendsContent(onTapClose: {})
 }
 
-#Preview("닫기 없음") {
-    InviteFriendsContent()
+#Preview("009-2 초대링크 복사") {
+    InviteFriendsContent(onTapClose: {}, notice: .linkCopied)
+}
+
+#Preview("링크 생성 실패") {
+    InviteFriendsContent(onTapClose: {}, notice: .linkFailed)
+}
+
+// 초대할 방이 없는 상태 — 방 생성이 서버에 붙기 전까지 온보딩이 여기에 해당한다.
+#Preview("초대 비활성") {
+    InviteFriendsContent(onTapClose: {}, isInviteEnabled: false)
 }

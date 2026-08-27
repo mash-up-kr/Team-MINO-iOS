@@ -14,11 +14,12 @@ let package = Package(
         .package(path: "../MVI"),
         .package(path: "../DesignSystem"),
         .package(path: "../Domain"),
+        .package(path: "../Core"),
     ],
     targets: [
         .target(
             name: "RoomCreationUI",
-            dependencies: ["MVI", "DesignSystem", "Domain"]
+            dependencies: ["MVI", "DesignSystem", "Domain", "Core"]
         ),
         .testTarget(
             name: "RoomCreationUITests",

@@ -73,7 +73,14 @@ public final class OnboardingCoordinator: Coordinator {
     }
 
     func makeInviteFriendsStore() -> InviteFriendsStore {
-        let store = InviteFriendsStore(InviteFriendsState(), reduce: inviteFriendsReducer())
+        // ⚠️ roomId 가 없다 — 앞 단계(공동방 만들기)가 아직 서버에 방을 만들지 않아
+        // (`POST /api/v1/rooms` 미연결, `RoomFormNav.didSubmit` 이 id 를 들고 오지 않는다)
+        // 초대 API 에 넘길 방이 없다. 그동안 화면은 두 버튼을 잠근다.
+        // 방 생성이 붙으면 여기에 만들어진 방의 id 를 넘기는 것으로 끝난다.
+        let store = RoomCreationUI.makeInviteFriendsStore(
+            roomId: nil,
+            deps: InviteFriendsDeps(fetchInviteCode: deps.fetchInviteCode, deeplink: deps.deeplink)
+        )
         store.observeNavigation { [weak self] in self?.handle($0) }
         return store
     }
