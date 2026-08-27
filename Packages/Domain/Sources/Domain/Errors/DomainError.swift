@@ -5,6 +5,7 @@ import Foundation
 public enum DomainError: Error, Equatable, Sendable {
     case memberNotFound
     case roomsFetchFailed
+    case notificationsFetchFailed
     case unauthorized
     /// 세션을 확보하지 못했다. 인증 수단에 닿지 못한 경우(네트워크 단절 등)로,
     /// **서버가 거부한 `unauthorized` 와 구분한다** — 이쪽은 재시도가 의미 있다.

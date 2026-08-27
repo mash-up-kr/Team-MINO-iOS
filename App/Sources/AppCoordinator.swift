@@ -1,6 +1,7 @@
 import Feature
 import FeatureArchive
 import FeatureHome
+import FeatureNotification
 import FeatureOnboarding
 import FeatureProfile
 import SwiftUI
@@ -11,6 +12,7 @@ import SwiftUI
 final class AppCoordinator {
     let home: HomeCoordinator
     let archive: ArchiveCoordinator
+    let notification: NotificationCoordinator
     let profile: ProfileCoordinator
 
     /// 앱 진입 게이트. 화면 Store 와 달리 **앱 수명과 같아** Coordinator 가 직접 든다 —
@@ -20,6 +22,7 @@ final class AppCoordinator {
     init(deps: AppDependencies) {
         self.home = HomeCoordinator(deps: deps)
         self.archive = ArchiveCoordinator(deps: deps)
+        self.notification = NotificationCoordinator(deps: deps)
         self.profile = ProfileCoordinator()
         self.launch = AppLaunchStore(
             AppLaunchState(),

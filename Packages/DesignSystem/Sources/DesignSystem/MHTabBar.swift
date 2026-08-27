@@ -37,6 +37,15 @@ public struct MHTabBarItem: Identifiable {
 /// )
 /// ```
 public struct MHTabBar: View {
+    /// 탭바 콘텐츠 높이(홈 인디케이터 safe area 는 제외 — 배경만 그 아래로 늘어난다).
+    /// 상단 패딩 10 + 아이콘 24 + 아이콘↔라벨 2 + 라벨 라인박스 14 + 하단 패딩 2 = 52.
+    ///
+    /// `NavigationStack` 은 상위(`MainTabView`)의 `safeAreaInset` 탭바 인셋을 자기 콘텐츠에
+    /// 전파하지 않고 기기 인셋만 적용한다(``HomeTabView`` 주석). 그래서 스택 **안**의 스크롤
+    /// 콘텐츠는 이 값을 직접 바닥 인셋으로 넣어야 마지막 항목이 탭바에 가리지 않는다.
+    /// 값이 실제 렌더 높이와 어긋나지 않도록 `MHTabBarTests` 가 렌더 높이와 대조한다.
+    public static let height: CGFloat = 52
+
     private let items: [MHTabBarItem]
     @Binding private var selectedID: Int
 

@@ -20,6 +20,20 @@ struct StoreTests {
         #expect(received == .finished)
     }
 
+    @Test("init(_:reduce:handle:) 가 생성과 동시에 navigation 을 구독한다")
+    func convenienceInit_subscribes_navigation() async {
+        var received: CounterNav?
+        // observeNavigation 을 따로 부르지 않는다 — init 이 대신 구독한 것이 검증 대상이다.
+        let store = Store(CounterState(), reduce: counterReducer, handle: { received = $0 })
+
+        store.send(.load)   // load → run → loaded → navigate(.finished)
+
+        for _ in 0..<1000 where received == nil {
+            await Task.yield()
+        }
+        #expect(received == .finished)
+    }
+
     @Test("run effect 가 Task 로 실행되어 Response Action 이 state 에 반영된다")
     func run_effect_updates_state() async {
         let store = Store(CounterState(), reduce: counterReducer)

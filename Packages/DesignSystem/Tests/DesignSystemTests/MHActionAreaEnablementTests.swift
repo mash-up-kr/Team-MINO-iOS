@@ -23,13 +23,15 @@ final class MHActionAreaEnablementTests: XCTestCase {
             )
             .frame(width: 375)
         )
-        renderer.scale = 1
+        renderer.scale = RenderScale.ink   // 픽셀 비교라 배율이 필요하다 — RenderScale 주석 참조
         return try XCTUnwrap(renderer.uiImage)
     }
 
     private func slice(_ image: UIImage, _ slot: CGRect) throws -> Data {
         let cgImage = try XCTUnwrap(image.cgImage)
-        let rect = CGRect(x: slot.minX, y: 0, width: slot.width, height: CGFloat(cgImage.height))
+        // slot 은 pt 좌표라 픽셀로 환산해 자른다.
+        let rect = CGRect(x: slot.minX * RenderScale.ink, y: 0,
+                          width: slot.width * RenderScale.ink, height: CGFloat(cgImage.height))
         let cropped = try XCTUnwrap(cgImage.cropping(to: rect))
         return try XCTUnwrap(UIImage(cgImage: cropped).pngData())
     }
