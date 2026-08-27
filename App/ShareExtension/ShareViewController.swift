@@ -17,8 +17,14 @@ final class ShareViewController: UIViewController {
     /// 한 번 더 누르면 completeRequest 가 두 번 불린다(Apple 이 정의하지 않은 동작).
     private var didFinish = false
 
+    /// 조립은 한 번만 한다 — 화면마다 만들면 HTTP 클라이언트가 여러 벌 생긴다.
+    private lazy var dependencies = ShareExtensionDependencies()
+
     override func viewDidLoad() {
         super.viewDidLoad()
+
+        // 세션이 있어야 방 목록·저장이 인증을 통과한다. Store 를 만들기 전에 부른다.
+        FirebaseSession.configure()
         // 시트만 그린다 — 루트가 불투명하면 뒤 화면이 가려져 바텀시트로 보이지 않는다
         // (뒤 화면을 실제로 비추는 건 viewDidAppear 의 컨테이너 투명화).
         view.backgroundColor = .clear
@@ -74,12 +80,12 @@ final class ShareViewController: UIViewController {
     // MARK: - 화면
 
     private func makeSaveLinkStore(url: URL) -> SaveLinkStore {
+        // `savedRoomIDs`(이미 이 링크가 든 방)는 비워 둔다 — 판별하려면 링크가 이미 장소로
+        // 추출돼 placeId 가 있어야 하는데(`GET /rooms` 의 showHasPlaceId), 공유 시점의 링크는
+        // 아직 추출 전이다. 그래서 시안의 "체크된 채 비활성" 상태는 지금 나타나지 않는다.
         SaveLinkStore(
-            // TODO: 방 목록 API 가 붙으면 조회 결과로 바꾼다.
-            //   savedRoomIDs(이미 이 링크가 들어 있는 방)도 그 응답에서 온다 — 지금은 시안의
-            //   "체크된 채 비활성" 상태를 보이게 표본 하나를 지정한다.
-            SaveLinkState(link: SharedLinkPreview(url: url), rooms: SharedRoom.samples, savedRoomIDs: ["2"]),
-            reduce: saveLinkReducer(.stub),   // TODO: 저장 API 가 붙으면 UseCase 주입으로 교체
+            SaveLinkState(link: SharedLinkPreview(url: url)),
+            reduce: saveLinkReducer(dependencies.makeSaveLinkDependencies()),
             handle: { [weak self] nav in
                 switch nav {
                 case .dismiss: self?.close()

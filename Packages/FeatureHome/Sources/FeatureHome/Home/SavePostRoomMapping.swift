@@ -14,7 +14,7 @@ extension SavePostRoom {
     init(_ room: Room) {
         self.init(
             id: room.id,
-            name: room.type == .personal ? Room.personalHomeName : room.name,
+            name: room.type == .personal ? Room.personalDisplayName : room.name,
             memo: room.description,
             placeCount: room.pinCount,
             thumbnail: room.color.flatMap(RoomColorPalette.thumbnail(for:)).map { .color($0) } ?? .myRoom

@@ -36,6 +36,19 @@
 		AU10000000000000000000B2 /* FirebaseAuthTokenProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = AU10000000000000000000F2 /* FirebaseAuthTokenProvider.swift */; };
 		LA10000000000000000000B1 /* LaunchSplashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = LA10000000000000000000F1 /* LaunchSplashView.swift */; };
 		F12A80D53AF08C9E442B7395 /* AppDependencies.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6E10081ACCCE1687F63903A /* AppDependencies.swift */; };
+		AU10000000000000000000B3 /* FirebaseSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = AU10000000000000000000F3 /* FirebaseSession.swift */; };
+		5E100000000000000000001A /* FirebaseSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = AU10000000000000000000F3 /* FirebaseSession.swift */; };
+		5E100000000000000000001B /* FirebaseAuthTokenProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = AU10000000000000000000F2 /* FirebaseAuthTokenProvider.swift */; };
+		5E100000000000000000001C /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = FB000000000000000000002A /* GoogleService-Info.plist */; };
+		5E1000000000000000000021 /* Domain in Frameworks */ = {isa = PBXBuildFile; productRef = 5E1000000000000000000020 /* Domain */; };
+		5E1000000000000000000023 /* Data in Frameworks */ = {isa = PBXBuildFile; productRef = 5E1000000000000000000022 /* Data */; };
+		5E1000000000000000000025 /* Networking in Frameworks */ = {isa = PBXBuildFile; productRef = 5E1000000000000000000024 /* Networking */; };
+		5E1000000000000000000027 /* Logging in Frameworks */ = {isa = PBXBuildFile; productRef = 5E1000000000000000000026 /* Logging */; };
+		5E1000000000000000000029 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 5E1000000000000000000028 /* FirebaseAuth */; };
+		5E100000000000000000001E /* SavePostRoomMapping.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E100000000000000000001D /* SavePostRoomMapping.swift */; };
+		5E1000000000000000000030 /* ShareExtensionDependencies.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E100000000000000000001F /* ShareExtensionDependencies.swift */; };
+		5E1000000000000000000032 /* SavePostUI in Frameworks */ = {isa = PBXBuildFile; productRef = 5E1000000000000000000031 /* SavePostUI */; };
+		5E1000000000000000000034 /* RoomCreationUI in Frameworks */ = {isa = PBXBuildFile; productRef = 5E1000000000000000000033 /* RoomCreationUI */; };
 		5E100000000000000000000A /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E1000000000000000000009 /* ShareViewController.swift */; };
 		5E1000000000000000000018 /* ShareExtensionUI in Frameworks */ = {isa = PBXBuildFile; productRef = 5E1000000000000000000017 /* ShareExtensionUI */; };
 		5E100000000000000000000E /* Core in Frameworks */ = {isa = PBXBuildFile; productRef = 5E100000000000000000000D /* Core */; };
@@ -73,6 +86,13 @@
 		5E1000000000000000000016 /* ShareExtensionUI */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ShareExtensionUI; path = ../Packages/ShareExtensionUI; sourceTree = SOURCE_ROOT; };
 		5E1000000000000000000007 /* ShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		5E1000000000000000000009 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
+		AP10000000000000000000F1 /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
+		AU10000000000000000000F3 /* FirebaseSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirebaseSession.swift; sourceTree = "<group>"; };
+		5E100000000000000000001D /* SavePostRoomMapping.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavePostRoomMapping.swift; sourceTree = "<group>"; };
+		5E100000000000000000001F /* ShareExtensionDependencies.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareExtensionDependencies.swift; sourceTree = "<group>"; };
+		5E1000000000000000000035 /* SavePostUI */ = {isa = PBXFileReference; lastKnownFileType = folder; name = SavePostUI; path = ../Packages/SavePostUI; sourceTree = SOURCE_ROOT; };
+		5E1000000000000000000036 /* RoomCreationUI */ = {isa = PBXFileReference; lastKnownFileType = folder; name = RoomCreationUI; path = ../Packages/RoomCreationUI; sourceTree = SOURCE_ROOT; };
+		5E1000000000000000000019 /* ShareExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ShareExtension.entitlements; sourceTree = "<group>"; };
 		5E100000000000000000000B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -131,6 +151,13 @@
 			files = (
 				5E1000000000000000000018 /* ShareExtensionUI in Frameworks */,
 				5E100000000000000000000E /* Core in Frameworks */,
+				5E1000000000000000000021 /* Domain in Frameworks */,
+				5E1000000000000000000023 /* Data in Frameworks */,
+				5E1000000000000000000025 /* Networking in Frameworks */,
+				5E1000000000000000000027 /* Logging in Frameworks */,
+				5E1000000000000000000029 /* FirebaseAuth in Frameworks */,
+				5E1000000000000000000032 /* SavePostUI in Frameworks */,
+				5E1000000000000000000034 /* RoomCreationUI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -145,6 +172,7 @@
 				F7564104E5288B3BF50E3C88 /* Resources */,
 				7F78907537685DA9B94ECD46 /* Sources */,
 				5E1000000000000000000008 /* ShareExtension */,
+				AP10000000000000000000F1 /* App.entitlements */,
 				E9C3DB3EC6D7655028A9C0D3 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -154,6 +182,7 @@
 			children = (
 				AU10000000000000000000F1 /* FirebaseAuthRepository.swift */,
 				AU10000000000000000000F2 /* FirebaseAuthTokenProvider.swift */,
+				AU10000000000000000000F3 /* FirebaseSession.swift */,
 			);
 			path = Auth;
 			sourceTree = "<group>";
@@ -198,6 +227,8 @@
 				35D426C5753A372F270C6E9D /* Networking */,
 				FAB1000000000000000000F1 /* Logging */,
 				5E1000000000000000000016 /* ShareExtensionUI */,
+				5E1000000000000000000035 /* SavePostUI */,
+				5E1000000000000000000036 /* RoomCreationUI */,
 			);
 			name = Packages;
 			sourceTree = SOURCE_ROOT;
@@ -216,6 +247,9 @@
 			children = (
 				5E1000000000000000000009 /* ShareViewController.swift */,
 				5E100000000000000000000B /* Info.plist */,
+				5E1000000000000000000019 /* ShareExtension.entitlements */,
+				5E100000000000000000001D /* SavePostRoomMapping.swift */,
+				5E100000000000000000001F /* ShareExtensionDependencies.swift */,
 			);
 			path = ShareExtension;
 			sourceTree = "<group>";
@@ -306,6 +340,7 @@
 			buildPhases = (
 				5E1000000000000000000005 /* Sources */,
 				5E1000000000000000000006 /* Frameworks */,
+				5E1000000000000000000013 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -315,6 +350,13 @@
 			packageProductDependencies = (
 				5E1000000000000000000017 /* ShareExtensionUI */,
 				5E100000000000000000000D /* Core */,
+				5E1000000000000000000020 /* Domain */,
+				5E1000000000000000000022 /* Data */,
+				5E1000000000000000000024 /* Networking */,
+				5E1000000000000000000026 /* Logging */,
+				5E1000000000000000000028 /* FirebaseAuth */,
+				5E1000000000000000000031 /* SavePostUI */,
+				5E1000000000000000000033 /* RoomCreationUI */,
 			);
 			productName = ShareExtension;
 			productReference = 5E1000000000000000000007 /* ShareExtension.appex */;
@@ -368,6 +410,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		5E1000000000000000000013 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5E100000000000000000001C /* GoogleService-Info.plist in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -383,6 +433,7 @@
 				EF181DA0B0BF234230F6166A /* SceneDelegate.swift in Sources */,
 				AU10000000000000000000B1 /* FirebaseAuthRepository.swift in Sources */,
 				AU10000000000000000000B2 /* FirebaseAuthTokenProvider.swift in Sources */,
+				AU10000000000000000000B3 /* FirebaseSession.swift in Sources */,
 				LA10000000000000000000B1 /* LaunchSplashView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -392,6 +443,10 @@
 			buildActionMask = 2147483647;
 			files = (
 				5E100000000000000000000A /* ShareViewController.swift in Sources */,
+				5E100000000000000000001B /* FirebaseAuthTokenProvider.swift in Sources */,
+				5E100000000000000000001A /* FirebaseSession.swift in Sources */,
+				5E100000000000000000001E /* SavePostRoomMapping.swift in Sources */,
+				5E1000000000000000000030 /* ShareExtensionDependencies.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -405,6 +460,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEVELOPMENT_TEAM = D2DRA3F792;
+				CODE_SIGN_ENTITLEMENTS = App.entitlements;
 				INFOPLIST_FILE = Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -482,6 +538,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEVELOPMENT_TEAM = D2DRA3F792;
+				CODE_SIGN_ENTITLEMENTS = App.entitlements;
 				INFOPLIST_FILE = Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -564,6 +621,7 @@
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEVELOPMENT_TEAM = D2DRA3F792;
+				CODE_SIGN_ENTITLEMENTS = ShareExtension/ShareExtension.entitlements;
 				INFOPLIST_FILE = ShareExtension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -583,6 +641,7 @@
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEVELOPMENT_TEAM = D2DRA3F792;
+				CODE_SIGN_ENTITLEMENTS = ShareExtension/ShareExtension.entitlements;
 				INFOPLIST_FILE = ShareExtension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -712,6 +771,35 @@
 		E0F40E08DDD41C8DB3E42732 /* Domain */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = Domain;
+		};
+		5E1000000000000000000031 /* SavePostUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SavePostUI;
+		};
+		5E1000000000000000000033 /* RoomCreationUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = RoomCreationUI;
+		};
+		5E1000000000000000000020 /* Domain */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Domain;
+		};
+		5E1000000000000000000022 /* Data */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Data;
+		};
+		5E1000000000000000000024 /* Networking */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Networking;
+		};
+		5E1000000000000000000026 /* Logging */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Logging;
+		};
+		5E1000000000000000000028 /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FB0000000000000000000001 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
 		};
 		5E1000000000000000000017 /* ShareExtensionUI */ = {
 			isa = XCSwiftPackageProductDependency;
