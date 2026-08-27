@@ -10,8 +10,8 @@ public struct ProfileRepositoryImpl: ProfileRepository {
         self.client = client
     }
 
-    public func register(nickname: String, avatarIndex: Int) async throws -> Profile {
-        let body = RegisterProfileRequestDTO(nickname: nickname, avatar: AvatarDTO(id: avatarIndex))
+    public func register(nickname: String, avatarColor: AvatarColor) async throws -> Profile {
+        let body = RegisterProfileRequestDTO(nickname: nickname, avatar: AvatarDTO(color: avatarColor.rawValue))
         return try await send(UserAPI.register(body), fallback: .profileSaveFailed)
     }
 
@@ -19,10 +19,10 @@ public struct ProfileRepositoryImpl: ProfileRepository {
         try await send(UserAPI.me(), fallback: .profileFetchFailed)
     }
 
-    public func update(nickname: String?, avatarIndex: Int?) async throws -> Profile {
+    public func update(nickname: String?, avatarColor: AvatarColor?) async throws -> Profile {
         let body = UpdateProfileRequestDTO(
             nickname: nickname,
-            avatar: avatarIndex.map(AvatarDTO.init(id:))
+            avatar: avatarColor.map { AvatarDTO(color: $0.rawValue) }
         )
         return try await send(UserAPI.updateMe(body), fallback: .profileSaveFailed)
     }

@@ -21,7 +21,7 @@ struct ProfileSetupAPIReducerTests {
 
     @Test("L2 — edit 진입은 조회해서 이름·캐릭터를 채운다")
     func editMode_fetchesAndPrefills() async {
-        let profile = StubProfile.make(nickname: "민호", avatarIndex: 7)
+        let profile = StubProfile.make(nickname: "민호", avatarColor: .pink)
         let store = TestStore(
             ProfileSetupState(mode: .edit),
             reduce: profileSetupReducer(
@@ -75,7 +75,7 @@ struct ProfileSetupAPIReducerTests {
         store.receiveNavigation(.didSave)
 
         #expect(register.received?.nickname == "민호", "앞뒤 공백은 빼고 보낸다")
-        #expect(register.received?.avatarIndex == 3)
+        #expect(register.received?.avatarColor == .green)
         store.finish()
     }
 
@@ -106,7 +106,7 @@ struct ProfileSetupAPIReducerTests {
         await store.receive(.saveSucceeded) { $0.isSaving = false }
         store.receiveNavigation(.didSave)
 
-        #expect(register.received?.avatarIndex == 0)
+        #expect(register.received?.avatarColor == .red)
         store.finish()
     }
 
@@ -159,7 +159,7 @@ struct ProfileSetupAPIReducerTests {
             ))
         )
 
-        await store.send(.loaded(StubProfile.make(nickname: "민호", avatarIndex: 1))) {
+        await store.send(.loaded(StubProfile.make(nickname: "민호", avatarColor: .redOrange))) {
             $0.isLoading = false
             $0.name = "민호"
             $0.selectedCharacterIndex = 1

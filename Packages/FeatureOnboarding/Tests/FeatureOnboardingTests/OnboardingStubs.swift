@@ -10,8 +10,8 @@ struct StubOnboardingDeps: OnboardingDeps {
 }
 
 private struct StubRegisterProfile: RegisterProfileUseCase {
-    func execute(nickname: String, avatarIndex: Int) async throws -> Profile {
-        Profile(id: "user-1", nickname: nickname, avatarIndex: avatarIndex, createdAt: nil)
+    func execute(nickname: String, avatarColor: AvatarColor) async throws -> Profile {
+        Profile(id: "user-1", nickname: nickname, avatarColor: avatarColor, createdAt: nil)
     }
 }
 

@@ -6,8 +6,11 @@ import SwiftUI
 /// 각 이미지는 파스텔 원 배경까지 포함한 정사각 PNG 라, 원형으로 클립해 그대로 얹으면 된다.
 ///
 /// > 이름이 인덱스인 이유: Figma 인스턴스가 12개 모두 `Avatar/Avatar` 로 같아 캐릭터별 이름이 없다.
-/// > 색으로 부르는 것도 정확하지 않다(유사 색이 여럿). **선언 순서가 곧 Figma 그리드 순서(좌→우, 상→하)**이고
-/// > 선택 결과가 `Int` 인덱스로 저장되므로, 케이스를 재정렬하면 저장된 선택이 다른 캐릭터를 가리킨다.
+/// > **선언 순서 = Figma 그리드 순서(좌→우, 상→하)** 이므로 케이스를 재정렬하지 않는다.
+/// >
+/// > 어느 캐릭터가 어떤 색으로 **저장되는지**는 DesignSystem 이 알지 않는다 — 서버 계약이라
+/// > 화면 레이어(`ProfileSetupUI.AvatarPalette`)가 잇는다. DS 가 도메인 어휘를 들면
+/// > DS 를 쓰는 모든 패키지가 그 계약을 상속받는다.
 public enum MHCharacter: String, CaseIterable, Sendable {
     case character01
     case character02

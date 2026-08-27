@@ -19,7 +19,7 @@ private struct StubEnsureSession: EnsureSessionUseCase {
 
 /// 등록 여부를 서버에 묻는 창구. 조회가 성공하면 등록된 것이고, `.notRegistered` 면 온보딩 전이다.
 private struct StubFetchProfile: FetchProfileUseCase {
-    var result: Result<Profile, DomainError> = .success(Profile(id: "user-1", nickname: "꾹이", avatarIndex: 0, createdAt: nil))
+    var result: Result<Profile, DomainError> = .success(Profile(id: "user-1", nickname: "꾹이", avatarColor: .red, createdAt: nil))
 
     func execute() async throws -> Profile {
         try result.get()

@@ -3,10 +3,11 @@ import DesignSystem
 
 // MARK: - 캐릭터 스와치
 
-/// 캐릭터 목록. `CaseIterable.allCases` 는 호출마다 배열을 새로 지으므로 한 번만 받아 둔다.
-private let allCharacters = MHCharacter.allCases
+/// 캐릭터 목록. 순서는 `AvatarPalette` 가 정한다 — 그 순서가 곧 저장되는 색이라
+/// `MHCharacter.allCases` 를 따로 쓰면 두 순서가 어긋날 수 있다.
+private let allCharacters = AvatarPalette.characters
 
-/// 캐릭터 선택 12종. 순서는 `MHCharacter` 선언 순서 = 피그마 4열×3행 그리드(좌→우, 상→하)다.
+/// 캐릭터 선택 12종. 순서는 `AvatarPalette` = 피그마 4열×3행 그리드(좌→우, 상→하)다.
 private let characterSwatches: [MHSelectionGridItem] = allCharacters.map { .image(Image($0)) }
 
 // [Convention] .claude/docs/mvi-coordinator-di.md — Store·Coordinator 를 모르는 순수 마크업.

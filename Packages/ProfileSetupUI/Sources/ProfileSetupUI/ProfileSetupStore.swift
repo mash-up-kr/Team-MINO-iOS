@@ -107,10 +107,10 @@ public struct ProfileSetupState: Equatable {
         (!name.isEmpty || selectedCharacterIndex != nil) && !isSaving
     }
 
-    /// 서버로 보낼 아바타 자리. 아무것도 안 골랐으면 첫 캐릭터로 본다 — 화면이 무선택일 때도
+    /// 서버로 보낼 아바타 색. 아무것도 안 골랐으면 첫 캐릭터로 본다 — 화면이 무선택일 때도
     /// 1번 캐릭터를 미리보기에 띄우므로(시안 010-1), 그대로 저장되는 게 사용자가 본 것과 같다.
-    var avatarIndexToSave: Int {
-        selectedCharacterIndex ?? 0
+    var avatarColorToSave: AvatarColor {
+        AvatarPalette.color(at: selectedCharacterIndex ?? 0)
     }
 
     /// **서버에 보낼 수 있는** 문자 — 한글 완성형·영문·공백. 방 이름과 달리 숫자를 허용하지 않는다.
@@ -200,7 +200,8 @@ public func profileSetupReducer(
         case .loaded(let profile):
             state.isLoading = false
             state.name = profile.nickname
-            state.selectedCharacterIndex = profile.avatarIndex
+            // 모르는 색이면 무선택으로 둔다 — 서버 팔레트가 우리보다 앞서 나갈 수 있다.
+            state.selectedCharacterIndex = profile.avatarColor.flatMap(AvatarPalette.index(of:))
             return .none
 
         case .loadFailed(let error):
@@ -228,14 +229,14 @@ public func profileSetupReducer(
             state.isSaving = true
             state.saveError = nil
             let nickname = state.name.trimmingCharacters(in: .whitespacesAndNewlines)
-            let avatarIndex = state.avatarIndexToSave
+            let avatarColor = state.avatarColorToSave
             return .run { send in
                 do {
                     switch deps {
                     case .create(let register):
-                        _ = try await register.execute(nickname: nickname, avatarIndex: avatarIndex)
+                        _ = try await register.execute(nickname: nickname, avatarColor: avatarColor)
                     case .edit(_, let update):
-                        _ = try await update.execute(nickname: nickname, avatarIndex: avatarIndex)
+                        _ = try await update.execute(nickname: nickname, avatarColor: avatarColor)
                     }
                     send(.saveSucceeded)
                 } catch {

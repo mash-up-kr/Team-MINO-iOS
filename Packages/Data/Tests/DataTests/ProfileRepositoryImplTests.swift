@@ -8,13 +8,13 @@ import Testing
 struct ProfileRepositoryImplTests {
     @Test("등록은 닉네임·아바타를 실어 보내고 응답을 Profile 로 옮긴다")
     func register_mapsResponse() async throws {
-        let client = StubHTTPClient(result: .success(Self.dto(nickname: "민호", avatarID: 7)))
+        let client = StubHTTPClient(result: .success(Self.dto(nickname: "민호", avatarColor: "pink")))
         let sut = ProfileRepositoryImpl(client: client)
 
-        let profile = try await sut.register(nickname: "민호", avatarIndex: 7)
+        let profile = try await sut.register(nickname: "민호", avatarColor: .pink)
 
         #expect(profile.nickname == "민호")
-        #expect(profile.avatarIndex == 7)
+        #expect(profile.avatarColor == .pink)
         #expect(await client.lastPath == "api/v1/users")
         #expect(await client.lastMethod == .post)
     }
@@ -22,7 +22,7 @@ struct ProfileRepositoryImplTests {
     @Test("등록은 인증 미들웨어를 부분만 태운다 — full 이면 최초 진입이 막힌다")
     func register_usesUnregisteredUserAuth() async throws {
         let client = StubHTTPClient(result: .success(Self.dto()))
-        _ = try await ProfileRepositoryImpl(client: client).register(nickname: "민호", avatarIndex: 0)
+        _ = try await ProfileRepositoryImpl(client: client).register(nickname: "민호", avatarColor: .red)
 
         guard case .unregisteredUser = await client.lastAuth else {
             Issue.record("register 는 .unregisteredUser 여야 한다")
@@ -32,10 +32,10 @@ struct ProfileRepositoryImplTests {
 
     @Test("조회는 GET /me 를 친다")
     func me_hitsMeEndpoint() async throws {
-        let client = StubHTTPClient(result: .success(Self.dto(nickname: "꾹이", avatarID: 2)))
+        let client = StubHTTPClient(result: .success(Self.dto(nickname: "꾹이", avatarColor: "orange")))
         let profile = try await ProfileRepositoryImpl(client: client).me()
 
-        #expect(profile.avatarIndex == 2)
+        #expect(profile.avatarColor == .orange)
         #expect(await client.lastPath == "api/v1/users/me")
         #expect(await client.lastMethod == .get)
     }
@@ -43,7 +43,7 @@ struct ProfileRepositoryImplTests {
     @Test("수정은 PATCH 로 보낸다")
     func update_usesPatch() async throws {
         let client = StubHTTPClient(result: .success(Self.dto()))
-        _ = try await ProfileRepositoryImpl(client: client).update(nickname: "민호", avatarIndex: nil)
+        _ = try await ProfileRepositoryImpl(client: client).update(nickname: "민호", avatarColor: nil)
 
         #expect(await client.lastPath == "api/v1/users/me")
         #expect(await client.lastMethod == .patch)
@@ -51,10 +51,20 @@ struct ProfileRepositoryImplTests {
 
     @Test("아바타가 없는 계정도 읽을 수 있다 — 스펙상 nullable")
     func me_withoutAvatar() async throws {
-        let client = StubHTTPClient(result: .success(Self.dto(avatarID: nil)))
+        let client = StubHTTPClient(result: .success(Self.dto(avatarColor: nil)))
         let profile = try await ProfileRepositoryImpl(client: client).me()
 
-        #expect(profile.avatarIndex == nil)
+        #expect(profile.avatarColor == nil)
+    }
+
+    // 서버 팔레트가 우리보다 앞서 나갈 수 있다. 통째로 디코딩을 깨뜨리면 프로필 자체를 못 읽는다.
+    @Test("모르는 색은 아바타 없음으로 떨어뜨린다 — 프로필 조회를 깨뜨리지 않는다")
+    func me_withUnknownColor() async throws {
+        let client = StubHTTPClient(result: .success(Self.dto(avatarColor: "chartreuse")))
+        let profile = try await ProfileRepositoryImpl(client: client).me()
+
+        #expect(profile.avatarColor == nil)
+        #expect(profile.nickname == "꾹이")
     }
 
     @Test("401 은 unauthorized 로 번역한다 — 세션이 끊긴 것과 저장 실패는 다르다")
@@ -69,7 +79,7 @@ struct ProfileRepositoryImplTests {
     func unmappedStatus_fallsBack() async {
         let client = StubHTTPClient(result: .failure(NetworkError.server(statusCode: 500)))
         await #expect(throws: DomainError.profileSaveFailed) {
-            try await ProfileRepositoryImpl(client: client).register(nickname: "민호", avatarIndex: 0)
+            try await ProfileRepositoryImpl(client: client).register(nickname: "민호", avatarColor: .red)
         }
     }
 
@@ -81,7 +91,7 @@ struct ProfileRepositoryImplTests {
             NetworkError.conflict(code: "USER_ALREADY_REGISTERED", message: "이미 등록된 사용자입니다.")
         ))
         await #expect(throws: DomainError.alreadyRegistered) {
-            try await ProfileRepositoryImpl(client: client).register(nickname: "민호", avatarIndex: 0)
+            try await ProfileRepositoryImpl(client: client).register(nickname: "민호", avatarColor: .red)
         }
     }
 
@@ -105,11 +115,11 @@ struct ProfileRepositoryImplTests {
         }
     }
 
-    private static func dto(nickname: String = "꾹이", avatarID: Int? = 0) -> ProfileDTO {
+    private static func dto(nickname: String = "꾹이", avatarColor: String? = "red") -> ProfileDTO {
         ProfileDTO(
             id: "user-1",
             nickname: nickname,
-            avatar: avatarID.map(AvatarDTO.init(id:)),
+            avatar: avatarColor.map(AvatarDTO.init(color:)),
             createdAt: Date(timeIntervalSince1970: 0)
         )
     }

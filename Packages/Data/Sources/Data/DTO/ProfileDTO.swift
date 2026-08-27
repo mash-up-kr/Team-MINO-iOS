@@ -13,13 +13,21 @@ struct ProfileDTO: Decodable {
     let createdAt: Date
 
     func toDomain() -> Profile {
-        Profile(id: id, nickname: nickname, avatarIndex: avatar?.id, createdAt: createdAt)
+        // 서버가 우리가 모르는 색을 주면 "아바타 없음" 으로 떨어뜨린다 — 화면이 첫 캐릭터로
+        // 그리므로, 통째로 디코딩을 깨뜨려 프로필을 못 읽는 것보다 낫다.
+        Profile(
+            id: id,
+            nickname: nickname,
+            avatarColor: avatar.flatMap { AvatarColor(rawValue: $0.color) },
+            createdAt: createdAt
+        )
     }
 }
 
-/// 서버가 아바타를 `{ id: Int }` 로 감싸 주고받는다. id 는 캐릭터 목록에서의 자리(0 부터).
+/// 서버가 아바타를 `{ color: String }` 로 감싸 주고받는다. 값은 팔레트 색 이름(`red`·`light-blue` …)
+/// 이고, 어느 캐릭터 그림인지는 클라이언트가 정한다.
 struct AvatarDTO: Codable {
-    let id: Int
+    let color: String
 }
 
 /// 등록 요청 바디. `nickname`·`avatar` 둘 다 필수(스펙).
