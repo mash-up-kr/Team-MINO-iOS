@@ -20,6 +20,9 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
     let lastViewedRoom: LastViewedRoomUseCase
     let homeGuide: HomeGuideUseCase
     let savePin: SavePinToRoomsUseCase
+    let fetchPinDetail: FetchPinDetailUseCase
+    let fetchShareTargets: FetchShareTargetsUseCase
+    let currentMember: CurrentMemberUseCase
     let createRoom: CreateRoomUseCase
     let roomCreationPromptSnooze: SnoozeSwitch
     let ensureSession: EnsureSessionUseCase
@@ -43,11 +46,18 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
         // 실 API 연결 절차는 Packages/Networking/Docs/AddingAPI.md 참조.
         self.fetchMember = StubFetchMemberUseCase()
 
+        // 목 저장소는 인스턴스를 공유한다 — 방/핀/저장 상태가 서로를 참조하므로 따로 만들면
+        // "이미 저장된 방" 같은 관계적 사실이 저장소마다 달라진다.
+        let rooms = MockRoomRepository()
+        let pins = MockPinRepository()
+
         // 방 목록: 실 API 미연결 → Mock Repository(하드코딩 JSON) 사용. 추후 RoomRepositoryImpl 로 교체.
-        self.fetchRooms = DefaultFetchRoomsUseCase(repository: MockRoomRepository())
+        self.fetchRooms = DefaultFetchRoomsUseCase(repository: rooms)
 
         // 홈 카드 핀: 실 API 미연결 → Mock Repository(하드코딩 장소 풀) 사용. 추후 PinRepositoryImpl 로 교체.
-        self.fetchPins = DefaultFetchPinsUseCase(repository: MockPinRepository())
+        // 목록과 상세를 한 인스턴스가 겸한다 — 상세가 목록에 없는 값을 지어내면 두 화면이 어긋난다.
+        self.fetchPins = DefaultFetchPinsUseCase(repository: pins)
+        self.fetchPinDetail = DefaultFetchPinDetailUseCase(repository: pins)
 
         // 알림 목록: 실 API 미연결 → Mock Repository(하드코딩 JSON) 사용. 추후 NotificationRepositoryImpl 로 교체.
         self.fetchNotifications = DefaultFetchNotificationsUseCase(repository: MockNotificationRepository())
@@ -60,9 +70,14 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
         // 홈 사용 가이드 1회 표기 플래그도 같은 이유로 UserDefaults.
         self.homeGuide = DefaultHomeGuideUseCase(repository: UserDefaultsHomeGuideRepository())
 
-        // 다른 방 저장: 저장 API 미연결 → Mock Repository(지연만 주고 성공) 사용.
-        // 추후 SavePinRepositoryImpl 로 교체한다.
-        self.savePin = DefaultSavePinToRoomsUseCase(repository: MockSavePinRepository())
+        // 다른 방 저장: 저장 API 미연결 → Mock Repository 사용. 어느 방에 담았는지를 메모리에
+        // 들고 있어야 "이미 저장된 방" 표시가 목업에서도 산다. 추후 SavePinRepositoryImpl 로 교체.
+        let savePinRepository = MockSavePinRepository(rooms: rooms, pins: pins)
+        self.savePin = DefaultSavePinToRoomsUseCase(repository: savePinRepository)
+        self.fetchShareTargets = DefaultFetchShareTargetsUseCase(repository: savePinRepository)
+
+        // 지금 앱을 쓰는 사람: 프로필 API 미연결 → Mock. MockRoomRepository 의 user-0001 과 같은 사람이다.
+        self.currentMember = DefaultCurrentMemberUseCase(repository: MockCurrentMemberRepository())
 
         // 방 생성: 실 API. 편집(UpdateRoomUseCase)은 진입점이 아직 없어 조립하지 않는다.
         self.createRoom = DefaultCreateRoomUseCase(
