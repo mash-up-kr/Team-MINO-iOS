@@ -3,44 +3,78 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 54;
+	objectVersion = 52;
 	objects = {
 
 /* Begin PBXBuildFile section */
-		1ABB0F369E27B809796ECB62 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 4B8003BACE60BD969B4B0C47 /* Assets.xcassets */; };
-		1C2828AB6F056A7680FC41D9 /* Domain in Frameworks */ = {isa = PBXBuildFile; productRef = E0F40E08DDD41C8DB3E42732 /* Domain */; };
-		1CA998C627766237F2232BEB /* Feature in Frameworks */ = {isa = PBXBuildFile; productRef = C0D4F0FC8286D9C61BB32BF4 /* Feature */; };
-		1E9A0431691248E1AF7498F7 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 870EC38E78064219B6961460 /* MainTabView.swift */; };
-		3EF75B20CDF46D5CBCADEDF8 /* Core in Frameworks */ = {isa = PBXBuildFile; productRef = 2FEFAD4646D1EBA99E6E7E08 /* Core */; };
-		5C1000000000000000000002 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 5C1000000000000000000001 /* LaunchScreen.storyboard */; };
-		5E100000000000000000000A /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E1000000000000000000009 /* ShareViewController.swift */; };
-		5E100000000000000000000E /* Core in Frameworks */ = {isa = PBXBuildFile; productRef = 5E100000000000000000000D /* Core */; };
-		5E1000000000000000000010 /* ShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 5E1000000000000000000007 /* ShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		5E1000000000000000000018 /* ShareExtensionUI in Frameworks */ = {isa = PBXBuildFile; productRef = 5E1000000000000000000017 /* ShareExtensionUI */; };
-		6A1D4F0C2B7E4E1D9C3A5F71 /* MapUI in Frameworks */ = {isa = PBXBuildFile; productRef = 6A1D4F0C2B7E4E1D9C3A5F72 /* MapUI */; };
-		78492A156C1A471498E4D6C0 /* FeatureHome in Frameworks */ = {isa = PBXBuildFile; productRef = 9DB4CFD6500044279D5152C0 /* FeatureHome */; };
-		95C38BB4FB56187972591E16 /* Data in Frameworks */ = {isa = PBXBuildFile; productRef = 30221BF92B4CCDE0D6CEA9E9 /* Data */; };
-		964C752F52C50D0DA03BAA47 /* Networking in Frameworks */ = {isa = PBXBuildFile; productRef = D106E25C257C7E7E8BC43D51 /* Networking */; };
-		A1A2A3A4A5A6A7A8A9A0A1A3 /* MINOApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1A2A3A4A5A6A7A8A9A0A1A2 /* MINOApp.swift */; };
-		A7C1F0E23B5D4C819A2E6F01 /* FeatureProfile in Frameworks */ = {isa = PBXBuildFile; productRef = C3D9E4B7182A45F6B7C08D12 /* FeatureProfile */; };
-		A7C1F0E23B5D4C819A2E6F02 /* FeatureOnboarding in Frameworks */ = {isa = PBXBuildFile; productRef = C3D9E4B7182A45F6B7C08D13 /* FeatureOnboarding */; };
-		AU10000000000000000000B1 /* FirebaseAuthRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = AU10000000000000000000F1 /* FirebaseAuthRepository.swift */; };
-		AU10000000000000000000B2 /* FirebaseAuthTokenProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = AU10000000000000000000F2 /* FirebaseAuthTokenProvider.swift */; };
-		B1B2B3B4B5B6B7B8B9B0B1B3 /* AppCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1B2B3B4B5B6B7B8B9B0B1B2 /* AppCoordinator.swift */; };
-		CC3A8EE8C79148C2B7DD9601 /* FeatureNotification in Frameworks */ = {isa = PBXBuildFile; productRef = 4CC2353632FD45B68F6452C7 /* FeatureNotification */; };
-		D3595F6B764F0A8C5C5B394C /* DesignSystem in Frameworks */ = {isa = PBXBuildFile; productRef = 069920554A729CBEA8A1355E /* DesignSystem */; };
-		EF181DA0B0BF234230F6166A /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7D5B97B3011ED2B8B8D6A82 /* SceneDelegate.swift */; };
-		EF2B6F16D71C431694B01429 /* FeatureArchive in Frameworks */ = {isa = PBXBuildFile; productRef = 28D80F7784D54B5E900E11C8 /* FeatureArchive */; };
-		F020EE47FD9AFF29CB232A2C /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3698F892C87398A1AB1FF12E /* AppDelegate.swift */; };
-		F12A80D53AF08C9E442B7395 /* AppDependencies.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6E10081ACCCE1687F63903A /* AppDependencies.swift */; };
-		FAB1000000000000000000B1 /* Logging in Frameworks */ = {isa = PBXBuildFile; productRef = FAB1000000000000000000D1 /* Logging */; };
 		FB000000000000000000001A /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = FB000000000000000000000A /* FirebaseAnalytics */; };
 		FB000000000000000000001B /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = FB000000000000000000000B /* FirebaseCrashlytics */; };
 		FB000000000000000000001C /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = FB000000000000000000000C /* FirebaseMessaging */; };
 		FB000000000000000000001D /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = FB000000000000000000000D /* FirebaseAuth */; };
 		FB000000000000000000002B /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = FB000000000000000000002A /* GoogleService-Info.plist */; };
+		1ABB0F369E27B809796ECB62 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 4B8003BACE60BD969B4B0C47 /* Assets.xcassets */; };
+		5C1000000000000000000002 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 5C1000000000000000000001 /* LaunchScreen.storyboard */; };
+		1C2828AB6F056A7680FC41D9 /* Domain in Frameworks */ = {isa = PBXBuildFile; productRef = E0F40E08DDD41C8DB3E42732 /* Domain */; };
+		1CA998C627766237F2232BEB /* Feature in Frameworks */ = {isa = PBXBuildFile; productRef = C0D4F0FC8286D9C61BB32BF4 /* Feature */; };
+		78492A156C1A471498E4D6C0 /* FeatureHome in Frameworks */ = {isa = PBXBuildFile; productRef = 9DB4CFD6500044279D5152C0 /* FeatureHome */; };
+		EF2B6F16D71C431694B01429 /* FeatureArchive in Frameworks */ = {isa = PBXBuildFile; productRef = 28D80F7784D54B5E900E11C8 /* FeatureArchive */; };
+		CC3A8EE8C79148C2B7DD9601 /* FeatureNotification in Frameworks */ = {isa = PBXBuildFile; productRef = 4CC2353632FD45B68F6452C7 /* FeatureNotification */; };
+		A7C1F0E23B5D4C819A2E6F01 /* FeatureProfile in Frameworks */ = {isa = PBXBuildFile; productRef = C3D9E4B7182A45F6B7C08D12 /* FeatureProfile */; };
+		A7C1F0E23B5D4C819A2E6F02 /* FeatureOnboarding in Frameworks */ = {isa = PBXBuildFile; productRef = C3D9E4B7182A45F6B7C08D13 /* FeatureOnboarding */; };
+		6A1D4F0C2B7E4E1D9C3A5F71 /* MapUI in Frameworks */ = {isa = PBXBuildFile; productRef = 6A1D4F0C2B7E4E1D9C3A5F72 /* MapUI */; };
+		1E9A0431691248E1AF7498F7 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 870EC38E78064219B6961460 /* MainTabView.swift */; };
+		3EF75B20CDF46D5CBCADEDF8 /* Core in Frameworks */ = {isa = PBXBuildFile; productRef = 2FEFAD4646D1EBA99E6E7E08 /* Core */; };
+		95C38BB4FB56187972591E16 /* Data in Frameworks */ = {isa = PBXBuildFile; productRef = 30221BF92B4CCDE0D6CEA9E9 /* Data */; };
+		964C752F52C50D0DA03BAA47 /* Networking in Frameworks */ = {isa = PBXBuildFile; productRef = D106E25C257C7E7E8BC43D51 /* Networking */; };
+		FAB1000000000000000000B1 /* Logging in Frameworks */ = {isa = PBXBuildFile; productRef = FAB1000000000000000000D1 /* Logging */; };
+		A1A2A3A4A5A6A7A8A9A0A1A3 /* MINOApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1A2A3A4A5A6A7A8A9A0A1A2 /* MINOApp.swift */; };
+		B1B2B3B4B5B6B7B8B9B0B1B3 /* AppCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1B2B3B4B5B6B7B8B9B0B1B2 /* AppCoordinator.swift */; };
+		D3595F6B764F0A8C5C5B394C /* DesignSystem in Frameworks */ = {isa = PBXBuildFile; productRef = 069920554A729CBEA8A1355E /* DesignSystem */; };
+		EF181DA0B0BF234230F6166A /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7D5B97B3011ED2B8B8D6A82 /* SceneDelegate.swift */; };
+		F020EE47FD9AFF29CB232A2C /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3698F892C87398A1AB1FF12E /* AppDelegate.swift */; };
+		AU10000000000000000000B1 /* FirebaseAuthRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = AU10000000000000000000F1 /* FirebaseAuthRepository.swift */; };
+		AU10000000000000000000B2 /* FirebaseAuthTokenProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = AU10000000000000000000F2 /* FirebaseAuthTokenProvider.swift */; };
 		LA10000000000000000000B1 /* LaunchSplashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = LA10000000000000000000F1 /* LaunchSplashView.swift */; };
+		F12A80D53AF08C9E442B7395 /* AppDependencies.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6E10081ACCCE1687F63903A /* AppDependencies.swift */; };
+		5E100000000000000000000A /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E1000000000000000000009 /* ShareViewController.swift */; };
+		5E1000000000000000000018 /* ShareExtensionUI in Frameworks */ = {isa = PBXBuildFile; productRef = 5E1000000000000000000017 /* ShareExtensionUI */; };
+		5E100000000000000000000E /* Core in Frameworks */ = {isa = PBXBuildFile; productRef = 5E100000000000000000000D /* Core */; };
+		5E1000000000000000000010 /* ShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 5E1000000000000000000007 /* ShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		FB000000000000000000002A /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
+		35D426C5753A372F270C6E9D /* Networking */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Networking; path = ../Packages/Networking; sourceTree = SOURCE_ROOT; };
+		FAB1000000000000000000F1 /* Logging */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Logging; path = ../Packages/Logging; sourceTree = SOURCE_ROOT; };
+		3698F892C87398A1AB1FF12E /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		AU10000000000000000000F1 /* FirebaseAuthRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirebaseAuthRepository.swift; sourceTree = "<group>"; };
+		AU10000000000000000000F2 /* FirebaseAuthTokenProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirebaseAuthTokenProvider.swift; sourceTree = "<group>"; };
+		LA10000000000000000000F1 /* LaunchSplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchSplashView.swift; sourceTree = "<group>"; };
+		49D88A349FD70A9153DD2C03 /* Mino-iOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Mino-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		4B8003BACE60BD969B4B0C47 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		5C1000000000000000000001 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
+		7855DC05D6AAAB6FF9B75F8C /* Data */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Data; path = ../Packages/Data; sourceTree = SOURCE_ROOT; };
+		9385F6DBBC00D51067BF0767 /* Domain */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Domain; path = ../Packages/Domain; sourceTree = SOURCE_ROOT; };
+		A1A2A3A4A5A6A7A8A9A0A1A2 /* MINOApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MINOApp.swift; sourceTree = "<group>"; };
+		A6E10081ACCCE1687F63903A /* AppDependencies.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDependencies.swift; sourceTree = "<group>"; };
+		AE14BBEBA89FD412C42C94EB /* Feature */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Feature; path = ../Packages/Feature; sourceTree = SOURCE_ROOT; };
+		83E429DB5B9444888F2889BD /* FeatureHome */ = {isa = PBXFileReference; lastKnownFileType = folder; name = FeatureHome; path = ../Packages/FeatureHome; sourceTree = SOURCE_ROOT; };
+		90E12A0E04B542289EBE33C6 /* FeatureArchive */ = {isa = PBXFileReference; lastKnownFileType = folder; name = FeatureArchive; path = ../Packages/FeatureArchive; sourceTree = SOURCE_ROOT; };
+		ED413E43B15C4457B5D3450C /* FeatureNotification */ = {isa = PBXFileReference; lastKnownFileType = folder; name = FeatureNotification; path = ../Packages/FeatureNotification; sourceTree = SOURCE_ROOT; };
+		D5E8A1C90F2B43D6A81C7E34 /* FeatureProfile */ = {isa = PBXFileReference; lastKnownFileType = folder; name = FeatureProfile; path = ../Packages/FeatureProfile; sourceTree = SOURCE_ROOT; };
+		D5E8A1C90F2B43D6A81C7E35 /* FeatureOnboarding */ = {isa = PBXFileReference; lastKnownFileType = folder; name = FeatureOnboarding; path = ../Packages/FeatureOnboarding; sourceTree = SOURCE_ROOT; };
+		6A1D4F0C2B7E4E1D9C3A5F73 /* MapUI */ = {isa = PBXFileReference; lastKnownFileType = folder; name = MapUI; path = ../Packages/MapUI; sourceTree = SOURCE_ROOT; };
+		6A1D4F0C2B7E4E1D9C3A5F75 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
+		870EC38E78064219B6961460 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
+		B1B2B3B4B5B6B7B8B9B0B1B2 /* AppCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCoordinator.swift; sourceTree = "<group>"; };
+		E65F524E24BD1439574B9AFF /* DesignSystem */ = {isa = PBXFileReference; lastKnownFileType = folder; name = DesignSystem; path = ../Packages/DesignSystem; sourceTree = SOURCE_ROOT; };
+		F7D5B97B3011ED2B8B8D6A82 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
+		F817D4621F1B8AEE150CC10A /* Core */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Core; path = ../Packages/Core; sourceTree = SOURCE_ROOT; };
+		5E1000000000000000000016 /* ShareExtensionUI */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ShareExtensionUI; path = ../Packages/ShareExtensionUI; sourceTree = SOURCE_ROOT; };
+		5E1000000000000000000007 /* ShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		5E1000000000000000000009 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
+		5E100000000000000000000B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+/* End PBXFileReference section */
 
 /* Begin PBXContainerItemProxy section */
 		5E1000000000000000000011 /* PBXContainerItemProxy */ = {
@@ -66,50 +100,7 @@
 		};
 /* End PBXCopyFilesBuildPhase section */
 
-/* Begin PBXFileReference section */
-		35D426C5753A372F270C6E9D /* Networking */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Networking; path = ../Packages/Networking; sourceTree = SOURCE_ROOT; };
-		3698F892C87398A1AB1FF12E /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
-		49D88A349FD70A9153DD2C03 /* Mino-iOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Mino-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		4B8003BACE60BD969B4B0C47 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		5C1000000000000000000001 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
-		5E1000000000000000000007 /* ShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
-		5E1000000000000000000009 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
-		5E100000000000000000000B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		5E1000000000000000000016 /* ShareExtensionUI */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ShareExtensionUI; path = ../Packages/ShareExtensionUI; sourceTree = SOURCE_ROOT; };
-		6A1D4F0C2B7E4E1D9C3A5F73 /* MapUI */ = {isa = PBXFileReference; lastKnownFileType = folder; name = MapUI; path = ../Packages/MapUI; sourceTree = SOURCE_ROOT; };
-		6A1D4F0C2B7E4E1D9C3A5F75 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
-		7855DC05D6AAAB6FF9B75F8C /* Data */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Data; path = ../Packages/Data; sourceTree = SOURCE_ROOT; };
-		83E429DB5B9444888F2889BD /* FeatureHome */ = {isa = PBXFileReference; lastKnownFileType = folder; name = FeatureHome; path = ../Packages/FeatureHome; sourceTree = SOURCE_ROOT; };
-		870EC38E78064219B6961460 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
-		90E12A0E04B542289EBE33C6 /* FeatureArchive */ = {isa = PBXFileReference; lastKnownFileType = folder; name = FeatureArchive; path = ../Packages/FeatureArchive; sourceTree = SOURCE_ROOT; };
-		9385F6DBBC00D51067BF0767 /* Domain */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Domain; path = ../Packages/Domain; sourceTree = SOURCE_ROOT; };
-		A1A2A3A4A5A6A7A8A9A0A1A2 /* MINOApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MINOApp.swift; sourceTree = "<group>"; };
-		A6E10081ACCCE1687F63903A /* AppDependencies.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDependencies.swift; sourceTree = "<group>"; };
-		AE14BBEBA89FD412C42C94EB /* Feature */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Feature; path = ../Packages/Feature; sourceTree = SOURCE_ROOT; };
-		AU10000000000000000000F1 /* FirebaseAuthRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirebaseAuthRepository.swift; sourceTree = "<group>"; };
-		AU10000000000000000000F2 /* FirebaseAuthTokenProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirebaseAuthTokenProvider.swift; sourceTree = "<group>"; };
-		B1B2B3B4B5B6B7B8B9B0B1B2 /* AppCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCoordinator.swift; sourceTree = "<group>"; };
-		D5E8A1C90F2B43D6A81C7E34 /* FeatureProfile */ = {isa = PBXFileReference; lastKnownFileType = folder; name = FeatureProfile; path = ../Packages/FeatureProfile; sourceTree = SOURCE_ROOT; };
-		D5E8A1C90F2B43D6A81C7E35 /* FeatureOnboarding */ = {isa = PBXFileReference; lastKnownFileType = folder; name = FeatureOnboarding; path = ../Packages/FeatureOnboarding; sourceTree = SOURCE_ROOT; };
-		E65F524E24BD1439574B9AFF /* DesignSystem */ = {isa = PBXFileReference; lastKnownFileType = folder; name = DesignSystem; path = ../Packages/DesignSystem; sourceTree = SOURCE_ROOT; };
-		ED413E43B15C4457B5D3450C /* FeatureNotification */ = {isa = PBXFileReference; lastKnownFileType = folder; name = FeatureNotification; path = ../Packages/FeatureNotification; sourceTree = SOURCE_ROOT; };
-		F7D5B97B3011ED2B8B8D6A82 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
-		F817D4621F1B8AEE150CC10A /* Core */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Core; path = ../Packages/Core; sourceTree = SOURCE_ROOT; };
-		FAB1000000000000000000F1 /* Logging */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Logging; path = ../Packages/Logging; sourceTree = SOURCE_ROOT; };
-		FB000000000000000000002A /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
-		LA10000000000000000000F1 /* LaunchSplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchSplashView.swift; sourceTree = "<group>"; };
-/* End PBXFileReference section */
-
 /* Begin PBXFrameworksBuildPhase section */
-		5E1000000000000000000006 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				5E1000000000000000000018 /* ShareExtensionUI in Frameworks */,
-				5E100000000000000000000E /* Core in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		BC0DC3536DED64E0E8C9923E /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -134,6 +125,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		5E1000000000000000000006 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5E1000000000000000000018 /* ShareExtensionUI in Frameworks */,
+				5E100000000000000000000E /* Core in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -149,21 +149,21 @@
 			);
 			sourceTree = "<group>";
 		};
-		5E1000000000000000000008 /* ShareExtension */ = {
+		AU10000000000000000000G1 /* Auth */ = {
 			isa = PBXGroup;
 			children = (
-				5E1000000000000000000009 /* ShareViewController.swift */,
-				5E100000000000000000000B /* Info.plist */,
+				AU10000000000000000000F1 /* FirebaseAuthRepository.swift */,
+				AU10000000000000000000F2 /* FirebaseAuthTokenProvider.swift */,
 			);
-			path = ShareExtension;
+			path = Auth;
 			sourceTree = "<group>";
 		};
-		6A1D4F0C2B7E4E1D9C3A5F74 /* Config */ = {
+		LA10000000000000000000G1 /* Launch */ = {
 			isa = PBXGroup;
 			children = (
-				6A1D4F0C2B7E4E1D9C3A5F75 /* Config.xcconfig */,
+				LA10000000000000000000F1 /* LaunchSplashView.swift */,
 			);
-			path = Config;
+			path = Launch;
 			sourceTree = "<group>";
 		};
 		7F78907537685DA9B94ECD46 /* Sources */ = {
@@ -202,15 +202,6 @@
 			name = Packages;
 			sourceTree = SOURCE_ROOT;
 		};
-		AU10000000000000000000G1 /* Auth */ = {
-			isa = PBXGroup;
-			children = (
-				AU10000000000000000000F1 /* FirebaseAuthRepository.swift */,
-				AU10000000000000000000F2 /* FirebaseAuthTokenProvider.swift */,
-			);
-			path = Auth;
-			sourceTree = "<group>";
-		};
 		E9C3DB3EC6D7655028A9C0D3 /* Products */ = {
 			isa = PBXGroup;
 			children = (
@@ -218,6 +209,23 @@
 				5E1000000000000000000007 /* ShareExtension.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		5E1000000000000000000008 /* ShareExtension */ = {
+			isa = PBXGroup;
+			children = (
+				5E1000000000000000000009 /* ShareViewController.swift */,
+				5E100000000000000000000B /* Info.plist */,
+			);
+			path = ShareExtension;
+			sourceTree = "<group>";
+		};
+		6A1D4F0C2B7E4E1D9C3A5F74 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				6A1D4F0C2B7E4E1D9C3A5F75 /* Config.xcconfig */,
+			);
+			path = Config;
 			sourceTree = "<group>";
 		};
 		F7564104E5288B3BF50E3C88 /* Resources */ = {
@@ -230,37 +238,29 @@
 			path = Resources;
 			sourceTree = "<group>";
 		};
-		LA10000000000000000000G1 /* Launch */ = {
-			isa = PBXGroup;
-			children = (
-				LA10000000000000000000F1 /* LaunchSplashView.swift */,
-			);
-			path = Launch;
-			sourceTree = "<group>";
-		};
 /* End PBXGroup section */
 
-/* Begin PBXNativeTarget section */
-		5E1000000000000000000001 /* ShareExtension */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 5E1000000000000000000002 /* Build configuration list for PBXNativeTarget "ShareExtension" */;
-			buildPhases = (
-				5E1000000000000000000005 /* Sources */,
-				5E1000000000000000000006 /* Frameworks */,
+/* Begin PBXShellScriptBuildPhase section */
+		FB000000000000000000004A /* Upload Crashlytics dSYM */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
 			);
-			buildRules = (
+			inputPaths = (
+				"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}/Contents/Resources/DWARF/${TARGET_NAME}",
+				"$(SRCROOT)/$(BUILT_PRODUCTS_DIR)/$(INFOPLIST_PATH)",
 			);
-			dependencies = (
+			name = "Upload Crashlytics dSYM";
+			outputPaths = (
 			);
-			name = ShareExtension;
-			packageProductDependencies = (
-				5E1000000000000000000017 /* ShareExtensionUI */,
-				5E100000000000000000000D /* Core */,
-			);
-			productName = ShareExtension;
-			productReference = 5E1000000000000000000007 /* ShareExtension.appex */;
-			productType = "com.apple.product-type.app-extension";
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${BUILD_DIR%/Build/*}/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run\"\n";
 		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXNativeTarget section */
 		93E9E330FC2CE7458D9C925F /* App */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = FFC1863BD4026D2C17CBE82B /* Build configuration list for PBXNativeTarget "App" */;
@@ -300,7 +300,35 @@
 			productReference = 49D88A349FD70A9153DD2C03 /* Mino-iOS.app */;
 			productType = "com.apple.product-type.application";
 		};
+		5E1000000000000000000001 /* ShareExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5E1000000000000000000002 /* Build configuration list for PBXNativeTarget "ShareExtension" */;
+			buildPhases = (
+				5E1000000000000000000005 /* Sources */,
+				5E1000000000000000000006 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ShareExtension;
+			packageProductDependencies = (
+				5E1000000000000000000017 /* ShareExtensionUI */,
+				5E100000000000000000000D /* Core */,
+			);
+			productName = ShareExtension;
+			productReference = 5E1000000000000000000007 /* ShareExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
+
+/* Begin PBXTargetDependency section */
+		5E1000000000000000000012 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5E1000000000000000000001 /* ShareExtension */;
+			targetProxy = 5E1000000000000000000011 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXProject section */
 		6B590BF25178DC7D824D09CE /* Project object */ = {
@@ -342,35 +370,7 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
-/* Begin PBXShellScriptBuildPhase section */
-		FB000000000000000000004A /* Upload Crashlytics dSYM */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-				"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}/Contents/Resources/DWARF/${TARGET_NAME}",
-				"$(SRCROOT)/$(BUILT_PRODUCTS_DIR)/$(INFOPLIST_PATH)",
-			);
-			name = "Upload Crashlytics dSYM";
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${BUILD_DIR%/Build/*}/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run\"\n";
-		};
-/* End PBXShellScriptBuildPhase section */
-
 /* Begin PBXSourcesBuildPhase section */
-		5E1000000000000000000005 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				5E100000000000000000000A /* ShareViewController.swift in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		B77F0AF073564580D75A2CF1 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -387,15 +387,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-/* End PBXSourcesBuildPhase section */
-
-/* Begin PBXTargetDependency section */
-		5E1000000000000000000012 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 5E1000000000000000000001 /* ShareExtension */;
-			targetProxy = 5E1000000000000000000011 /* PBXContainerItemProxy */;
+		5E1000000000000000000005 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5E100000000000000000000A /* ShareViewController.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
 		};
-/* End PBXTargetDependency section */
+/* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
 		4A0C935808978B5A7673E412 /* Debug */ = {
@@ -404,7 +404,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = D2DRA3F792;
 				INFOPLIST_FILE = Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -475,51 +475,13 @@
 			};
 			name = Release;
 		};
-		5E1000000000000000000003 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = D2DRA3F792;
-				INFOPLIST_FILE = ShareExtension/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.mashup.teamMino.ShareExtension;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				SKIP_INSTALL = YES;
-				TARGETED_DEVICE_FAMILY = 1;
-			};
-			name = Debug;
-		};
-		5E1000000000000000000004 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = D2DRA3F792;
-				INFOPLIST_FILE = ShareExtension/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.mashup.teamMino.ShareExtension;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				SKIP_INSTALL = YES;
-				TARGETED_DEVICE_FAMILY = 1;
-			};
-			name = Release;
-		};
 		EB1CC3A930E09FEBECF9195D /* Release */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 6A1D4F0C2B7E4E1D9C3A5F75 /* Config.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = D2DRA3F792;
 				INFOPLIST_FILE = Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -597,18 +559,47 @@
 			};
 			name = Debug;
 		};
+		5E1000000000000000000003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = D2DRA3F792;
+				INFOPLIST_FILE = ShareExtension/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.mashup.teamMino.ShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		5E1000000000000000000004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = D2DRA3F792;
+				INFOPLIST_FILE = ShareExtension/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.mashup.teamMino.ShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		5E1000000000000000000002 /* Build configuration list for PBXNativeTarget "ShareExtension" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				5E1000000000000000000003 /* Debug */,
-				5E1000000000000000000004 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Debug;
-		};
 		B3FD05C59F197F398A0B04AB /* Build configuration list for PBXProject "App" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -627,6 +618,15 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
 		};
+		5E1000000000000000000002 /* Build configuration list for PBXNativeTarget "ShareExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5E1000000000000000000003 /* Debug */,
+				5E1000000000000000000004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
@@ -641,66 +641,6 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		069920554A729CBEA8A1355E /* DesignSystem */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = DesignSystem;
-		};
-		28D80F7784D54B5E900E11C8 /* FeatureArchive */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = FeatureArchive;
-		};
-		2FEFAD4646D1EBA99E6E7E08 /* Core */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = Core;
-		};
-		30221BF92B4CCDE0D6CEA9E9 /* Data */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = Data;
-		};
-		4CC2353632FD45B68F6452C7 /* FeatureNotification */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = FeatureNotification;
-		};
-		5E100000000000000000000D /* Core */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = Core;
-		};
-		5E1000000000000000000017 /* ShareExtensionUI */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = ShareExtensionUI;
-		};
-		6A1D4F0C2B7E4E1D9C3A5F72 /* MapUI */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = MapUI;
-		};
-		9DB4CFD6500044279D5152C0 /* FeatureHome */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = FeatureHome;
-		};
-		C0D4F0FC8286D9C61BB32BF4 /* Feature */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = Feature;
-		};
-		C3D9E4B7182A45F6B7C08D12 /* FeatureProfile */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = FeatureProfile;
-		};
-		C3D9E4B7182A45F6B7C08D13 /* FeatureOnboarding */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = FeatureOnboarding;
-		};
-		D106E25C257C7E7E8BC43D51 /* Networking */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = Networking;
-		};
-		E0F40E08DDD41C8DB3E42732 /* Domain */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = Domain;
-		};
-		FAB1000000000000000000D1 /* Logging */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = Logging;
-		};
 		FB000000000000000000000A /* FirebaseAnalytics */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = FB0000000000000000000001 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
@@ -720,6 +660,66 @@
 			isa = XCSwiftPackageProductDependency;
 			package = FB0000000000000000000001 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseAuth;
+		};
+		069920554A729CBEA8A1355E /* DesignSystem */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = DesignSystem;
+		};
+		2FEFAD4646D1EBA99E6E7E08 /* Core */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Core;
+		};
+		30221BF92B4CCDE0D6CEA9E9 /* Data */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Data;
+		};
+		C0D4F0FC8286D9C61BB32BF4 /* Feature */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Feature;
+		};
+		9DB4CFD6500044279D5152C0 /* FeatureHome */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = FeatureHome;
+		};
+		4CC2353632FD45B68F6452C7 /* FeatureNotification */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = FeatureNotification;
+		};
+		28D80F7784D54B5E900E11C8 /* FeatureArchive */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = FeatureArchive;
+		};
+		C3D9E4B7182A45F6B7C08D12 /* FeatureProfile */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = FeatureProfile;
+		};
+		C3D9E4B7182A45F6B7C08D13 /* FeatureOnboarding */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = FeatureOnboarding;
+		};
+		6A1D4F0C2B7E4E1D9C3A5F72 /* MapUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = MapUI;
+		};
+		D106E25C257C7E7E8BC43D51 /* Networking */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Networking;
+		};
+		FAB1000000000000000000D1 /* Logging */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Logging;
+		};
+		E0F40E08DDD41C8DB3E42732 /* Domain */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Domain;
+		};
+		5E1000000000000000000017 /* ShareExtensionUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ShareExtensionUI;
+		};
+		5E100000000000000000000D /* Core */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Core;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
