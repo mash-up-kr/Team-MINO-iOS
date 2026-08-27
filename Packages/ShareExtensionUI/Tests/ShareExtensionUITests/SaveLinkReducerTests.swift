@@ -201,7 +201,6 @@ struct SaveLinkReducerTests {
     }
 
     // 실패 표시를 남겨두면 재시도 중에도 스낵바가 떠 있어 성공/실패를 구분할 수 없다.
-    // 실패 표시를 남겨두면 재시도 중에도 스낵바가 떠 있어 성공/실패를 구분할 수 없다.
     @Test("L2 — 다시 저장하면 이전 실패 표시가 지워진다")
     func tapSave_clearsPreviousFailure() async {
         let store = Self.makeStore(Self.instantDependencies(saveError: SaveFailure()))
