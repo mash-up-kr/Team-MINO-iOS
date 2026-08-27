@@ -66,7 +66,7 @@ struct ArchiveShellView: View {
                 rooms: shareRooms,
                 onClose: { coordinator.sharingLocation = nil },
                 onSubmit: { _ in
-                    pendingToast = "공유가 완료됐습니다."
+                    pendingToast = "공유가 완료되었습니다."
                     coordinator.sharingLocation = nil
                 }
             )
@@ -102,7 +102,9 @@ struct ArchiveShellView: View {
                 Spacer()
                 MHSnackbar(title: toastMessage, icon: .checkThick)
                     .padding(.horizontal, 20)
-                    .padding(.bottom, 68)
+                    // 011-2: "스크린 하단에서 40px". 홈 인디케이터 위(safe area 기준)로 잰다 —
+                    // 인디케이터 아래로 내리면 스낵바가 그 위에 겹쳐 읽힌다.
+                    .padding(.bottom, 40)
             }
             .allowsHitTesting(false)
             .transition(.opacity)
