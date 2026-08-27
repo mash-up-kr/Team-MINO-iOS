@@ -1,3 +1,4 @@
+import SwiftUI
 import Testing
 @testable import MapUI
 
@@ -42,6 +43,18 @@ struct MarkerDiffTests {
             new: [unchanged, updated, inserted]
         )
         #expect(diff == MarkerDiff(removedIDs: ["gone"], inserted: [inserted], updated: [updated]))
+    }
+
+    @Test("좌표가 같아도 스타일만 바뀌면 updated — 선택 마커 아이콘 교체가 이 경로로 반영된다")
+    func styleChangeIsUpdate() {
+        let plain = marker("a")
+        let selected = MapMarker(
+            id: "a",
+            coordinate: MapCoordinate(latitude: 37.5, longitude: 127.0),
+            style: MapMarkerStyle(tint: .red, isSelected: true)
+        )
+        let diff = MarkerDiff.between(applied: [plain], new: [selected])
+        #expect(diff == MarkerDiff(removedIDs: [], inserted: [], updated: [selected]))
     }
 
     @Test("중복 id 는 첫 항목 기준으로 판단한다")
