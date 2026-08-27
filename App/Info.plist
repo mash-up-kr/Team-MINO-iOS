@@ -27,6 +27,10 @@
 	<false/>
 	<key>GMSApiKey</key>
 	<string>$(GOOGLE_MAPS_API_KEY)</string>
+	<!-- 마이페이지 '위치 설정' 스위치가 위치 권한을 요청한다(FR-008). 이 문구가 없으면
+	     requestWhenInUseAuthorization 이 조용히 무시돼 팝업 자체가 뜨지 않는다. -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>주변 장소를 찾고 저장한 장소를 지도에 보여주기 위해 위치를 사용해요.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

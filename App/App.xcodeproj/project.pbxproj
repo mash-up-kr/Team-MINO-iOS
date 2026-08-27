@@ -33,6 +33,8 @@
 		EF181DA0B0BF234230F6166A /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7D5B97B3011ED2B8B8D6A82 /* SceneDelegate.swift */; };
 		F020EE47FD9AFF29CB232A2C /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3698F892C87398A1AB1FF12E /* AppDelegate.swift */; };
 		AU10000000000000000000B1 /* FirebaseAuthRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = AU10000000000000000000F1 /* FirebaseAuthRepository.swift */; };
+		PE10000000000000000000B1 /* SystemPermissionRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = PE10000000000000000000F1 /* SystemPermissionRepository.swift */; };
+		PE10000000000000000000B2 /* RemoteNotificationRegistrationRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = PE10000000000000000000F2 /* RemoteNotificationRegistrationRepository.swift */; };
 		AU10000000000000000000B2 /* FirebaseAuthTokenProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = AU10000000000000000000F2 /* FirebaseAuthTokenProvider.swift */; };
 		LA10000000000000000000B1 /* LaunchSplashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = LA10000000000000000000F1 /* LaunchSplashView.swift */; };
 		F12A80D53AF08C9E442B7395 /* AppDependencies.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6E10081ACCCE1687F63903A /* AppDependencies.swift */; };
@@ -61,6 +63,8 @@
 		FAB1000000000000000000F1 /* Logging */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Logging; path = ../Packages/Logging; sourceTree = SOURCE_ROOT; };
 		3698F892C87398A1AB1FF12E /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		AU10000000000000000000F1 /* FirebaseAuthRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirebaseAuthRepository.swift; sourceTree = "<group>"; };
+		PE10000000000000000000F1 /* SystemPermissionRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemPermissionRepository.swift; sourceTree = "<group>"; };
+		PE10000000000000000000F2 /* RemoteNotificationRegistrationRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteNotificationRegistrationRepository.swift; sourceTree = "<group>"; };
 		AU10000000000000000000F2 /* FirebaseAuthTokenProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirebaseAuthTokenProvider.swift; sourceTree = "<group>"; };
 		LA10000000000000000000F1 /* LaunchSplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchSplashView.swift; sourceTree = "<group>"; };
 		49D88A349FD70A9153DD2C03 /* Mino-iOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Mino-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -75,6 +79,7 @@
 		90E12A0E04B542289EBE33C6 /* FeatureArchive */ = {isa = PBXFileReference; lastKnownFileType = folder; name = FeatureArchive; path = ../Packages/FeatureArchive; sourceTree = SOURCE_ROOT; };
 		ED413E43B15C4457B5D3450C /* FeatureNotification */ = {isa = PBXFileReference; lastKnownFileType = folder; name = FeatureNotification; path = ../Packages/FeatureNotification; sourceTree = SOURCE_ROOT; };
 		D5E8A1C90F2B43D6A81C7E34 /* FeatureProfile */ = {isa = PBXFileReference; lastKnownFileType = folder; name = FeatureProfile; path = ../Packages/FeatureProfile; sourceTree = SOURCE_ROOT; };
+		PS10000000000000000000F1 /* ProfileSetupUI */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ProfileSetupUI; path = ../Packages/ProfileSetupUI; sourceTree = SOURCE_ROOT; };
 		D5E8A1C90F2B43D6A81C7E35 /* FeatureOnboarding */ = {isa = PBXFileReference; lastKnownFileType = folder; name = FeatureOnboarding; path = ../Packages/FeatureOnboarding; sourceTree = SOURCE_ROOT; };
 		6A1D4F0C2B7E4E1D9C3A5F73 /* MapUI */ = {isa = PBXFileReference; lastKnownFileType = folder; name = MapUI; path = ../Packages/MapUI; sourceTree = SOURCE_ROOT; };
 		6A1D4F0C2B7E4E1D9C3A5F75 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
@@ -187,6 +192,15 @@
 			path = Auth;
 			sourceTree = "<group>";
 		};
+		PE10000000000000000000G1 /* Permissions */ = {
+			isa = PBXGroup;
+			children = (
+				PE10000000000000000000F1 /* SystemPermissionRepository.swift */,
+				PE10000000000000000000F2 /* RemoteNotificationRegistrationRepository.swift */,
+			);
+			path = Permissions;
+			sourceTree = "<group>";
+		};
 		LA10000000000000000000G1 /* Launch */ = {
 			isa = PBXGroup;
 			children = (
@@ -206,6 +220,7 @@
 				F7D5B97B3011ED2B8B8D6A82 /* SceneDelegate.swift */,
 				AU10000000000000000000G1 /* Auth */,
 				LA10000000000000000000G1 /* Launch */,
+				PE10000000000000000000G1 /* Permissions */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
@@ -222,6 +237,7 @@
 				83E429DB5B9444888F2889BD /* FeatureHome */,
 				ED413E43B15C4457B5D3450C /* FeatureNotification */,
 				D5E8A1C90F2B43D6A81C7E34 /* FeatureProfile */,
+				PS10000000000000000000F1 /* ProfileSetupUI */,
 				D5E8A1C90F2B43D6A81C7E35 /* FeatureOnboarding */,
 				6A1D4F0C2B7E4E1D9C3A5F73 /* MapUI */,
 				35D426C5753A372F270C6E9D /* Networking */,
@@ -432,6 +448,8 @@
 				F020EE47FD9AFF29CB232A2C /* AppDelegate.swift in Sources */,
 				EF181DA0B0BF234230F6166A /* SceneDelegate.swift in Sources */,
 				AU10000000000000000000B1 /* FirebaseAuthRepository.swift in Sources */,
+				PE10000000000000000000B1 /* SystemPermissionRepository.swift in Sources */,
+				PE10000000000000000000B2 /* RemoteNotificationRegistrationRepository.swift in Sources */,
 				AU10000000000000000000B2 /* FirebaseAuthTokenProvider.swift in Sources */,
 				AU10000000000000000000B3 /* FirebaseSession.swift in Sources */,
 				LA10000000000000000000B1 /* LaunchSplashView.swift in Sources */,

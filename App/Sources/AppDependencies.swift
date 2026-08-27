@@ -6,13 +6,14 @@ import FeatureArchive
 import FeatureHome
 import FeatureNotification
 import FeatureOnboarding
+import FeatureProfile
 import Foundation
 import Networking
 
 /// 컴포지션 루트(Composition Root).
 /// 앱 타깃만이 구체 타입을 알고, 의존성 그래프를 손으로 조립한다.
 /// 각 Coordinator 의 deps 프로토콜(`MemberDeps`·`HomeDeps`·`ArchiveDeps` 등)을 이 한 타입이 준수한다.
-struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, LaunchDeps, OnboardingDeps {
+struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, LaunchDeps, OnboardingDeps, ProfileDeps {
     let fetchMember: FetchMemberUseCase
     let fetchRooms: FetchRoomsUseCase
     let fetchPins: FetchPinsUseCase
@@ -28,7 +29,11 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
     let ensureSession: EnsureSessionUseCase
     let registerProfile: RegisterProfileUseCase
     /// 앱 진입 분기(`LaunchDeps`)가 등록 여부를 묻는 데 쓴다 — 프로필이 있으면 온보딩을 마친 것이다.
+    /// 마이페이지 프로필 설정(`.edit`)도 진입하면서 이걸로 현재 값을 채운다.
     let fetchProfile: FetchProfileUseCase
+    let updateProfile: UpdateProfileUseCase
+    let notificationSetting: NotificationSettingUseCase
+    let locationSetting: LocationSettingUseCase
     let fetchInviteCode: FetchInviteCodeUseCase
     /// 초대 링크의 스킴·호스트. 서버는 코드만 주고 링크는 앱이 조립한다(`Core.DeeplinkBuilder`).
     ///
@@ -39,6 +44,9 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
     /// (절차: Packages/Networking/Docs/AddingAPI.md).
     let httpClient: HTTPClient
 
+    // 권한 어댑터(`SystemPermissionRepository`)가 MainActor 격리라 조립도 메인에서 한다.
+    // 실제 생성 지점(`MINOApp.init`·프리뷰)이 모두 MainActor 라 제약이 되지 않는다.
+    @MainActor
     init() {
         // 인증 토큰은 클라이언트가 요청마다 붙인다. 여기서 빠뜨리면 컴파일은 통과한 채
         // 인증이 필요한 API 가 전부 401 을 받는다.
@@ -107,6 +115,21 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
         self.fetchProfile = DefaultFetchProfileUseCase(
             repository: ProfileRepositoryImpl(client: httpClient)
         )
+
+        // 프로필 수정: 실 API(PATCH /api/v1/users/me). 마이페이지 프로필 설정의 저장이다.
+        self.updateProfile = DefaultUpdateProfileUseCase(
+            repository: ProfileRepositoryImpl(client: httpClient)
+        )
+
+        // 권한 어댑터는 플랫폼 프레임워크(UserNotifications·CoreLocation)를 타므로 여기서 만든다
+        // — `FirebaseAuthRepository` 와 같은 이유로 Data 가 아니라 컴포지션 루트가 갖는다.
+        let permissions = SystemPermissionRepository()
+        self.notificationSetting = DefaultNotificationSettingUseCase(
+            permissions: permissions,
+            settings: UserDefaultsAppSettingsRepository(),
+            push: RemoteNotificationRegistrationRepository()
+        )
+        self.locationSetting = DefaultLocationSettingUseCase(permissions: permissions)
 
         // 초대 코드: 실 API(POST /api/v1/rooms/{roomId}/invitations).
         self.fetchInviteCode = DefaultFetchInviteCodeUseCase(

@@ -52,6 +52,26 @@
             skipped = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
+               BlueprintIdentifier = "ProfileSetupUITests"
+               BuildableName = "ProfileSetupUITests"
+               BlueprintName = "ProfileSetupUITests"
+               ReferencedContainer = "container:../Packages/ProfileSetupUI">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "FeatureOnboardingTests"
+               BuildableName = "FeatureOnboardingTests"
+               BlueprintName = "FeatureOnboardingTests"
+               ReferencedContainer = "container:../Packages/FeatureOnboarding">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
                BlueprintIdentifier = "FeatureHomeTests"
                BuildableName = "FeatureHomeTests"
                BlueprintName = "FeatureHomeTests"
