@@ -41,6 +41,10 @@ struct FirebaseAuthRepository: AuthRepository {
             }
             Log.info("익명 세션을 새로 만들었다", metadata: ["uid": String(uid.prefix(6))])
             return UserSession(userID: uid)
+        // 취소는 도메인 실패가 아니라 **호출이 더 이상 필요 없어진 상태**다. 여기서 번역하면
+        // 상위(`AppLaunchStore`)의 취소 분기가 죽고, 화면을 벗어났을 뿐인데 재시도 화면이 뜬다.
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
             Self.logFailure(error)
             // 최초 실행에 네트워크가 없으면 여기로 온다. 재시도가 의미 있는 실패라
