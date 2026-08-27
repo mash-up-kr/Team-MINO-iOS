@@ -7,15 +7,20 @@ import GoogleMaps
 public struct MapView: UIViewRepresentable {
     private let camera: MapCameraPosition
     private let markers: [MapMarker]
+    /// 지도 위에 겹치는 UI(바텀시트 등)가 가리는 영역. 구글 로고·저작권 표시가 이 안쪽으로 밀려
+    /// 가려지지 않는다 — Google Maps Platform 약관이 attribution 가림을 금지한다.
+    private let padding: EdgeInsets
     private let onEvent: (MapEvent) -> Void
 
     public init(
         camera: MapCameraPosition,
         markers: [MapMarker],
+        padding: EdgeInsets = EdgeInsets(),
         onEvent: @escaping (MapEvent) -> Void
     ) {
         self.camera = camera
         self.markers = markers
+        self.padding = padding
         self.onEvent = onEvent
     }
 
@@ -28,10 +33,15 @@ public struct MapView: UIViewRepresentable {
         options.camera = camera.gmsCameraPosition
         let mapView = GMSMapView(options: options)
         mapView.delegate = context.coordinator
+        // safe-area 를 padding 에 더하는 기본 동작을 명시로 고정한다. 호출부는 "화면 하단에서
+        // 몇 pt 가 가려지는가"(safe-area 제외분)만 넘기면 되고, 이는 `MHBottomSheet` 이
+        // peek 값을 `peek + safeAreaInsets.bottom` 으로 환산하는 방식과 같은 기준이다.
+        mapView.paddingAdjustmentBehavior = .always
         context.coordinator.apply(markers: markers, to: mapView)
         // 초기 카메라를 appliedCamera 에도 기록 — 생성 직후 첫 updateUIView 가
         // 이미 도달한 위치로 animate(및 불필요한 didIdleAt)를 다시 일으키지 않게 한다.
         context.coordinator.apply(camera: camera, to: mapView)
+        context.coordinator.apply(padding: padding, to: mapView)
         return mapView
     }
 
@@ -39,6 +49,7 @@ public struct MapView: UIViewRepresentable {
         context.coordinator.onEvent = onEvent
         context.coordinator.apply(markers: markers, to: mapView)
         context.coordinator.apply(camera: camera, to: mapView)
+        context.coordinator.apply(padding: padding, to: mapView)
     }
 
     /// `GMSMapViewDelegate` 를 받아 GoogleMaps 이벤트를 순수 `MapEvent` 로 변환해 밖으로 던진다.
@@ -48,6 +59,9 @@ public struct MapView: UIViewRepresentable {
         /// 이미 적용한 마커/카메라 — 매 update 마다 불필요한 재적용(및 카메라 되먹임 루프)을 막는다.
         private var appliedMarkers: [MapMarker] = []
         private var appliedCamera: MapCameraPosition?
+        /// 카메라와 별도 필드여야 한다 — `appliedCamera` 는 idle 델리게이트가 되먹임 방지용으로
+        /// 덮어쓰므로, 여기에 얹으면 지도를 움직일 때마다 padding 판정이 오염된다.
+        private var appliedPadding: EdgeInsets?
         /// id → 화면에 올라간 GMSMarker. 증분 적용(추가/제거/갱신)용.
         private var gmsMarkersByID: [String: GMSMarker] = [:]
 
@@ -87,6 +101,12 @@ public struct MapView: UIViewRepresentable {
             mapView.animate(to: camera.gmsCameraPosition)
         }
 
+        func apply(padding: EdgeInsets, to mapView: GMSMapView) {
+            guard padding != appliedPadding else { return }
+            appliedPadding = padding
+            mapView.padding = padding.uiEdgeInsets
+        }
+
         // MARK: - GMSMapViewDelegate → MapEvent
 
         public func mapView(_ mapView: GMSMapView, didTap marker: GMSMarker) -> Bool {
@@ -110,6 +130,12 @@ public struct MapView: UIViewRepresentable {
 }
 
 // MARK: - 경계 타입 변환 (GoogleMaps ↔ 순수 value type). 이 변환도 MapUI 안에만 존재한다.
+
+private extension EdgeInsets {
+    var uiEdgeInsets: UIEdgeInsets {
+        UIEdgeInsets(top: top, left: leading, bottom: bottom, right: trailing)
+    }
+}
 
 private extension MapCoordinate {
     var clCoordinate: CLLocationCoordinate2D {

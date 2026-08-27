@@ -43,8 +43,8 @@ extension RoomDetailRoom {
 
 /// 툴바 좌측 드롭다운의 정렬 기준.
 enum RoomDetailSort: String, CaseIterable, Identifiable {
-    case pick = "꾹 Pick"
     case all = "전체"
+    case pick = "꾹 Pick"
     case latest = "최신순"
     case distance = "거리순"
     case comment = "코멘트순"
@@ -58,17 +58,18 @@ enum RoomDetailViewMode: CaseIterable {
     case grid
 }
 
-/// 장소 카드 케밥(점 세 개) 메뉴의 항목. 시안 순서 = 공유 → 삭제 → 이동.
+/// 장소 카드 케밥(점 세 개) 메뉴의 항목.
+///
+/// 공유·삭제 2개로 확정됐다. 시안 목업에 함께 보이는 "장소 이동"은 재사용 Menu 컴포넌트의
+/// 커스터마이징되지 않은 기본 라벨이라 반영하지 않는다.
 enum RoomDetailMenuItemID: String, CaseIterable {
     case shareLocation
     case deleteLocation
-    case moveLocation
 
     var title: String {
         switch self {
         case .shareLocation: "다른 방에 공유"
         case .deleteLocation: "장소 삭제"
-        case .moveLocation: "장소 이동"
         }
     }
 }

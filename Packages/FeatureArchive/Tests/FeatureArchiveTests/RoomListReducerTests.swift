@@ -217,6 +217,24 @@ struct RoomListReducerTests {
         store.finish()
     }
 
+    @Test("L1 — loaded 로 방이 줄면 roomFilter 를 새 상한으로 클램프한다")
+    func loaded_shrink_clampsRoomFilter() async {
+        let store = makeStore(state: RoomListState(rooms: fixtureRooms, roomFilter: 2))
+        // 유도 시트는 이 테스트의 관심사가 아니라 스누즈로 꺼 둔다 — 클램프만 본다.
+        await store.send(.loaded([fixtureRooms[0]], isPromptSnoozed: true)) {
+            $0.rooms = [fixtureRooms[0]]
+            $0.roomFilter = 1   // 옵션이 ["전체", 방1] 두 개로 줄어 상한이 1
+        }
+        store.finish()
+    }
+
+    @Test("L1 — selectRoomFilter 는 옵션 범위를 넘는 인덱스를 클램프한다")
+    func selectRoomFilter_outOfRange_clamps() async {
+        let store = makeStore(state: RoomListState(rooms: fixtureRooms))
+        await store.send(.selectRoomFilter(5)) { $0.roomFilter = 2 }   // 옵션 3개 → 상한 2
+        store.finish()
+    }
+
     @Test("L1 — selectCategory 는 categoryFilter 만 갱신한다")
     func selectCategory() async {
         let store = makeStore(state: RoomListState(rooms: fixtureRooms, filter: 2))

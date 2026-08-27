@@ -89,6 +89,11 @@ public func roomListReducer(
             }
         case .loaded(let rooms, let isPromptSnoozed):
             state.rooms = rooms
+            // 방 필터 옵션은 화면에서 `["전체"] + rooms` 로 만들어지므로 유효 인덱스 상한이
+            // rooms.count 다. 방이 줄어든 재조회 뒤 옛 인덱스가 남으면 옵션 배열을 넘어
+            // 크래시한다(MHFilterBar 가 sortOptions[selectedSort] 로 라벨을 읽는다).
+            state.roomFilter = min(state.roomFilter, rooms.count)
+
             // 기획: 활성 조건 = 공동방 미생성, 비활성 조건 = 공동방 1개 생성(001-2-1).
             // "나중에 만들래요" 를 누르면 2주 동안 뜨지 않는다(`SnoozeSwitch`).
             //
@@ -107,7 +112,8 @@ public func roomListReducer(
             state.filter = index   // TODO: 필터별 정렬 로직(최근 저장 순/코멘트 순) 후속 PR
             return .none
         case .selectRoomFilter(let index):
-            state.roomFilter = index
+            // 화면이 만든 옵션 배열 밖 인덱스가 들어오는 경로(경합·잘못된 호출)도 막는다.
+            state.roomFilter = min(max(0, index), state.rooms.count)
             return .none
         case .selectCategory(let index):
             state.categoryFilter = index
