@@ -1,5 +1,6 @@
 import DesignSystem
 import Domain
+import RoomCreationUI
 import SavePostUI
 
 extension SavePostRoom {
@@ -16,7 +17,7 @@ extension SavePostRoom {
             name: room.type == .personal ? Room.personalHomeName : room.name,
             memo: room.description,
             placeCount: room.pinCount,
-            thumbnail: MHRoomThumbnailColor(roomColorHex: room.color).map { .color($0) } ?? .myRoom
+            thumbnail: room.color.map { .color(RoomColorPalette.thumbnail(for: $0)) } ?? .myRoom
         )
     }
 }

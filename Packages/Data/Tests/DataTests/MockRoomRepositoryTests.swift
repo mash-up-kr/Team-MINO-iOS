@@ -27,6 +27,8 @@ struct MockRoomRepositoryTests {
         #expect(first.id == "00000000-0000-0000-0000-000000000001")
         #expect(first.type == .personal)
         #expect(first.users.count == 1)
+        // 픽스처가 일부러 팔레트 밖 색을 쓴다 — 알 수 없는 색 → nil 폴백 경로도 함께 태운다.
+        #expect(first.color == nil)
     }
 
     @Test("공유 방은 shared 타입이고 멤버가 2명 이상이다")
@@ -39,5 +41,6 @@ struct MockRoomRepositoryTests {
         #expect(shared.type == .shared)
         #expect(shared.users.count == 3)
         #expect(shared.pinCount == 12)
+        #expect(shared.color == .orange)
     }
 }

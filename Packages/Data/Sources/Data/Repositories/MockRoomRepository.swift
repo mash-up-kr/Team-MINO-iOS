@@ -1,22 +1,31 @@
-import Foundation
 import Domain
+import Foundation
+import Networking
 
 /// 백엔드 미연결 단계용 `RoomRepository` 구현.
 /// 네트워크 대신 하드코딩 JSON(Swagger `GET /api/v1/rooms` 응답 형태)을 디코드해 반환한다.
-/// DTO → `toDomain()` 경계 매핑을 실제로 태우므로, 추후 네트워크 `RoomRepositoryImpl` 로 교체해도
+/// DTO → `toDomain()` 경계 매핑을 실제로 태우므로, 추후 네트워크 구현으로 교체해도
 /// 매핑 계층은 그대로 재사용된다.
 public final class MockRoomRepository: RoomRepository {
     public init() {}
 
     public func rooms() async throws -> [Room] {
         do {
-            let response = try JSONDecoder().decode(RoomsResponseDTO.self, from: Data(Self.mockJSON.utf8))
+            let response = try APIDecoder.make().decode(Envelope.self, from: Data(Self.mockJSON.utf8))
             return response.data.map { $0.toDomain() }
         } catch {
             throw DomainError.roomsFetchFailed
         }
     }
 
+    /// 실 응답의 `{"data": …}` 를 여기서만 벗긴다. 실 API 경로에서는 `HTTPClient` 가 벗기므로
+    /// envelope 래퍼 DTO 를 만들지 않는다(`Networking/Docs/AddingAPI.md`).
+    private struct Envelope: Decodable {
+        let data: [RoomDTO]
+    }
+
+    // 색은 서버 계약대로 **이름**이다(hex 아님). "내 장소"만 팔레트에 없는 이름을 둬서
+    // 알 수 없는 색 → 기본 썸네일 폴백 경로도 함께 태운다.
     private static let mockJSON = """
     {
       "data": [
@@ -25,9 +34,8 @@ public final class MockRoomRepository: RoomRepository {
           "type": "personal",
           "name": "내 장소",
           "description": null,
-          "color": "#00BDDE",
+          "color": "navy",
           "ownerId": "user-0001",
-          "inviteCode": "MYROOM01",
           "createdAt": "2026-08-01T09:00:00Z",
           "pinCount": 0,
           "memberCount": 1,
@@ -40,9 +48,8 @@ public final class MockRoomRepository: RoomRepository {
           "type": "shared",
           "name": "우리 동네 맛집",
           "description": "친구들이랑 같이 저장하는 곳",
-          "color": "#FFC06E",
+          "color": "orange",
           "ownerId": "user-0001",
-          "inviteCode": "FOOD1234",
           "createdAt": "2026-08-03T12:30:00Z",
           "pinCount": 12,
           "memberCount": 3,
@@ -57,9 +64,8 @@ public final class MockRoomRepository: RoomRepository {
           "type": "shared",
           "name": "가고싶은 카페",
           "description": "분위기 좋은 카페 모음",
-          "color": "#4F95FF",
+          "color": "blue",
           "ownerId": "user-0002",
-          "inviteCode": "CAFE5678",
           "createdAt": "2026-08-05T18:00:00Z",
           "pinCount": 5,
           "memberCount": 2,
@@ -73,9 +79,8 @@ public final class MockRoomRepository: RoomRepository {
           "type": "shared",
           "name": "제주 여행",
           "description": "제주 3박 4일 코스",
-          "color": "#ACFCC7",
+          "color": "green",
           "ownerId": "user-0003",
-          "inviteCode": "JEJU9012",
           "createdAt": "2026-08-06T08:15:00Z",
           "pinCount": 8,
           "memberCount": 4,

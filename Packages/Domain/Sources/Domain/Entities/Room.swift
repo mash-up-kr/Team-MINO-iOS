@@ -7,10 +7,9 @@ public struct Room: Equatable, Identifiable, Sendable {
     public let type: RoomType
     public let name: String
     public let description: String?
-    /// 방 대표 색(hex). 표시 매핑은 Feature 계층이 담당한다.
-    public let color: String
+    /// 방 대표 색. 서버가 팔레트에 없는 이름을 주면 `nil` — 그리는 쪽이 기본 썸네일로 폴백한다.
+    public let color: RoomColor?
     public let ownerId: String
-    public let inviteCode: String
     public let createdAt: Date
     /// 저장된 장소 수("장소 N개").
     public let pinCount: Int
@@ -22,9 +21,8 @@ public struct Room: Equatable, Identifiable, Sendable {
         type: RoomType,
         name: String,
         description: String?,
-        color: String,
+        color: RoomColor?,
         ownerId: String,
-        inviteCode: String,
         createdAt: Date,
         pinCount: Int,
         memberCount: Int,
@@ -36,7 +34,6 @@ public struct Room: Equatable, Identifiable, Sendable {
         self.description = description
         self.color = color
         self.ownerId = ownerId
-        self.inviteCode = inviteCode
         self.createdAt = createdAt
         self.pinCount = pinCount
         self.memberCount = memberCount

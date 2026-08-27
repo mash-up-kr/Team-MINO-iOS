@@ -14,6 +14,7 @@ private struct StubFetchPins: FetchPinsUseCase {
     func execute(room: Room, page: Int, filter: PinFilter) async throws -> [Pin] { [] }
 }
 
+
 private struct StubArchiveDeps: ArchiveDeps {
     var fetchRooms: FetchRoomsUseCase = StubFetchRooms()
     var fetchPins: FetchPinsUseCase = StubFetchPins()
@@ -25,8 +26,8 @@ private struct StubArchiveDeps: ArchiveDeps {
 }
 
 private let fixtureRoom = Room(
-    id: "r2", type: .shared, name: "우리 동네 맛집", description: "메모", color: "#FFC06E",
-    ownerId: "u1", inviteCode: "C2", createdAt: Date(timeIntervalSince1970: 0),
+    id: "r2", type: .shared, name: "우리 동네 맛집", description: "메모", color: .orange,
+    ownerId: "u1", createdAt: Date(timeIntervalSince1970: 0),
     pinCount: 3, memberCount: 2, users: []
 )
 

@@ -13,7 +13,7 @@ let package = Package(
     ],
     targets: [
         .target(name: "Data", dependencies: ["Domain", "Networking"]),
-        .testTarget(name: "DataTests", dependencies: ["Data"]),
+        .testTarget(name: "DataTests", dependencies: ["Data", "Networking"]),
     ],
     swiftLanguageModes: [.v6]
 )

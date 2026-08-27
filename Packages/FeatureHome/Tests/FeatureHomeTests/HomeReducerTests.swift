@@ -9,13 +9,11 @@ private let fixtureDate = Date(timeIntervalSince1970: 1_700_000_000)
 private let fixtureRooms = [
     Room(
         id: "1", type: .shared, name: "맛집 탐방", description: nil,
-        color: "#FF6B6B", ownerId: "owner-1", inviteCode: "FOOD2024",
-        createdAt: fixtureDate, pinCount: 3, memberCount: 2, users: []
+        color: nil, ownerId: "owner-1", createdAt: fixtureDate, pinCount: 3, memberCount: 2, users: []
     ),
     Room(
         id: "2", type: .shared, name: "데이트 코스", description: nil,
-        color: "#4ECDC4", ownerId: "owner-1", inviteCode: "DATE2024",
-        createdAt: fixtureDate, pinCount: 0, memberCount: 1, users: []
+        color: nil, ownerId: "owner-1", createdAt: fixtureDate, pinCount: 0, memberCount: 1, users: []
     ),
 ]
 
@@ -135,8 +133,7 @@ struct HomeReducerTests {
     func load_ordersPersonalFirst() async {
         let personal = Room(
             id: "0", type: .personal, name: "내 장소", description: nil,
-            color: "#00BDDE", ownerId: "owner-1", inviteCode: "MYROOM",
-            createdAt: fixtureDate, pinCount: 0, memberCount: 1, users: []
+            color: nil, ownerId: "owner-1", createdAt: fixtureDate, pinCount: 0, memberCount: 1, users: []
         )
         // 데이터는 공동방이 먼저, 개인방이 뒤에 오도록 준다 → 리듀서가 개인방을 맨 앞으로 재정렬해야 한다.
         let store = makeStore(StubFetchRooms(result: .success(fixtureRooms + [personal])))
@@ -208,8 +205,7 @@ struct HomeReducerTests {
     func showsRoomIdentity_rules() {
         let personal = Room(
             id: "0", type: .personal, name: "내 장소", description: nil,
-            color: "#00BDDE", ownerId: "o", inviteCode: "MY",
-            createdAt: fixtureDate, pinCount: 0, memberCount: 1, users: []
+            color: nil, ownerId: "o", createdAt: fixtureDate, pinCount: 0, memberCount: 1, users: []
         )
         // 개인방만 있고 비었음 → 로고(GGUK)·마스코트 숨김
         #expect(!HomeState(rooms: [personal], pins: []).showsRoomIdentity)
@@ -881,11 +877,9 @@ struct HomeReducerTests {
         // 같은 이름("모임")의 서로 다른 방 두 개 — 이름 기반이었다면 stale dismiss 가 오작동했을 케이스.
         let sameName = [
             Room(id: "a", type: .shared, name: "모임", description: nil,
-                 color: "#FF6B6B", ownerId: "o", inviteCode: "A",
-                 createdAt: fixtureDate, pinCount: 0, memberCount: 1, users: []),
+                 color: nil, ownerId: "o", createdAt: fixtureDate, pinCount: 0, memberCount: 1, users: []),
             Room(id: "b", type: .shared, name: "모임", description: nil,
-                 color: "#4ECDC4", ownerId: "o", inviteCode: "B",
-                 createdAt: fixtureDate, pinCount: 0, memberCount: 1, users: []),
+                 color: nil, ownerId: "o", createdAt: fixtureDate, pinCount: 0, memberCount: 1, users: []),
         ]
         // 현재 툴팁은 방 "b" 를 가리킴. 이전 방 "a" 타이머의 뒤늦은 dismiss 가 도착.
         let store = makeStore(state: HomeState(rooms: sameName, changedRoomToastID: "b"))
@@ -1072,8 +1066,7 @@ struct HomeReducerTests {
     private func personalRoom(name: String) -> Room {
         Room(
             id: "0", type: .personal, name: name, description: nil,
-            color: "#00BDDE", ownerId: "owner-1", inviteCode: "MYROOM",
-            createdAt: fixtureDate, pinCount: 0, memberCount: 1, users: []
+            color: nil, ownerId: "owner-1", createdAt: fixtureDate, pinCount: 0, memberCount: 1, users: []
         )
     }
 }

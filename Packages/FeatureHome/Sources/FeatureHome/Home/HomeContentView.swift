@@ -390,7 +390,7 @@ struct HomeMascotView: View {
             HomeState(rooms: [
                 Room(
                     id: "1", type: .shared, name: "맛집 탐방", description: nil,
-                    color: "#FF6B6B", ownerId: "o", inviteCode: "A",
+                    color: .red, ownerId: "o",
                     createdAt: .now, pinCount: 3, memberCount: 2, users: []
                 ),
             ]),

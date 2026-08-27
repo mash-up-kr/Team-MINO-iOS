@@ -12,37 +12,6 @@ public enum MHRoomThumbnailColor: String, Sendable, CaseIterable, Equatable {
     var assetName: String { "roomThumbnail_\(rawValue)" }
 }
 
-public extension MHRoomThumbnailColor {
-    /// 방 `color`(방 생성 시 고른 12색 중 하나) 에 해당하는 썸네일 색.
-    ///
-    /// 백엔드는 방 색 피커에서 고른 색 hex 를 그대로 돌려준다. `#` 유무·대소문자를 무시해 정확히
-    /// 일치하는 색을 찾고, 팔레트에 없으면 `nil` — 호출부가 my-room 썸네일로 폴백한다.
-    init?(roomColorHex hex: String) {
-        let key = String(hex.uppercased().drop { $0 == "#" })
-        guard let color = Self.paletteHex[key] else { return nil }
-        self = color
-    }
-
-    /// 방 색 피커(`RoomCreationUI` 의 `roomColorSwatches`)가 쓰는 12색을 그대로 옮긴 표.
-    /// 각 색은 밝은 단계(fill)와 진한 단계(선택 시 채움) 두 hex 를 갖는데, 백엔드가 어느 쪽을 보내도
-    /// 매칭되도록 **둘 다** 등록한다. 값 출처는 `AtomicColor.xcassets`(피커와 같은 토큰) — 팔레트가
-    /// 바뀌면 이 표도 함께 고친다.
-    private static let paletteHex: [String: MHRoomThumbnailColor] = [
-        "FF6363": .red,       "E52222": .red,
-        "FF9B61": .redOrange, "C94A00": .redOrange,
-        "FFC06E": .orange,    "D47800": .orange,
-        "AEF779": .lime,      "429E00": .lime,
-        "ACFCC7": .green,     "009632": .green,
-        "B5F4FF": .cyan,      "0098B2": .cyan,
-        "C0B0FF": .violet,    "6541F2": .violet,
-        "FED3F7": .pink,      "FA73E3": .pink,
-        "4F95FF": .blue,      "0054D1": .blue,
-        "DBA679": .brown,     "B96013": .brown,
-        "3DC2FF": .lightBlue, "008DCF": .lightBlue,
-        "DE96FF": .purple,    "AD36E3": .purple,
-    ]
-}
-
 // MARK: - Room Thumbnail Kind
 
 /// ``MHRoomThumbnail`` 이 그릴 표현 종류. Figma `Room Thumbnail`(wrapper, node 16798-22367)의
