@@ -14,7 +14,6 @@ struct ArchiveShellView: View {
     /// 알 수 없는 신호로 닫아야 하기 때문이다.
     @State private var sortMenuOpen = false
 
-    @State private var pendingToast: String?
     @State private var toastMessage: String?
     @State private var toastToken = 0
 
@@ -60,15 +59,11 @@ struct ArchiveShellView: View {
         }
         .task(id: coordinator.selectedRoom?.id) { syncDetailStore() }
         .task(id: coordinator.selectedPin?.id.value) { syncPlaceStore() }
-        .sheet(item: $coordinator.sharingLocation, onDismiss: showPendingToast) { location in
+        .sheet(item: $coordinator.sharingLocation, onDismiss: showShareToast) { location in
             RoomShareSheet(
                 location: location,
-                rooms: shareRooms,
-                onClose: { coordinator.sharingLocation = nil },
-                onSubmit: { _ in
-                    pendingToast = "공유가 완료되었습니다."
-                    coordinator.sharingLocation = nil
-                }
+                makeStore: { coordinator.makeRoomShareStore(location: location) },
+                onClose: { coordinator.sharingLocation = nil }
             )
             .presentationDetents([.height(RoomShareSheet.detentHeight)])
             .presentationCornerRadius(20)
@@ -85,15 +80,13 @@ struct ArchiveShellView: View {
         )
     }
 
-    private var shareRooms: [RoomShareRoom] {
-        roomListStore?.state.rooms.map(RoomShareRoom.init(from:)) ?? []
-    }
-
-    private func showPendingToast() {
-        guard let pendingToast else { return }
-        toastMessage = pendingToast
+    /// 공유 완료 토스트. **저장이 실제로 성공한 경우에만** 뜬다 — X 로 닫거나 저장에 실패했으면
+    /// Coordinator 의 신호가 서지 않아 아무것도 안 뜬다. 시트가 닫힌 뒤(`onDismiss`)에 띄우는 이유는
+    /// 시트 위가 아니라 그 자리에 스낵바가 남아야 하기 때문(기획 011-2).
+    private func showShareToast() {
+        guard coordinator.consumeSavedShare() else { return }
+        toastMessage = "공유가 완료되었습니다."
         toastToken += 1
-        self.pendingToast = nil
     }
 
     @ViewBuilder private var toast: some View {

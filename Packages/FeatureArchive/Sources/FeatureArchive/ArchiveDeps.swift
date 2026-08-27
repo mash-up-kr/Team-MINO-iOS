@@ -10,6 +10,10 @@ public protocol ArchiveDeps {
     var fetchRooms: FetchRoomsUseCase { get }
     var fetchPins: FetchPinsUseCase { get }
     var createRoom: CreateRoomUseCase { get }
+    /// 다른 방에 공유 시트가 그릴 방 목록 — 각 방에 이 장소가 이미 있는지까지 함께.
+    var fetchShareTargets: FetchShareTargetsUseCase { get }
+    /// 다른 방에 공유 — 고른 방들에 이 장소를 담는다.
+    var savePin: SavePinToRoomsUseCase { get }
     /// 공동방 생성 유도 시트를 "나중에 만들래요" 로 미뤄 둔 상태(2주). 서버가 모르는 기기 로컬
     /// 표시 정책이라 UseCase 가 아니라 ``SnoozeSwitch`` 를 그대로 받는다.
     var roomCreationPromptSnooze: SnoozeSwitch { get }

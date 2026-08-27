@@ -25,10 +25,20 @@ private struct StubCreateRoom: CreateRoomUseCase {
     }
 }
 
+private struct StubShareTargets: FetchShareTargetsUseCase {
+    func execute(pinID: PinID) async throws -> [ShareTarget] { [] }
+}
+
+private struct StubSavePin: SavePinToRoomsUseCase {
+    func execute(pinID: PinID, roomIDs: Set<String>) async throws {}
+}
+
 private struct StubArchiveDeps: ArchiveDeps {
     var fetchRooms: FetchRoomsUseCase = StubFetchRooms()
     var fetchPins: FetchPinsUseCase = StubFetchPins()
     var createRoom: CreateRoomUseCase = StubCreateRoom()
+    var fetchShareTargets: FetchShareTargetsUseCase = StubShareTargets()
+    var savePin: SavePinToRoomsUseCase = StubSavePin()
     var roomCreationPromptSnooze = SnoozeSwitch(
         key: "ArchiveCoordinatorTests.prompt",
         period: .days(14),
@@ -124,6 +134,44 @@ struct ArchiveCoordinatorTests {
         )
         coordinator.handle(RoomDetailNav.shareLocation(location))
         #expect(coordinator.sharingLocation == location)
+    }
+
+    @Test("공유 저장이 끝나면 시트를 닫고 완료 신호를 1회만 남긴다")
+    func shareDidSave_closesSheetAndSignalsOnce() {
+        let coordinator = makeCoordinator()
+        coordinator.handle(RoomDetailNav.shareLocation(RoomDetailLocation(from: fixturePin)))
+
+        coordinator.handle(RoomShareNav.didSave)
+
+        #expect(coordinator.sharingLocation == nil)
+        #expect(coordinator.consumeSavedShare())
+        #expect(coordinator.consumeSavedShare() == false)   // 같은 저장으로 토스트가 두 번 뜨지 않는다
+    }
+
+    @Test("X 로 닫으면 완료 신호가 서지 않는다")
+    func shareClose_leavesNoSignal() {
+        let coordinator = makeCoordinator()
+        coordinator.handle(RoomDetailNav.shareLocation(RoomDetailLocation(from: fixturePin)))
+
+        coordinator.sharingLocation = nil   // 껍데기의 onClose 와 같은 경로
+
+        #expect(coordinator.consumeSavedShare() == false)
+    }
+
+    @Test("배선 — 공유 Store 의 저장 완료가 시트를 닫는다")
+    func roomShareStore_isWiredToSheet() async {
+        let coordinator = makeCoordinator()
+        let location = RoomDetailLocation(from: fixturePin)
+        coordinator.handle(RoomDetailNav.shareLocation(location))
+
+        let store = coordinator.makeRoomShareStore(location: location)
+        store.send(.loaded([ShareTarget(room: fixtureRoom, alreadySaved: false)]))
+        store.send(.toggleRoom(fixtureRoom.id))   // reduce 가 빈 선택을 가드하므로 먼저 고른다
+        store.send(.tapSubmit)
+
+        await waitUntil { coordinator.sharingLocation == nil }
+        #expect(coordinator.sharingLocation == nil)
+        #expect(coordinator.consumeSavedShare())
     }
 
     @Test("goToCreateRoom 은 방 만들기 화면을 push 하고 탭바를 감춘다")
