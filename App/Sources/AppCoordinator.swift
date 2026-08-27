@@ -27,7 +27,7 @@ final class AppCoordinator {
         self.home = HomeCoordinator(deps: deps)
         self.archive = ArchiveCoordinator(deps: deps)
         self.notification = NotificationCoordinator(deps: deps)
-        self.profile = ProfileCoordinator()
+        self.profile = ProfileCoordinator(deps: deps)
         self.launch = AppLaunchStore(
             AppLaunchState(),
             reduce: appLaunchReducer(ensureSession: deps.ensureSession, fetchProfile: deps.fetchProfile)
