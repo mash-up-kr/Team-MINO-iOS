@@ -25,10 +25,20 @@ private struct StubCreateRoom: CreateRoomUseCase {
     }
 }
 
+private struct StubShareTargets: FetchShareTargetsUseCase {
+    func execute(pinID: PinID) async throws -> [ShareTarget] { [] }
+}
+
+private struct StubSavePin: SavePinToRoomsUseCase {
+    func execute(pinID: PinID, roomIDs: Set<String>) async throws {}
+}
+
 private struct StubArchiveDeps: ArchiveDeps {
     var fetchRooms: FetchRoomsUseCase = StubFetchRooms()
     var fetchPins: FetchPinsUseCase = StubFetchPins()
     var createRoom: CreateRoomUseCase = StubCreateRoom()
+    var fetchShareTargets: FetchShareTargetsUseCase = StubShareTargets()
+    var savePin: SavePinToRoomsUseCase = StubSavePin()
     var roomCreationPromptSnooze = SnoozeSwitch(
         key: "ArchiveCoordinatorTests.prompt",
         period: .days(14),

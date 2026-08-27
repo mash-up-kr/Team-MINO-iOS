@@ -36,6 +36,11 @@ public final class ArchiveCoordinator: Coordinator {
 
     var sharingLocation: RoomDetailLocation?
 
+    /// 공유 저장이 **성공했을 때만** 서는 1회성 신호. 시트가 닫힌 뒤 껍데기가 소비해 완료 토스트를
+    /// 띄운다. X 로 닫거나 저장에 실패하면 서지 않는다 — 그 자리에 완료 토스트가 뜨면 거짓말이 된다.
+    /// 관찰 대상이 아니다(소비 시점이 `onDismiss`, 즉 뷰 갱신 중이라 관찰되면 재갱신을 부른다).
+    @ObservationIgnored private var savedShare = false
+
     public init(deps: ArchiveDeps) {
         self.deps = deps
     }
@@ -62,6 +67,18 @@ public final class ArchiveCoordinator: Coordinator {
         Store(
             PlaceDetailState(place: PlaceDetailPlace(from: pin, now: Date())),
             reduce: placeDetailReducer(pin: pin),
+            handle: { [weak self] in self?.handle($0) }
+        )
+    }
+
+    /// 다른 방에 공유 시트 Store 팩토리.
+    ///
+    /// - Parameter location: 공유할 장소. `id` 는 ``RoomDetailLocation/init(from:)`` 이 넣은
+    ///   핀 id 라 그대로 ``PinID`` 로 되돌린다.
+    func makeRoomShareStore(location: RoomDetailLocation) -> RoomShareStore {
+        Store(
+            RoomShareState(pinID: PinID(location.id)),
+            reduce: roomShareReducer(fetchTargets: deps.fetchShareTargets, savePin: deps.savePin),
             handle: { [weak self] in self?.handle($0) }
         )
     }
@@ -112,5 +129,19 @@ public final class ArchiveCoordinator: Coordinator {
         case .share(let location):
             sharingLocation = location
         }
+    }
+
+    func handle(_ nav: RoomShareNav) {
+        switch nav {
+        case .didSave:
+            savedShare = true
+            sharingLocation = nil   // 토스트는 시트가 닫힌 뒤 `onDismiss` 에서 뜬다
+        }
+    }
+
+    /// 공유 완료 신호를 읽고 지운다. 두 번째 호출은 `false` — 같은 저장으로 토스트가 두 번 뜨지 않는다.
+    func consumeSavedShare() -> Bool {
+        defer { savedShare = false }
+        return savedShare
     }
 }
