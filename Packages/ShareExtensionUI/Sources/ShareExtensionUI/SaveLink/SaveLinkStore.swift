@@ -39,7 +39,7 @@ public enum SaveLinkRooms: Equatable {
 public struct SaveLinkDependencies: Sendable {
     /// 저장할 수 있는 방 목록.
     public var loadRooms: @Sendable () async throws -> [SavePostRoom]
-    /// 고른 방들에 링크를 저장한다. 하나라도 실패하면 던진다.
+    /// 고른 방들에 링크를 저장한다. 부분 성공은 없다 — 실패는 통째로 던진다.
     public var save: @Sendable (URL, Set<String>) async throws -> Void
     /// 저장 완료 피드백을 화면에 띄워두는 시간.
     public var holdCompletion: @Sendable () async -> Void

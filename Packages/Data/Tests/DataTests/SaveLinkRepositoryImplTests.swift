@@ -45,7 +45,7 @@ struct SaveLinkRepositoryImplTests {
     }
 
     // 이미 그 방에 있는 링크(400 DUPLICATE_PIN_IN_ROOM)도 실패로 흡수한다 —
-    // 화면이 "일부만 성공"을 표현하지 않기로 했으므로 구분해도 보여줄 자리가 없다.
+    // 시안에 중복 저장을 따로 알리는 자리가 없어 구분해도 보여줄 곳이 없다.
     @Test("중복 저장(400)도 저장 실패로 수렴한다")
     func duplicateBecomesFailure() async {
         let client = StubHTTPClient(

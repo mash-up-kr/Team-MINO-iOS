@@ -5,9 +5,9 @@ import Foundation
 /// `SavePinRepository`(이미 있는 핀을 다른 방에 복제)와 다르다 — 이쪽은 **아직 핀이 아닌 링크**를
 /// 넘기고, 장소 추출은 서버가 비동기로 한다. 그래서 성공해도 돌려줄 `Pin` 이 없다.
 public protocol SaveLinkRepository: Sendable {
-    /// 고른 방들에 링크를 담는다. **하나라도 실패하면 던진다.**
+    /// 고른 방들에 링크를 담는다.
     ///
-    /// 방마다 요청이 따로 나가므로 일부만 성공할 수 있다. 이미 성공한 방은 되돌리지 않는다
-    /// (서버에 취소 API 가 없고, 사용자가 의도한 저장이라 지울 이유도 없다).
+    /// 방 목록을 한 번에 넘기고 방마다 담는 일은 서버가 한다 — 부분 성공을 클라이언트가
+    /// 조립하지 않는다. 실패는 통째로 던진다.
     func save(url: URL, toRoomIDs roomIDs: Set<String>) async throws
 }

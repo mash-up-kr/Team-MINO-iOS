@@ -1,6 +1,5 @@
 import Domain
 import Foundation
-import Logging
 import Networking
 
 /// `RoomRepository` 의 실 API 구현. 절차: `Packages/Networking/Docs/AddingAPI.md`.
@@ -29,12 +28,7 @@ public struct RoomRepositoryImpl: RoomRepository {
         switch error.statusCode {
         case 401: return DomainError.unauthorized
         default:
-            // 번역하지 못했다는 사실은 반드시 남긴다. 오류는 `label` 로만 남긴다(서버 원문 유출 방지).
-            Log.warning("도메인으로 번역되지 않음", metadata: [
-                "error": error.label,
-                "status": error.statusCode.map(String.init) ?? "-",
-                "code": error.errorCode ?? "-",
-            ])
+            error.logUntranslated()
             return DomainError.roomsFetchFailed
         }
     }
