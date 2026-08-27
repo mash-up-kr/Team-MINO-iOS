@@ -45,11 +45,9 @@ struct RoomDetailSortingTests {
         #expect(result.count == pins.count)
     }
 
-    @Test("거리순·코멘트순은 계산할 수 없어 원본을 그대로 낸다")
-    func unsupportedSortsPassThrough() {
-        for sort in [RoomDetailSort.distance, .comment] {
-            #expect(RoomDetailSorting.apply(sort, to: pins, now: now).map(\.id) == pins.map(\.id))
-        }
+    @Test("거리순은 내 위치가 없어 아직 원본을 그대로 낸다")
+    func distancePassesThrough() {
+        #expect(RoomDetailSorting.apply(.distance, to: pins, now: now).map(\.id) == pins.map(\.id))
     }
 
     @Test("빈 목록은 어떤 정렬에도 빈 목록이다")

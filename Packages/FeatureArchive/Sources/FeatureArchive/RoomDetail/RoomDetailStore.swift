@@ -7,7 +7,9 @@ struct RoomDetailState: Equatable {
     var pins: [Pin] = []
     var locations: [RoomDetailLocation] = []
     var sort: RoomDetailSort = .all
-    var category: RoomDetailCategory = .all
+    /// 방에 담긴 장소들의 업종에서 만들어진다(004-1 ⑨). 첫 칸은 항상 "전체".
+    var categories: [String] = [RoomDetailCategoryList.all]
+    var category: String = RoomDetailCategoryList.all
     var viewMode: RoomDetailViewMode = .list
 }
 
@@ -16,7 +18,7 @@ enum RoomDetailAction: Equatable {
     case loaded([Pin])
     case loadFailed(DomainError)
     case selectSort(RoomDetailSort)
-    case selectCategory(RoomDetailCategory)
+    case selectCategory(String)
     case selectViewMode(RoomDetailViewMode)
     case tapClose
     case tapShare(RoomDetailLocation)
@@ -54,7 +56,12 @@ func roomDetailReducer(
 
         case .loaded(let pins):
             state.pins = pins
-            applySort(&state, now: now())
+            state.categories = RoomDetailCategoryList.make(from: pins)
+            // 고르고 있던 업종이 재조회로 사라지면 빈 목록이 남는다 — "전체" 로 되돌린다.
+            if !state.categories.contains(state.category) {
+                state.category = RoomDetailCategoryList.all
+            }
+            applyFilters(&state, now: now())
             return .none
 
         case .loadFailed:
@@ -62,11 +69,12 @@ func roomDetailReducer(
 
         case .selectSort(let sort):
             state.sort = sort
-            applySort(&state, now: now())
+            applyFilters(&state, now: now())
             return .none
 
         case .selectCategory(let category):
             state.category = category
+            applyFilters(&state, now: now())
             return .none
 
         case .selectViewMode(let mode):
@@ -86,7 +94,12 @@ func roomDetailReducer(
     }
 }
 
-private func applySort(_ state: inout RoomDetailState, now: Date) {
-    state.locations = RoomDetailSorting.apply(state.sort, to: state.pins, now: now)
+/// 업종 칩으로 거르고 정렬 드롭다운으로 줄을 세운 결과가 화면 목록이다.
+///
+/// 거르기가 먼저다. "꾹 Pick"·"코멘트순" 처럼 **상위 30%만 남기는** 기준은 모수가 바뀌면 결과도
+/// 바뀌는데, 사용자가 카페 칩을 눌렀다면 그 30% 는 카페 안에서의 30% 여야 한다.
+private func applyFilters(_ state: inout RoomDetailState, now: Date) {
+    let filtered = RoomDetailCategoryList.filter(state.pins, by: state.category)
+    state.locations = RoomDetailSorting.apply(state.sort, to: filtered, now: now)
         .map(RoomDetailLocation.init(from:))
 }

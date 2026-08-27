@@ -69,10 +69,10 @@ struct RoomDetailView: View {
     private var categoryRow: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
-                ForEach(RoomDetailCategory.allCases) { item in
+                ForEach(store.state.categories, id: \.self) { item in
                     let isActive = item == store.state.category
                     MHChip(
-                        item.rawValue,
+                        item,
                         variant: isActive ? .solid : .outlined,
                         size: .large,
                         isActive: isActive

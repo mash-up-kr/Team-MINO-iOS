@@ -12,13 +12,17 @@ private let fixtureRoom = Room(
     pinCount: 3, memberCount: 2, users: []
 )
 
-private let fixturePins: [Pin] = [0, 10, 20].map { daysAgo in
+/// 업종을 카페 2 · 음식점 1 로 섞는다 — 칩을 눌렀을 때 실제로 걸러지는지 보려면 섞여 있어야 한다.
+private let fixtureCategories = ["카페", "음식점", "카페"]
+
+private let fixturePins: [Pin] = zip([0, 10, 20], fixtureCategories).map { daysAgo, placeCategory in
     PinFixture.pin(
         id: PinID("p\(daysAgo)"),
         roomID: fixtureRoom.id,
         category: .worthVisiting,
         title: "장소 \(daysAgo)",
         address: "주소 \(daysAgo)",
+        placeCategory: placeCategory,
         createdAt: fixtureNow.addingTimeInterval(-Double(daysAgo) * 86_400)
     )
 }
@@ -54,7 +58,8 @@ struct RoomDetailReducerTests {
         RoomDetailState(
             room: RoomDetailRoom(from: fixtureRoom),
             pins: fixturePins,
-            locations: locations(.all)
+            locations: locations(.all),
+            categories: RoomDetailCategoryList.make(from: fixturePins)
         )
     }
 
@@ -65,6 +70,7 @@ struct RoomDetailReducerTests {
         await store.receive(.loaded(fixturePins)) {
             $0.pins = fixturePins
             $0.locations = locations(.all)
+            $0.categories = ["전체", "카페", "음식점"]   // 담긴 장소의 업종에서 생성(004-1 ⑨)
         }
         store.finish()
     }
@@ -95,10 +101,27 @@ struct RoomDetailReducerTests {
         store.finish()
     }
 
-    @Test("L1 — selectCategory 는 카테고리만 바꾸고 목록은 건드리지 않는다")
+    @Test("L1 — selectCategory 는 그 업종만 남긴다")
     func selectCategory() async {
         let store = makeStore(state: loadedState())
-        await store.send(.selectCategory(.cafe)) { $0.category = .cafe }
+        await store.send(.selectCategory("음식점")) {
+            $0.category = "음식점"
+            $0.locations = [RoomDetailLocation(from: fixturePins[1])]
+        }
+        store.finish()
+    }
+
+    @Test("L1 — '전체' 로 되돌리면 다시 다 보인다")
+    func selectCategory_backToAll() async {
+        var state = loadedState()
+        state.category = "음식점"
+        state.locations = [RoomDetailLocation(from: fixturePins[1])]
+        let store = makeStore(state: state)
+
+        await store.send(.selectCategory("전체")) {
+            $0.category = "전체"
+            $0.locations = locations(.all)
+        }
         store.finish()
     }
 

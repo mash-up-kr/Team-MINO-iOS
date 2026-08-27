@@ -155,7 +155,7 @@ struct ArchiveShellView: View {
                 MHFilterBar(
                     sortOptions: RoomDetailSort.allCases.map(\.rawValue),
                     selectedSort: sortBinding(detailStore),
-                    categories: RoomDetailCategory.allCases.map(\.rawValue),
+                    categories: detailStore.state.categories,
                     selectedCategory: categoryBinding(detailStore),
                     sortMenuPresented: $sortMenuOpen
                 )
@@ -242,8 +242,12 @@ struct ArchiveShellView: View {
 
     private func categoryBinding(_ store: RoomDetailStore) -> Binding<Int> {
         Binding(
-            get: { RoomDetailCategory.allCases.firstIndex(of: store.state.category) ?? 0 },
-            set: { store.send(.selectCategory(RoomDetailCategory.allCases[$0])) }
+            get: { store.state.categories.firstIndex(of: store.state.category) ?? 0 },
+            // 목록이 재조회로 줄어드는 사이 옛 인덱스가 들어올 수 있다 — 범위를 벗어나면 무시한다.
+            set: { index in
+                guard store.state.categories.indices.contains(index) else { return }
+                store.send(.selectCategory(store.state.categories[index]))
+            }
         )
     }
 }
