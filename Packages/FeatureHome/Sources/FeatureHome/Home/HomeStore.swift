@@ -223,14 +223,11 @@ public typealias HomeStore = Store<HomeState, HomeAction, HomeNav>
 
 extension Room {
     /// 홈 표기용 이름 — 공동방은 "…방", 개인방은 이름과 무관하게 항상 "내 장소". (Figma: 방 리스트·뱃지)
-    var homeDisplayName: String { type == .shared ? "\(name)방" : Self.personalHomeName }
+    var homeDisplayName: String { type == .shared ? "\(name)방" : Self.personalDisplayName }
 
     /// 방 변경 툴팁 문구 — 공동방 "…방이에요.", 개인방 "내 장소예요."
     /// (개인방은 받침이 없어 조사가 "이에요"가 아니라 "예요"라 뷰에서 붙이지 않고 여기서 완성한다)
     var homeToastText: String { "\(homeDisplayName)\(type == .shared ? "이에요." : "예요.")" }
-
-    /// 개인방 홈 표기 이름 — 서버가 주는 이름과 무관하게 홈에서는 이 문구로만 노출한다.
-    static let personalHomeName = "내 장소"
 }
 
 /// 새 기준의 덱에 어느 끝으로 들어가는지 — 앞으로 넘어가면 첫 카드, 뒤로 돌아가면 마지막 카드.
