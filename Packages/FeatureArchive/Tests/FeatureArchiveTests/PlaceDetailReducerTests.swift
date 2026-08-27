@@ -15,14 +15,85 @@ private let fixturePin = PinFixture.pin(
     createdAt: fixtureNow.addingTimeInterval(-29 * 86_400)
 )
 
+private let fixtureSourceURL = URL(string: "https://www.instagram.com/p/mock-layer10/")!
+
+/// 핀 단독 조회를 즉답시키는 스텁 — 출처가 있는 핀·없는 핀·조회 실패·취소를 골라 재생한다.
+private struct StubFetchPinDetail: FetchPinDetailUseCase {
+    enum Outcome: Sendable {
+        case source(URL?)
+        case failure(DomainError)
+        case cancelled
+    }
+
+    let outcome: Outcome
+
+    func execute(pinID: PinID) async throws -> PinDetail {
+        switch outcome {
+        case .source(let url): return PinDetail(pin: fixturePin, sourceURL: url)
+        case .failure(let error): throw error
+        case .cancelled: throw CancellationError()
+        }
+    }
+}
+
 @MainActor
 struct PlaceDetailReducerTests {
-    private func makeStore() -> TestStore<PlaceDetailState, PlaceDetailAction, PlaceDetailNav> {
+    private func makeStore(
+        source: StubFetchPinDetail.Outcome = .source(fixtureSourceURL)
+    ) -> TestStore<PlaceDetailState, PlaceDetailAction, PlaceDetailNav> {
         var remaining = ["c1", "c2", "c3"]
         return TestStore(
             PlaceDetailState(place: PlaceDetailPlace(from: fixturePin, now: fixtureNow)),
-            reduce: placeDetailReducer(pin: fixturePin, makeCommentID: { remaining.removeFirst() })
+            reduce: placeDetailReducer(
+                useCase: StubFetchPinDetail(outcome: source),
+                pin: fixturePin,
+                makeCommentID: { remaining.removeFirst() }
+            )
         )
+    }
+
+    @Test("L2 — load 는 출처 링크를 받아 원문보기를 열 수 있게 만든다")
+    func loadSource() async {
+        let store = makeStore(source: .source(fixtureSourceURL))
+        await store.send(.load) { $0.isLoadingSource = true }
+        await store.receive(.sourceLoaded(fixtureSourceURL)) {
+            $0.sourceURL = fixtureSourceURL
+            $0.isLoadingSource = false
+        }
+        store.finish()
+    }
+
+    @Test("L2 — 출처가 없는 핀은 sourceURL 이 nil 로 남는다")
+    func loadSource_absent() async {
+        let store = makeStore(source: .source(nil))
+        await store.send(.load) { $0.isLoadingSource = true }
+        await store.receive(.sourceLoaded(nil)) { $0.isLoadingSource = false }
+        #expect(store.currentState.sourceURL == nil)
+        store.finish()
+    }
+
+    @Test("L2 — 조회에 실패해도 오류를 화면에 흘리지 않고 비활성으로 남긴다")
+    func loadSource_failure() async {
+        let store = makeStore(source: .failure(.unknown))
+        await store.send(.load) { $0.isLoadingSource = true }
+        await store.receive(.sourceLoadFailed(.unknown)) { $0.isLoadingSource = false }
+        #expect(store.currentState.sourceURL == nil)
+        store.finish()
+    }
+
+    @Test("L2 — 취소는 실패가 아니라 결과가 필요 없어진 것이라 아무 action 도 돌아오지 않는다")
+    func loadSource_cancelled() async {
+        let store = makeStore(source: .cancelled)
+        await store.send(.load) { $0.isLoadingSource = true }
+        store.finish()
+    }
+
+    @Test("L1 — 조회가 진행 중이면 load 를 다시 받아도 중복 조회하지 않는다")
+    func load_isIdempotentWhileLoading() async {
+        let store = makeStore(source: .cancelled)
+        await store.send(.load) { $0.isLoadingSource = true }
+        await store.send(.load)
+        store.finish()
     }
 
     @Test("L1 — submitComment 는 내 코멘트를 목록 끝에 붙인다")
