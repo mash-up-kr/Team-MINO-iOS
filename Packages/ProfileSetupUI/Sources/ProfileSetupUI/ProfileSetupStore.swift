@@ -250,7 +250,11 @@ public func profileSetupReducer(
         // 이미 등록된 uid 다 — 사용자가 원한 결과(계정 생성)는 **이미 이뤄져 있다.** 등록 응답만
         // 유실된 상태라, 오류로 막으면 다시 눌러도 같은 409 라 온보딩을 벗어날 방법이 없다.
         // 성공으로 흡수해 다음 단계로 보낸다(입력한 이름·캐릭터가 다르면 마이페이지에서 고친다).
-        case .saveFailed(.alreadyRegistered):
+        //
+        // **등록에서만 흡수한다.** 반부패 계층은 엔드포인트를 구분하지 않고 409 를 전부
+        // `alreadyRegistered` 로 번역하므로, 모드를 보지 않으면 수정(PATCH /me)이 다른 이유로
+        // 받은 409 까지 성공으로 넘어간다 — 저장되지 않은 값을 저장됐다고 보여주게 된다.
+        case .saveFailed(.alreadyRegistered) where deps.mode == .create:
             state.isSaving = false
             return .navigate(.didSave)
 
