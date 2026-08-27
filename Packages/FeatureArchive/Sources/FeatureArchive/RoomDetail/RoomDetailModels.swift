@@ -10,33 +10,27 @@ struct RoomDetailLocation: Identifiable, Equatable {
 
 /// 방 헤더에 들어가는 방 정보.
 struct RoomDetailRoom: Equatable {
-    let title: String
-    let memo: String
-    let locationCountText: String
-    let memberCount: Int
-}
-
-extension RoomDetailLocation {
-    init(from pin: Pin) {
-        self.init(
-            id: pin.id.value,
-            name: pin.place.name,
-            address: pin.place.address,
-            commentCount: pin.commentCount,
-            photoCount: pin.images.count
-        )
-    }
-}
-
-extension RoomDetailRoom {
     private static let countCap = 999
 
-    init(from room: Room) {
-        self.init(
-            title: room.name,
-            memo: room.description ?? "",
-            locationCountText: room.pinCount > Self.countCap ? "\(Self.countCap)+개" : "\(room.pinCount)개",
-            memberCount: room.users.count
+    let title: String
+    let memo: String
+    /// 방에 담긴 장소 수. 서버가 주는 방 집계값이라 지금 받아 온 페이지의 장소 수와는 다르다.
+    /// 표시 문자열이 아니라 수로 들고 있어야 삭제 후 헤더를 다시 조회 없이 맞출 수 있다.
+    let locationCount: Int
+    let memberCount: Int
+
+    var locationCountText: String {
+        locationCount > Self.countCap ? "\(Self.countCap)+개" : "\(locationCount)개"
+    }
+
+    /// 장소 하나를 지운 뒤의 방. 삭제는 서버 집계를 다시 받아오지 않으므로 화면에서 1 을 뺀다 —
+    /// 안 빼면 카드는 사라졌는데 헤더만 "N개" 그대로라 방금 한 조작이 안 먹은 것처럼 보인다.
+    func removingOneLocation() -> RoomDetailRoom {
+        RoomDetailRoom(
+            title: title,
+            memo: memo,
+            locationCount: max(0, locationCount - 1),
+            memberCount: memberCount
         )
     }
 }
@@ -107,7 +101,7 @@ extension RoomDetailRoom {
     static let sample = RoomDetailRoom(
         title: "가나다라마바사아자차카타파하다",
         memo: "memo",
-        locationCountText: "999+개",
+        locationCount: 1_000,   // 상한(999) 을 넘겨 "999+개" 표기를 프리뷰에서 확인한다
         memberCount: 1
     )
 }
