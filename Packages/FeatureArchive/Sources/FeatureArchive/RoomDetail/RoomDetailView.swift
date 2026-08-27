@@ -39,6 +39,14 @@ struct RoomDetailView: View {
         .onChange(of: detent) { _, _ in
             overlay = nil
         }
+        .mhDialog(item: store.state.deletion) { deletion in
+            MHDialog(
+                title: "이 장소를 삭제할까요?",
+                message: "장소에 등록된 사진과 댓글이 모두 삭제되며, 다시 되돌릴 수 없어요.",
+                cancel: MHAction("취소", isEnabled: !deletion.isSubmitting) { store.send(.cancelDelete) },
+                confirm: MHAction("삭제", isEnabled: !deletion.isSubmitting) { store.send(.confirmDelete) }
+            )
+        }
     }
 
     private var toolbar: some View {
@@ -127,9 +135,8 @@ struct RoomDetailView: View {
         switch item {
         case .shareLocation:
             store.send(.tapShare(location))
-        // TODO: 삭제는 확인 모달·UseCase 가 필요해 별 이슈로 뺐다. 지금은 메뉴만 닫는다.
         case .deleteLocation:
-            break
+            store.send(.tapDeleteLocation(location.id))
         }
     }
 }

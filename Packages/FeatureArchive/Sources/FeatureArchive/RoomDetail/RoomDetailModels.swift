@@ -35,6 +35,42 @@ struct RoomDetailRoom: Equatable {
     }
 }
 
+/// 삭제 확인 다이얼로그(시안 004-1-3-1)가 겨냥한 장소.
+///
+/// `mhDialog(item:)` 이 `Identifiable` 을 요구해 값 하나를 감쌌다. 진행 중 여부를 밖에 Bool 로
+/// 따로 두지 않고 여기 담는 건, "다이얼로그는 닫혔는데 삭제 중" 같은 있을 수 없는 조합을
+/// 타입으로 막기 위해서다.
+struct RoomDetailDeletion: Equatable, Identifiable {
+    let locationID: RoomDetailLocation.ID
+    /// 확인을 누른 뒤 응답을 기다리는 중 — 두 버튼을 모두 잠가 연타로 두 번 지우는 걸 막는다.
+    var isSubmitting = false
+
+    var id: RoomDetailLocation.ID { locationID }
+}
+
+extension RoomDetailLocation {
+    init(from pin: Pin) {
+        self.init(
+            id: pin.id.value,
+            name: pin.place.name,
+            address: pin.place.address,
+            commentCount: pin.commentCount,
+            photoCount: pin.images.count
+        )
+    }
+}
+
+extension RoomDetailRoom {
+    init(from room: Room) {
+        self.init(
+            title: room.name,
+            memo: room.description ?? "",
+            locationCount: room.pinCount,
+            memberCount: room.users.count
+        )
+    }
+}
+
 /// 툴바 좌측 드롭다운의 정렬 기준.
 enum RoomDetailSort: String, CaseIterable, Identifiable {
     case all = "전체"
