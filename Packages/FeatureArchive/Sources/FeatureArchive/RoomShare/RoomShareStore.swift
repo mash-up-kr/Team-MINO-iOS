@@ -32,6 +32,10 @@ enum RoomShareAction: Equatable {
     case loaded([ShareTarget])   // Response Action (성공)
     case loadFailed(DomainError)  // Response Action (실패)
     case toggleRoom(String)
+    /// "새 방 만들기" 를 눌렀다 (기획 011-1 ③).
+    case tapCreateRoom
+    /// 공동방 만들기에서 돌아왔다. 만들었는지 아닌지에 따라 할 일이 갈린다.
+    case createRoomFinished(RoomShareCreateRoomResult)
     case tapSubmit
     case saveFinished
     case saveFailed(DomainError)
@@ -41,6 +45,9 @@ enum RoomShareNav: Equatable, Sendable {
     /// 저장이 **실제로** 끝났다. 시트를 닫고 완료 토스트를 띄우는 신호 —
     /// X 로 닫거나 저장에 실패하면 발생하지 않는다.
     case didSave
+    /// 공동방 만들기로. 시트를 **닫지 않고** 그 위에 덮는다 —
+    /// 닫았다 다시 열면 고르던 방 선택이 사라진다(기획 011-1 ③).
+    case goToCreateRoom
 }
 
 typealias RoomShareStore = Store<RoomShareState, RoomShareAction, RoomShareNav>
@@ -50,20 +57,26 @@ func roomShareReducer(
     fetchTargets: FetchShareTargetsUseCase,
     savePin: SavePinToRoomsUseCase
 ) -> (inout RoomShareState, RoomShareAction) -> Effect<RoomShareAction, RoomShareNav> {
-    { state, action in
+    /// 방 목록 조회. 진입(`.load`)과 새 방을 만들고 돌아왔을 때가 같은 경로를 쓴다 —
+    /// 둘로 나누면 한쪽만 고쳐져 같은 화면이 두 목록을 갖게 된다.
+    func loadTargets(_ state: inout RoomShareState) -> Effect<RoomShareAction, RoomShareNav> {
+        state.isLoading = true
+        let pinID = state.pinID
+        return .run { send in
+            do {
+                send(.loaded(try await fetchTargets.execute(pinID: pinID)))
+            } catch is CancellationError {
+                return   // 시트를 닫아 취소된 것 — 결과가 없는 게 아니라 필요 없어진 것이다
+            } catch {
+                send(.loadFailed(error as? DomainError ?? .unknown))
+            }
+        }
+    }
+
+    return { state, action in
         switch action {
         case .load:
-            state.isLoading = true
-            let pinID = state.pinID
-            return .run { send in
-                do {
-                    send(.loaded(try await fetchTargets.execute(pinID: pinID)))
-                } catch is CancellationError {
-                    return   // 시트를 닫아 취소된 것 — 결과가 없는 게 아니라 필요 없어진 것이다
-                } catch {
-                    send(.loadFailed(error as? DomainError ?? .unknown))
-                }
-            }
+            return loadTargets(&state)
 
         case .loaded(let targets):
             state.isLoading = false
@@ -83,6 +96,19 @@ func roomShareReducer(
             guard !state.alreadySavedRoomIDs.contains(roomID) else { return .none }
             state.selection.toggle(roomID)
             return .none
+
+        case .tapCreateRoom:
+            // 저장 중에는 나가지 않는다. 저장이 끝나면 시트가 닫히는데(`didSave`), 그때 시트 위에
+            // 커버가 떠 있으면 닫힌 시트 위에 방 만들기만 남는다.
+            guard !state.isSaving else { return .none }
+            return .navigate(.goToCreateRoom)
+
+        case .createRoomFinished(let result):
+            // 취소로 돌아왔으면 목록은 그대로다 — 같은 목록을 다시 받지 않는다.
+            guard result == .created else { return .none }
+            // `selection` 은 건드리지 않는다. 방을 만들러 다녀온 사이 고르던 체크가 풀리면
+            // 사용자는 처음부터 다시 골라야 한다(기획 011-1 ③ "다시 011-1 화면으로 돌아온다").
+            return loadTargets(&state)
 
         case .tapSubmit:
             // 뷰의 버튼 비활성은 UI 레이어 방어라 뷰가 바뀌면 뚫린다 — 조건은 여기서도 지킨다.

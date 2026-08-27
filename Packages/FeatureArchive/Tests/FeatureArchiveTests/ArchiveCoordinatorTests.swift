@@ -181,6 +181,73 @@ struct ArchiveCoordinatorTests {
         #expect(coordinator.consumeSavedShare())
     }
 
+    // MARK: - 공유 시트에서 새 방 만들기 (기획 011-1 ③)
+
+    @Test("공유 시트의 새 방 만들기는 시트를 닫지 않고 그 위에 만들기 flow 를 올린다")
+    func shareGoToCreateRoom_coversSheetWithoutClosingIt() {
+        let coordinator = makeCoordinator()
+        let location = RoomDetailLocation(from: fixturePin)
+        coordinator.handle(RoomDetailNav.shareLocation(location))
+
+        coordinator.handle(RoomShareNav.goToCreateRoom)
+
+        #expect(coordinator.shareCreateRoomChild != nil)
+        // 시트가 살아 있어야 돌아왔을 때 고르던 선택이 남는다.
+        #expect(coordinator.sharingLocation == location)
+        // 탭 스택은 건드리지 않는다 — 시트 위 커버라 push 가 아니다.
+        #expect(coordinator.path.isEmpty)
+    }
+
+    @Test("배선 — 자식 만들기 flow 의 저장 확인이 created 로 보고된다")
+    func shareCreateRoomStore_isWiredToFinish() async throws {
+        let coordinator = makeCoordinator()
+        coordinator.handle(RoomDetailNav.shareLocation(RoomDetailLocation(from: fixturePin)))
+        coordinator.handle(RoomShareNav.goToCreateRoom)
+        let child = try #require(coordinator.shareCreateRoomChild)
+
+        var reported: RoomShareCreateRoomResult?
+        child.finish.bind { reported = $0 }   // flowRoot 가 하는 bind 를 테스트가 대신한다
+
+        let store = child.makeRoomFormStore()
+        store.send(.roomNameChanged("민호야 잘하자"))   // reduce 가 확정 조건을 가드한다
+        store.send(.tapSubmit)                        // 확인 다이얼로그를 띄우기만 한다
+        store.send(.confirmSubmit)
+
+        await waitUntil { reported != nil }
+        #expect(reported == .created)
+    }
+
+    @Test("자식 만들기 flow 를 그만두면 cancelled 로 보고된다")
+    func shareCreateRoom_cancel_reportsCancelled() throws {
+        let coordinator = makeCoordinator()
+        coordinator.handle(RoomDetailNav.shareLocation(RoomDetailLocation(from: fixturePin)))
+        coordinator.handle(RoomShareNav.goToCreateRoom)
+        let child = try #require(coordinator.shareCreateRoomChild)
+
+        var reported: RoomShareCreateRoomResult?
+        child.finish.bind { reported = $0 }
+
+        child.handle(RoomFormNav.didCancel)
+
+        #expect(reported == .cancelled)
+    }
+
+    @Test("자식 만들기 flow 는 결과를 1회만 보고한다")
+    func shareCreateRoom_reportsOnce() throws {
+        let coordinator = makeCoordinator()
+        coordinator.handle(RoomDetailNav.shareLocation(RoomDetailLocation(from: fixturePin)))
+        coordinator.handle(RoomShareNav.goToCreateRoom)
+        let child = try #require(coordinator.shareCreateRoomChild)
+
+        var reported: [RoomShareCreateRoomResult] = []
+        child.finish.bind { reported.append($0) }
+
+        child.handle(RoomFormNav.didSubmit(roomId: "room-9"))
+        child.handle(RoomFormNav.didCancel)   // 커버가 닫히는 사이 들어온 두 번째 신호
+
+        #expect(reported == [.created])
+    }
+
     @Test("goToCreateRoom 은 방 만들기 화면을 push 하고 탭바를 감춘다")
     func handleGoToCreateRoom_pushes() {
         let coordinator = ArchiveCoordinator(deps: StubArchiveDeps())

@@ -69,6 +69,7 @@ struct ArchiveShellView: View {
             RoomShareSheet(
                 location: location,
                 makeStore: { coordinator.makeRoomShareStore(location: location) },
+                createRoomChild: $coordinator.shareCreateRoomChild,
                 onClose: { coordinator.sharingLocation = nil }
             )
             .presentationDetents([.height(RoomShareSheet.detentHeight)])

@@ -1,16 +1,20 @@
 import DesignSystem
 import Domain
+import FlowCoordination
 import Foundation
 import MVI
+import RoomCreationUI
 import SwiftUI
 
 /// 장소를 다른 방에 공유하는 바텀시트. Figma `004-2-2_다른 방에 공유 클릭`(`1672:73592`).
 ///
 /// 시안이 딤(`Material/Dimmer`)을 동반한 모달이라 `MHBottomSheet`(딤 없는 비모달 3-detent)이 아니라
-/// SwiftUI 네이티브 `.sheet` + `presentationDetents` 위에 얹는다. 띄우는 쪽은 `ProfileTabView`.
+/// SwiftUI 네이티브 `.sheet` + `presentationDetents` 위에 얹는다. 띄우는 쪽은 ``ArchiveShellView``.
 ///
-/// Coordinator 대신 `makeStore` 클로저를 받는다(`.claude/docs/mvi-coordinator-di.md` 5절) —
-/// 방 목록 로드·저장·저장 중 잠금이 Store 안에 있고, 시트 자신은 누가 만들었는지 몰라도 된다.
+/// **부모** Coordinator 대신 `makeStore` 클로저를 받는다(`.claude/docs/mvi-coordinator-di.md` 5절) —
+/// 방 목록 로드·저장·저장 중 잠금이 Store 안에 있고, 시트 자신은 누가 띄웠는지 몰라도 된다.
+/// 반면 **자식** flow(``RoomShareCreateRoomCoordinator``)는 시트가 직접 안다 — 커버를 시트 안에
+/// 붙여야 시트를 살려 둔 채 덮을 수 있기 때문이다(`MemberHomeView` 가 `editChild` 를 아는 것과 같다).
 struct RoomShareSheet: View {
     /// `presentationDetents(.height(_:))` 에 넘길 값.
     ///
@@ -21,6 +25,11 @@ struct RoomShareSheet: View {
 
     let location: RoomDetailLocation
     let makeStore: @MainActor () -> RoomShareStore
+    /// 공동방 만들기 자식 flow. **시트 안에서** 커버로 띄운다 — 시트를 닫고 띄우면
+    /// 고르던 방 선택이 사라지고, 시트 바깥(껍데기)에 붙이면 시트가 위를 덮어 안 보인다.
+    /// 항목 자체가 자식 Coordinator 라 닫힐 때 SwiftUI 가 nil 을 되써 표시 상태와 자식이
+    /// 어긋나지 않는다(`.claude/docs/mvi-coordinator-di-extensions.md` "다중 sheet" 와 같은 이유).
+    @Binding var createRoomChild: RoomShareCreateRoomCoordinator?
     let onClose: () -> Void
 
     @State private var store: RoomShareStore?
@@ -35,6 +44,15 @@ struct RoomShareSheet: View {
         }
         .background(.mhBackgroundElevatedNormal)
         .accessibilityIdentifier("RoomShare.sheet")
+        .fullScreenCover(item: $createRoomChild) { child in
+            // 저장 탭 헤더 "+" 와 같은 화면 — 건너뛰기 없음(showsSkip: false).
+            RoomFormView(makeStore: child.makeRoomFormStore, showsSkip: false)
+                // 결과는 reduce 로 한 줄 위임한다(목록을 다시 받을지 말지는 reduce 가 정한다).
+                // [weak store]: 자식 → finish 클로저 → 시트 → 부모 → 자식 순환을 끊는다.
+                .flowRoot(child) { [weak store] result in
+                    store?.send(.createRoomFinished(result))
+                }
+        }
     }
 
     /// 방 목록·공유 버튼은 Store 가 생긴 뒤에 그린다. 그래버·헤더(닫기)는 바깥에 둬서
@@ -81,11 +99,13 @@ struct RoomShareSheet: View {
         .frame(height: 60)
     }
 
-    // 새 방 만들기 — Figma `1672:73605`. 진입 화면(공동방 만들기)이 아직 없어 표시만 한다.
+    // 새 방 만들기 — Figma `1672:73605`. 눌러 공동방 만들기로 들어간다(기획 011-1 ③).
     private var newRoomRow: some View {
         HStack {
             Button {
-                // TODO: 공동방 만들기 화면이 생기면 여기서 진입한다.
+                // Store 가 없는 건 시트가 뜬 첫 프레임뿐이다(`content` 의 `.task` 가 바로 만든다) —
+                // 사람이 누를 수 있는 시점에는 이미 있다.
+                store?.send(.tapCreateRoom)
             } label: {
                 HStack(spacing: 4) {
                     Image(.plus)
@@ -268,6 +288,7 @@ private struct PreviewSavePin: SavePinToRoomsUseCase {
                 reduce: roomShareReducer(fetchTargets: PreviewShareTargets(), savePin: PreviewSavePin())
             )
         },
+        createRoomChild: .constant(nil),
         onClose: {}
     )
     .frame(height: RoomShareSheet.detentHeight)

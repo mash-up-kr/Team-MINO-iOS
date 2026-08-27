@@ -36,6 +36,15 @@ public final class ArchiveCoordinator: Coordinator {
 
     var sharingLocation: RoomDetailLocation?
 
+    /// 공유 시트 **위에** 커버로 띄운 공동방 만들기 자식 flow (기획 011-1 ③).
+    ///
+    /// 부모가 strong 보유한다(`@Observable` 추적 + 수명 관리). 커버를 시트 안에서 띄우므로
+    /// (``RoomShareSheet``) 시트는 살아 있고, 돌아오면 고르던 방 선택이 그대로다.
+    ///
+    /// 이 프로퍼티 자체가 커버의 표시 항목이라 닫히면 SwiftUI 가 여기에 nil 을 되쓴다 —
+    /// "표시 상태 ↔ 자식" 을 손으로 맞출 짝이 없어 `onDismiss` 정리 훅을 따로 두지 않는다.
+    var shareCreateRoomChild: RoomShareCreateRoomCoordinator?
+
     /// 공유 저장이 **성공했을 때만** 서는 1회성 신호. 시트가 닫힌 뒤 껍데기가 소비해 완료 토스트를
     /// 띄운다. X 로 닫거나 저장에 실패하면 서지 않는다 — 그 자리에 완료 토스트가 뜨면 거짓말이 된다.
     /// 관찰 대상이 아니다(소비 시점이 `onDismiss`, 즉 뷰 갱신 중이라 관찰되면 재갱신을 부른다).
@@ -136,6 +145,9 @@ public final class ArchiveCoordinator: Coordinator {
         case .didSave:
             savedShare = true
             sharingLocation = nil   // 토스트는 시트가 닫힌 뒤 `onDismiss` 에서 뜬다
+        case .goToCreateRoom:
+            // 시트를 닫지 않는다 — 자식이 시트 위를 덮고, 끝나면 시트가 그 자리에 그대로 있다.
+            shareCreateRoomChild = RoomShareCreateRoomCoordinator(deps: deps)
         }
     }
 
