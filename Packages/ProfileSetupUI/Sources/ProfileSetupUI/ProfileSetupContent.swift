@@ -3,12 +3,10 @@ import DesignSystem
 
 // MARK: - 캐릭터 스와치
 
-/// 캐릭터 목록. 순서는 `AvatarPalette` 가 정한다 — 그 순서가 곧 저장되는 색이라
-/// `MHCharacter.allCases` 를 따로 쓰면 두 순서가 어긋날 수 있다.
-private let allCharacters = AvatarPalette.characters
-
 /// 캐릭터 선택 12종. 순서는 `AvatarPalette` = 피그마 4열×3행 그리드(좌→우, 상→하)다.
-private let characterSwatches: [MHSelectionGridItem] = allCharacters.map { .image(Image($0)) }
+/// `MHCharacter.allCases` 를 직접 쓰지 않는다 — 그 순서가 곧 저장되는 색이라 두 순서가 어긋나면
+/// 고른 캐릭터와 저장된 색이 달라진다.
+private let characterSwatches: [MHSelectionGridItem] = AvatarPalette.characters.map { .image(Image($0)) }
 
 // [Convention] .claude/docs/mvi-coordinator-di.md — Store·Coordinator 를 모르는 순수 마크업.
 // Figma `010-1/2/3. 프로필 설정` (node 2314:95662 기본 / 2314:95709 입력 완료 / 2314:95754 입력 오류)
@@ -110,11 +108,11 @@ struct ProfileSetupContent: View {
 
     // 아무것도 안 고른 상태에서도 첫 캐릭터를 보여준다 — Figma `010-1` 기본 시안이 미리보기엔 1번 캐릭터를
     // 띄우고 그리드엔 선택 링을 안 그린 상태다. 그래서 `selectedCharacterIndex` 는 nil 로 그대로 넘긴다.
+    //
+    // 범위 밖 폴백은 `AvatarPalette` 가 이미 안다 — 여기서 다시 구현하면 저장되는 색(`avatarColorToSave`)
+    // 과 화면에 보이는 캐릭터가 서로 다른 규칙으로 떨어질 수 있다.
     private var previewCharacter: MHCharacter {
-        guard let selectedCharacterIndex, allCharacters.indices.contains(selectedCharacterIndex) else {
-            return allCharacters[0]
-        }
-        return allCharacters[selectedCharacterIndex]
+        AvatarPalette.character(at: selectedCharacterIndex ?? 0)
     }
 
     // MARK: - 캐릭터 선택 그리드
