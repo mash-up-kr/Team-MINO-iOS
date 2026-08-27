@@ -6,9 +6,9 @@ import SwiftUI
 
 /// 마이 탭 flow. 프로필 요약의 연필을 누르면 프로필 설정 화면이 push 된다(FR-002).
 ///
-/// 기존 값을 연관값으로 실어 나른다 — 화면이 그 값으로 채워진 채 열려야 한다.
+/// 연관값이 없다 — 설정 화면이 `edit` 모드로 진입하며 스스로 조회해 채운다(``ProfileMainNav``).
 public enum ProfileRoute: Hashable {
-    case profileSetup(nickname: String, avatarIndex: Int?)
+    case profileSetup
 }
 
 /// 탭 flow 는 앱 생존 내내 유지되므로 종료가 없다 — Output = Never.
@@ -47,10 +47,11 @@ public final class ProfileCoordinator: Coordinator {
         )
     }
 
-    func makeProfileSetupStore(nickname: String, avatarIndex: Int?) -> ProfileSetupStore {
-        Store(
-            ProfileSetupState(name: nickname, selectedCharacterIndex: avatarIndex),
-            reduce: profileSetupReducer(save: deps.saveProfile),
+    /// 마이페이지 진입점은 **수정**이다 — 진입하면서 조회해 채우고, 저장은 `PATCH /users/me`.
+    /// `ProfileSetupUI` 가 목적과 UseCase 를 한 값(`.edit`)으로 묶어 줘서 조합이 어긋날 수 없다.
+    func makeProfileSetupStore() -> ProfileSetupStore {
+        ProfileSetupUI.makeProfileSetupStore(
+            .edit(fetch: deps.fetchProfile, update: deps.updateProfile),
             handle: { [weak self] in self?.handle($0) }
         )
     }
@@ -59,8 +60,8 @@ public final class ProfileCoordinator: Coordinator {
 
     func handle(_ nav: ProfileMainNav) {
         switch nav {
-        case .pushProfileSetup(let nickname, let avatarIndex):
-            push(.profileSetup(nickname: nickname, avatarIndex: avatarIndex))
+        case .pushProfileSetup:
+            push(.profileSetup)
         case .openURL(let url):
             openURL(url)
         case .openSystemSettings:

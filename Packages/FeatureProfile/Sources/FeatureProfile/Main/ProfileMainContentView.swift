@@ -1,4 +1,5 @@
 import DesignSystem
+import Domain
 import ProfileSetupUI
 import SwiftUI
 
@@ -44,11 +45,15 @@ struct ProfileMainContentView: View {
         .padding(.bottom, Metric.sectionGap)
     }
 
+    // 캐릭터 아트가 옅은 원 배경까지 포함한 이미지라 테두리를 0 으로 둔다
+    // (`ProfileSetupContent.previewAvatar` 와 같은 이유 — 두 화면이 같은 아바타를 같게 그린다).
     private var avatar: some View {
-        Circle()
-            .fill(profileAvatarColor(for: state.avatarIndex) ?? Color.mhBackgroundNormalAlternative)
-            .frame(width: Metric.avatarSize, height: Metric.avatarSize)
-            .accessibilityIdentifier("ProfileMain.avatar")
+        MHAvatar(
+            Image(AvatarPalette.character(of: state.avatarColor)),
+            size: Metric.avatarSize,
+            borderWidth: 0
+        )
+        .accessibilityIdentifier("ProfileMain.avatar")
     }
 
     // 연필까지가 하나의 편집 버튼이다 — 이름만 눌러도 같은 화면으로 간다(FR-002).
@@ -197,7 +202,7 @@ private extension ProfileMainDialog {
 }
 
 #Preview("기본") {
-    ProfileMainContentView(state: .preview(nickname: "홍길동", avatarIndex: 7), send: { _ in })
+    ProfileMainContentView(state: .preview(nickname: "홍길동", avatarColor: .pink), send: { _ in })
 }
 
 // 프로필 조회에 실패하면 프로필 영역만 비고 앱 설정·서비스 정보는 그대로 남는다.
@@ -207,7 +212,7 @@ private extension ProfileMainDialog {
 
 #Preview("알림 ON") {
     ProfileMainContentView(
-        state: .preview(nickname: "홍길동", avatarIndex: 7, isNotificationOn: true),
+        state: .preview(nickname: "홍길동", avatarColor: .pink, isNotificationOn: true),
         send: { _ in }
     )
 }
@@ -215,14 +220,14 @@ private extension ProfileMainDialog {
 // 요청 중에는 그 행이 잠긴다 — 시스템 팝업이 떠 있는 동안의 모습.
 #Preview("권한 요청 중") {
     ProfileMainContentView(
-        state: .preview(nickname: "홍길동", avatarIndex: 7, isNotificationBusy: true),
+        state: .preview(nickname: "홍길동", avatarColor: .pink, isNotificationBusy: true),
         send: { _ in }
     )
 }
 
 #Preview("위치 끄기 안내") {
     ProfileMainContentView(
-        state: .preview(nickname: "홍길동", avatarIndex: 7, isLocationOn: true, dialog: .locationTurnOff),
+        state: .preview(nickname: "홍길동", avatarColor: .pink, isLocationOn: true, dialog: .locationTurnOff),
         send: { _ in }
     )
 }
@@ -230,7 +235,7 @@ private extension ProfileMainDialog {
 private extension ProfileMainState {
     static func preview(
         nickname: String,
-        avatarIndex: Int?,
+        avatarColor: AvatarColor?,
         isNotificationOn: Bool = false,
         isLocationOn: Bool = false,
         isNotificationBusy: Bool = false,
@@ -238,7 +243,7 @@ private extension ProfileMainState {
     ) -> Self {
         var state = ProfileMainState()
         state.nickname = nickname
-        state.avatarIndex = avatarIndex
+        state.avatarColor = avatarColor
         state.isNotificationOn = isNotificationOn
         state.isLocationOn = isLocationOn
         state.isNotificationBusy = isNotificationBusy

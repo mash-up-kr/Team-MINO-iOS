@@ -10,7 +10,7 @@ import Domain
 /// > ⚠️ **순서가 곧 계약이다.** 선언 순서가 Figma 그리드(좌→우, 상→하)이자 저장되는 색이므로,
 /// > 재정렬하면 이미 저장된 프로필이 다른 캐릭터를 가리킨다. 색은 캐릭터 아트의 대표색을
 /// > Atomic 팔레트와 대조해 정했다(`character07`·`character12` 는 팔레트 색과 정확히 일치).
-enum AvatarPalette {
+public enum AvatarPalette {
     /// 그리드 순서대로의 (캐릭터, 색) 쌍.
     static let entries: [(character: MHCharacter, color: AvatarColor)] = [
         (.character01, .red),
@@ -43,5 +43,14 @@ enum AvatarPalette {
     /// 서버가 준 색이 그리드 몇 번째인가. 모르는 색이면 `nil` — 화면은 무선택으로 그린다.
     static func index(of color: AvatarColor) -> Int? {
         entries.firstIndex { $0.color == color }
+    }
+
+    /// 도메인 색으로 캐릭터 그림을 얻는다 — **프로필을 그리기만 하는 화면**(마이페이지 요약)이 쓴다.
+    ///
+    /// 색을 모르거나(서버 팔레트가 우리보다 앞서 나간 경우) 아직 아바타가 없는 계정이면 1번으로
+    /// 떨어진다. 설정 화면의 무선택 미리보기와 같은 폴백이라(`ProfileSetupContent.previewCharacter`)
+    /// 두 화면이 같은 계정을 다르게 그리지 않는다.
+    public static func character(of color: AvatarColor?) -> MHCharacter {
+        color.flatMap(index(of:)).map(character(at:)) ?? `default`.character
     }
 }

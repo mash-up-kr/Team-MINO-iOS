@@ -21,9 +21,11 @@ public struct ProfileTabView: View {
                 .toolbar(.hidden, for: .navigationBar)
                 .navigationDestination(for: ProfileRoute.self) { route in
                     switch route {
-                    case .profileSetup(let nickname, let avatarIndex):
-                        ProfileSetupView(
-                            makeStore: { coordinator.makeProfileSetupStore(nickname: nickname, avatarIndex: avatarIndex) },
+                    case .profileSetup:
+                        // 뒤로가기는 `onBack` 을 넘긴 쪽만 그려진다 — 온보딩 최초 진입과 달리
+                        // 여기는 돌아갈 곳이 있다(`ProfileSetupScreen` 주석).
+                        ProfileSetupScreen(
+                            makeStore: { coordinator.makeProfileSetupStore() },
                             onBack: { coordinator.pop() }
                         )
                         // 내비바를 숨기면 SwiftUI 가 엣지 백스와이프도 함께 꺼서 되살린다(``NotificationTabView`` 선례).

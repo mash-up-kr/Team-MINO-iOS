@@ -1,14 +1,30 @@
 import Domain
 @testable import FeatureProfile
 
+/// 테스트가 쓰는 기준 프로필. 서버가 주는 모양 그대로다(아바타는 색으로 온다).
+extension Profile {
+    static func stub(
+        nickname: String = "홍길동",
+        avatarColor: AvatarColor? = .pink
+    ) -> Profile {
+        Profile(id: "user-1", nickname: nickname, avatarColor: avatarColor, createdAt: nil)
+    }
+}
+
 /// 프로필 조회 결과를 정해 주는 스텁.
 struct StubFetchProfileUseCase: FetchProfileUseCase {
-    var profile: Profile = Profile(nickname: "홍길동", avatarID: 7)
+    var profile: Profile = .stub()
     var error: DomainError?
 
     func execute() async throws -> Profile {
         if let error { throw error }
         return profile
+    }
+}
+
+struct StubUpdateProfileUseCase: UpdateProfileUseCase {
+    func execute(nickname: String?, avatarColor: AvatarColor?) async throws -> Profile {
+        .stub(nickname: nickname ?? "", avatarColor: avatarColor)
     }
 }
 
@@ -41,13 +57,7 @@ struct StubLocationSettingUseCase: LocationSettingUseCase {
 /// 테스트가 쓰는 최소 deps 묶음. Coordinator 배선 테스트에서 쓴다.
 struct StubProfileDeps: ProfileDeps {
     var fetchProfile: FetchProfileUseCase = StubFetchProfileUseCase()
-    var saveProfile: SaveProfileUseCase = StubSaveProfileUseCase()
+    var updateProfile: UpdateProfileUseCase = StubUpdateProfileUseCase()
     var notificationSetting: NotificationSettingUseCase = StubNotificationSettingUseCase()
     var locationSetting: LocationSettingUseCase = StubLocationSettingUseCase()
-}
-
-struct StubSaveProfileUseCase: SaveProfileUseCase {
-    func execute(nickname: String, avatarID: Int) async throws -> Profile {
-        Profile(nickname: nickname, avatarID: avatarID)
-    }
 }

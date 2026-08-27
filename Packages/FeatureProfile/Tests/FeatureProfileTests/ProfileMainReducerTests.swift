@@ -27,9 +27,9 @@ struct ProfileMainReducerTests {
         let store = makeStore()
 
         await store.send(.loadProfile)
-        await store.receive(.profileLoaded(Profile(nickname: "홍길동", avatarID: 7))) {
+        await store.receive(.profileLoaded(.stub())) {
             $0.nickname = "홍길동"
-            $0.avatarIndex = 7
+            $0.avatarColor = .pink
         }
 
         store.finish()
@@ -44,7 +44,7 @@ struct ProfileMainReducerTests {
         await store.receive(.profileLoadFailed(.profileFetchFailed))
 
         #expect(store.currentState.nickname.isEmpty)
-        #expect(store.currentState.avatarIndex == nil)
+        #expect(store.currentState.avatarColor == nil)
         // 스위치는 손대지 않는다.
         #expect(!store.currentState.isNotificationOn)
         #expect(store.currentState.dialog == nil)
@@ -58,19 +58,19 @@ struct ProfileMainReducerTests {
     func loadProfile_refreshFailure_keepsLastKnownProfile() async {
         let store = makeStore(fetchProfile: StubFetchProfileUseCase(error: .profileFetchFailed))
 
-        await store.send(.profileLoaded(Profile(nickname: "홍길동", avatarID: 7))) {
+        await store.send(.profileLoaded(.stub())) {
             $0.nickname = "홍길동"
-            $0.avatarIndex = 7
+            $0.avatarColor = .pink
         }
         await store.send(.loadProfile)
         await store.receive(.profileLoadFailed(.profileFetchFailed))   // state 변화 없음
 
         #expect(store.currentState.nickname == "홍길동")
-        #expect(store.currentState.avatarIndex == 7)
+        #expect(store.currentState.avatarColor == .pink)
 
-        // 그래서 편집 진입도 기존 값을 그대로 실어 보낸다(FR-002).
+        // 편집 진입은 값을 싣지 않는다 — 설정 화면이 `edit` 로 들어가며 스스로 조회한다(FR-002).
         await store.send(.tapEditProfile)
-        store.receiveNavigation(.pushProfileSetup(nickname: "홍길동", avatarIndex: 7))
+        store.receiveNavigation(.pushProfileSetup)
         store.finish()
     }
 
@@ -258,16 +258,18 @@ struct ProfileMainReducerTests {
 
     // MARK: - 진입점 (FR-002 / FR-011 / FR-012)
 
-    @Test("L2 — 프로필 편집은 현재 값을 실어 보낸다")
-    func tapEditProfile_carriesCurrentProfile() async {
+    // 값을 실어 보내지 않는 게 요점이다 — 설정 화면이 진입하며 스스로 조회하므로, 여기서 함께
+    // 넘기면 같은 값을 두 곳에서 읽어 마이페이지가 늦게 갱신됐을 때 편집 화면이 옛 값으로 열린다.
+    @Test("L2 — 프로필 편집은 값 없이 설정 화면으로 보낸다")
+    func tapEditProfile_navigatesWithoutPayload() async {
         let store = makeStore()
 
-        await store.send(.profileLoaded(Profile(nickname: "홍길동", avatarID: 7))) {
+        await store.send(.profileLoaded(.stub())) {
             $0.nickname = "홍길동"
-            $0.avatarIndex = 7
+            $0.avatarColor = .pink
         }
         await store.send(.tapEditProfile)
-        store.receiveNavigation(.pushProfileSetup(nickname: "홍길동", avatarIndex: 7))
+        store.receiveNavigation(.pushProfileSetup)
 
         store.finish()
     }

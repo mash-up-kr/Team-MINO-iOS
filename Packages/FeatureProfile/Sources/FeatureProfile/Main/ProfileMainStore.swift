@@ -20,7 +20,9 @@ public enum ProfileMainDialog: Equatable, Identifiable, Sendable {
 public struct ProfileMainState: Equatable {
     /// 아직 한 번도 못 읽었으면 비어 있다. 화면의 나머지(앱 설정·서비스 정보)는 프로필과 무관하게 그린다.
     public var nickname: String
-    public var avatarIndex: Int?
+    /// 서버가 주는 아바타 식별자는 **색**이다(`avatar.color`) — 그림으로 옮기는 건 화면의 몫이다.
+    /// 아직 아바타가 없는 계정이 있어 옵셔널이다.
+    public var avatarColor: AvatarColor?
     /// 표시값은 OS 알림 권한과 앱 자체 발송 설정의 **합성**이다(spec §2.3) — 계산은 UseCase 가 한다.
     public var isNotificationOn: Bool
     /// 표시값이 곧 OS 위치 권한 상태다(spec §2.3).
@@ -37,7 +39,7 @@ public struct ProfileMainState: Equatable {
 
     public init() {
         self.nickname = ""
-        self.avatarIndex = nil
+        self.avatarColor = nil
         self.isNotificationOn = false
         self.isLocationOn = false
         self.isNotificationBusy = false
@@ -74,8 +76,12 @@ public enum ProfileMainAction: Equatable {
 }
 
 public enum ProfileMainNav: Equatable, Sendable {
-    /// 기존 값을 채운 채 프로필 설정 화면으로(FR-002).
-    case pushProfileSetup(nickname: String, avatarIndex: Int?)
+    /// 프로필 설정 화면으로(FR-002).
+    ///
+    /// **기존 값을 실어 나르지 않는다** — 설정 화면이 `edit` 모드로 진입하며 스스로 조회해 채운다
+    /// (`ProfileSetupUI.ProfileSetupState.mode`). 여기서 함께 넘기면 같은 값을 두 곳에서 읽어
+    /// 마이페이지가 늦게 갱신됐을 때 편집 화면이 옛 값으로 열린다.
+    case pushProfileSetup
     case openURL(URL)
     case openSystemSettings
 }
@@ -102,7 +108,7 @@ public func profileMainReducer(
 
         case .profileLoaded(let profile):
             state.nickname = profile.nickname
-            state.avatarIndex = profile.avatarID
+            state.avatarColor = profile.avatarColor
             return .none
 
         // **마지막으로 읽은 값을 지우지 않는다.** 재조회는 복귀할 때마다 일어나므로(FR-009) 이 경로는
@@ -186,7 +192,7 @@ public func profileMainReducer(
             return .navigate(.openSystemSettings)
 
         case .tapEditProfile:
-            return .navigate(.pushProfileSetup(nickname: state.nickname, avatarIndex: state.avatarIndex))
+            return .navigate(.pushProfileSetup)
 
         case .tapTerms:
             return .navigate(.openURL(ProfileServiceLinks.terms))
