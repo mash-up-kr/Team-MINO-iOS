@@ -126,12 +126,13 @@ public struct MHComment: View {
         }
     }
 
-    // ⋮ 에 앵커된 메뉴 — 트레일링 정렬로 ⋮ 오른쪽 끝에 붙고, ⋮ 바로 아래로 편다.
+    // ⋮ 아래에 앵커된 메뉴. 위치는 Figma 렌더(`005-3 full_comment N+`, 375pt 1:1)에서 잰 값이다 —
+    // 카드 테두리가 코멘트 상단 +34, 코멘트 오른쪽 끝에서 8 안쪽에 선다.
     @ViewBuilder private var menuOverlay: some View {
         if menuPresented.wrappedValue, hasMenu {
             MHMenu(closableMenuItems)
                 .frame(width: Metric.menuWidth)
-                .offset(y: Metric.menuTopOffset)
+                .offset(x: -Metric.menuTrailingInset, y: Metric.menuTopOffset)
                 .transition(.opacity)
         }
     }
@@ -153,8 +154,11 @@ public struct MHComment: View {
         static let iconSize: CGFloat = 18
         static let hitSize: CGFloat = 44
         static let menuWidth: CGFloat = 140
-        /// 이름 행(32pt) 안에서 세로 중앙인 ⋮ 의 아래끝(7 + 18)에 1pt 를 띄운 값. Figma 실측과 같다.
-        static let menuTopOffset: CGFloat = 26
+        /// 이름 행(32pt) 아래 2pt. Figma 는 메뉴 인스턴스를 ⋮ 바로 밑(+26)에 뒀지만 그 컴포넌트가
+        /// 위아래로 8pt 씩 투명 여백을 물고 있어, **그려지는 카드**는 +34 에 선다(1:1 렌더 실측).
+        static let menuTopOffset: CGFloat = 34
+        /// 코멘트 오른쪽 끝에서 카드까지의 간격(1:1 렌더 실측). ⋮ 는 끝에 붙고 메뉴만 안쪽으로 들어온다.
+        static let menuTrailingInset: CGFloat = 8
         static let animation: TimeInterval = 0.12
     }
 }
