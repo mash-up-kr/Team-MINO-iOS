@@ -64,6 +64,8 @@ public struct MapView: UIViewRepresentable {
         private var appliedPadding: EdgeInsets?
         /// id → 화면에 올라간 GMSMarker. 증분 적용(추가/제거/갱신)용.
         private var gmsMarkersByID: [String: GMSMarker] = [:]
+        /// 스타일 → 마커 그림. 같은 방의 핀은 색이 전부 같아 대부분 한 장으로 끝난다.
+        private var iconCache: [MapMarkerStyle: UIImage] = [:]
 
         init(onEvent: @escaping (MapEvent) -> Void) {
             self.onEvent = onEvent
@@ -84,14 +86,30 @@ public struct MapView: UIViewRepresentable {
                 guard let existing = gmsMarkersByID[marker.id] else { continue }
                 existing.position = marker.coordinate.clCoordinate
                 existing.title = marker.title
+                apply(marker.style, to: existing)
             }
             for marker in diff.inserted {
                 let gmsMarker = GMSMarker(position: marker.coordinate.clCoordinate)
                 gmsMarker.title = marker.title
                 gmsMarker.userData = marker.id   // 델리게이트에서 id 회수용
+                apply(marker.style, to: gmsMarker)
                 gmsMarker.map = mapView
                 gmsMarkersByID[marker.id] = gmsMarker
             }
+        }
+
+        /// 선택 마커는 다른 마커보다 위에 그린다 — 핀이 겹쳐 있을 때 방금 고른 것이 뒤로 숨으면 안 된다.
+        private func apply(_ style: MapMarkerStyle, to gmsMarker: GMSMarker) {
+            gmsMarker.icon = icon(for: style)
+            gmsMarker.zIndex = style.isSelected ? 1 : 0
+        }
+
+        /// 같은 스타일이면 그림을 재사용한다 — 핀이 수십 개면 마커마다 래스터라이즈가 반복된다.
+        private func icon(for style: MapMarkerStyle) -> UIImage? {
+            if let cached = iconCache[style] { return cached }
+            let image = MarkerIcon.image(for: style)
+            iconCache[style] = image
+            return image
         }
 
         func apply(camera: MapCameraPosition, to mapView: GMSMapView) {
@@ -125,6 +143,37 @@ public struct MapView: UIViewRepresentable {
             let idle = position.mapCameraPosition
             appliedCamera = idle   // 방금 적용한 값으로 기록 → 되먹임 시 재적용 스킵
             onEvent(.didIdleAt(idle))
+        }
+    }
+}
+
+// MARK: - 마커 그림
+
+/// `MapMarkerStyle` → 마커 이미지.
+///
+/// **확정 시안이 없어 SDK 기본 마커를 방 색으로 틴트한다.** 004-1 ④ 가 선택 상태를
+/// "디자인 Attention 핀으로 변경 (작업 중)" 이라고 적어 두었고, 디자인 라이브러리에도
+/// 마커 컴포넌트는 `Default marker component` 하나뿐이라 선택 상태 에셋이 없다.
+/// 그래서 선택은 **확대 + 위로 올리기**로만 구분한다. 에셋이 나오면 이 타입만 갈아끼우면 된다.
+private enum MarkerIcon {
+    /// 선택 마커 확대 배율.
+    static let selectedScale: CGFloat = 1.4
+
+    static func image(for style: MapMarkerStyle) -> UIImage? {
+        let base = GMSMarker.markerImage(with: UIColor(style.tint))
+        guard style.isSelected else { return base }
+        return base.scaled(by: selectedScale)
+    }
+}
+
+private extension UIImage {
+    /// 마커 앵커가 아래 중앙(기본값)이라 크기만 키워도 가리키는 좌표는 그대로다.
+    func scaled(by factor: CGFloat) -> UIImage {
+        let target = CGSize(width: size.width * factor, height: size.height * factor)
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = scale
+        return UIGraphicsImageRenderer(size: target, format: format).image { _ in
+            draw(in: CGRect(origin: .zero, size: target))
         }
     }
 }
