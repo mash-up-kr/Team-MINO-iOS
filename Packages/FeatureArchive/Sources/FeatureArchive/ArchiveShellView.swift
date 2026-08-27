@@ -27,7 +27,8 @@ struct ArchiveShellView: View {
             ArchiveMapLayer(
                 bottomInset: mapBottomInset,
                 pins: detailStore?.state.pins ?? [],
-                roomColor: coordinator.selectedRoom?.color
+                roomColor: coordinator.selectedRoom?.color,
+                onSelectPin: { detailStore?.send(.tapLocation($0)) }
             )
 
             if let roomListStore {

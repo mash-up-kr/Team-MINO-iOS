@@ -15,6 +15,10 @@ struct ArchiveMapLayer: View {
     /// 방 대표 색 — 마커 색이 방 색을 따른다(005-1 ①). 색을 안 고른 방(`nil`·`gray`)은 기본색.
     let roomColor: RoomColor?
 
+    /// 마커를 눌렀다(핀 id). 화면 전환은 Store 의 Nav 로 흘러야 하므로 여기서는 Coordinator 를
+    /// 부르지 않고 action 만 올려 보낸다 — 받는 쪽이 `RoomDetailAction.tapLocation` 으로 잇는다.
+    let onSelectPin: (String) -> Void
+
     var body: some View {
         ZStack {
             Color.mhBackgroundNormalAlternative
@@ -24,7 +28,9 @@ struct ArchiveMapLayer: View {
                     camera: ArchiveMap.camera(for: pins),
                     markers: ArchiveMap.markers(pins: pins, roomColor: roomColor),
                     padding: EdgeInsets(top: 0, leading: 0, bottom: bottomInset, trailing: 0),
-                    onEvent: { _ in }
+                    onEvent: { event in
+                        if let id = ArchiveMap.tappedPinID(in: event) { onSelectPin(id) }
+                    }
                 )
             }
             #endif
@@ -62,6 +68,15 @@ enum ArchiveMap {
                 title: pin.place.name,
                 style: MapMarkerStyle(tint: roomTint)
             )
+        }
+    }
+
+    /// 지도 이벤트에서 "눌린 핀"만 골라낸다. 빈 곳 탭·카메라 이동은 이 화면이 쓰지 않는다 —
+    /// 지도를 움직였다고 시트가 바뀌면 안 되기 때문이다.
+    static func tappedPinID(in event: MapEvent) -> String? {
+        switch event {
+        case .didTapMarker(let id): id
+        case .didTap, .didIdleAt: nil
         }
     }
 

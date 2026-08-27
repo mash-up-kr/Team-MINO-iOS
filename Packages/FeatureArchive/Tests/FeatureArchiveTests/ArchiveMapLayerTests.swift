@@ -59,6 +59,20 @@ struct ArchiveMapLayerTests {
         #expect(tints.count == picked.count)
     }
 
+    // MARK: - 탭
+
+    @Test("마커 탭은 그 핀 id 를 올려 보낸다")
+    func markerTapCarriesPinID() {
+        #expect(ArchiveMap.tappedPinID(in: .didTapMarker(id: "a")) == "a")
+    }
+
+    @Test("빈 곳 탭·카메라 이동은 장소를 열지 않는다 — 지도를 움직였다고 시트가 바뀌면 안 된다")
+    func otherEventsDoNotSelect() {
+        let coordinate = MapCoordinate(latitude: 37.5, longitude: 127.0)
+        #expect(ArchiveMap.tappedPinID(in: .didTap(coordinate)) == nil)
+        #expect(ArchiveMap.tappedPinID(in: .didIdleAt(MapCameraPosition(coordinate: coordinate, zoom: 15))) == nil)
+    }
+
     // MARK: - 카메라
 
     @Test("핀이 없으면 기본 카메라를 유지한다")
