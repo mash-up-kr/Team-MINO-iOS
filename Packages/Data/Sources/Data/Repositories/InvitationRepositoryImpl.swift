@@ -30,7 +30,7 @@ public struct InvitationRepositoryImpl: InvitationRepository {
         if case .cancelled = error { return CancellationError() }   // 취소는 실패가 아니다
 
         switch error.statusCode {
-        case 401: return DomainError.unauthorized
+        case 401: return error.unauthorizedReason
         case 403, 404: return DomainError.inviteCodeFetchFailed
         default:
             // 번역하지 못했다는 사실은 반드시 남긴다 — 어떤 DomainError 를 추가해야 하는지

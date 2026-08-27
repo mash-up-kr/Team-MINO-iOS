@@ -121,3 +121,12 @@ public extension NetworkError {
         }
     }
 }
+
+public extension NetworkError {
+    /// 서버가 "세션은 유효하지만 이 uid 는 아직 회원이 아니다" 를 알리는 코드.
+    ///
+    /// 코드 목록을 enum 으로 닫지 않는 것이 이 패키지의 방침인데(모르는 코드에 디코딩이 깨진다)
+    /// **이 값만 예외로 든다** — 401 재시도 여부를 클라이언트가 여기서 판단해야 하기 때문이다.
+    /// 토큰을 갱신해도 회원이 생기지는 않으므로 이 401 은 다시 보내면 낭비다.
+    static let userNotRegisteredCode = "USER_NOT_REGISTERED"
+}

@@ -37,20 +37,20 @@ public typealias AppLaunchStore = Store<AppLaunchState, AppLaunchAction, Never>
 /// 순수 reduce. 의존성(UseCase)은 `Effect.run` 안에서만 쓴다.
 public func appLaunchReducer(
     ensureSession: EnsureSessionUseCase,
-    onboarding: OnboardingUseCase
+    fetchProfile: FetchProfileUseCase
 ) -> (inout AppLaunchState, AppLaunchAction) -> Effect<AppLaunchAction, Never> {
     { state, action in
         switch action {
         case .start:
             guard state.phase == .idle else { return .none }
             state.phase = .loading
-            return establishSession(ensureSession, onboarding)
+            return establishSession(ensureSession, fetchProfile)
 
         // 재시도 화면에서만 유효하다. 로딩 중 연타가 세션 확보를 겹쳐 발사하지 않게 막는다.
         case .tapRetry:
             guard state.phase == .retry else { return .none }
             state.phase = .loading
-            return establishSession(ensureSession, onboarding)
+            return establishSession(ensureSession, fetchProfile)
 
         case .sessionReady(let needsOnboarding):
             state.phase = needsOnboarding ? .onboarding : .main
@@ -61,26 +61,37 @@ public func appLaunchReducer(
             state.phase = .retry
             return .none
 
-        // 완료를 **여기서 영속화한다.** 기록하지 않으면 다음 실행에 온보딩이 다시 뜬다 —
-        // 실제로 그렇게 깨져서 앱 진입 온보딩 연결이 한 번 되돌려진 적이 있다.
+        // 기록할 것이 없다. 온보딩을 마쳤다는 사실은 **서버에 회원이 생긴 것** 그 자체이고,
+        // 다음 실행은 그걸 `GET /me` 로 다시 확인한다.
         case .onboardingFinished:
             state.phase = .main
-            return .run { _ in await onboarding.markCompleted() }
+            return .none
         }
     }
 }
 
-/// 세션 확보와 온보딩 조회를 **한 effect 로 묶는다.** 두 결과가 합쳐져야 갈 화면이 정해지는데,
-/// 나눠 보내면 그 사이에 화면이 그릴 수 없는 중간 상태(세션은 됐고 온보딩은 모름)가 생긴다.
+/// 세션 확보와 등록 여부 확인을 **한 effect 로 묶는다.** 두 결과가 합쳐져야 갈 화면이 정해지는데,
+/// 나눠 보내면 그 사이에 화면이 그릴 수 없는 중간 상태(세션은 됐고 등록 여부는 모름)가 생긴다.
+///
+/// **판단을 서버에 묻는다.** 로컬 플래그로는 네 경우 중 둘이 틀린다 — 재설치하면 익명 세션은
+/// Keychain 에 남아 돌아오는데 플래그만 사라져 등록된 사용자가 온보딩에 갇히고, 반대로
+/// "세션이 있으면 완료"로 보면 온보딩 중간에 종료한 사용자가 프로필 없이 메인으로 들어간다
+/// (세션은 온보딩 화면이 뜨기 **전에** 만들어진다). 어느 쪽도 로컬에서는 알 수 없다.
+///
+/// 대가는 앱 시작마다 네트워크 1회다. 실패는 이미 있는 재시도 화면이 받는다.
 private func establishSession(
     _ ensureSession: EnsureSessionUseCase,
-    _ onboarding: OnboardingUseCase
+    _ fetchProfile: FetchProfileUseCase
 ) -> Effect<AppLaunchAction, Never> {
     .run { send in
         do {
             _ = try await ensureSession.execute()
-            let completed = await onboarding.hasCompleted()
-            send(.sessionReady(needsOnboarding: !completed))
+            _ = try await fetchProfile.execute()
+            send(.sessionReady(needsOnboarding: false))
+        // 미등록은 인증 실패가 아니다 — 온보딩을 마치면 풀린다. 재시도 화면으로 보내면
+        // 최초 사용자가 "다시 시도" 만 반복하며 앱에 들어오지 못한다.
+        } catch DomainError.notRegistered {
+            send(.sessionReady(needsOnboarding: true))
         // 취소는 실패가 아니다. 흡수하면 재시도 화면이 뜨는데, 이미 화면을 벗어난 뒤라
         // 사용자에겐 오지 않은 오류가 된다. (이 Store 는 앱 수명이라 실제 취소 경로가
         // 지금은 없지만, 화면 reducer 가 이 파일을 본보기로 삼는다)

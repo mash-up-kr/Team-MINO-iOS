@@ -30,7 +30,7 @@ final class AppCoordinator {
         self.profile = ProfileCoordinator()
         self.launch = AppLaunchStore(
             AppLaunchState(),
-            reduce: appLaunchReducer(ensureSession: deps.ensureSession, onboarding: deps.onboarding)
+            reduce: appLaunchReducer(ensureSession: deps.ensureSession, fetchProfile: deps.fetchProfile)
         )
         // navigation 채널이 없는 flow 라(Nav == Never) observeNavigation 을 붙이지 않는다.
     }

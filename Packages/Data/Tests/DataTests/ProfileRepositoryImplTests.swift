@@ -67,9 +67,33 @@ struct ProfileRepositoryImplTests {
 
     @Test("번역되지 않은 상태코드는 호출별 기본 오류로 떨어진다")
     func unmappedStatus_fallsBack() async {
-        let client = StubHTTPClient(result: .failure(NetworkError.conflict(code: "ALREADY_EXISTS", message: "이미 등록된 사용자")))
+        let client = StubHTTPClient(result: .failure(NetworkError.server(statusCode: 500)))
         await #expect(throws: DomainError.profileSaveFailed) {
             try await ProfileRepositoryImpl(client: client).register(nickname: "민호", avatarIndex: 0)
+        }
+    }
+
+    // 재설치하면 익명 세션이 Keychain 에 남아 같은 uid 로 돌아온다 — 그 사용자가 닿는 응답이다.
+    // 저장 실패로 뭉개면 화면이 "다시 시도" 만 반복시켜 온보딩에 갇힌다.
+    @Test("409 는 이미 등록됨으로 번역한다 — 저장 실패와 다르다")
+    func conflict_mapsToAlreadyRegistered() async {
+        let client = StubHTTPClient(result: .failure(
+            NetworkError.conflict(code: "USER_ALREADY_REGISTERED", message: "이미 등록된 사용자입니다.")
+        ))
+        await #expect(throws: DomainError.alreadyRegistered) {
+            try await ProfileRepositoryImpl(client: client).register(nickname: "민호", avatarIndex: 0)
+        }
+    }
+
+    // 서버는 미등록도 401 로 준다(404 가 아니다). errorCode 를 봐야 인증 실패와 갈린다 —
+    // 뭉뚱그리면 최초 사용자가 온보딩 대신 재시도 화면에 갇힌다.
+    @Test("401 + USER_NOT_REGISTERED 는 미등록으로 번역한다")
+    func unregistered_mapsToNotRegistered() async {
+        let client = StubHTTPClient(result: .failure(
+            NetworkError.unauthorized(code: "USER_NOT_REGISTERED", message: "등록되지 않은 사용자입니다.")
+        ))
+        await #expect(throws: DomainError.notRegistered) {
+            try await ProfileRepositoryImpl(client: client).me()
         }
     }
 

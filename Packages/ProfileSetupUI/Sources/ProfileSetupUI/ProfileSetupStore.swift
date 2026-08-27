@@ -239,6 +239,13 @@ public func profileSetupReducer(
             state.isSaving = false
             return .navigate(.didSave)
 
+        // 이미 등록된 uid 다 — 사용자가 원한 결과(계정 생성)는 **이미 이뤄져 있다.** 등록 응답만
+        // 유실된 상태라, 오류로 막으면 다시 눌러도 같은 409 라 온보딩을 벗어날 방법이 없다.
+        // 성공으로 흡수해 다음 단계로 보낸다(입력한 이름·캐릭터가 다르면 마이페이지에서 고친다).
+        case .saveFailed(.alreadyRegistered):
+            state.isSaving = false
+            return .navigate(.didSave)
+
         case .saveFailed(let error):
             state.isSaving = false
             state.saveError = error

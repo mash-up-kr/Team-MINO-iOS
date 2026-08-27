@@ -23,8 +23,9 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
     let createRoom: CreateRoomUseCase
     let roomCreationPromptSnooze: SnoozeSwitch
     let ensureSession: EnsureSessionUseCase
-    let onboarding: OnboardingUseCase
     let registerProfile: RegisterProfileUseCase
+    /// 앱 진입 분기(`LaunchDeps`)가 등록 여부를 묻는 데 쓴다 — 프로필이 있으면 온보딩을 마친 것이다.
+    let fetchProfile: FetchProfileUseCase
     let fetchInviteCode: FetchInviteCodeUseCase
     /// 초대 링크의 스킴·호스트. 서버는 코드만 주고 링크는 앱이 조립한다(`Core.DeeplinkBuilder`).
     ///
@@ -83,12 +84,15 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
         // 로컬 패키지로 내리지 않기 위해서다 — SDK 어댑터는 컴포지션 루트가 갖는다.
         self.ensureSession = DefaultEnsureSessionUseCase(repository: FirebaseAuthRepository())
 
-        // 온보딩 1회 표기 플래그도 홈 가이드와 같은 이유로 UserDefaults.
-        self.onboarding = DefaultOnboardingUseCase(repository: UserDefaultsOnboardingRepository())
-
         // 프로필 등록: 실 API(POST /api/v1/users). 등록은 인증 미들웨어를 부분만 타므로
         // (UserAPI.register 의 .unregisteredUser) 세션만 있으면 최초 진입에서도 통과한다.
         self.registerProfile = DefaultRegisterProfileUseCase(
+            repository: ProfileRepositoryImpl(client: httpClient)
+        )
+
+        // 온보딩 여부 판단: 실 API(GET /api/v1/users/me). 로컬 플래그를 쓰지 않는 이유는
+        // AppLaunchStore.establishSession 주석 참조.
+        self.fetchProfile = DefaultFetchProfileUseCase(
             repository: ProfileRepositoryImpl(client: httpClient)
         )
 

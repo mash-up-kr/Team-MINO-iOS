@@ -41,16 +41,14 @@ public struct ProfileRepositoryImpl: ProfileRepository {
     ///
     /// **케이스가 아니라 `statusCode` 로 분기한다.** 같은 404 가 본문 모양에 따라
     /// `.notFound` 로도 `.unexpectedErrorFormat(404, _)` 로도 오기 때문이다.
-    ///
-    /// > ⚠️ 이미 등록된 uid 로 `POST /api/v1/users` 를 다시 부르면 서버가 뭘 주는지 아직 모른다.
-    /// > Firebase 익명 세션은 Keychain 에 남아 앱을 지웠다 깔아도 같은 uid 로 돌아오는데
-    /// > 온보딩 완료 플래그(UserDefaults)는 사라지므로, 재설치하면 이 경로를 다시 탄다.
-    /// > 서버 응답이 확인되면 여기에 "이미 등록됨"을 성공으로 흡수하는 분기가 필요할 수 있다.
     private static func mapToDomain(_ error: NetworkError, fallback: DomainError) -> Error {
         if case .cancelled = error { return CancellationError() }   // 취소는 실패가 아니다
 
         switch error.statusCode {
-        case 401: return DomainError.unauthorized
+        case 401: return error.unauthorizedReason
+        // 이미 등록된 uid 로 다시 등록했다. 재설치한 사용자가 여기 닿으므로 저장 실패로 뭉개면
+        // 원인을 알 수 없는 채 온보딩에 갇힌다 — 화면이 구분해 처리하도록 어휘를 준다.
+        case 409: return DomainError.alreadyRegistered
         case 400, 404, 422: return fallback
         default:
             // 번역하지 못했다는 사실은 반드시 남긴다 — 어떤 DomainError 를 추가해야 하는지

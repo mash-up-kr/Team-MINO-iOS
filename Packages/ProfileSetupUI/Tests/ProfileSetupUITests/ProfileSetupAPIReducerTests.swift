@@ -128,6 +128,24 @@ struct ProfileSetupAPIReducerTests {
         store.finish()
     }
 
+    // 재설치 등으로 이미 등록된 uid 가 다시 등록을 시도한 경우. 오류로 막으면 다시 눌러도
+    // 같은 409 라 온보딩을 벗어날 방법이 없다 — 계정은 이미 있으므로 성공으로 흡수한다.
+    @Test("L2 — 이미 등록된 계정이면 실패가 아니라 다음 단계로 보낸다")
+    func save_alreadyRegistered_treatedAsSuccess() async {
+        let store = TestStore(
+            ProfileSetupState(mode: .create),
+            reduce: profileSetupReducer(.create(register: StubRegisterProfileUseCase(error: .alreadyRegistered)))
+        )
+
+        await store.send(.nameChanged("민호")) { $0.name = "민호" }
+        await store.send(.tapSave) { $0.isSaving = true }
+        await store.receive(.saveFailed(.alreadyRegistered)) { $0.isSaving = false }
+        store.receiveNavigation(.didSave)
+
+        #expect(store.currentState.saveError == nil)   // 오류 안내를 띄우지 않는다
+        store.finish()
+    }
+
     @Test("L1 — 저장 중에는 저장·지우기를 다시 누를 수 없다")
     func whileSaving_buttonsAreDisabled() async {
         var state = ProfileSetupState(mode: .create, name: "민호", selectedCharacterIndex: 1)

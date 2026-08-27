@@ -9,6 +9,16 @@ public enum DomainError: Error, Equatable, Sendable {
     case roomSaveFailed
     case notificationsFetchFailed
     case unauthorized
+    /// 세션은 있지만 이 uid 로 **회원 등록이 되어 있지 않다**(서버 `USER_NOT_REGISTERED`).
+    ///
+    /// `unauthorized` 와 반드시 구분한다 — 이쪽은 인증이 깨진 게 아니라 **온보딩을 아직 안 마친**
+    /// 상태다. 앱 진입 분기가 이 값 하나로 온보딩과 재시도를 가른다.
+    case notRegistered
+    /// 이미 등록된 uid 로 다시 등록을 시도했다(서버 `USER_ALREADY_REGISTERED`).
+    ///
+    /// 익명 세션은 Keychain 에 남아 앱을 지웠다 깔아도 같은 uid 로 돌아온다 —
+    /// 재설치한 사용자가 온보딩을 다시 타면 여기에 닿는다.
+    case alreadyRegistered
     /// 세션을 확보하지 못했다. 인증 수단에 닿지 못한 경우(네트워크 단절 등)로,
     /// **서버가 거부한 `unauthorized` 와 구분한다** — 이쪽은 재시도가 의미 있다.
     case sessionUnavailable
