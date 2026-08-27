@@ -15,6 +15,11 @@ struct ArchiveMapLayer: View {
     /// 방 대표 색 — 마커 색이 방 색을 따른다(005-1 ①). 색을 안 고른 방(`nil`·`gray`)은 기본색.
     let roomColor: RoomColor?
 
+    /// 지금 장소 상세로 열려 있는 핀. 그 마커만 선택 상태로 그린다(005-1 ①).
+    /// 선택 상태는 지도가 들지 않는다 — 어느 장소를 보고 있는지는 이미 화면이 아는 값이라
+    /// 지도가 따로 들면 시트와 어긋날 수 있다.
+    let selectedPinID: String?
+
     /// 마커를 눌렀다(핀 id). 화면 전환은 Store 의 Nav 로 흘러야 하므로 여기서는 Coordinator 를
     /// 부르지 않고 action 만 올려 보낸다 — 받는 쪽이 `RoomDetailAction.tapLocation` 으로 잇는다.
     let onSelectPin: (String) -> Void
@@ -26,7 +31,7 @@ struct ArchiveMapLayer: View {
             if MapService.isConfigured {
                 MapView(
                     camera: ArchiveMap.camera(for: pins),
-                    markers: ArchiveMap.markers(pins: pins, roomColor: roomColor),
+                    markers: ArchiveMap.markers(pins: pins, roomColor: roomColor, selectedPinID: selectedPinID),
                     padding: EdgeInsets(top: 0, leading: 0, bottom: bottomInset, trailing: 0),
                     onEvent: { event in
                         if let id = ArchiveMap.tappedPinID(in: event) { onSelectPin(id) }
@@ -55,8 +60,8 @@ enum ArchiveMap {
     static let fitPadding: Double = 60
 
     /// 방의 핀을 지도 마커로 옮긴다. 마커 `id` 는 핀 id — 탭 이벤트가 이 값으로 되돌아온다.
-    /// 색은 방 하나에 하나라 전부 같다.
-    static func markers(pins: [Pin], roomColor: RoomColor?) -> [MapMarker] {
+    /// 색은 방 하나에 하나라 전부 같고, 지금 열려 있는 핀만 선택 상태가 된다(005-1 ①).
+    static func markers(pins: [Pin], roomColor: RoomColor?, selectedPinID: String?) -> [MapMarker] {
         let roomTint = tint(for: roomColor)
         return pins.map { pin in
             MapMarker(
@@ -66,17 +71,8 @@ enum ArchiveMap {
                     longitude: pin.place.coordinate.longitude
                 ),
                 title: pin.place.name,
-                style: MapMarkerStyle(tint: roomTint)
+                style: MapMarkerStyle(tint: roomTint, isSelected: pin.id.value == selectedPinID)
             )
-        }
-    }
-
-    /// 지도 이벤트에서 "눌린 핀"만 골라낸다. 빈 곳 탭·카메라 이동은 이 화면이 쓰지 않는다 —
-    /// 지도를 움직였다고 시트가 바뀌면 안 되기 때문이다.
-    static func tappedPinID(in event: MapEvent) -> String? {
-        switch event {
-        case .didTapMarker(let id): id
-        case .didTap, .didIdleAt: nil
         }
     }
 
@@ -92,6 +88,15 @@ enum ArchiveMap {
             },
             padding: fitPadding
         )
+    }
+
+    /// 지도 이벤트에서 "눌린 핀"만 골라낸다. 빈 곳 탭·카메라 이동은 이 화면이 쓰지 않는다 —
+    /// 지도를 움직였다고 시트가 바뀌면 안 되기 때문이다.
+    static func tappedPinID(in event: MapEvent) -> String? {
+        switch event {
+        case .didTapMarker(let id): id
+        case .didTap, .didIdleAt: nil
+        }
     }
 
     /// 방 색 → 마커 색.

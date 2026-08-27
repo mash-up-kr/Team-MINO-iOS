@@ -28,6 +28,7 @@ struct ArchiveShellView: View {
                 bottomInset: mapBottomInset,
                 pins: detailStore?.state.pins ?? [],
                 roomColor: coordinator.selectedRoom?.color,
+                selectedPinID: coordinator.selectedPin?.id.value,
                 onSelectPin: { detailStore?.send(.tapLocation($0)) }
             )
 

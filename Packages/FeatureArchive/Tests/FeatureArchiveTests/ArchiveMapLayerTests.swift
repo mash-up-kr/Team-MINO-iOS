@@ -25,7 +25,7 @@ struct ArchiveMapLayerTests {
     @Test("핀마다 마커 하나 — id·좌표·이름을 그대로 옮긴다")
     func markersFromPins() {
         let pins = [pin("a", lat: 37.5, lng: 127.0), pin("b", lat: 37.6, lng: 127.1)]
-        let markers = ArchiveMap.markers(pins: pins, roomColor: .red)
+        let markers = ArchiveMap.markers(pins: pins, roomColor: .red, selectedPinID: nil)
 
         #expect(markers.map(\.id) == ["a", "b"])
         #expect(markers.map(\.coordinate) == [
@@ -37,12 +37,33 @@ struct ArchiveMapLayerTests {
 
     @Test("핀이 없으면 마커도 없다")
     func noPinsNoMarkers() {
-        #expect(ArchiveMap.markers(pins: [], roomColor: .red).isEmpty)
+        #expect(ArchiveMap.markers(pins: [], roomColor: .red, selectedPinID: nil).isEmpty)
     }
 
     @Test("마커 색은 방 색을 따른다")
     func tintFollowsRoomColor() {
-        let markers = ArchiveMap.markers(pins: [pin("a", lat: 37.5, lng: 127.0)], roomColor: .blue)
+        let markers = ArchiveMap.markers(pins: [pin("a", lat: 37.5, lng: 127.0)], roomColor: .blue, selectedPinID: nil)
+        #expect(markers.first?.style.tint == ArchiveMap.tint(for: .blue))
+    }
+
+    @Test("열려 있는 핀의 마커만 선택 상태다")
+    func onlyOpenPinIsSelected() {
+        let pins = [pin("a", lat: 37.5, lng: 127.0), pin("b", lat: 37.6, lng: 127.1)]
+        let markers = ArchiveMap.markers(pins: pins, roomColor: .red, selectedPinID: "b")
+        #expect(markers.map(\.style.isSelected) == [false, true])
+    }
+
+    @Test("선택된 핀이 목록에 없으면 아무 마커도 선택되지 않는다 — 방을 옮기면 이전 선택이 남는다")
+    func staleSelectionSelectsNothing() {
+        let pins = [pin("a", lat: 37.5, lng: 127.0)]
+        let markers = ArchiveMap.markers(pins: pins, roomColor: .red, selectedPinID: "다른-방-핀")
+        #expect(markers.allSatisfy { !$0.style.isSelected })
+    }
+
+    @Test("선택 마커도 방 색을 그대로 쓴다 — 색이 아니라 형식만 달라진다")
+    func selectedMarkerKeepsRoomColor() {
+        let pins = [pin("a", lat: 37.5, lng: 127.0)]
+        let markers = ArchiveMap.markers(pins: pins, roomColor: .blue, selectedPinID: "a")
         #expect(markers.first?.style.tint == ArchiveMap.tint(for: .blue))
     }
 
