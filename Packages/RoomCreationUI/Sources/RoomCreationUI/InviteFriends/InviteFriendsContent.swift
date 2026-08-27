@@ -102,13 +102,15 @@ struct InviteFriendsContent: View {
         switch notice {
         case .linkCopied: "클립 보드에 초대링크가 복사되었어요"   // 시안 009-2 문구 그대로
         case .linkFailed: "초대 링크를 만들지 못했어요. 잠시 후 다시 시도해주세요."
+        // 재시도를 권하지 않는다 — 세션이 끊긴 상태라 다시 눌러도 같은 실패다.
+        case .sessionExpired: "로그인이 만료됐어요. 앱을 다시 열어주세요."
         }
     }
 
     private static func icon(for notice: InviteFriendsNotice) -> MHIcon {
         switch notice {
         case .linkCopied: .checkThick
-        case .linkFailed: .circleExclamationFill
+        case .linkFailed, .sessionExpired: .circleExclamationFill
         }
     }
 
@@ -141,6 +143,10 @@ struct InviteFriendsContent: View {
 
 #Preview("링크 생성 실패") {
     InviteFriendsContent(onTapClose: {}, notice: .linkFailed)
+}
+
+#Preview("세션 만료") {
+    InviteFriendsContent(onTapClose: {}, notice: .sessionExpired)
 }
 
 // 초대할 방이 없는 상태 — 방 생성이 서버에 붙기 전까지 온보딩이 여기에 해당한다.

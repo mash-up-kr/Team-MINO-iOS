@@ -18,6 +18,9 @@ public enum InviteLinkIntent: Equatable, Sendable {
 public enum InviteFriendsNotice: Equatable, Sendable {
     case linkCopied
     case linkFailed
+    /// 세션이 끊겼다. **재시도를 권하면 안 되는 실패**라 따로 둔다 — 같은 화면에서 다시 눌러도
+    /// 계속 401 이다.
+    case sessionExpired
 }
 
 /// 화면이 쓰는 의존.
@@ -79,8 +82,11 @@ public struct InviteFriendsState: Equatable {
     /// 실패를 복사 성공보다 앞세운다 — 둘이 겹치는 유일한 순간은 복사 직후 실패한 재시도라
     /// 방금 일어난 일이 실패다.
     public var notice: InviteFriendsNotice? {
-        if error != nil { return .linkFailed }
-        return didCopyLink ? .linkCopied : nil
+        switch error {
+        case .unauthorized, .sessionUnavailable: .sessionExpired
+        case .some: .linkFailed
+        case .none: didCopyLink ? .linkCopied : nil
+        }
     }
 }
 
