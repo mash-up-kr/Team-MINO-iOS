@@ -4,6 +4,8 @@ import SwiftUI
 struct PlaceDetailHeader: View {
     let place: PlaceDetailPlace
     let isCollapsed: Bool
+    /// 출처 링크가 확보됐는가. 없으면 "원문보기" 는 눌러도 갈 곳이 없어 비활성으로 둔다.
+    let canOpenSource: Bool
     let onOpenMap: () -> Void
     let onOpenSource: () -> Void
     let onShare: () -> Void
@@ -93,6 +95,8 @@ struct PlaceDetailHeader: View {
                     leadingIcon: .documentText,
                     action: onOpenSource
                 )
+                .disabled(!canOpenSource)
+                .accessibilityIdentifier("PlaceDetail.openSource")
                 MHButton(
                     "다른방에 공유",
                     variant: .outlined,
@@ -113,6 +117,7 @@ struct PlaceDetailHeader: View {
     PlaceDetailHeader(
         place: .sample,
         isCollapsed: false,
+        canOpenSource: true,
         onOpenMap: {}, onOpenSource: {}, onShare: {}, onClose: {}
     )
 }
@@ -121,6 +126,16 @@ struct PlaceDetailHeader: View {
     PlaceDetailHeader(
         place: .sample,
         isCollapsed: true,
+        canOpenSource: true,
+        onOpenMap: {}, onOpenSource: {}, onShare: {}, onClose: {}
+    )
+}
+
+#Preview("출처 없음") {
+    PlaceDetailHeader(
+        place: .sample,
+        isCollapsed: false,
+        canOpenSource: false,
         onOpenMap: {}, onOpenSource: {}, onShare: {}, onClose: {}
     )
 }

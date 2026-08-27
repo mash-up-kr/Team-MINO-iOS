@@ -15,6 +15,12 @@ private struct StubFetchPins: FetchPinsUseCase {
 }
 
 
+private struct StubFetchPinDetail: FetchPinDetailUseCase {
+    func execute(pinID: PinID) async throws -> PinDetail {
+        PinDetail(pin: fixturePin, sourceURL: nil)
+    }
+}
+
 private struct StubCreateRoom: CreateRoomUseCase {
     func execute(name: String, description: String?, color: RoomColor) async throws -> Room {
         Room(
@@ -36,6 +42,7 @@ private struct StubSavePin: SavePinToRoomsUseCase {
 private struct StubArchiveDeps: ArchiveDeps {
     var fetchRooms: FetchRoomsUseCase = StubFetchRooms()
     var fetchPins: FetchPinsUseCase = StubFetchPins()
+    var fetchPinDetail: FetchPinDetailUseCase = StubFetchPinDetail()
     var createRoom: CreateRoomUseCase = StubCreateRoom()
     var fetchShareTargets: FetchShareTargetsUseCase = StubShareTargets()
     var savePin: SavePinToRoomsUseCase = StubSavePin()

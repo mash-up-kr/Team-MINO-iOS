@@ -9,6 +9,8 @@ import Domain
 public protocol ArchiveDeps {
     var fetchRooms: FetchRoomsUseCase { get }
     var fetchPins: FetchPinsUseCase { get }
+    /// 장소 상세의 "원문보기" 가 쓰는 핀 단독 조회 — 목록(`fetchPins`)에는 출처 링크가 실리지 않는다.
+    var fetchPinDetail: FetchPinDetailUseCase { get }
     var createRoom: CreateRoomUseCase { get }
     /// 다른 방에 공유 시트가 그릴 방 목록 — 각 방에 이 장소가 이미 있는지까지 함께.
     var fetchShareTargets: FetchShareTargetsUseCase { get }

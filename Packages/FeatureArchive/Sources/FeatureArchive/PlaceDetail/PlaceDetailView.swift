@@ -33,8 +33,9 @@ struct PlaceDetailView: View {
         PlaceDetailHeader(
             place: place,
             isCollapsed: isHeaderCollapsed,
+            canOpenSource: store.state.sourceURL != nil,
             onOpenMap: openMap,
-            onOpenSource: {},
+            onOpenSource: openSource,
             onShare: { store.send(.tapShare) },
             onClose: { store.send(.tapClose) }
         )
@@ -52,6 +53,9 @@ struct PlaceDetailView: View {
                 )
             }
         }
+        // 스토어 인스턴스가 곧 "지금 보고 있는 핀" 이다 — 다른 핀을 고르면 Coordinator 가 새로 만들어
+        // 주므로, id 로 걸어 두면 같은 자리에 뷰가 재사용돼도 출처를 다시 읽는다.
+        .task(id: ObjectIdentifier(store)) { store.send(.load) }
     }
 
     private var divider: some View {
@@ -76,6 +80,11 @@ struct PlaceDetailView: View {
 
     private func openMap() {
         guard let url = PlaceDetailExternalMap.url(forAddress: place.address) else { return }
+        openURL(url)
+    }
+
+    private func openSource() {
+        guard let url = store.state.sourceURL else { return }
         openURL(url)
     }
 }
