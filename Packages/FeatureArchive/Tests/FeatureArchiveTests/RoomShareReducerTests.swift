@@ -140,6 +140,66 @@ struct RoomShareReducerTests {
         store.finish()
     }
 
+    // MARK: - 새 방 만들기 (기획 011-1 ③)
+
+    @Test("L1 — 새 방 만들기는 공동방 만들기로 넘긴다")
+    func tapCreateRoom_navigates() async {
+        let store = makeStore(state: loadedState(selected: ["room-1"]))
+
+        await store.send(.tapCreateRoom)   // 상태 변화 없음 — 시트는 그대로 살아 있다
+        store.receiveNavigation(.goToCreateRoom)
+
+        store.finish()
+    }
+
+    @Test("L3 — 저장 중에는 새 방 만들기로 나가지 않는다")
+    func tapCreateRoom_ignoredWhileSaving() async {
+        let store = makeStore(state: loadedState(selected: ["room-1"], isSaving: true))
+
+        await store.send(.tapCreateRoom)   // 상태 변화 없음
+
+        // 미처리 navigation 이 남아 있으면 여기서 실패한다 — 저장이 끝나 시트가 닫히는 자리에
+        // 커버가 떠 있으면 안 된다.
+        store.finish()
+    }
+
+    @Test("L2 — 방을 만들고 돌아오면 목록을 다시 받고, 고르던 선택은 그대로다")
+    func createRoomFinished_created_reloadsAndKeepsSelection() async {
+        let afterCreate = targets + [ShareTarget(room: fixtureRoom("room-3"), alreadySaved: false)]
+        let store = makeStore(
+            targets: StubShareTargets(targets: afterCreate),
+            state: loadedState(selected: ["room-1"])
+        )
+
+        await store.send(.createRoomFinished(.created)) { $0.isLoading = true }
+        await store.receive(.loaded(afterCreate)) {
+            $0.isLoading = false
+            $0.rooms = afterCreate.map { RoomShareRoom(from: $0.room) }
+            $0.alreadySavedRoomIDs = ["room-0"]
+        }
+
+        // 새 방이 목록에 들어왔다.
+        #expect(store.currentState.rooms.map(\.id).contains("room-3"))
+        // 이 이슈의 핵심 — 방을 만들러 다녀와도 고르던 체크가 살아 있다.
+        #expect(store.currentState.selection.ids == ["room-1"])
+        #expect(store.currentState.canSubmit)
+        store.finish()
+    }
+
+    @Test("L3 — 취소로 돌아오면 목록을 다시 받지 않는다")
+    func createRoomFinished_cancelled_doesNotReload() async {
+        let store = makeStore(
+            targets: StubShareTargets(targets: targets),
+            state: loadedState(selected: ["room-1"])
+        )
+
+        await store.send(.createRoomFinished(.cancelled))   // 상태 변화 없음
+
+        #expect(store.currentState.selection.ids == ["room-1"])
+        // 미처리 effect 가 남아 있으면(= 불필요한 재조회) 여기서 실패한다.
+        store.finish()
+    }
+
     // MARK: - 저장
 
     @Test("L1 — 아무 방도 고르지 않으면 공유하기가 아무 일도 하지 않는다")
