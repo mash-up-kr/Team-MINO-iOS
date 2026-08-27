@@ -13,9 +13,19 @@ struct PlaceDetailState: Equatable {
     /// 그러면 어떤 코멘트도 내 것으로 보지 않아 남의 글에 삭제가 붙는 사고가 나지 않는다.
     var currentMember: MemberProfile?
     var isLoadingCurrentMember = false
+    /// 삭제 메뉴가 열려 있는 코멘트. 목록 전체에서 하나만 열린다.
+    ///
+    /// 방 상세의 케밥 메뉴는 열림 상태를 View 가 들지만(모든 카드에 케밥이 있어 UI 사정일 뿐),
+    /// 이쪽은 **열 수 있는지 자체가 소유 판정**이라 reduce 가 쥔다.
+    var menuCommentID: PlaceDetailComment.ID?
 }
 
 extension PlaceDetailState {
+    /// 이 코멘트에 삭제 케밥을 붙일 수 있는가. 뷰가 그릴지 말지를 이 값 하나로 정한다.
+    func canDelete(_ comment: PlaceDetailComment) -> Bool {
+        comment.isWritten(by: currentMember?.id)
+    }
+
     /// 코멘트를 등록할 수 있는가. 작성자를 신원으로 싣기 때문에 내가 누구인지 모르면 쓸 수 없다.
     var canSubmitComment: Bool { currentMember != nil }
 }
@@ -28,6 +38,9 @@ enum PlaceDetailAction: Equatable {
     case currentMemberLoaded(MemberProfile)
     case currentMemberLoadFailed(DomainError)
     case submitComment(String)
+    case tapCommentMenu(PlaceDetailComment.ID)
+    case dismissCommentMenu
+    case deleteComment(PlaceDetailComment.ID)
     case tapClose
     case tapShare
 }
@@ -110,6 +123,26 @@ func placeDetailReducer(
             state.comments.append(
                 PlaceDetailComment(id: makeCommentID(), author: author, body: body)
             )
+            return .none
+
+        case .tapCommentMenu(let id):
+            // 남의 코멘트엔 케밥이 없지만, 소유 판정을 뷰에만 맡기지 않는다.
+            let viewer = state.currentMember?.id
+            guard state.comments.contains(where: { $0.id == id && $0.isWritten(by: viewer) })
+            else { return .none }
+            state.menuCommentID = id
+            return .none
+
+        case .dismissCommentMenu:
+            state.menuCommentID = nil
+            return .none
+
+        case .deleteComment(let id):
+            state.menuCommentID = nil
+            // 서버 API 가 없어 목록에서 빼는 게 전부다. 그래도 소유는 여기서 한 번 더 본다 —
+            // 이 화면이 언젠가 삭제 UseCase 를 부르게 되면 그 호출을 감쌀 자리가 여기다.
+            let viewer = state.currentMember?.id
+            state.comments.removeAll { $0.id == id && $0.isWritten(by: viewer) }
             return .none
 
         case .tapClose:

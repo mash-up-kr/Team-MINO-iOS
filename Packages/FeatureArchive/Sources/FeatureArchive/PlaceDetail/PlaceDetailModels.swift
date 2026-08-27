@@ -34,6 +34,16 @@ struct PlaceDetailComment: Identifiable, Equatable {
     static let bodyLimit = 200
 }
 
+extension PlaceDetailComment {
+    /// 이 코멘트를 지울 수 있는 사람인가 — 닉네임이 아니라 **식별자**로만 판정한다.
+    /// 닉네임으로 보면 남이 "나" 로 개명하는 순간 그 사람 코멘트에 내 삭제 버튼이 붙는다.
+    ///
+    /// `viewer` 가 nil(내 신원을 아직·끝내 못 가져옴)이면 항상 false — 모르면 못 지우는 쪽으로 실패한다.
+    func isWritten(by viewer: MemberID?) -> Bool {
+        author.id == viewer
+    }
+}
+
 extension PlaceDetailPlace {
     static let sample = PlaceDetailPlace(
         name: "레이어스튜디오 10",
@@ -48,6 +58,8 @@ extension PlaceDetailPlace {
 }
 
 extension PlaceDetailComment {
+    /// 프리뷰용 표본. `c2` 만 앱이 목업으로 물려 둔 현재 사용자(`user-0001`)라, 프리뷰에서
+    /// 케밥이 그 한 줄에만 붙는다.
     static let samples: [PlaceDetailComment] = [
         PlaceDetailComment(
             id: "c1",

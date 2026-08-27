@@ -53,8 +53,12 @@ struct PlaceDetailView: View {
                 divider
                 PlaceDetailCommentSection(
                     comments: store.state.comments,
+                    menuCommentID: store.state.menuCommentID,
+                    canDelete: store.state.canDelete,
                     draft: $draft,
                     canSubmit: store.state.canSubmitComment,
+                    onToggleMenu: toggleCommentMenu,
+                    onDelete: { store.send(.deleteComment($0)) },
                     onSubmit: submitComment
                 )
             }
@@ -87,6 +91,10 @@ struct PlaceDetailView: View {
         draft = ""
     }
 
+    private func toggleCommentMenu(_ id: PlaceDetailComment.ID?) {
+        store.send(id.map { .tapCommentMenu($0) } ?? .dismissCommentMenu)
+    }
+
     private func openMap() {
         guard let url = PlaceDetailExternalMap.url(forAddress: place.address) else { return }
         openURL(url)
@@ -107,6 +115,7 @@ private final class CollapseRef {
         PlaceDetailState(
             place: .sample,
             comments: PlaceDetailComment.samples,
+            // 표본 중 `c2` 의 작성자 — 이 한 줄에만 삭제 케밥이 붙는다.
             currentMember: MemberProfile(id: MemberID("user-0001"), nickname: "나", avatarID: 1)
         ),
         reduce: { _, _ in .none }
