@@ -11,26 +11,25 @@ struct SavePostRoomMappingTests {
         type: RoomType,
         name: String,
         description: String? = nil,
-        color: String,
+        color: RoomColor?,
         pinCount: Int = 0
     ) -> Room {
         Room(
             id: "room-1", type: type, name: name, description: description,
-            color: color, ownerId: "owner", inviteCode: "CODE",
-            createdAt: Date(timeIntervalSince1970: 0),
+            color: color, ownerId: "owner", createdAt: Date(timeIntervalSince1970: 0),
             pinCount: pinCount, memberCount: 1, users: []
         )
     }
 
     @Test("개인방 이름은 서버 값과 무관하게 '내 장소'로 고정된다")
     func personalRoomNameIsFixed() {
-        let mapped = SavePostRoom(room(type: .personal, name: "나의 아지트", color: "#00BDDE"))
+        let mapped = SavePostRoom(room(type: .personal, name: "나의 아지트", color: nil))
         #expect(mapped.name == "내 장소")
     }
 
     @Test("공동방 이름은 서버 값 그대로 — 뱃지와 달리 '방' 접미사를 붙이지 않는다")
     func sharedRoomNameHasNoSuffix() {
-        let source = room(type: .shared, name: "매쉬업 화이팅", color: "#FFC06E")
+        let source = room(type: .shared, name: "매쉬업 화이팅", color: .orange)
         let mapped = SavePostRoom(source)
         #expect(mapped.name == "매쉬업 화이팅")
         // 같은 방이라도 홈 뱃지 표기는 "…방" 이라 서로 다르다 — 시안 차이를 고정해 둔다.
@@ -41,7 +40,7 @@ struct SavePostRoomMappingTests {
     func passesThroughDescriptionAndCounts() {
         let mapped = SavePostRoom(
             room(type: .shared, name: "언젠가 가야지", description: "저장만 하고 안 간 곳들",
-                 color: "#FFC06E", pinCount: 3)
+                 color: .orange, pinCount: 3)
         )
         #expect(mapped.id == "room-1")
         #expect(mapped.memo == "저장만 하고 안 간 곳들")
@@ -50,18 +49,18 @@ struct SavePostRoomMappingTests {
 
     @Test("메모가 없는 방은 memo 가 nil 이라 시트가 한 줄로 그린다")
     func nilDescriptionStaysNil() {
-        #expect(SavePostRoom(room(type: .shared, name: "내 방", color: "#FFC06E")).memo == nil)
+        #expect(SavePostRoom(room(type: .shared, name: "내 방", color: .orange)).memo == nil)
     }
 
     @Test("방 색이 팔레트에 있으면 그 색 썸네일을 쓴다")
     func thumbnailUsesRoomColor() {
-        #expect(SavePostRoom(room(type: .shared, name: "방", color: "#FFC06E")).thumbnail == .color(.orange))
-        #expect(SavePostRoom(room(type: .personal, name: "방", color: "#0098B2")).thumbnail == .color(.cyan))
+        #expect(SavePostRoom(room(type: .shared, name: "방", color: .orange)).thumbnail == .color(.orange))
+        #expect(SavePostRoom(room(type: .personal, name: "방", color: .cyan)).thumbnail == .color(.cyan))
     }
 
     @Test("팔레트에 없는 색은 my-room 썸네일로 떨어진다")
     func thumbnailFallsBackToMyRoom() {
         // 서버가 피커 밖의 색을 주더라도 빈 자리가 뜨지 않아야 한다.
-        #expect(SavePostRoom(room(type: .shared, name: "방", color: "#123456")).thumbnail == .myRoom)
+        #expect(SavePostRoom(room(type: .shared, name: "방", color: nil)).thumbnail == .myRoom)
     }
 }

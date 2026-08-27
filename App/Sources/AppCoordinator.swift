@@ -19,7 +19,11 @@ final class AppCoordinator {
     /// 온보딩 완료 보고를 여기로 밀어넣어야 해서 View 의 `@State` 에 둘 수 없다.
     let launch: AppLaunchStore
 
+    /// 온보딩 Coordinator 는 flow 1회당 새로 만들므로 deps 를 들고 있다가 그때 넘긴다.
+    private let deps: AppDependencies
+
     init(deps: AppDependencies) {
+        self.deps = deps
         self.home = HomeCoordinator(deps: deps)
         self.archive = ArchiveCoordinator(deps: deps)
         self.notification = NotificationCoordinator(deps: deps)
@@ -36,7 +40,7 @@ final class AppCoordinator {
     /// (`OnboardingCoordinator` 타입 주석). 인스턴스는 화면(`OnboardingHost`)이 소유하고,
     /// `.main` 으로 넘어가면 그 화면과 함께 버려진다.
     func makeOnboarding() -> OnboardingCoordinator {
-        let child = OnboardingCoordinator()
+        let child = OnboardingCoordinator(deps: deps)
         child.finish.bind { [weak self] result in
             switch result {
             // 초대 착지는 딥링크 배선이 붙을 때 처리한다 — 지금은 방을 열 화면이 없다.

@@ -14,9 +14,21 @@ private struct StubFetchPins: FetchPinsUseCase {
     func execute(room: Room, page: Int, filter: PinFilter) async throws -> [Pin] { [] }
 }
 
+
+private struct StubCreateRoom: CreateRoomUseCase {
+    func execute(name: String, description: String?, color: RoomColor) async throws -> Room {
+        Room(
+            id: "new", type: .shared, name: name, description: description, color: color,
+            ownerId: "u1", createdAt: Date(timeIntervalSince1970: 0),
+            pinCount: 0, memberCount: 1, users: []
+        )
+    }
+}
+
 private struct StubArchiveDeps: ArchiveDeps {
     var fetchRooms: FetchRoomsUseCase = StubFetchRooms()
     var fetchPins: FetchPinsUseCase = StubFetchPins()
+    var createRoom: CreateRoomUseCase = StubCreateRoom()
     var roomCreationPromptSnooze = SnoozeSwitch(
         key: "ArchiveCoordinatorTests.prompt",
         period: .days(14),
@@ -25,8 +37,8 @@ private struct StubArchiveDeps: ArchiveDeps {
 }
 
 private let fixtureRoom = Room(
-    id: "r2", type: .shared, name: "우리 동네 맛집", description: "메모", color: "#FFC06E",
-    ownerId: "u1", inviteCode: "C2", createdAt: Date(timeIntervalSince1970: 0),
+    id: "r2", type: .shared, name: "우리 동네 맛집", description: "메모", color: .orange,
+    ownerId: "u1", createdAt: Date(timeIntervalSince1970: 0),
     pinCount: 3, memberCount: 2, users: []
 )
 
@@ -126,7 +138,7 @@ struct ArchiveCoordinatorTests {
 
     @Test("방 만들기의 확정·취소·건너뛰기는 모두 방 리스트로 pop 한다")
     func handleRoomFormNav_popsToRoomList() {
-        for nav: RoomFormNav in [.didSubmit, .didCancel, .didSkip] {
+        for nav: RoomFormNav in [.didSubmit(roomId: "room-1"), .didCancel, .didSkip] {
             let coordinator = ArchiveCoordinator(deps: StubArchiveDeps())
             coordinator.handle(RoomListNav.goToCreateRoom)
 

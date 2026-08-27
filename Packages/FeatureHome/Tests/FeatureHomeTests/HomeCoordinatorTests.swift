@@ -1,4 +1,5 @@
 import Domain
+import Foundation
 import RoomCreationUI
 import Testing
 @testable import FeatureHome
@@ -9,6 +10,7 @@ private struct StubDeps: HomeDeps {
     var lastViewedRoom: LastViewedRoomUseCase = StubLastViewedRoom()
     var homeGuide: HomeGuideUseCase = StubHomeGuide()
     var savePin: SavePinToRoomsUseCase = StubSavePin()
+    var createRoom: CreateRoomUseCase = StubCreateRoom()
 }
 
 private struct StubFetchRooms: FetchRoomsUseCase {
@@ -34,6 +36,17 @@ private struct StubSavePin: SavePinToRoomsUseCase {
     func execute(pinID: PinID, roomIDs: Set<String>) async throws {}
 }
 
+private struct StubCreateRoom: CreateRoomUseCase {
+    func execute(name: String, description: String?, color: RoomColor) async throws -> Room {
+        Room(
+            id: "new", type: .shared, name: name, description: description, color: color,
+            ownerId: "u1", createdAt: Date(timeIntervalSince1970: 0),
+            pinCount: 0, memberCount: 1, users: []
+        )
+    }
+}
+
+
 @MainActor
 struct HomeCoordinatorTests {
     @Test("생성 직후 내비게이션 스택은 비어 있다")
@@ -52,7 +65,7 @@ struct HomeCoordinatorTests {
     func handleRoomFormNav_popsHome() {
         let coordinator = HomeCoordinator(deps: StubDeps())
         coordinator.handle(.goToCreateRoom)
-        coordinator.handle(RoomFormNav.didSubmit)
+        coordinator.handle(RoomFormNav.didSubmit(roomId: "room-1"))
         #expect(coordinator.path.isEmpty)
     }
 }

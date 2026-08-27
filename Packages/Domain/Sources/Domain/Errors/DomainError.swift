@@ -5,6 +5,8 @@ import Foundation
 public enum DomainError: Error, Equatable, Sendable {
     case memberNotFound
     case roomsFetchFailed
+    /// 방을 만들거나 고치지 못했다.
+    case roomSaveFailed
     case notificationsFetchFailed
     case unauthorized
     /// 세션을 확보하지 못했다. 인증 수단에 닿지 못한 경우(네트워크 단절 등)로,

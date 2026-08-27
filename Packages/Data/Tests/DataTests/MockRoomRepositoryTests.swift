@@ -27,6 +27,8 @@ struct MockRoomRepositoryTests {
         #expect(first.id == "00000000-0000-0000-0000-000000000001")
         #expect(first.type == .personal)
         #expect(first.users.count == 1)
+        // 개인방은 색을 고른 적이 없어 gray 다.
+        #expect(first.color == .gray)
     }
 
     @Test("공유 방은 shared 타입이고 멤버가 2명 이상이다")
@@ -39,5 +41,6 @@ struct MockRoomRepositoryTests {
         #expect(shared.type == .shared)
         #expect(shared.users.count == 3)
         #expect(shared.pinCount == 12)
+        #expect(shared.color == .orange)
     }
 }

@@ -38,8 +38,10 @@ public final class OnboardingCoordinator: Coordinator {
     /// 링크 문법 검증은 시스템 경계(`Core.DeeplinkParser`)가 이미 했으므로 여기서 다시 보지 않는다.
     /// 1회 실행분 입력이라 생성자에 둔다 — 대기 중인 딥링크를 온보딩이 훔쳐보는 API 는 필요 없다.
     private let inviteCode: String?
+    private let deps: OnboardingDeps
 
-    public init(inviteCode: String? = nil) {
+    public init(deps: OnboardingDeps, inviteCode: String? = nil) {
+        self.deps = deps
         // 빈 값은 초대로 보지 않는다 — 빈 문자열이 흘러들면 방 생성을 건너뛴 채
         // 열 수 없는 방 코드로 끝나는데, 그 오작동이 조용해서 배선 실수를 못 잡는다.
         self.inviteCode = inviteCode?.nilIfEmpty
@@ -56,9 +58,10 @@ public final class OnboardingCoordinator: Coordinator {
     }
 
     func makeRoomFormStore() -> RoomFormStore {
-        let store = RoomFormStore(RoomFormState(), reduce: roomFormReducer())
-        store.observeNavigation { [weak self] in self?.handle($0) }
-        return store
+        RoomCreationUI.makeRoomFormStore(
+            .create(create: deps.createRoom),
+            handle: { [weak self] in self?.handle($0) }
+        )
     }
 
     func makeTutorialStore() -> TutorialStore {

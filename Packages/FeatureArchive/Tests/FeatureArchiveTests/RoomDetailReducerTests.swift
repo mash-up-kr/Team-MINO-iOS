@@ -7,8 +7,8 @@ import MVITestSupport
 private let fixtureNow = Date(timeIntervalSince1970: 1_700_000_000)
 
 private let fixtureRoom = Room(
-    id: "r2", type: .shared, name: "우리 동네 맛집", description: "메모", color: "#FFC06E",
-    ownerId: "u1", inviteCode: "C2", createdAt: Date(timeIntervalSince1970: 0),
+    id: "r2", type: .shared, name: "우리 동네 맛집", description: "메모", color: .orange,
+    ownerId: "u1", createdAt: Date(timeIntervalSince1970: 0),
     pinCount: 3, memberCount: 2, users: []
 )
 
