@@ -57,9 +57,9 @@ struct ProfileRepositoryImplTests {
         #expect(profile.avatarColor == nil)
     }
 
-    // 서버가 avatar 객체를 주면서 color 를 빠뜨리는 응답이 실측으로 확인됐다.
-    // 여기서 깨지면 프로필 전체를 못 읽어 앱 진입이 막힌다.
-    @Test("color 없는 avatar 도 읽는다 — 아바타 없음으로 떨어뜨린다")
+    // 아바타가 { id: Int } 이던 시절에 가입한 계정은 avatar 에 color 가 없다(실측).
+    // 회원 삭제 API 가 없어 그 계정을 지울 수도 없는데, 여기서 깨지면 앱 진입이 막힌다.
+    @Test("color 없는 avatar 도 읽는다 — 구 계약으로 가입한 계정")
     func me_withAvatarMissingColor() async throws {
         let client = StubHTTPClient(result: .success(ProfileDTO(
             id: "user-1", nickname: "꾹이", avatar: AvatarDTO(color: nil),

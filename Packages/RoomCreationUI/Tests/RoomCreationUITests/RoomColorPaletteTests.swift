@@ -61,12 +61,13 @@ struct RoomColorPaletteTests {
         #expect(RoomColorPalette.thumbnail(for: row.color) == row.thumbnail)
     }
 
-    // 서버로 나가는 문자열이라 오타 하나가 곧 400 이다. Figma Atomic 토큰명을 kebab-case 로 옮긴 값이다.
+    // 서버로 나가는 문자열이라 오타 하나가 곧 400 이다. 다중 단어는 snake_case —
+    // kebab 을 보내면 "색상은 팔레트 키 중 하나여야 합니다" 로 거부된다(실측).
     @Test("서버 전송 문자열(rawValue)을 고정한다")
     func rawValuesMatchServerContract() {
         #expect(RoomColor.red.rawValue == "red")
-        #expect(RoomColor.redOrange.rawValue == "red-orange")
-        #expect(RoomColor.lightBlue.rawValue == "light-blue")
+        #expect(RoomColor.redOrange.rawValue == "red_orange")
+        #expect(RoomColor.lightBlue.rawValue == "light_blue")
         #expect(RoomColor.gray.rawValue == "gray")
         // 나머지는 단어 하나라 케이스명과 같다.
         #expect(RoomColor.allCases.allSatisfy { !$0.rawValue.contains(" ") })
