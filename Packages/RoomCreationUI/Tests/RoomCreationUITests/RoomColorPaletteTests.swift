@@ -33,6 +33,12 @@ struct RoomColorPaletteTests {
         #expect(Set(RoomColorPalette.entries.map(\.color)) == Set(RoomColor.allCases))
     }
 
+    // 색을 안 고른 채 확정하면 이 색이 서버로 나간다 — 피커 첫 칸과 달라지면 "본 것과 저장된 것"이 갈린다.
+    @Test("기본색은 피커 첫 칸과 같다")
+    func defaultColorMatchesFirstEntry() {
+        #expect(RoomColorPalette.defaultColor == RoomColorPalette.color(at: 0))
+    }
+
     @Test("인덱스마다 정해진 썸네일 색이 나온다", arguments: expected)
     func thumbnailAtIndex(_ row: (index: Int, color: RoomColor, thumbnail: MHRoomThumbnailColor)) {
         #expect(RoomColorPalette.thumbnail(at: row.index) == row.thumbnail)

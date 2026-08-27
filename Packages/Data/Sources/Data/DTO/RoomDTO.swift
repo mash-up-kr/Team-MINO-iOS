@@ -30,6 +30,23 @@ struct RoomMemberDTO: Decodable {
     }
 }
 
+/// 방 생성(`POST`)·수정(`PATCH`) 요청 본문.
+///
+/// 수정은 스펙상 세 필드가 모두 옵셔널이지만 폼이 항상 전체 값을 들고 있어 그대로 다 보낸다 —
+/// 그래서 두 요청이 같은 타입을 쓴다. 부분 수정이 필요해지면 그때 나눈다.
+struct SaveRoomRequestDTO: Encodable, Sendable {
+    let name: String
+    let description: String?
+    /// 서버는 hex 가 아니라 색 이름을 받는다 — 인코딩 지점을 여기 하나로 모은다.
+    let color: String
+
+    init(name: String, description: String?, color: RoomColor) {
+        self.name = name
+        self.description = description
+        self.color = color.rawValue
+    }
+}
+
 extension RoomDTO {
     /// 경계(Data → Domain) 변환. DTO 를 Entity 로 매핑한다.
     /// 알 수 없는 `type` 은 `shared`, 팔레트에 없는 `color` 는 `nil` 로 보수적 처리한다.

@@ -66,9 +66,12 @@ public final class ArchiveCoordinator: Coordinator {
         )
     }
 
-    /// 공동방 만들기 Store 팩토리. roomFormReducer 는 의존이 없어 그대로 조립한다(RoomCreationUI 는 UI 전용).
+    /// 공동방 만들기 Store 팩토리.
     func makeRoomFormStore() -> RoomFormStore {
-        Store(RoomFormState(mode: .create), reduce: roomFormReducer(), handle: { [weak self] in self?.handle($0) })
+        RoomCreationUI.makeRoomFormStore(
+            .create(create: deps.createRoom),
+            handle: { [weak self] in self?.handle($0) }
+        )
     }
 
     // MARK: - Effect Routing
@@ -85,7 +88,7 @@ public final class ArchiveCoordinator: Coordinator {
     func handle(_ nav: RoomFormNav) {
         switch nav {
         case .didSubmit, .didCancel, .didSkip:
-            // 생성/취소 후 방 리스트로 복귀. (실제 방 생성 로직은 후속 — 현재 RoomCreationUI 는 UI 전용)
+            // 저장은 폼이 이미 끝냈다 — 여기 오면 서버에 반영된 뒤다. 취소도 같은 자리로 돌아간다.
             pop()
         }
     }

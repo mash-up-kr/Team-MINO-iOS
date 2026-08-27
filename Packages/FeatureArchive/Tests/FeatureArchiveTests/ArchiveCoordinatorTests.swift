@@ -15,9 +15,20 @@ private struct StubFetchPins: FetchPinsUseCase {
 }
 
 
+private struct StubCreateRoom: CreateRoomUseCase {
+    func execute(name: String, description: String?, color: RoomColor) async throws -> Room {
+        Room(
+            id: "new", type: .shared, name: name, description: description, color: color,
+            ownerId: "u1", createdAt: Date(timeIntervalSince1970: 0),
+            pinCount: 0, memberCount: 1, users: []
+        )
+    }
+}
+
 private struct StubArchiveDeps: ArchiveDeps {
     var fetchRooms: FetchRoomsUseCase = StubFetchRooms()
     var fetchPins: FetchPinsUseCase = StubFetchPins()
+    var createRoom: CreateRoomUseCase = StubCreateRoom()
     var roomCreationPromptSnooze = SnoozeSwitch(
         key: "ArchiveCoordinatorTests.prompt",
         period: .days(14),

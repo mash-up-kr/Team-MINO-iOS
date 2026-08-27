@@ -41,6 +41,10 @@ public enum RoomColorPalette {
         color(at: index).map(thumbnail(for:))
     }
 
+    /// 색을 고르지 않고 확정했을 때 보낼 색 — 서버가 `color` 를 필수로 요구한다.
+    /// 피커 첫 칸과 같은 색이다(`entries[0]`).
+    public static let defaultColor: RoomColor = .red
+
     /// 인덱스 → 서버로 보낼 방 색. 범위 밖이면 `nil`.
     public static func color(at index: Int) -> RoomColor? {
         entries.indices.contains(index) ? entries[index].color : nil

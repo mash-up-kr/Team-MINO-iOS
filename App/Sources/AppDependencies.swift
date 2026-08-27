@@ -5,13 +5,14 @@ import Feature
 import FeatureArchive
 import FeatureHome
 import FeatureNotification
+import FeatureOnboarding
 import Foundation
 import Networking
 
 /// 컴포지션 루트(Composition Root).
 /// 앱 타깃만이 구체 타입을 알고, 의존성 그래프를 손으로 조립한다.
 /// 각 Coordinator 의 deps 프로토콜(`MemberDeps`·`HomeDeps`·`ArchiveDeps` 등)을 이 한 타입이 준수한다.
-struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, LaunchDeps {
+struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, LaunchDeps, OnboardingDeps {
     let fetchMember: FetchMemberUseCase
     let fetchRooms: FetchRoomsUseCase
     let fetchPins: FetchPinsUseCase
@@ -19,6 +20,7 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
     let lastViewedRoom: LastViewedRoomUseCase
     let homeGuide: HomeGuideUseCase
     let savePin: SavePinToRoomsUseCase
+    let createRoom: CreateRoomUseCase
     let roomCreationPromptSnooze: SnoozeSwitch
     let ensureSession: EnsureSessionUseCase
     let onboarding: OnboardingUseCase
@@ -61,6 +63,11 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
         // 다른 방 저장: 저장 API 미연결 → Mock Repository(지연만 주고 성공) 사용.
         // 추후 SavePinRepositoryImpl 로 교체한다.
         self.savePin = DefaultSavePinToRoomsUseCase(repository: MockSavePinRepository())
+
+        // 방 생성: 실 API. 편집(UpdateRoomUseCase)은 진입점이 아직 없어 조립하지 않는다.
+        self.createRoom = DefaultCreateRoomUseCase(
+            repository: RoomEditingRepositoryImpl(client: httpClient)
+        )
 
         // 공동방 생성 유도 시트: "나중에 만들래요" 를 누르면 2주 동안 띄우지 않는다(기획 001-2-1).
         self.roomCreationPromptSnooze = SnoozeSwitch(key: "roomCreationPrompt.snoozedAt", period: .days(14))

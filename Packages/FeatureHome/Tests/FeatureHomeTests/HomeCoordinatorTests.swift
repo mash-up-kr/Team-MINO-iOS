@@ -1,4 +1,5 @@
 import Domain
+import Foundation
 import RoomCreationUI
 import Testing
 @testable import FeatureHome
@@ -9,6 +10,7 @@ private struct StubDeps: HomeDeps {
     var lastViewedRoom: LastViewedRoomUseCase = StubLastViewedRoom()
     var homeGuide: HomeGuideUseCase = StubHomeGuide()
     var savePin: SavePinToRoomsUseCase = StubSavePin()
+    var createRoom: CreateRoomUseCase = StubCreateRoom()
 }
 
 private struct StubFetchRooms: FetchRoomsUseCase {
@@ -33,6 +35,17 @@ private struct StubHomeGuide: HomeGuideUseCase {
 private struct StubSavePin: SavePinToRoomsUseCase {
     func execute(pinID: PinID, roomIDs: Set<String>) async throws {}
 }
+
+private struct StubCreateRoom: CreateRoomUseCase {
+    func execute(name: String, description: String?, color: RoomColor) async throws -> Room {
+        Room(
+            id: "new", type: .shared, name: name, description: description, color: color,
+            ownerId: "u1", createdAt: Date(timeIntervalSince1970: 0),
+            pinCount: 0, memberCount: 1, users: []
+        )
+    }
+}
+
 
 @MainActor
 struct HomeCoordinatorTests {
