@@ -5,7 +5,7 @@ import GoogleMaps
 /// GoogleMaps `GMSMapView` 를 SwiftUI 로 감싼 브릿지. **MapUI 에서 유일하게 GoogleMaps 를 import 하는 지점.**
 /// 바깥에는 순수 value type(`MapCameraPosition`/`MapMarker`)과 `onEvent` 클로저만 노출한다.
 public struct MapView: UIViewRepresentable {
-    private let camera: MapCameraPosition
+    private let camera: MapCamera
     private let markers: [MapMarker]
     /// 지도 위에 겹치는 UI(바텀시트 등)가 가리는 영역. 구글 로고·저작권 표시가 이 안쪽으로 밀려
     /// 가려지지 않는다 — Google Maps Platform 약관이 attribution 가림을 금지한다.
@@ -13,7 +13,7 @@ public struct MapView: UIViewRepresentable {
     private let onEvent: (MapEvent) -> Void
 
     public init(
-        camera: MapCameraPosition,
+        camera: MapCamera,
         markers: [MapMarker],
         padding: EdgeInsets = EdgeInsets(),
         onEvent: @escaping (MapEvent) -> Void
@@ -30,7 +30,11 @@ public struct MapView: UIViewRepresentable {
 
     public func makeUIView(context: Context) -> GMSMapView {
         let options = GMSMapViewOptions()
-        options.camera = camera.gmsCameraPosition
+        // .fit 은 뷰 크기가 있어야 계산되므로 여기서 넣을 초기 위치가 없다 —
+        // 레이아웃이 잡힌 뒤 updateUIView 에서 적용된다(apply(camera:) 의 크기 가드).
+        if case .position(let position) = camera {
+            options.camera = position.gmsCameraPosition
+        }
         let mapView = GMSMapView(options: options)
         mapView.delegate = context.coordinator
         // safe-area 를 padding 에 더하는 기본 동작을 명시로 고정한다. 호출부는 "화면 하단에서
@@ -58,7 +62,7 @@ public struct MapView: UIViewRepresentable {
 
         /// 이미 적용한 마커/카메라 — 매 update 마다 불필요한 재적용(및 카메라 되먹임 루프)을 막는다.
         private var appliedMarkers: [MapMarker] = []
-        private var appliedCamera: MapCameraPosition?
+        private var appliedCamera: MapCamera?
         /// 카메라와 별도 필드여야 한다 — `appliedCamera` 는 idle 델리게이트가 되먹임 방지용으로
         /// 덮어쓰므로, 여기에 얹으면 지도를 움직일 때마다 padding 판정이 오염된다.
         private var appliedPadding: EdgeInsets?
@@ -112,11 +116,21 @@ public struct MapView: UIViewRepresentable {
             return image
         }
 
-        func apply(camera: MapCameraPosition, to mapView: GMSMapView) {
+        func apply(camera: MapCamera, to mapView: GMSMapView) {
             guard camera != appliedCamera else { return }
-            appliedCamera = camera
-            // 코드 주도 이동은 부드럽게 애니메이션 (즉시 점프가 필요해지면 MapCameraPosition 에 옵션 추가)
-            mapView.animate(to: camera.gmsCameraPosition)
+            switch camera {
+            case .position(let position):
+                appliedCamera = camera
+                // 코드 주도 이동은 부드럽게 애니메이션 (즉시 점프가 필요해지면 MapCameraPosition 에 옵션 추가)
+                mapView.animate(to: position.gmsCameraPosition)
+
+            case .fit(let coordinates, let padding):
+                // 크기가 0 이면 SDK 가 맞출 화면이 없어 계산이 무의미하다. appliedCamera 를
+                // 기록하지 않고 넘겨 레이아웃이 잡힌 다음 업데이트에서 다시 시도하게 둔다.
+                guard let bounds = coordinates.gmsBounds, mapView.bounds.size != .zero else { return }
+                appliedCamera = camera
+                mapView.animate(with: GMSCameraUpdate.fit(bounds, withPadding: padding))
+            }
         }
 
         func apply(padding: EdgeInsets, to mapView: GMSMapView) {
@@ -139,9 +153,15 @@ public struct MapView: UIViewRepresentable {
         }
 
         public func mapView(_ mapView: GMSMapView, idleAt position: GMSCameraPosition) {
-            // 되먹임 방지: 방금 코드로 적용한 카메라와 같으면 이벤트를 흘리지 않는다.
             let idle = position.mapCameraPosition
-            appliedCamera = idle   // 방금 적용한 값으로 기록 → 되먹임 시 재적용 스킵
+            switch appliedCamera {
+            case .position, .none:
+                appliedCamera = .position(idle)   // 방금 도달한 값으로 기록 → 되먹임 시 재적용 스킵
+            case .fit:
+                // .fit 은 덮어쓰지 않는다. 덮어쓰면 같은 fit 이 다시 들어올 때 값이 달라져
+                // 재적용되고, 사용자가 손으로 옮긴 화면이 원래 자리로 튕긴다.
+                break
+            }
             onEvent(.didIdleAt(idle))
         }
     }
@@ -189,6 +209,17 @@ private extension EdgeInsets {
 private extension MapCoordinate {
     var clCoordinate: CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+    }
+}
+
+private extension Array where Element == MapCoordinate {
+    /// 좌표를 모두 감싸는 사각형. 비어 있으면 `nil`.
+    /// 좌표가 하나면 넓이 0 인 bounds 가 되는데, SDK 가 그 경우 최대 줌으로 맞춰 준다.
+    var gmsBounds: GMSCoordinateBounds? {
+        guard let first else { return nil }
+        return dropFirst().reduce(GMSCoordinateBounds(coordinate: first.clCoordinate, coordinate: first.clCoordinate)) {
+            $0.includingCoordinate($1.clCoordinate)
+        }
     }
 }
 
