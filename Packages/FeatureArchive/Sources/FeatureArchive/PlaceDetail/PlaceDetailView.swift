@@ -44,7 +44,11 @@ struct PlaceDetailView: View {
     private var content: some View {
         MHBottomSheetScrollView(onOffsetChange: updateHeaderCollapse) {
             VStack(spacing: 0) {
-                PlaceDetailPhotoCarousel(count: place.photoCount)
+                // 사진이 없으면 캐러셀을 통째로 빼고 구분선만 남긴다 — 헤더와 코멘트 사이의
+                // 경계는 그대로 필요하다.
+                if !place.photos.isEmpty {
+                    PlaceDetailPhotoCarousel(photos: place.photos)
+                }
                 divider
                 PlaceDetailCommentSection(
                     comments: store.state.comments,

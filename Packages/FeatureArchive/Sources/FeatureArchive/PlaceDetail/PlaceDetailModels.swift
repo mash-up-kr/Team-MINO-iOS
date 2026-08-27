@@ -4,7 +4,8 @@ import Foundation
 struct PlaceDetailPlace: Equatable {
     let name: String
     let address: String
-    let photoCount: Int
+    /// 출처 게시글의 사진. 없을 수 있다 — 그러면 캐러셀 자체를 그리지 않는다.
+    let photos: [URL]
     /// 이 장소를 저장한 사람. 서버가 주지 않으면 nil 이라 익명 아바타로 그린다.
     let sharer: MemberProfile?
     /// 홈 카드와 같은 큐레이션 라벨. 헤더 뱃지가 이걸 그린다.
@@ -16,7 +17,7 @@ extension PlaceDetailPlace {
         self.init(
             name: pin.place.name,
             address: pin.place.address,
-            photoCount: pin.images.count,
+            photos: pin.images,
             sharer: pin.createdBy,
             category: pin.category
         )
@@ -36,7 +37,10 @@ extension PlaceDetailPlace {
     static let sample = PlaceDetailPlace(
         name: "레이어스튜디오 10",
         address: "서울 성동구 상원4길 10",
-        photoCount: 2,
+        photos: [
+            URL(string: "https://picsum.photos/seed/gguk-0-0/800/600")!,
+            URL(string: "https://picsum.photos/seed/gguk-0-1/800/600")!,
+        ],
         sharer: MemberProfile(id: MemberID("user-0003"), nickname: "서연", avatarID: 3),
         category: .popularAmongFriends
     )
