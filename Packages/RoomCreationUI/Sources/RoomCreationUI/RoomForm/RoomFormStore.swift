@@ -67,10 +67,10 @@ public struct RoomFormState: Equatable {
         self.saveError = nil
     }
 
-    /// 방 이름이 규칙을 지키는가 — 길이 상한과 허용 문자 둘 다. 어기면 화면이 에러 상태로 그린다.
+    /// 방 이름을 에러로 그릴지 — **입력 중 기준이라 자모를 봐준다.**
+    /// 조합 중간 상태를 에러로 치면 한글을 치는 내내 빨간 테두리가 깜빡인다.
     public var isNameValid: Bool {
-        roomName.count <= RoomFormLimit.name
-            && roomName.unicodeScalars.allSatisfy(Self.allowedNameScalars.contains)
+        isNameAcceptable(Self.typingScalars)
     }
 
     /// 방 설명이 규칙을 지키는가 — 상한 길이만 본다(문자 제한 없음).
@@ -81,12 +81,21 @@ public struct RoomFormState: Equatable {
     /// 공백만 있는 이름은 확정 비활성. 상한 초과·형식 오류도 막는다 —
     /// 디자인 ⑤ "방 이름을 오류 입력 시 3·4번을 입력하더라도 비활성화 상태 유지".
     /// 저장 중에도 잠근다.
+    ///
+    /// **표시 기준(``isNameValid``)보다 엄격하다** — 조합이 덜 끝난 자모는 보내지 않는다.
+    /// 조합이 끝나면 버튼이 저절로 열린다.
     public var isSubmitEnabled: Bool {
         // trimmingCharacters 는 버릴 String 을 새로 할당한다 — 첫 비공백에서 끊는 편이 싸다.
         roomName.contains { !$0.isWhitespace }
-            && isNameValid
+            && isNameAcceptable(Self.submittableScalars)
             && isDescriptionValid
             && !isSaving
+    }
+
+    /// 이름이 길이 상한을 지키고 주어진 문자 집합 안에 있는가.
+    private func isNameAcceptable(_ allowed: CharacterSet) -> Bool {
+        roomName.count <= RoomFormLimit.name
+            && roomName.unicodeScalars.allSatisfy(allowed.contains)
     }
 
     /// 서버로 보낼 방 이름. 앞뒤 공백은 떼고 보낸다.
@@ -108,24 +117,30 @@ public struct RoomFormState: Equatable {
         selectedColorIndex.flatMap(RoomColorPalette.color(at:)) ?? RoomColorPalette.defaultColor
     }
 
-    /// 방 이름 허용 문자 — 한글·영문·숫자·공백.
+    /// **서버로 보낼 수 있는** 문자 — 한글 완성형·영문·숫자·공백. 안내 문구가 약속하는 집합이다.
     ///
-    /// 한글은 완성형(가–힣)만이 아니라 **자모까지 허용**한다. 조합 중간 상태(`ㄱ`, `ㅏ`)가 잠깐
-    /// state 로 들어오는데 이걸 막으면 한글을 치는 내내 에러 테두리가 깜빡인다.
+    /// 자모를 뺀다. 서버는 방 `name` 에 패턴을 걸지 않아 자모도 201 로 받지만(닉네임과 다르다 —
+    /// `POST /api/v1/users` 의 `nickname` 만 `^[가-힣A-Za-z ]+$` 다), 조합이 덜 끝난 `ㄱ` 이
+    /// 방 이름으로 굳어 목록에 남는 걸 클라이언트가 막는다.
     /// `CharacterSet.alphanumerics` 를 쓰지 않는 건 그게 일본어·키릴까지 통과시키기 때문.
-    ///
-    /// > 실 API 를 붙인 뒤에도 자모를 그대로 보낸다 — **방 이름은 닉네임과 서버 규칙이 다르다.**
-    /// > `POST /api/v1/users` 의 `nickname` 은 `^[가-힣A-Za-z ]+$` 라 자모가 400 이지만,
-    /// > `POST /api/v1/rooms` 의 `name` 에는 패턴이 없고 길이 제한만 있다(스펙·실측 확인).
-    private static let allowedNameScalars: CharacterSet = {
+    private static let submittableScalars: CharacterSet = {
         var set = CharacterSet()
         set.insert(charactersIn: "a"..."z")
         set.insert(charactersIn: "A"..."Z")
         set.insert(charactersIn: "0"..."9")
         set.insert(charactersIn: "\u{AC00}"..."\u{D7A3}")   // 한글 완성형
-        set.insert(charactersIn: "\u{3131}"..."\u{318E}")   // 호환 자모 — iOS 조합 중간 상태
-        set.insert(charactersIn: "\u{1100}"..."\u{11FF}")   // 조합형 자모
         set.insert(" ")
+        return set
+    }()
+
+    /// **입력 중** 허용 문자 — 보낼 수 있는 집합에 자모를 더한 것.
+    ///
+    /// 조합 중간 상태(`ㄱ`, `ㅏ`)가 잠깐 state 로 들어오는데 이걸 에러로 치면 한글을 치는 내내
+    /// 빨간 테두리가 깜빡인다. **보여주는 기준만 느슨하게** 두고 확정은 ``submittableScalars`` 로 막는다.
+    private static let typingScalars: CharacterSet = {
+        var set = submittableScalars
+        set.insert(charactersIn: "\u{3131}"..."\u{318E}")   // 호환 자모
+        set.insert(charactersIn: "\u{1100}"..."\u{11FF}")   // 조합형 자모
         return set
     }()
 }

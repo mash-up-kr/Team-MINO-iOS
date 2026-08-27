@@ -56,15 +56,36 @@ struct RoomFormReducerTests {
     }
 
     // 이걸 막으면 한글을 치는 내내 에러 테두리가 깜빡인다 — 자모는 조합이 끝나기 전 잠깐 state 로 들어온다.
-    @Test("L1 — roomNameChanged: 한글 조합 중간 상태(자모)는 유효하다")
-    func roomNameChanged_allowsHangulJamoDuringComposition() async {
+    // 표시는 봐주되 확정은 막는다: 조합이 끝나면 버튼이 저절로 열린다.
+    @Test("L1 — roomNameChanged: 조합 중간 상태(자모)는 에러로 그리지 않되 확정은 막는다")
+    func roomNameChanged_allowsHangulJamoDuringCompositionButBlocksSubmit() async {
         let store = TestStore(RoomFormState(), reduce: roomFormReducer(.create(create: StubCreateRoomUseCase())))
 
         await store.send(.roomNameChanged("ㅁ")) { $0.roomName = "ㅁ" }
         #expect(store.currentState.isNameValid)
+        #expect(!store.currentState.isSubmitEnabled)
 
         await store.send(.roomNameChanged("미ㄴ")) { $0.roomName = "미ㄴ" }
         #expect(store.currentState.isNameValid)
+        #expect(!store.currentState.isSubmitEnabled)
+
+        // 조합이 끝나면 별도 조작 없이 열린다.
+        await store.send(.roomNameChanged("민")) { $0.roomName = "민" }
+        #expect(store.currentState.isSubmitEnabled)
+
+        store.finish()
+    }
+
+    // 확정 조건은 reduce 도 지킨다 — 뷰의 .disabled 만 믿으면 뷰가 바뀌는 순간 자모가 서버로 나간다.
+    @Test("L2 — tapSubmit: 이름에 자모가 남아 있으면 저장이 나가지 않는다")
+    func tapSubmit_withTrailingJamo_doesNotSave() async {
+        let create = StubCreateRoomUseCase()
+        let store = TestStore(RoomFormState(), reduce: roomFormReducer(.create(create: create)))
+
+        await store.send(.roomNameChanged("민호야 잘하ㅈ")) { $0.roomName = "민호야 잘하ㅈ" }
+        await store.send(.tapSubmit)
+
+        #expect(create.received == nil)
 
         store.finish()
     }
