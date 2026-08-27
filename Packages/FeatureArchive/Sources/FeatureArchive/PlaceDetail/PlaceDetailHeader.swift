@@ -27,12 +27,8 @@ struct PlaceDetailHeader: View {
     private var ownerRow: some View {
         HStack(spacing: 0) {
             HStack(spacing: 6) {
-                MHAvatar(nil, size: 32)
-                MHContentBadge(
-                    "저장한지 \(place.savedDays)일째",
-                    size: .medium,
-                    color: .mhAccentForegroundRedOrange
-                )
+                sharerAvatar
+                categoryBadge
             }
             Spacer(minLength: 8)
             closeButton
@@ -40,6 +36,27 @@ struct PlaceDetailHeader: View {
         .padding(.horizontal, 20)
         .padding(.top, 12)
         .padding(.bottom, 18)
+    }
+
+    /// ② 해당 장소를 공유한 사람. 시안에는 아바타만 있고 닉네임 자리가 없어, 이름은
+    /// 접근성 라벨로만 읽힌다.
+    ///
+    /// 그림은 아직 익명이다 — 서버가 아바타를 두 가지로 표현하는데(방 멤버는 `avatar.id: Int`,
+    /// 프로필 API 는 `avatar.color: String`) 그 둘의 관계가 문서에 없다. 번호를 캐릭터 그리드
+    /// 순번으로 **가정하면 남의 얼굴이 뜨고, 틀렸다는 걸 아무도 바로 알아채지 못한다.**
+    /// 계약이 확인되면 `AvatarPalette`(색↔캐릭터를 잇는 유일한 표)를 통해 잇는다.
+    private var sharerAvatar: some View {
+        MHAvatar(nil, size: 32)
+            .accessibilityElement()
+            .accessibilityLabel(place.sharer.map { "\($0.nickname) 님이 저장" } ?? "저장한 사람 정보 없음")
+            .accessibilityIdentifier("PlaceDetail.sharer")
+    }
+
+    /// ③ 장소분류. 홈 카드가 다는 큐레이션 라벨을 같은 문구·색으로 따라간다.
+    private var categoryBadge: some View {
+        let badge = PlaceDetailCategoryBadge.of(place.category)
+        return MHContentBadge(badge.text, size: .medium, color: badge.color)
+            .accessibilityIdentifier("PlaceDetail.category")
     }
 
     private var titleRow: some View {

@@ -65,7 +65,7 @@ public final class ArchiveCoordinator: Coordinator {
 
     func makePlaceDetailStore(pin: Pin) -> PlaceDetailStore {
         Store(
-            PlaceDetailState(place: PlaceDetailPlace(from: pin, now: Date())),
+            PlaceDetailState(place: PlaceDetailPlace(from: pin)),
             reduce: placeDetailReducer(useCase: deps.fetchPinDetail, pin: pin),
             handle: { [weak self] in self?.handle($0) }
         )
