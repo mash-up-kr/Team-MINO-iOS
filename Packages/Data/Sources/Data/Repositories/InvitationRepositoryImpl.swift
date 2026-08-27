@@ -1,6 +1,5 @@
 import Domain
 import Foundation
-import Logging
 import Networking
 
 /// `InvitationRepository` 의 네트워크 구현. `AppDependencies` 가 공유 `httpClient` 를 넘긴다.
@@ -33,14 +32,7 @@ public struct InvitationRepositoryImpl: InvitationRepository {
         case 401: return error.unauthorizedReason
         case 403, 404: return DomainError.inviteCodeFetchFailed
         default:
-            // 번역하지 못했다는 사실은 반드시 남긴다 — 어떤 DomainError 를 추가해야 하는지
-            // 알 수 있는 유일한 단서다. 오류는 label(케이스 이름)로만 남긴다 —
-            // 통째로 찍으면 서버 원문 message 가 릴리즈 기기 로그에 평문으로 남는다(README §금지).
-            Log.warning("도메인으로 번역되지 않음", metadata: [
-                "error": error.label,
-                "status": error.statusCode.map(String.init) ?? "-",
-                "code": error.errorCode ?? "-",
-            ])
+            error.logUntranslated()
             return DomainError.inviteCodeFetchFailed
         }
     }
