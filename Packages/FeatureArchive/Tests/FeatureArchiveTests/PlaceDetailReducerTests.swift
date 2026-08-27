@@ -17,6 +17,12 @@ private let fixturePin = PinFixture.pin(
 
 private let fixtureSourceURL = URL(string: "https://www.instagram.com/p/mock-layer10/")!
 
+/// 현재 사용자 조회를 즉답시키는 스텁.
+private struct StubCurrentMember: CurrentMemberUseCase {
+    let profile: MemberProfile
+    func execute() async throws -> MemberProfile { profile }
+}
+
 /// 핀 단독 조회를 즉답시키는 스텁 — 출처가 있는 핀·없는 핀·조회 실패·취소를 골라 재생한다.
 private struct StubFetchPinDetail: FetchPinDetailUseCase {
     enum Outcome: Sendable {

@@ -41,6 +41,7 @@ private struct StubSavePin: SavePinToRoomsUseCase {
 
 private struct StubDeletePin: DeletePinUseCase {
     func execute(pinID: PinID) async throws {}
+}
 
 private struct StubCurrentMember: CurrentMemberUseCase {
     func execute() async throws -> MemberProfile {
@@ -56,7 +57,6 @@ private struct StubArchiveDeps: ArchiveDeps {
     var fetchShareTargets: FetchShareTargetsUseCase = StubShareTargets()
     var savePin: SavePinToRoomsUseCase = StubSavePin()
     var deletePin: DeletePinUseCase = StubDeletePin()
-
     var currentMember: CurrentMemberUseCase = StubCurrentMember()
     var roomCreationPromptSnooze = SnoozeSwitch(
         key: "ArchiveCoordinatorTests.prompt",
