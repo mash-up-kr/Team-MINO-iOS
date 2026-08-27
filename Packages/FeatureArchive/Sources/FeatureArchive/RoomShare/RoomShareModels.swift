@@ -37,11 +37,3 @@ struct RoomShareSelection: Equatable {
         }
     }
 }
-
-// MARK: - 더미 데이터
-
-extension RoomShareRoom {
-    static let samples: [RoomShareRoom] = (0..<5).map {
-        RoomShareRoom(id: "room-\($0)", name: "내 방", memo: "내가 꾹 저장한 장소", locationCount: 0)
-    }
-}
