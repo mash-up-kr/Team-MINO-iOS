@@ -54,9 +54,10 @@ public final class OnboardingCoordinator: Coordinator {
 
     func makeProfileSetupStore() -> ProfileSetupStore {
         // 온보딩은 프로필을 만들기만 한다 — 조회·수정 UseCase 를 들지 않는다.
-        let store = ProfileSetupUI.makeProfileSetupStore(.create(register: deps.registerProfile))
-        store.observeNavigation { [weak self] in self?.handle($0) }
-        return store
+        ProfileSetupUI.makeProfileSetupStore(
+            .create(register: deps.registerProfile),
+            handle: { [weak self] in self?.handle($0) }
+        )
     }
 
     func makeRoomFormStore() -> RoomFormStore {
@@ -67,9 +68,7 @@ public final class OnboardingCoordinator: Coordinator {
     }
 
     func makeTutorialStore() -> TutorialStore {
-        let store = TutorialStore(TutorialState(), reduce: tutorialReducer())
-        store.observeNavigation { [weak self] in self?.handle($0) }
-        return store
+        TutorialStore(TutorialState(), reduce: tutorialReducer(), handle: { [weak self] in self?.handle($0) })
     }
 
     func makeInviteFriendsStore() -> InviteFriendsStore {
@@ -77,12 +76,11 @@ public final class OnboardingCoordinator: Coordinator {
         // (`POST /api/v1/rooms` 미연결, `RoomFormNav.didSubmit` 이 id 를 들고 오지 않는다)
         // 초대 API 에 넘길 방이 없다. 그동안 화면은 두 버튼을 잠근다.
         // 방 생성이 붙으면 여기에 만들어진 방의 id 를 넘기는 것으로 끝난다.
-        let store = RoomCreationUI.makeInviteFriendsStore(
+        RoomCreationUI.makeInviteFriendsStore(
             roomId: nil,
-            deps: InviteFriendsDeps(fetchInviteCode: deps.fetchInviteCode, deeplink: deps.deeplink)
+            deps: InviteFriendsDeps(fetchInviteCode: deps.fetchInviteCode, deeplink: deps.deeplink),
+            handle: { [weak self] in self?.handle($0) }
         )
-        store.observeNavigation { [weak self] in self?.handle($0) }
-        return store
     }
 
     func handle(_ nav: ProfileSetupNav) {

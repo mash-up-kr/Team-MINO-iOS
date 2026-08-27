@@ -115,13 +115,23 @@ public typealias InviteFriendsStore = Store<InviteFriendsState, InviteFriendsAct
 
 /// 방과 의존이 어긋날 수 없게 Store 를 한 번에 만든다.
 ///
+/// navigation 구독(`handle`)도 함께 받는다 — 빠뜨리면 화면 전환이 크래시·로그 없이 조용히 안 되므로
+/// `Store.init(_:reduce:handle:)` 과 같은 이유로 하나로 묶는다.
+///
 /// ```swift
-/// let store = makeInviteFriendsStore(roomId: room.id, deps: .init(...))
-/// store.observeNavigation { [weak self] in self?.handle($0) }   // 필수
+/// let store = makeInviteFriendsStore(
+///     roomId: room.id,
+///     deps: .init(...),
+///     handle: { [weak self] in self?.handle($0) }
+/// )
 /// ```
 @MainActor
-public func makeInviteFriendsStore(roomId: String?, deps: InviteFriendsDeps) -> InviteFriendsStore {
-    InviteFriendsStore(InviteFriendsState(roomId: roomId), reduce: inviteFriendsReducer(deps))
+public func makeInviteFriendsStore(
+    roomId: String?,
+    deps: InviteFriendsDeps,
+    handle: @escaping @MainActor (InviteFriendsNav) -> Void
+) -> InviteFriendsStore {
+    InviteFriendsStore(InviteFriendsState(roomId: roomId), reduce: inviteFriendsReducer(deps), handle: handle)
 }
 
 public func inviteFriendsReducer(

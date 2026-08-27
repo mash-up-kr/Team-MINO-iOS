@@ -20,9 +20,10 @@ import SwiftUI
 /// // 마이페이지 — 진입하면서 조회해 채운다. 뒤로가기는 onBack 을 넘겨야 그려진다.
 /// ProfileSetupScreen(
 ///     makeStore: {
-///         let store = makeProfileSetupStore(.edit(fetch: deps.fetchProfile, update: deps.updateProfile))
-///         store.observeNavigation { [weak self] in self?.handle($0) }   // 필수
-///         return store
+///         makeProfileSetupStore(
+///             .edit(fetch: deps.fetchProfile, update: deps.updateProfile),
+///             handle: { [weak self] in self?.handle($0) }
+///         )
 ///     },
 ///     onBack: { dismiss() }
 /// )
@@ -33,7 +34,7 @@ public struct ProfileSetupScreen: View {
     @State private var store: ProfileSetupStore?
 
     /// - Parameters:
-    ///   - makeStore: Store 생성. 진입 목적은 `makeProfileSetupStore(_:)` 에 넘기는 deps 가 정하고,
+    ///   - makeStore: Store 생성. 진입 목적은 `makeProfileSetupStore(_:handle:)` 에 넘기는 deps 가 정하고,
     ///     `edit` 의 초기값은 진입 후 조회로 채워진다.
     ///   - onBack: 뒤로가기 동작. **넘기지 않으면 뒤로가기를 그리지 않는다** — 온보딩 최초 진입처럼
     ///     돌아갈 곳이 없는 화면을 위해. 띄운 쪽이 아는 사실이라 화면이 판단하지 않는다.

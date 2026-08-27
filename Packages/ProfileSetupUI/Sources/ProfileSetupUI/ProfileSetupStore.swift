@@ -20,7 +20,7 @@ public enum ProfileSetupMode: Equatable, Sendable {
 /// 진입 목적과 **그 목적에 필요한 UseCase 를 함께** 담는다.
 ///
 /// UseCase 는 `Equatable` 이 아니라 State 에 넣을 수 없으므로 State 의 ``ProfileSetupMode`` 와 나눠 둔다.
-/// 둘이 어긋나지 않게 Store 는 ``makeProfileSetupStore(_:)`` 로만 만든다.
+/// 둘이 어긋나지 않게 Store 는 ``makeProfileSetupStore(_:handle:)`` 로만 만든다.
 ///
 /// > 모드마다 자기 UseCase 만 든다 — 셋을 평평하게 받으면 `.create` 인데 `update` 가 주입된 조합이
 /// > 그냥 컴파일된다.
@@ -165,13 +165,21 @@ public typealias ProfileSetupStore = Store<ProfileSetupState, ProfileSetupAction
 
 /// 진입 목적과 State 가 어긋날 수 없게 Store 를 한 번에 만든다.
 ///
+/// navigation 구독(`handle`)도 함께 받는다 — 빠뜨리면 화면 전환이 크래시·로그 없이 조용히 안 되므로
+/// `Store.init(_:reduce:handle:)` 과 같은 이유로 하나로 묶는다.
+///
 /// ```swift
-/// let store = makeProfileSetupStore(.edit(fetch: deps.fetchProfile, update: deps.updateProfile))
-/// store.observeNavigation { [weak self] in self?.handle($0) }   // 필수
+/// let store = makeProfileSetupStore(
+///     .edit(fetch: deps.fetchProfile, update: deps.updateProfile),
+///     handle: { [weak self] in self?.handle($0) }
+/// )
 /// ```
 @MainActor
-public func makeProfileSetupStore(_ deps: ProfileSetupDeps) -> ProfileSetupStore {
-    ProfileSetupStore(ProfileSetupState(mode: deps.mode), reduce: profileSetupReducer(deps))
+public func makeProfileSetupStore(
+    _ deps: ProfileSetupDeps,
+    handle: @escaping @MainActor (ProfileSetupNav) -> Void
+) -> ProfileSetupStore {
+    ProfileSetupStore(ProfileSetupState(mode: deps.mode), reduce: profileSetupReducer(deps), handle: handle)
 }
 
 public func profileSetupReducer(
