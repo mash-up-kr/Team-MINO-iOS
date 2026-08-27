@@ -41,6 +41,11 @@ public final class OnboardingCoordinator: Coordinator {
     private let inviteCode: String?
     private let deps: OnboardingDeps
 
+    /// 앞 단계에서 만든 공동방. 친구초대가 초대 코드를 발급하려면 이 값이 필요하다.
+    ///
+    /// 방을 건너뛰면(`didSkip`) 친구초대까지 함께 건너뛰므로 `nil` 인 채로 그 화면에 닿지 않는다.
+    private var createdRoomId: String?
+
     public init(deps: OnboardingDeps, inviteCode: String? = nil) {
         self.deps = deps
         // 빈 값은 초대로 보지 않는다 — 빈 문자열이 흘러들면 방 생성을 건너뛴 채
@@ -72,12 +77,10 @@ public final class OnboardingCoordinator: Coordinator {
     }
 
     func makeInviteFriendsStore() -> InviteFriendsStore {
-        // ⚠️ roomId 가 없다 — 앞 단계(공동방 만들기)가 아직 서버에 방을 만들지 않아
-        // (`POST /api/v1/rooms` 미연결, `RoomFormNav.didSubmit` 이 id 를 들고 오지 않는다)
-        // 초대 API 에 넘길 방이 없다. 그동안 화면은 두 버튼을 잠근다.
-        // 방 생성이 붙으면 여기에 만들어진 방의 id 를 넘기는 것으로 끝난다.
+        // 방 생성(didSubmit)이 실어 보낸 id 를 그대로 넘긴다. 이 화면은 방을 만든 직후에만
+        // 열리므로 값이 있다 — 없으면 화면이 초대 버튼을 잠근다(잘못된 방으로 초대하지 않는다).
         RoomCreationUI.makeInviteFriendsStore(
-            roomId: nil,
+            roomId: createdRoomId,
             deps: InviteFriendsDeps(fetchInviteCode: deps.fetchInviteCode, deeplink: deps.deeplink),
             handle: { [weak self] in self?.handle($0) }
         )
@@ -93,7 +96,8 @@ public final class OnboardingCoordinator: Coordinator {
 
     func handle(_ nav: RoomFormNav) {
         switch nav {
-        case .didSubmit:
+        case .didSubmit(let roomId):
+            createdRoomId = roomId
             push(.inviteFriends)
         // 방을 만들지 않았으면 초대할 방도 없어 친구초대까지 함께 건너뛴다.
         case .didSkip:

@@ -55,9 +55,9 @@ public struct SharedInviteLink: Identifiable, Equatable, Sendable {
 public struct InviteFriendsState: Equatable {
     /// 초대할 방.
     ///
-    /// > ⚠️ **`nil` 이면 두 버튼을 잠근다.** 온보딩은 아직 서버에 방을 만들지 않아
-    /// > (`POST /api/v1/rooms` 미연결, `RoomFormNav.didSubmit` 이 id 를 들고 오지 않는다)
-    /// > 넘길 id 가 없다. 방 생성이 붙으면 이 옵셔널을 `String` 으로 좁힌다.
+    /// > **`nil` 이면 두 버튼을 잠근다.** 정상 흐름에서는 방을 만든 직후에만 이 화면이 열려
+    /// > 값이 있지만, 배선 실수로 비어 오면 **잘못된 방으로 초대하는 대신 아무 요청도 보내지 않는다.**
+    /// > 옵셔널을 유지하는 건 그 방어를 타입으로 표현하기 위해서다.
     public let roomId: String?
     /// 초대 코드를 받아오는 중. 두 버튼이 같은 요청을 쓰므로 하나로 둔다.
     public var isPreparingLink: Bool
