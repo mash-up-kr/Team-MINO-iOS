@@ -141,7 +141,8 @@ private actor StubHTTPClient: HTTPClient {
         }
     }
 
-    func requestPage<Element>(_ endpoint: PagedEndpoint<Element>) async throws -> Page<Element> {
+    // Domain 에도 Page 가 생겨(목록 API 공용 값 타입) 두 모듈을 함께 import 하는 이 파일에서는 모호하다.
+    func requestPage<Element>(_ endpoint: PagedEndpoint<Element>) async throws -> Networking.Page<Element> {
         throw NetworkError.cancelled   // 프로필은 페이지네이션을 쓰지 않는다
     }
 }
