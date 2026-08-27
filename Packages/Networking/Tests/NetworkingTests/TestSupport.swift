@@ -29,12 +29,50 @@ let testRetryPolicy = Session.minoRetryPolicy(backoffScale: 0.01)
 /// 조용히 진짜 네트워크로 나가서, 로컬에선 붙었다 떨어졌다 하고 CI 에선 엉뚱한 오류로 실패한다.
 func makeSUT(
     baseURL: String = "https://stub.invalid",
-    interceptor: (any RequestInterceptor)? = nil
+    interceptor: (any RequestInterceptor)? = nil,
+    tokenProvider: AuthTokenProvider? = nil
 ) -> (sut: URLSessionHTTPClient, stub: URLProtocolStub.Handle) {
     let (configuration, handle) = URLProtocolStub.makeSession()
     let session = Session(configuration: configuration, interceptor: interceptor)
-    let client = URLSessionHTTPClient(baseURL: URL(string: baseURL)!, session: session)
+    let client = URLSessionHTTPClient(
+        baseURL: URL(string: baseURL)!,
+        session: session,
+        tokenProvider: tokenProvider
+    )
     return (client, handle)
+}
+
+/// 토큰 공급을 흉내내며 호출 횟수를 센다.
+///
+/// `refreshed` 를 nil 로 두면 "갱신해도 토큰이 없다" 를 재현한다.
+final class SpyTokenProvider: AuthTokenProvider, @unchecked Sendable {
+    private let lock = NSLock()
+    private let initial: String?
+    private let refreshed: String?
+    private var _tokenCalls = 0
+    private var _refreshCalls = 0
+
+    init(initial: String? = "token-1", refreshed: String? = "token-2") {
+        self.initial = initial
+        self.refreshed = refreshed
+    }
+
+    var tokenCalls: Int { lock.withLock { _tokenCalls } }
+    var refreshCalls: Int { lock.withLock { _refreshCalls } }
+
+    func token() async -> String? {
+        lock.withLock { _tokenCalls += 1 }
+        return initial
+    }
+
+    func refreshedToken() async -> String? {
+        lock.withLock { _refreshCalls += 1 }
+        return refreshed
+    }
+}
+
+extension URLRequest {
+    var authorizationHeader: String? { value(forHTTPHeaderField: "Authorization") }
 }
 
 /// 던져진 오류를 `NetworkError` 로 받아온다. `AFError` 가 새면 여기서 드러난다.

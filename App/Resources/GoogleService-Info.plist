@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>API_KEY</key>
-	<string>AIzaSyDlEIhuSZy2jZIHKWorEFQGv-xajrvRqe0</string>
+	<string>AIzaSyBSQQBAmEUauzEMSZR3qxCCH6mSdUCN9Tg</string>
 	<key>GCM_SENDER_ID</key>
 	<string>1046682576790</string>
 	<key>PLIST_VERSION</key>
@@ -15,8 +15,6 @@
 	<key>STORAGE_BUCKET</key>
 	<string>team-mino-prod.firebasestorage.app</string>
 	<key>IS_ADS_ENABLED</key>
-	<false></false>
-	<key>IS_ANALYTICS_ENABLED</key>
 	<false></false>
 	<key>IS_APPINVITE_ENABLED</key>
 	<true></true>

@@ -136,13 +136,12 @@ public protocol FetchRoomsUseCase: Sendable { func execute() async throws -> [Ro
 ## 6) 조립 — `App/AppDependencies.swift`
 
 ```swift
-// 초기화 경로는 baseURL 하나뿐이다 — 세션·타임아웃·재시도·로깅이 이미 앱 규칙대로 묶여 있다.
-let client = URLSessionHTTPClient(baseURL: /* §최초 1회 배선 참조 */)
-self.fetchRooms = DefaultFetchRoomsUseCase(repository: RoomRepositoryImpl(client: client))
+// 클라이언트는 AppDependencies 가 이미 만들어 둔다(README §배선). 새로 만들지 않고 그대로 받는다 —
+// 인증 토큰 주입이 그 인스턴스에 묶여 있어서, 따로 만들면 토큰 없이 나가 전부 401 을 받는다.
+self.fetchRooms = DefaultFetchRoomsUseCase(repository: RoomRepositoryImpl(client: httpClient))
 ```
 
-클라이언트는 여러 개 만들어도 된다 — `Session` 은 프로세스에 하나이므로 연결 풀이 쪼개지거나
-해제 중 요청이 오류로 뒤집히지 않는다. 그래도 조립은 컴포지션 루트에 모으는 게 낫다(의존 그래프가 한눈에 보인다).
+Mock 을 쓰던 줄을 위와 같이 **한 줄 바꾸는 것**이 이 단계의 전부다.
 
 ## 7) 테스트
 

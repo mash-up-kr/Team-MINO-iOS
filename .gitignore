@@ -17,10 +17,13 @@ xcuserdata/
 .build/
 .swiftpm/
 Package.resolved
-# 외부 의존(Alamofire)의 잠금은 추적한다 — 없으면 사람·CI 마다 다른 패치 버전으로 빌드된다.
-# 다만 이 파일은 `swift build/test --package-path` 만 지배한다. **앱 빌드는 Xcode 가 따로
-# 해석**하므로, 실 배선 PR 에서 앱 워크스페이스의 Package.resolved 도 함께 추적해야 한다.
-!Packages/Networking/Package.resolved
+# 잠금 파일은 추적하지 않는다 — **두 도구가 같은 파일을 서로 뺏기 때문**이다.
+# Xcode(앱 빌드)는 여기에 앱 전체 의존성(Firebase·Maps·gRPC …)을 쓰고,
+# `swift build --package-path Packages/Networking` 은 Alamofire 하나로 되돌린다.
+# 추적하면 어느 쪽으로 커밋하든 반대편 도구를 쓰는 순간 diff 가 생긴다.
+#
+# 버전 고정은 잠금 대신 **선언에서** 한다 — Firebase 는 App.xcodeproj 의
+# XCRemoteSwiftPackageReference 가 exactVersion 으로 묶는다.
 
 ### macOS
 .DS_Store

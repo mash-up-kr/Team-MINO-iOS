@@ -6,7 +6,7 @@ HTTP 통신 인프라. **화면에 API 를 붙이는 절차는 [`Docs/AddingAPI.
 
 | 영역 | 진입점 |
 |------|--------|
-| 요청 정의 | `Endpoint<Response>` — path·method·query·headers·body·requiresAuth·timeout |
+| 요청 정의 | `Endpoint<Response>` — path·method·query·headers·body·auth·timeout |
 | 호출 | `HTTPClient.request(_:)` / 목록은 `requestPage(_:)` |
 | 목록 응답 | `Page<Element>` (`items` + `pagination`) |
 | 빈 성공 응답 | `OkResponse` |
@@ -55,22 +55,64 @@ Packages/Data/Sources/Data/
 
 ## 인증
 
-**대부분의 API 는 토큰이 필요하다.** 스펙상 인증 예외는 `POST /api/v1/users` 와 `GET /api/v1/invitations/{code}` **둘뿐**이다.
+**대부분의 API 는 토큰이 필요하다.** 서버 인증은 두 단계이고(① 토큰 검증 ② 그 uid 로 회원이
+등록됐는지 확인), 엔드포인트마다 어디까지 거치는지가 다르다 — `AuthRequirement` 3상태다.
+
+| | ① 토큰 검증 | ② 회원 등록 확인 | |
+|---|---|---|---|
+| `.full`(기본) | ✓ | ✓ | 대부분의 API |
+| `.unregisteredUser` | ✓ | — | `POST /api/v1/users` |
+| `.none` | — | — | `GET /api/v1/invitations/{code}` |
 
 ```swift
-Endpoint(path: "api/v1/users", method: .post, body: .json(dto), requiresAuth: false)
+Endpoint(path: "api/v1/users", method: .post, body: .json(dto), auth: .unregisteredUser)
+Endpoint(path: "api/v1/invitations/\(code)", auth: .none)
 ```
 
-⚠️ **인증은 아직 구현되지 않았다.** 인증 설계 문서(로그인·토큰 갱신 엔드포인트)가 확정되면 붙인다. 그전까지 인증이 필요한 API 는 401 을 받는다.
+⚠️ **`.unregisteredUser` 에 토큰을 빼면 안 된다.** 서버가 토큰의 uid 로 누구를 등록할지 정하므로,
+빼면 최초 진입의 회원 등록이 통째로 실패한다(실측: 토큰 없이 부르면 "인증 정보가 없습니다",
+유효한 토큰이면 "등록되지 않은 유저입니다").
+
+토큰은 **`AuthTokenProvider`** 가 공급한다. Networking 은 인증 수단을 알지 못하고, 앱이 구현을 주입한다
+(현재 구현은 Firebase 익명 인증 — `App/Sources/Auth/FirebaseAuthTokenProvider.swift`).
+
+```swift
+URLSessionHTTPClient(baseURL: url, tokenProvider: FirebaseAuthTokenProvider())
+```
+
+- **토큰이 있으면 모든 요청에 `Authorization: Bearer <토큰>` 이 붙는다** — `auth` 로 거르지 않는다.
+  `.none` 이어도 서버가 인증을 타지 않아 무해하고, `.unregisteredUser` 는 토큰이 반드시 필요하다
+- **호출부가 `headers` 로 넘긴 `Authorization` 이 이긴다** (토큰 주입이 먼저 일어난다)
+- 401 을 받으면 토큰을 **강제 갱신해 1회만** 재시도한다. 평소엔 여기까지 오지 않는다 —
+  공급자가 만료 임박분을 알아서 갱신하기 때문이다(기기 시계 오차 대비 안전망)
+- 토큰을 못 얻으면 `Authorization` 없이 나가고 서버가 401 을 준다. "토큰이 없다" 와
+  "서버가 거부했다" 를 한 갈래로 모아 화면이 재인증 하나만 보게 한다
+
+⚠️ **`tokenProvider` 를 넘기지 않으면 인증 없이 나간다.** 실 클라이언트를 조립할 때 빠뜨리면
+인증이 필요한 API 가 전부 401 을 받는데, 컴파일은 통과하므로 조용히 깨진다.
 
 ---
 
-## 최초 1회 배선
+## 배선
 
-아직 아무도 `AppDependencies` 에서 실제 클라이언트를 만들지 않았다. 첫 실 API 연동자가 함께 한다.
+클라이언트는 `App/Sources/AppDependencies.swift` 에서 **한 번만** 만들어 공유한다.
 
-- `APIEnvironment`(local `http://localhost:3000` / production `https://api.gguk.org`) 와 baseURL 공급 경로(xcconfig → Info.plist)
-- **ATS 예외** — local 이 `http` 라 `NSAllowsLocalNetworking` 이 없으면 로컬 서버에 못 붙는다. **Debug 전용**으로 두고 Release 로 새지 않게 한다
+```swift
+let httpClient: HTTPClient
+private static let baseURL = URL(string: "https://api.gguk.org")!
+
+self.httpClient = URLSessionHTTPClient(baseURL: Self.baseURL, tokenProvider: FirebaseAuthTokenProvider())
+```
+
+Repository 구현은 이 `httpClient` 를 받는다 — 새로 만들지 않는다.
+
+```swift
+self.fetchRooms = DefaultFetchRoomsUseCase(repository: RoomRepositoryImpl(client: httpClient))
+```
+
+**서버가 하나라 환경 분기가 없다.** 주소를 xcconfig 로 빼지도 않았다 — 관리 대상이 값 하나뿐이라
+장치 비용이 더 크다. 로컬·스테이징이 생기면 그때 `AppDependencies.baseURL` 을 출발점으로 분기한다
+(`http` 로컬 서버를 쓰게 되면 `NSAllowsLocalNetworking` ATS 예외가 함께 필요하다).
 
 ---
 
@@ -78,7 +120,6 @@ Endpoint(path: "api/v1/users", method: .post, body: .json(dto), requiresAuth: fa
 
 | | 상태 |
 |---|---|
-| 인증(토큰 주입·갱신) | 인증 설계 문서 대기 |
 | 파일·이미지 업로드 | 스펙에 업로드 엔드포인트가 없다. 계약 확정 후 |
 | 429 `Retry-After` 존중 | 429 가 스펙에 정의되면 |
 

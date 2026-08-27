@@ -15,7 +15,7 @@ struct EndpointTests {
         #expect(endpoint.method == .get)
         #expect(endpoint.queryItems.isEmpty)
         #expect(endpoint.body == nil)
-        #expect(endpoint.requiresAuth)
+        #expect(endpoint.auth == .full)
         #expect(endpoint.timeout == nil)
     }
 
