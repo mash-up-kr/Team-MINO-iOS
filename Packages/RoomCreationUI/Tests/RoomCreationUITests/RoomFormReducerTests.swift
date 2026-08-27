@@ -114,8 +114,8 @@ struct RoomFormReducerTests {
             $0.dialog = nil
             $0.isSaving = true
         }
-        await store.receive(.saveSucceeded) { $0.isSaving = false }
-        store.receiveNavigation(.didSubmit)
+        await store.receive(.saveSucceeded(roomId: "room-1")) { $0.isSaving = false }
+        store.receiveNavigation(.didSubmit(roomId: "room-1"))
 
         store.finish()
     }
@@ -211,8 +211,8 @@ struct RoomFormReducerTests {
         )
 
         await store.send(.tapSubmit) { $0.isSaving = true }
-        await store.receive(.saveSucceeded) { $0.isSaving = false }
-        store.receiveNavigation(.didSubmit)
+        await store.receive(.saveSucceeded(roomId: "room-1")) { $0.isSaving = false }
+        store.receiveNavigation(.didSubmit(roomId: "room-1"))
 
         store.finish()
     }

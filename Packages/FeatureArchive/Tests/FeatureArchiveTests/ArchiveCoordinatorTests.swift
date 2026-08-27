@@ -138,7 +138,7 @@ struct ArchiveCoordinatorTests {
 
     @Test("방 만들기의 확정·취소·건너뛰기는 모두 방 리스트로 pop 한다")
     func handleRoomFormNav_popsToRoomList() {
-        for nav: RoomFormNav in [.didSubmit, .didCancel, .didSkip] {
+        for nav: RoomFormNav in [.didSubmit(roomId: "room-1"), .didCancel, .didSkip] {
             let coordinator = ArchiveCoordinator(deps: StubArchiveDeps())
             coordinator.handle(RoomListNav.goToCreateRoom)
 

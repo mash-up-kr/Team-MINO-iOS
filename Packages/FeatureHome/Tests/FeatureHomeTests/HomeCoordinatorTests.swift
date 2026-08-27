@@ -65,7 +65,7 @@ struct HomeCoordinatorTests {
     func handleRoomFormNav_popsHome() {
         let coordinator = HomeCoordinator(deps: StubDeps())
         coordinator.handle(.goToCreateRoom)
-        coordinator.handle(RoomFormNav.didSubmit)
+        coordinator.handle(RoomFormNav.didSubmit(roomId: "room-1"))
         #expect(coordinator.path.isEmpty)
     }
 }

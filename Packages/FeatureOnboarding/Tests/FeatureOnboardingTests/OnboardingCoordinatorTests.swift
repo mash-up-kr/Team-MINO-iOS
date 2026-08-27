@@ -69,7 +69,7 @@ struct OnboardingCoordinatorTests {
         let coord = OnboardingCoordinator(deps: StubOnboardingDeps())
 
         coord.handle(ProfileSetupNav.didSave)
-        coord.handle(RoomFormNav.didSubmit)
+        coord.handle(RoomFormNav.didSubmit(roomId: "room-1"))
 
         #expect(coord.path == [.createRoom, .inviteFriends])
     }
@@ -148,7 +148,7 @@ struct OnboardingCoordinatorTests {
         coord.finish.bind { captured = $0 }
 
         coord.handle(ProfileSetupNav.didSave)
-        coord.handle(RoomFormNav.didSubmit)
+        coord.handle(RoomFormNav.didSubmit(roomId: "room-1"))
         coord.handle(InviteFriendsNav.complete)
 
         // 튜토리얼 완료 화면은 라우트가 아니라 튜토리얼 화면 안의 단계다.

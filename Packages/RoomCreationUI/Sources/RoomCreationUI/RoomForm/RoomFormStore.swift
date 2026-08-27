@@ -113,6 +113,10 @@ public struct RoomFormState: Equatable {
     /// 한글은 완성형(가–힣)만이 아니라 **자모까지 허용**한다. 조합 중간 상태(`ㄱ`, `ㅏ`)가 잠깐
     /// state 로 들어오는데 이걸 막으면 한글을 치는 내내 에러 테두리가 깜빡인다.
     /// `CharacterSet.alphanumerics` 를 쓰지 않는 건 그게 일본어·키릴까지 통과시키기 때문.
+    ///
+    /// > 실 API 를 붙인 뒤에도 자모를 그대로 보낸다 — **방 이름은 닉네임과 서버 규칙이 다르다.**
+    /// > `POST /api/v1/users` 의 `nickname` 은 `^[가-힣A-Za-z ]+$` 라 자모가 400 이지만,
+    /// > `POST /api/v1/rooms` 의 `name` 에는 패턴이 없고 길이 제한만 있다(스펙·실측 확인).
     private static let allowedNameScalars: CharacterSet = {
         var set = CharacterSet()
         set.insert(charactersIn: "a"..."z")
@@ -136,7 +140,8 @@ public enum RoomFormAction: Equatable {
     case confirmCancel
     case dismissDialog
     case tapSkip
-    case saveSucceeded
+    /// 저장이 끝났다. 만들어졌거나 고쳐진 방의 id 를 함께 나른다.
+    case saveSucceeded(roomId: String)
     case saveFailed(DomainError)
     /// 실패 안내를 닫는다 — 화면이 잠깐 띄웠다 스스로 거둔다.
     case dismissSaveError
@@ -147,7 +152,10 @@ public enum RoomFormAction: Equatable {
 /// 다른 곳으로 보내는 소비자에서 이름이 거짓말이 된다.
 public enum RoomFormNav: Equatable, Sendable {
     /// 방이 서버에 저장됐다. 만든 건지 고친 건지는 store 를 만든 쪽이 mode 로 이미 안다.
-    case didSubmit
+    ///
+    /// `Room` 통째가 아니라 id 만 나른다 — 뒤따르는 화면(친구 초대)이 필요한 게 그것뿐이고,
+    /// `Sendable` 유지도 단순하다. 더 필요해지면 그때 넓힌다.
+    case didSubmit(roomId: String)
     /// 사용자가 폼을 그만뒀다. 생성 모드에서는 확인 다이얼로그의 "나가기" 를 거친 결과다.
     case didCancel
     case didSkip
@@ -162,21 +170,6 @@ public typealias RoomFormStore = Store<RoomFormState, RoomFormAction, RoomFormNa
 public enum RoomFormLimit {
     public static let name = 15
     public static let description = 30
-}
-
-public extension DomainError {
-    /// 방 저장 실패를 사용자 문구로 옮긴다.
-    ///
-    /// 서버 원문 message 를 그대로 띄우지 않는다 — 반부패 계층이 이미 버렸고(Domain 은 인프라를
-    /// 모른다), 그대로 노출하면 서버 문구 변경이 화면 문구가 된다.
-    var roomSaveMessage: String {
-        switch self {
-        case .unauthorized, .sessionUnavailable:
-            "로그인이 만료됐어요. 앱을 다시 열어주세요."
-        default:
-            "저장하지 못했어요. 잠시 후 다시 시도해주세요."
-        }
-    }
 }
 
 /// 진입 목적과 State 가 어긋날 수 없게 Store 를 한 번에 만든다.
@@ -253,9 +246,9 @@ public func roomFormReducer(
         case .tapSkip:
             return .navigate(.didSkip)
         // 저장이 끝나야 화면을 넘긴다 — 실패했는데 넘어가면 만들어지지 않은 방으로 이동한다.
-        case .saveSucceeded:
+        case .saveSucceeded(let roomId):
             state.isSaving = false
-            return .navigate(.didSubmit)
+            return .navigate(.didSubmit(roomId: roomId))
         case .saveFailed(let error):
             state.isSaving = false
             state.saveError = error
@@ -280,9 +273,10 @@ private func save(
 
     return .run { send in
         do {
+            let roomId: String
             switch deps {
             case .create(let create):
-                _ = try await create.execute(name: name, description: description, color: color)
+                roomId = try await create.execute(name: name, description: description, color: color).id
             case .edit(let room, let update):
                 _ = try await update.execute(
                     roomId: room.id,
@@ -290,8 +284,9 @@ private func save(
                     description: description,
                     color: color
                 )
+                roomId = room.id   // 편집은 대상을 이미 안다
             }
-            send(.saveSucceeded)
+            send(.saveSucceeded(roomId: roomId))
         } catch is CancellationError {
             // 취소는 결과가 없는 것이지 실패가 아니다 — 화면을 떠났으면 state 는 곧 버려진다.
             return

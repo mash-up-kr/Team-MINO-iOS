@@ -22,13 +22,32 @@ struct RoomFormAPIReducerTests {
             $0.dialog = nil
             $0.isSaving = true
         }
-        await store.receive(.saveSucceeded) { $0.isSaving = false }
-        store.receiveNavigation(.didSubmit)
+        await store.receive(.saveSucceeded(roomId: "room-1")) { $0.isSaving = false }
+        store.receiveNavigation(.didSubmit(roomId: "room-1"))
 
         // 앞뒤 공백은 떼고 보낸다.
         #expect(create.received?.name == "민호야 잘하자")
         #expect(create.received?.description == "팀 회식 장소 모음")
         #expect(create.received?.color == RoomColorPalette.color(at: 2))
+
+        store.finish()
+    }
+
+    // 뒤따르는 친구 초대 화면이 이 id 로 초대 링크를 발급한다 — 응답을 버리면 그 경로가 막힌다.
+    @Test("L2 — 생성 응답의 방 id 가 didSubmit 까지 실려 나간다")
+    func createdRoomIdReachesNavigation() async {
+        let create = StubCreateRoomUseCase()
+        create.result = .stub(id: "server-generated-id")
+        let store = TestStore(RoomFormState(), reduce: roomFormReducer(.create(create: create)))
+
+        await store.send(.roomNameChanged("민호야 잘하자")) { $0.roomName = "민호야 잘하자" }
+        await store.send(.tapSubmit) { $0.dialog = .saveConfirm }
+        await store.send(.confirmSubmit) {
+            $0.dialog = nil
+            $0.isSaving = true
+        }
+        await store.receive(.saveSucceeded(roomId: "server-generated-id")) { $0.isSaving = false }
+        store.receiveNavigation(.didSubmit(roomId: "server-generated-id"))
 
         store.finish()
     }
@@ -45,8 +64,8 @@ struct RoomFormAPIReducerTests {
             $0.dialog = nil
             $0.isSaving = true
         }
-        await store.receive(.saveSucceeded) { $0.isSaving = false }
-        store.receiveNavigation(.didSubmit)
+        await store.receive(.saveSucceeded(roomId: "room-1")) { $0.isSaving = false }
+        store.receiveNavigation(.didSubmit(roomId: "room-1"))
 
         #expect(create.received?.description == nil)
 
@@ -65,8 +84,8 @@ struct RoomFormAPIReducerTests {
             $0.dialog = nil
             $0.isSaving = true
         }
-        await store.receive(.saveSucceeded) { $0.isSaving = false }
-        store.receiveNavigation(.didSubmit)
+        await store.receive(.saveSucceeded(roomId: "room-1")) { $0.isSaving = false }
+        store.receiveNavigation(.didSubmit(roomId: "room-1"))
 
         #expect(create.received?.color == RoomColorPalette.color(at: 0))
 
@@ -176,8 +195,9 @@ struct RoomFormAPIReducerTests {
         )
 
         await store.send(.tapSubmit) { $0.isSaving = true }
-        await store.receive(.saveSucceeded) { $0.isSaving = false }
-        store.receiveNavigation(.didSubmit)
+        // 편집은 수정 응답을 기다리지 않고 자기가 아는 대상 id 를 그대로 나른다.
+        await store.receive(.saveSucceeded(roomId: "room-42")) { $0.isSaving = false }
+        store.receiveNavigation(.didSubmit(roomId: "room-42"))
 
         #expect(update.received?.roomId == "room-42")
         #expect(update.received?.name == "야호")
