@@ -220,7 +220,8 @@ struct RoomListReducerTests {
     @Test("L1 — loaded 로 방이 줄면 roomFilter 를 새 상한으로 클램프한다")
     func loaded_shrink_clampsRoomFilter() async {
         let store = makeStore(state: RoomListState(rooms: fixtureRooms, roomFilter: 2))
-        await store.send(.loaded([fixtureRooms[0]])) {
+        // 유도 시트는 이 테스트의 관심사가 아니라 스누즈로 꺼 둔다 — 클램프만 본다.
+        await store.send(.loaded([fixtureRooms[0]], isPromptSnoozed: true)) {
             $0.rooms = [fixtureRooms[0]]
             $0.roomFilter = 1   // 옵션이 ["전체", 방1] 두 개로 줄어 상한이 1
         }
