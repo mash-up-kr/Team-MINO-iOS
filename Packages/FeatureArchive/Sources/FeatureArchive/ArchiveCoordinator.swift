@@ -67,7 +67,7 @@ public final class ArchiveCoordinator: Coordinator {
     func makeRoomDetailStore(room: Room) -> RoomDetailStore {
         Store(
             RoomDetailState(room: RoomDetailRoom(from: room)),
-            reduce: roomDetailReducer(useCase: deps.fetchPins, room: room),
+            reduce: roomDetailReducer(useCase: deps.fetchPins, deletePin: deps.deletePin, room: room),
             handle: { [weak self] in self?.handle($0) }
         )
     }

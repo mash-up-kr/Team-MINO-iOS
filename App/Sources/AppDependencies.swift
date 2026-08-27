@@ -22,6 +22,7 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
     let homeGuide: HomeGuideUseCase
     let savePin: SavePinToRoomsUseCase
     let fetchPinDetail: FetchPinDetailUseCase
+    let deletePin: DeletePinUseCase
     let fetchShareTargets: FetchShareTargetsUseCase
     let currentMember: CurrentMemberUseCase
     let createRoom: CreateRoomUseCase
@@ -71,6 +72,8 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
         // 목록과 상세를 한 인스턴스가 겸한다 — 상세가 목록에 없는 값을 지어내면 두 화면이 어긋난다.
         self.fetchPins = DefaultFetchPinsUseCase(repository: pins)
         self.fetchPinDetail = DefaultFetchPinDetailUseCase(repository: pins)
+        // 삭제도 같은 인스턴스여야 한다 — 따로 만들면 지운 장소가 다음 조회에서 되살아난다.
+        self.deletePin = DefaultDeletePinUseCase(repository: pins)
 
         // 알림 목록: 실 API 미연결 → Mock Repository(하드코딩 JSON) 사용. 추후 NotificationRepositoryImpl 로 교체.
         self.fetchNotifications = DefaultFetchNotificationsUseCase(repository: MockNotificationRepository())

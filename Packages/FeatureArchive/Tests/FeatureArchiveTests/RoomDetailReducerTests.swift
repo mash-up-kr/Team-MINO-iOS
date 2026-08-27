@@ -41,13 +41,40 @@ private struct StubFetchPins: FetchPinsUseCase {
     }
 }
 
+private struct StubDeletePin: DeletePinUseCase {
+    var error: DomainError?
+
+    func execute(pinID: PinID) async throws {
+        if let error { throw error }
+    }
+}
+
 @MainActor
 struct RoomDetailReducerTests {
     private func makeStore(
         _ useCase: FetchPinsUseCase = StubFetchPins(),
+        deletePin: DeletePinUseCase = StubDeletePin(),
         state: RoomDetailState = RoomDetailState(room: RoomDetailRoom(from: fixtureRoom))
     ) -> TestStore<RoomDetailState, RoomDetailAction, RoomDetailNav> {
-        TestStore(state, reduce: roomDetailReducer(useCase: useCase, room: fixtureRoom, now: { fixtureNow }))
+        TestStore(
+            state,
+            reduce: roomDetailReducer(
+                useCase: useCase,
+                deletePin: deletePin,
+                room: fixtureRoom,
+                now: { fixtureNow }
+            )
+        )
+    }
+
+    /// 삭제 확인 다이얼로그가 열린 상태 — 케밥에서 "장소 삭제" 를 누른 직후.
+    private func deletingState(_ index: Int, category: String = RoomDetailCategoryList.all) -> RoomDetailState {
+        var state = loadedState()
+        state.category = category
+        state.locations = RoomDetailCategoryList.filter(fixturePins, by: category)
+            .map(RoomDetailLocation.init(from:))
+        state.deletion = RoomDetailDeletion(locationID: fixturePins[index].id.value)
+        return state
     }
 
     private func locations(_ sort: RoomDetailSort) -> [RoomDetailLocation] {
@@ -161,6 +188,122 @@ struct RoomDetailReducerTests {
         let target = locations(.all)[0]
         await store.send(.tapShare(target))
         store.receiveNavigation(.shareLocation(target))
+        store.finish()
+    }
+
+    // MARK: - 장소 삭제 (004-1 ⑧ / 004-1-3-1)
+
+    @Test("L1 — 케밥의 '장소 삭제' 는 확인 다이얼로그만 연다. 되돌릴 수 없는 조작이라 즉시 지우지 않는다")
+    func tapDeleteLocation_opensDialog() async {
+        let store = makeStore(state: loadedState())
+
+        await store.send(.tapDeleteLocation(fixturePins[1].id.value)) {
+            $0.deletion = RoomDetailDeletion(locationID: fixturePins[1].id.value)
+        }
+
+        #expect(store.currentState.pins == fixturePins)
+        #expect(store.currentState.locations == locations(.all))
+        store.finish()
+    }
+
+    @Test("L1 — 취소하면 다이얼로그만 닫히고 목록도 방 장소 수도 그대로다")
+    func cancelDelete_changesNothingElse() async {
+        let store = makeStore(state: deletingState(1))
+
+        await store.send(.cancelDelete) { $0.deletion = nil }
+
+        #expect(store.currentState.pins == fixturePins)
+        #expect(store.currentState.locations == locations(.all))
+        #expect(store.currentState.room.locationCountText == "3개")
+        store.finish()
+    }
+
+    @Test("L2 — 확인하면 그 장소가 원본·표시 목록에서 빠지고 방 장소 수도 하나 준다")
+    func confirmDelete_removesLocationAndDecrementsCount() async {
+        let store = makeStore(state: deletingState(1))
+        let remaining = [fixturePins[0], fixturePins[2]]
+
+        await store.send(.confirmDelete) { $0.deletion?.isSubmitting = true }
+        await store.receive(.deleted(fixturePins[1].id)) {
+            $0.deletion = nil
+            $0.pins = remaining
+            $0.categories = ["전체", "카페"]   // 음식점은 그 장소 하나뿐이었다
+            $0.locations = remaining.map(RoomDetailLocation.init(from:))
+            $0.room = RoomDetailRoom(from: fixtureRoom).removingOneLocation()
+        }
+
+        #expect(store.currentState.room.locationCountText == "2개")
+        store.finish()
+    }
+
+    @Test("L2 — 삭제에 실패하면 목록이 그대로 남고 다이얼로그의 진행 상태가 풀린다")
+    func confirmDelete_failureKeepsList() async {
+        let store = makeStore(deletePin: StubDeletePin(error: .unknown), state: deletingState(1))
+
+        await store.send(.confirmDelete) { $0.deletion?.isSubmitting = true }
+        await store.receive(.deleteFailed(.unknown)) { $0.deletion = nil }
+
+        #expect(store.currentState.pins == fixturePins)
+        #expect(store.currentState.locations == locations(.all))
+        #expect(store.currentState.room.locationCountText == "3개")
+        store.finish()
+    }
+
+    @Test("L2 — 업종 칩으로 걸러진 상태에서 지워도 원본과 표시 목록이 어긋나지 않는다")
+    func confirmDelete_keepsFilteredListInSync() async {
+        // "카페"(p0·p20) 로 걸러 둔 채 p0 를 지운다 — 표시 목록에는 p20 만, 원본에는 음식점도 남아야 한다.
+        let store = makeStore(state: deletingState(0, category: "카페"))
+        let remaining = [fixturePins[1], fixturePins[2]]
+
+        await store.send(.confirmDelete) { $0.deletion?.isSubmitting = true }
+        await store.receive(.deleted(fixturePins[0].id)) {
+            $0.deletion = nil
+            $0.pins = remaining
+            $0.categories = ["전체", "음식점", "카페"]   // 남은 핀의 등장 순서
+            $0.locations = [RoomDetailLocation(from: fixturePins[2])]
+            $0.room = RoomDetailRoom(from: fixtureRoom).removingOneLocation()
+        }
+
+        #expect(store.currentState.category == "카페")   // 아직 남아 있는 업종이라 선택을 유지한다
+        store.finish()
+    }
+
+    @Test("L2 — 고른 업종의 마지막 장소를 지우면 빈 목록 대신 '전체' 로 되돌아간다")
+    func confirmDelete_resetsCategoryWhenItDisappears() async {
+        let store = makeStore(state: deletingState(1, category: "음식점"))
+        let remaining = [fixturePins[0], fixturePins[2]]
+
+        await store.send(.confirmDelete) { $0.deletion?.isSubmitting = true }
+        await store.receive(.deleted(fixturePins[1].id)) {
+            $0.deletion = nil
+            $0.pins = remaining
+            $0.category = "전체"
+            $0.categories = ["전체", "카페"]
+            $0.locations = remaining.map(RoomDetailLocation.init(from:))
+            $0.room = RoomDetailRoom(from: fixtureRoom).removingOneLocation()
+        }
+        store.finish()
+    }
+
+    @Test("L1 — 이미 보낸 삭제 요청이 있으면 확인이 다시 들어와도 요청하지 않는다")
+    func confirmDelete_ignoresSecondConfirm() async {
+        var state = deletingState(1)
+        state.deletion?.isSubmitting = true
+        let store = makeStore(state: state)
+
+        await store.send(.confirmDelete)
+
+        store.finish()   // 두 번째 요청이 나갔다면 미처리 effect 로 여기서 걸린다
+    }
+
+    @Test("L1 — 이미 빠진 장소로 deleted 가 또 들어와도 방 장소 수를 두 번 줄이지 않는다")
+    func deleted_ignoresUnknownPin() async {
+        let store = makeStore(state: loadedState())
+
+        await store.send(.deleted(PinID("없는-핀")))
+
+        #expect(store.currentState.pins == fixturePins)
+        #expect(store.currentState.room.locationCountText == "3개")
         store.finish()
     }
 }

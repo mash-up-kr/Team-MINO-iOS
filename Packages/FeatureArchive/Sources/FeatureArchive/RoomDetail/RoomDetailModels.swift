@@ -10,10 +10,42 @@ struct RoomDetailLocation: Identifiable, Equatable {
 
 /// 방 헤더에 들어가는 방 정보.
 struct RoomDetailRoom: Equatable {
+    private static let countCap = 999
+
     let title: String
     let memo: String
-    let locationCountText: String
+    /// 방에 담긴 장소 수. 서버가 주는 방 집계값이라 지금 받아 온 페이지의 장소 수와는 다르다.
+    /// 표시 문자열이 아니라 수로 들고 있어야 삭제 후 헤더를 다시 조회 없이 맞출 수 있다.
+    let locationCount: Int
     let memberCount: Int
+
+    var locationCountText: String {
+        locationCount > Self.countCap ? "\(Self.countCap)+개" : "\(locationCount)개"
+    }
+
+    /// 장소 하나를 지운 뒤의 방. 삭제는 서버 집계를 다시 받아오지 않으므로 화면에서 1 을 뺀다 —
+    /// 안 빼면 카드는 사라졌는데 헤더만 "N개" 그대로라 방금 한 조작이 안 먹은 것처럼 보인다.
+    func removingOneLocation() -> RoomDetailRoom {
+        RoomDetailRoom(
+            title: title,
+            memo: memo,
+            locationCount: max(0, locationCount - 1),
+            memberCount: memberCount
+        )
+    }
+}
+
+/// 삭제 확인 다이얼로그(시안 004-1-3-1)가 겨냥한 장소.
+///
+/// `mhDialog(item:)` 이 `Identifiable` 을 요구해 값 하나를 감쌌다. 진행 중 여부를 밖에 Bool 로
+/// 따로 두지 않고 여기 담는 건, "다이얼로그는 닫혔는데 삭제 중" 같은 있을 수 없는 조합을
+/// 타입으로 막기 위해서다.
+struct RoomDetailDeletion: Equatable, Identifiable {
+    let locationID: RoomDetailLocation.ID
+    /// 확인을 누른 뒤 응답을 기다리는 중 — 두 버튼을 모두 잠가 연타로 두 번 지우는 걸 막는다.
+    var isSubmitting = false
+
+    var id: RoomDetailLocation.ID { locationID }
 }
 
 extension RoomDetailLocation {
@@ -29,13 +61,11 @@ extension RoomDetailLocation {
 }
 
 extension RoomDetailRoom {
-    private static let countCap = 999
-
     init(from room: Room) {
         self.init(
             title: room.name,
             memo: room.description ?? "",
-            locationCountText: room.pinCount > Self.countCap ? "\(Self.countCap)+개" : "\(room.pinCount)개",
+            locationCount: room.pinCount,
             memberCount: room.users.count
         )
     }
@@ -107,7 +137,7 @@ extension RoomDetailRoom {
     static let sample = RoomDetailRoom(
         title: "가나다라마바사아자차카타파하다",
         memo: "memo",
-        locationCountText: "999+개",
+        locationCount: 1_000,   // 상한(999) 을 넘겨 "999+개" 표기를 프리뷰에서 확인한다
         memberCount: 1
     )
 }
