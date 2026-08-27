@@ -6,7 +6,7 @@ import MVITestSupport
 
 private let fixtureNow = Date(timeIntervalSince1970: 1_700_000_000)
 
-private let fixturePin = Pin(
+private let fixturePin = PinFixture.pin(
     id: PinID("p1"),
     roomID: "r1",
     category: .worthVisiting,

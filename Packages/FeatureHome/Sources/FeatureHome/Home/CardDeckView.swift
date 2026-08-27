@@ -114,8 +114,8 @@ struct CardDeckView: View {
             avatar: nil,
             badgeText: badge.text,
             badgeColor: badge.color,
-            title: pin.title,
-            address: pin.address,
+            title: pin.place.name,
+            address: pin.place.address,
             images: [],
             menuItems: moreMenuItems(for: pin)
         )

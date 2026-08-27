@@ -18,7 +18,7 @@ private let fixtureRooms = [
 ]
 
 private let fixturePins: [Pin] = (0..<3).map { i in
-    Pin(
+    PinFixture.pin(
         id: PinID("pin-\(i)"),
         roomID: "1",
         category: [.popularAmongFriends, .manyStories, .savedByMany][i],
@@ -657,7 +657,7 @@ struct HomeReducerTests {
     @Test("L2 — tapMorePlaces 는 page 를 올려 fetchPins 를 호출하고, 결과로 현재 방 구간을 교체하며 인덱스를 리셋한다")
     func tapMorePlaces_regenerates() async {
         let morePins = (0..<10).map { i in
-            Pin(id: PinID("more-1-\(i)"), roomID: "1", category: .savedByMany,
+            PinFixture.pin(id: PinID("more-1-\(i)"), roomID: "1", category: .savedByMany,
                 title: "새 장소 \(i)", address: "주소", createdAt: fixtureDate)
         }
         let store = makeStore(
@@ -679,11 +679,11 @@ struct HomeReducerTests {
     /// 방1(3장) + 방2(2장) 을 방 순서대로 이어붙인 평면 덱.
     private func multiRoomPins() -> [Pin] {
         let r1 = (0..<3).map { i in
-            Pin(id: PinID("a-\(i)"), roomID: "1", category: .savedByMany,
+            PinFixture.pin(id: PinID("a-\(i)"), roomID: "1", category: .savedByMany,
                 title: "A\(i)", address: "주소", createdAt: fixtureDate)
         }
         let r2 = (0..<2).map { i in
-            Pin(id: PinID("b-\(i)"), roomID: "2", category: .savedByMany,
+            PinFixture.pin(id: PinID("b-\(i)"), roomID: "2", category: .savedByMany,
                 title: "B\(i)", address: "주소", createdAt: fixtureDate)
         }
         return r1 + r2
@@ -761,7 +761,7 @@ struct HomeReducerTests {
     func tapMorePlaces_replacesOnlyCurrentRoomSlice() async {
         let base = multiRoomPins()   // 방1 3장(index 0..2) + 방2 2장(3..4)
         let morePins = (0..<10).map { i in
-            Pin(id: PinID("more-2-\(i)"), roomID: "2", category: .savedByMany,
+            PinFixture.pin(id: PinID("more-2-\(i)"), roomID: "2", category: .savedByMany,
                 title: "새 장소 \(i)", address: "주소", createdAt: fixtureDate)
         }
         // index 4 = 방2 카드 → 방2 구간만 교체

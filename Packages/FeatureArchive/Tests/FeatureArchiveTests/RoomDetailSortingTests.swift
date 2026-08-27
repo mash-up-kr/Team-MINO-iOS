@@ -7,7 +7,7 @@ struct RoomDetailSortingTests {
     private let now = Date(timeIntervalSince1970: 1_700_000_000)
 
     private func pin(_ id: String, daysAgo: Double) -> Pin {
-        Pin(
+        PinFixture.pin(
             id: PinID(id),
             roomID: "r1",
             category: .worthVisiting,

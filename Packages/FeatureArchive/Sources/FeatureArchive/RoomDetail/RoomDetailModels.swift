@@ -17,16 +17,13 @@ struct RoomDetailRoom: Equatable {
 }
 
 extension RoomDetailLocation {
-    private static let placeholderCommentCount = 0
-    private static let placeholderPhotoCount = 2
-
     init(from pin: Pin) {
         self.init(
             id: pin.id.value,
-            name: pin.title,
-            address: pin.address,
-            commentCount: Self.placeholderCommentCount,
-            photoCount: Self.placeholderPhotoCount
+            name: pin.place.name,
+            address: pin.place.address,
+            commentCount: pin.commentCount,
+            photoCount: pin.images.count
         )
     }
 }

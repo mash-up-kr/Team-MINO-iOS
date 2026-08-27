@@ -9,14 +9,12 @@ struct PlaceDetailPlace: Equatable {
 }
 
 extension PlaceDetailPlace {
-    private static let placeholderPhotoCount = 2
-
     init(from pin: Pin, now: Date) {
         self.init(
-            name: pin.title,
-            address: pin.address,
+            name: pin.place.name,
+            address: pin.place.address,
             savedDays: PlaceDetailSaveAge.days(since: pin.createdAt, now: now),
-            photoCount: Self.placeholderPhotoCount
+            photoCount: pin.images.count
         )
     }
 }
