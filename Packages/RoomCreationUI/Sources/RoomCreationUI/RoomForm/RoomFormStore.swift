@@ -109,12 +109,13 @@ public struct RoomFormState: Equatable {
         return trimmed.isEmpty ? nil : trimmed
     }
 
-    /// 서버로 보낼 색. 폼은 색 없이도 확정되므로 미선택이면 기본색으로 떨어진다.
+    /// 서버로 보낼 색. 폼은 색 없이도 확정되므로 미선택은 `gray` 로 나간다 — 서버가 `color` 를
+    /// 필수로 요구해 "안 고름"도 값으로 표현해야 한다.
     ///
-    /// > 미리보기 썸네일은 미선택일 때 my-room 을 그려서 **본 것과 저장되는 것이 어긋난다.**
-    /// > 디자인 확인 대상 — 색 선택을 필수로 할지, 미선택 미리보기를 기본색으로 바꿀지 정해야 한다.
+    /// 미리보기 썸네일도 미선택일 때 my-room 을 그리므로 **본 것과 저장되는 것이 일치한다**
+    /// (`gray` 는 썸네일이 없어 같은 폴백을 탄다).
     var colorToSave: RoomColor {
-        selectedColorIndex.flatMap(RoomColorPalette.color(at:)) ?? RoomColorPalette.defaultColor
+        selectedColorIndex.flatMap(RoomColorPalette.color(at:)) ?? .gray
     }
 
     /// **서버로 보낼 수 있는** 문자 — 한글 완성형·영문·숫자·공백. 안내 문구가 약속하는 집합이다.

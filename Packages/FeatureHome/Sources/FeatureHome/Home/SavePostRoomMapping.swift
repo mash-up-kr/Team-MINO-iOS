@@ -17,7 +17,7 @@ extension SavePostRoom {
             name: room.type == .personal ? Room.personalHomeName : room.name,
             memo: room.description,
             placeCount: room.pinCount,
-            thumbnail: room.color.map { .color(RoomColorPalette.thumbnail(for: $0)) } ?? .myRoom
+            thumbnail: room.color.flatMap(RoomColorPalette.thumbnail(for:)).map { .color($0) } ?? .myRoom
         )
     }
 }

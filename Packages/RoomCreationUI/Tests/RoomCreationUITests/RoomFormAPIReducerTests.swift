@@ -72,9 +72,9 @@ struct RoomFormAPIReducerTests {
         store.finish()
     }
 
-    // 서버는 color 를 필수로 요구하는데 폼은 색 없이도 확정된다 — 팔레트 첫 색으로 떨어진다.
-    @Test("L2 — 색을 안 골라도 요청은 나간다 — 팔레트 첫 색으로 보낸다")
-    func confirmSubmit_withoutColor_fallsBackToFirstPaletteColor() async {
+    // 서버는 color 를 필수로 요구한다 — "안 고름" 도 값(gray)으로 보내야 한다.
+    @Test("L2 — 색을 안 골라도 요청은 나간다 — gray 로 보낸다")
+    func confirmSubmit_withoutColor_sendsGray() async {
         let create = StubCreateRoomUseCase()
         let store = TestStore(RoomFormState(), reduce: roomFormReducer(.create(create: create)))
 
@@ -87,7 +87,7 @@ struct RoomFormAPIReducerTests {
         await store.receive(.saveSucceeded(roomId: "room-1")) { $0.isSaving = false }
         store.receiveNavigation(.didSubmit(roomId: "room-1"))
 
-        #expect(create.received?.color == RoomColorPalette.color(at: 0))
+        #expect(create.received?.color == .gray)
 
         store.finish()
     }

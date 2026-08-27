@@ -28,15 +28,16 @@ struct RoomColorPaletteTests {
         #expect(RoomColorPalette.gridItems.count == RoomColorPalette.entries.count)
     }
 
-    @Test("팔레트는 도메인 12색을 하나도 빠짐없이 덮는다")
-    func coversEveryRoomColor() {
-        #expect(Set(RoomColorPalette.entries.map(\.color)) == Set(RoomColor.allCases))
+    // gray 는 "색 미선택" 을 표현하는 값이라 피커에 칸이 없다. 나머지 12색은 빠짐없이 있어야 한다.
+    @Test("피커는 gray 를 뺀 도메인 12색을 하나도 빠짐없이 덮는다")
+    func coversEveryRoomColorExceptGray() {
+        #expect(Set(RoomColorPalette.entries.map(\.color)) == Set(RoomColor.allCases).subtracting([.gray]))
     }
 
-    // 색을 안 고른 채 확정하면 이 색이 서버로 나간다 — 피커 첫 칸과 달라지면 "본 것과 저장된 것"이 갈린다.
-    @Test("기본색은 피커 첫 칸과 같다")
-    func defaultColorMatchesFirstEntry() {
-        #expect(RoomColorPalette.defaultColor == RoomColorPalette.color(at: 0))
+    @Test("gray 는 그릴 썸네일이 없다 — 호출부가 my-room 으로 폴백한다")
+    func grayHasNoThumbnail() {
+        #expect(RoomColorPalette.thumbnail(for: .gray) == nil)
+        #expect(RoomColorPalette.index(of: .gray) == nil)
     }
 
     @Test("인덱스마다 정해진 썸네일 색이 나온다", arguments: expected)
@@ -58,6 +59,17 @@ struct RoomColorPaletteTests {
     @Test("도메인 색 → 썸네일 색 매핑이 팔레트 순서와 일치한다", arguments: expected)
     func thumbnailForColor(_ row: (index: Int, color: RoomColor, thumbnail: MHRoomThumbnailColor)) {
         #expect(RoomColorPalette.thumbnail(for: row.color) == row.thumbnail)
+    }
+
+    // 서버로 나가는 문자열이라 오타 하나가 곧 400 이다. Figma Atomic 토큰명을 kebab-case 로 옮긴 값이다.
+    @Test("서버 전송 문자열(rawValue)을 고정한다")
+    func rawValuesMatchServerContract() {
+        #expect(RoomColor.red.rawValue == "red")
+        #expect(RoomColor.redOrange.rawValue == "red-orange")
+        #expect(RoomColor.lightBlue.rawValue == "light-blue")
+        #expect(RoomColor.gray.rawValue == "gray")
+        // 나머지는 단어 하나라 케이스명과 같다.
+        #expect(RoomColor.allCases.allSatisfy { !$0.rawValue.contains(" ") })
     }
 
     @Test("범위 밖 인덱스는 nil — 화면이 my-room 썸네일로 폴백한다")

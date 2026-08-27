@@ -38,12 +38,8 @@ public enum RoomColorPalette {
 
     /// 인덱스 → 썸네일 색. 범위 밖이면 `nil`(색을 아직 안 골랐거나 잘못된 인덱스).
     public static func thumbnail(at index: Int) -> MHRoomThumbnailColor? {
-        color(at: index).map(thumbnail(for:))
+        color(at: index).flatMap(thumbnail(for:))
     }
-
-    /// 색을 고르지 않고 확정했을 때 보낼 색 — 서버가 `color` 를 필수로 요구한다.
-    /// 피커 첫 칸과 같은 색이다(`entries[0]`).
-    public static let defaultColor: RoomColor = .red
 
     /// 인덱스 → 서버로 보낼 방 색. 범위 밖이면 `nil`.
     public static func color(at index: Int) -> RoomColor? {
@@ -56,10 +52,11 @@ public enum RoomColorPalette {
     }
 
     /// 방 색 → 썸네일 색. 방 리스트·저장 시트가 도메인 값을 그림으로 옮길 때 쓴다.
+    /// 색 미선택(`gray`)은 그릴 일러스트가 없어 `nil` — 호출부가 my-room 썸네일로 폴백한다.
     ///
     /// 두 enum 의 rawValue 가 같다는 데 기대지 않고 명시적으로 짝짓는다 — `init(rawValue:)` 로
     /// 이으면 한쪽 이름이 바뀌어도 컴파일이 통과하고 런타임에 색이 사라진다.
-    public static func thumbnail(for color: RoomColor) -> MHRoomThumbnailColor {
+    public static func thumbnail(for color: RoomColor) -> MHRoomThumbnailColor? {
         switch color {
         case .red: .red
         case .redOrange: .redOrange
@@ -73,6 +70,7 @@ public enum RoomColorPalette {
         case .pink: .pink
         case .purple: .purple
         case .brown: .brown
+        case .gray: nil
         }
     }
 }

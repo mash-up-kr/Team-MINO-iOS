@@ -67,7 +67,7 @@ struct RoomEditingRepositoryImplTests {
 
         #expect(await client.lastPath == "api/v1/rooms/room-42")
         #expect(await client.lastMethod == .patch)
-        #expect(await client.lastBodyValue("color") == "lightBlue")
+        #expect(await client.lastBodyValue("color") == "light-blue")   // Figma 토큰명 kebab-case
     }
 
     // MARK: 오류 번역

@@ -24,8 +24,7 @@ public final class MockRoomRepository: RoomRepository {
         let data: [RoomDTO]
     }
 
-    // 색은 서버 계약대로 **이름**이다(hex 아님). "내 장소"만 팔레트에 없는 이름을 둬서
-    // 알 수 없는 색 → 기본 썸네일 폴백 경로도 함께 태운다.
+    // 색은 서버 계약대로 **이름**이다(hex 아님). "내 장소"는 색을 고른 적이 없어 `gray` 다.
     private static let mockJSON = """
     {
       "data": [
@@ -34,7 +33,7 @@ public final class MockRoomRepository: RoomRepository {
           "type": "personal",
           "name": "내 장소",
           "description": null,
-          "color": "navy",
+          "color": "gray",
           "ownerId": "user-0001",
           "createdAt": "2026-08-01T09:00:00Z",
           "pinCount": 0,

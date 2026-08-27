@@ -202,7 +202,7 @@ extension RoomListItem {
             return .myRoom
         case .shared:
             // 서버가 주는 색 이름을 팔레트 12색에 매핑. 모르는 이름이면 my-room 썸네일로 폴백.
-            return room.color.map { .color(RoomColorPalette.thumbnail(for: $0)) } ?? .myRoom
+            return room.color.flatMap(RoomColorPalette.thumbnail(for:)).map { .color($0) } ?? .myRoom
         }
     }
 }
