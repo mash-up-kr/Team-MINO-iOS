@@ -1,5 +1,6 @@
 import FeatureArchive
 import FeatureHome
+import FeatureNotification
 import FeatureProfile
 import SwiftUI
 
@@ -9,11 +10,13 @@ import SwiftUI
 final class AppCoordinator {
     let home: HomeCoordinator
     let archive: ArchiveCoordinator
+    let notification: NotificationCoordinator
     let profile: ProfileCoordinator
 
     init(deps: AppDependencies) {
         self.home = HomeCoordinator(deps: deps)
         self.archive = ArchiveCoordinator(deps: deps)
+        self.notification = NotificationCoordinator(deps: deps)
         self.profile = ProfileCoordinator()
     }
 }

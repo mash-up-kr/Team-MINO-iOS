@@ -5,6 +5,7 @@ import Foundation
 public enum DomainError: Error, Equatable, Sendable {
     case memberNotFound
     case roomsFetchFailed
+    case notificationsFetchFailed
     case unauthorized
     case unknown
 }

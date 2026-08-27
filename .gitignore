@@ -37,3 +37,6 @@ qa-artifacts/
 
 ### 로컬 시크릿 (API 키 등) — 커밋 금지
 App/Config/Secrets.xcconfig
+
+# 에이전트 워크플로 작업 노트 — 저장소에 담지 않는다
+plan/

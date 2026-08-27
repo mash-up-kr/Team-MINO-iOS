@@ -1,6 +1,7 @@
 import DesignSystem
 import FeatureArchive
 import FeatureHome
+import FeatureNotification
 import FeatureProfile
 import SwiftUI
 
@@ -93,22 +94,9 @@ struct MainTabView: View {
         switch selectedTab {
         case .home: HomeTabView(coordinator: coordinator.home)
         case .save: ArchiveTabView(coordinator: coordinator.archive)
-        case .notification: notificationPlaceholder
+        case .notification: NotificationTabView(coordinator: coordinator.notification)
         case .profile: ProfileTabView(coordinator: coordinator.profile)
         }
-    }
-
-    /// 알림 탭 — 피쳐 모듈 생기기 전까지 빈 화면
-    private var notificationPlaceholder: some View {
-        VStack {
-            Spacer()
-            Text("알림")
-                .mhTypography(.body1NormalMedium)
-                .foregroundStyle(.mhLabelAlternative)
-            Spacer()
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.mhBackgroundNormalNormal)
     }
 }
 
