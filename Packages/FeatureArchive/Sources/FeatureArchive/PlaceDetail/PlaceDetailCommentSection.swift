@@ -4,6 +4,8 @@ import SwiftUI
 struct PlaceDetailCommentSection: View {
     let comments: [PlaceDetailComment]
     @Binding var draft: String
+    /// 등록 가능한가. 내 신원을 모르면 작성자를 실을 수 없어 잠긴다.
+    let canSubmit: Bool
     let onSubmit: () -> Void
 
     private var trimmedDraft: String {
@@ -40,7 +42,7 @@ struct PlaceDetailCommentSection: View {
                         .fill(.mhLineNormalNormal)
                         .frame(height: 1)
                 }
-                MHComment(avatar: nil, name: comment.author, comment: comment.body)
+                MHComment(avatar: nil, name: comment.author.nickname, comment: comment.body)
             }
         }
         .accessibilityIdentifier("PlaceDetail.commentList")
@@ -76,7 +78,7 @@ struct PlaceDetailCommentSection: View {
 
     private var submitRow: some View {
         MHButton("등록", size: .large, action: onSubmit)
-            .disabled(trimmedDraft.isEmpty)
+            .disabled(trimmedDraft.isEmpty || !canSubmit)
             .accessibilityIdentifier("PlaceDetail.submitComment")
             .frame(maxWidth: .infinity, alignment: .trailing)
             .padding(20)
@@ -87,7 +89,7 @@ struct PlaceDetailCommentSection: View {
     struct Host: View {
         @State private var draft = ""
         var body: some View {
-            PlaceDetailCommentSection(comments: [], draft: $draft, onSubmit: {})
+            PlaceDetailCommentSection(comments: [], draft: $draft, canSubmit: true, onSubmit: {})
         }
     }
     return Host()
@@ -99,7 +101,7 @@ struct PlaceDetailCommentSection: View {
         var body: some View {
             ScrollView {
                 PlaceDetailCommentSection(
-                    comments: PlaceDetailComment.samples, draft: $draft, onSubmit: {}
+                    comments: PlaceDetailComment.samples, draft: $draft, canSubmit: true, onSubmit: {}
                 )
             }
         }

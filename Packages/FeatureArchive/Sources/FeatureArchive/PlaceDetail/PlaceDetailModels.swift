@@ -26,11 +26,12 @@ extension PlaceDetailPlace {
 
 struct PlaceDetailComment: Identifiable, Equatable {
     let id: String
-    let author: String
+    /// 작성자 신원. 닉네임 문자열이 아니라 프로필째 든다 — 표시 이름(``MemberProfile/nickname``)과
+    /// 소유 판정에 쓰는 식별자가 한 값에서 나와야 서로 어긋나지 않는다.
+    let author: MemberProfile
     let body: String
 
     static let bodyLimit = 200
-    static let localAuthorName = "나"
 }
 
 extension PlaceDetailPlace {
@@ -48,15 +49,19 @@ extension PlaceDetailPlace {
 
 extension PlaceDetailComment {
     static let samples: [PlaceDetailComment] = [
-        PlaceDetailComment(id: "c1", author: "서연", body: "친구가 남긴 코멘트입니다."),
+        PlaceDetailComment(
+            id: "c1",
+            author: MemberProfile(id: MemberID("user-0003"), nickname: "서연", avatarID: 3),
+            body: "친구가 남긴 코멘트입니다."
+        ),
         PlaceDetailComment(
             id: "c2",
-            author: "태윤",
+            author: MemberProfile(id: MemberID("user-0001"), nickname: "나", avatarID: 1),
             body: String(repeating: "친구가 남긴 코멘트입니다.", count: 6)
         ),
         PlaceDetailComment(
             id: "c3",
-            author: "에린",
+            author: MemberProfile(id: MemberID("user-0004"), nickname: "에린", avatarID: 4),
             body: String(repeating: "친구가 남긴 코멘트입니다.", count: 12)
         ),
     ]

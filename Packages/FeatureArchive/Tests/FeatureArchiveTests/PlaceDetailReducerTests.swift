@@ -36,6 +36,8 @@ private struct StubFetchPinDetail: FetchPinDetailUseCase {
     }
 }
 
+private let fixtureAuthor = MemberProfile(id: MemberID("user-0001"), nickname: "나", avatarID: 1)
+
 @MainActor
 struct PlaceDetailReducerTests {
     private func makeStore(
@@ -43,9 +45,12 @@ struct PlaceDetailReducerTests {
     ) -> TestStore<PlaceDetailState, PlaceDetailAction, PlaceDetailNav> {
         var remaining = ["c1", "c2", "c3"]
         return TestStore(
-            PlaceDetailState(place: PlaceDetailPlace(from: fixturePin)),
+            // 코멘트 등록은 신원이 있어야 하므로 처음부터 채워 둔다 — 신원 조회 자체는
+            // `PlaceDetailCommentDeleteTests` 가 본다.
+            PlaceDetailState(place: PlaceDetailPlace(from: fixturePin), currentMember: fixtureAuthor),
             reduce: placeDetailReducer(
                 useCase: StubFetchPinDetail(outcome: source),
+                fetchCurrentMember: StubCurrentMember(profile: fixtureAuthor),
                 pin: fixturePin,
                 makeCommentID: { remaining.removeFirst() }
             )
@@ -100,7 +105,7 @@ struct PlaceDetailReducerTests {
     func submitComment() async {
         let store = makeStore()
         await store.send(.submitComment("좋았어요")) {
-            $0.comments = [PlaceDetailComment(id: "c1", author: "나", body: "좋았어요")]
+            $0.comments = [PlaceDetailComment(id: "c1", author: fixtureAuthor, body: "좋았어요")]
         }
         store.finish()
     }
@@ -109,7 +114,7 @@ struct PlaceDetailReducerTests {
     func submitComment_trimsAndIgnoresBlank() async {
         let store = makeStore()
         await store.send(.submitComment("  좋았어요  ")) {
-            $0.comments = [PlaceDetailComment(id: "c1", author: "나", body: "좋았어요")]
+            $0.comments = [PlaceDetailComment(id: "c1", author: fixtureAuthor, body: "좋았어요")]
         }
         await store.send(.submitComment("   "))
         store.finish()
@@ -120,7 +125,7 @@ struct PlaceDetailReducerTests {
         let store = makeStore()
         let clamped = String(repeating: "가", count: PlaceDetailComment.bodyLimit)
         await store.send(.submitComment(String(repeating: "가", count: 250))) {
-            $0.comments = [PlaceDetailComment(id: "c1", author: "나", body: clamped)]
+            $0.comments = [PlaceDetailComment(id: "c1", author: fixtureAuthor, body: clamped)]
         }
         store.finish()
     }

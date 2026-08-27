@@ -1,4 +1,5 @@
 import DesignSystem
+import Domain
 import MVI
 import SwiftUI
 
@@ -53,13 +54,17 @@ struct PlaceDetailView: View {
                 PlaceDetailCommentSection(
                     comments: store.state.comments,
                     draft: $draft,
+                    canSubmit: store.state.canSubmitComment,
                     onSubmit: submitComment
                 )
             }
         }
         // 스토어 인스턴스가 곧 "지금 보고 있는 핀" 이다 — 다른 핀을 고르면 Coordinator 가 새로 만들어
         // 주므로, id 로 걸어 두면 같은 자리에 뷰가 재사용돼도 출처를 다시 읽는다.
-        .task(id: ObjectIdentifier(store)) { store.send(.load) }
+        .task(id: ObjectIdentifier(store)) {
+            store.send(.load)
+            store.send(.loadCurrentMember)
+        }
     }
 
     private var divider: some View {
@@ -99,7 +104,11 @@ private final class CollapseRef {
 
 #Preview("장소 상세 시트") {
     let store = PlaceDetailStore(
-        PlaceDetailState(place: .sample, comments: PlaceDetailComment.samples),
+        PlaceDetailState(
+            place: .sample,
+            comments: PlaceDetailComment.samples,
+            currentMember: MemberProfile(id: MemberID("user-0001"), nickname: "나", avatarID: 1)
+        ),
         reduce: { _, _ in .none }
     )
     return ZStack {

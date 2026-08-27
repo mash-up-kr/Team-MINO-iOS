@@ -20,6 +20,9 @@ public protocol ArchiveDeps: RoomShareCreateRoomDeps {
     var savePin: SavePinToRoomsUseCase { get }
     /// 장소 카드 케밥의 "장소 삭제"(004-1 ⑧) — 확인 다이얼로그를 거친 뒤 이 방에서 지운다.
     var deletePin: DeletePinUseCase { get }
+
+    /// 지금 앱을 쓰는 사람 — 장소 상세가 "이 코멘트가 내 것인가"(삭제 케밥을 붙일지)를 이걸로 가른다.
+    var currentMember: CurrentMemberUseCase { get }
     /// 공동방 생성 유도 시트를 "나중에 만들래요" 로 미뤄 둔 상태(2주). 서버가 모르는 기기 로컬
     /// 표시 정책이라 UseCase 가 아니라 ``SnoozeSwitch`` 를 그대로 받는다.
     var roomCreationPromptSnooze: SnoozeSwitch { get }
