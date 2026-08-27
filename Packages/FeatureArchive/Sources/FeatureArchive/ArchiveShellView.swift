@@ -210,9 +210,18 @@ struct ArchiveShellView: View {
         }
     }
 
+    /// 시트 단계별 노출 높이.
+    ///
+    /// `MHBottomSheet` 은 여기 준 값에 **하단 safe-area 를 더해** 시트를 그린다(시트가 탭바·홈
+    /// 인디케이터 뒤로 깔리는 만큼). 그래서 이 값은 "그 아래 것을 뺀 노출 높이"다.
+    ///
+    /// - 방 리스트 88·256 (004-1 ②③) — 시안이 "바텀네비게이션 높이 제외" 라고 못박아 기준이 같다.
+    /// - 장소 상세 335 (005-1 ⑫) — 시안의 369 는 **화면 끝까지** 잰 값이다(375×812 프레임에서 실측
+    ///   367pt). 그 화면은 탭바가 없어 하단 safe-area 가 홈 인디케이터 34pt 뿐이므로 369 − 34 다.
+    /// - 방 상세 156·405 — 시안에 숫자가 없어 그대로 둔다. 확정되면 그때 맞춘다.
     private var peek: (low: CGFloat?, medium: CGFloat) {
-        if placeStore != nil { return (nil, 329) }
-        return detailStore == nil ? (112, 268) : (156, 405)
+        if placeStore != nil { return (nil, 335) }
+        return detailStore == nil ? (88, 256) : (156, 405)
     }
 
     private static let roomListCategories = ["전체", "카페", "음식점"]
