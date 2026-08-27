@@ -19,7 +19,11 @@ let package = Package(
                 // GoogleMaps 는 iOS 전용 바이너리 → iOS 에서만 링크한다.
                 // macOS(테스트 호스트) 빌드에는 포함되지 않아 순수 타입만 컴파일된다.
                 .product(name: "GoogleMaps", package: "ios-maps-sdk", condition: .when(platforms: [.iOS])),
-            ]
+            ],
+            // 마커 아트. DesignSystem 이 아니라 여기 두는 이유는 두 가지다 —
+            // 지도 마커는 `GMSMarker.icon`(UIImage)으로만 쓰이는 지도 전용 자산이고,
+            // DesignSystem 은 iOS 전용이라 macOS 테스트 호스트를 지원하는 MapUI 가 의존할 수 없다.
+            resources: [.process("Resources")]
         ),
         // 브릿지(MapView)는 UIViewRepresentable 이라 단위 테스트 대상이 아니다.
         // 지도 이벤트→화면 전환 로직은 Feature 의 MapHomeReducerTests 가 검증한다.

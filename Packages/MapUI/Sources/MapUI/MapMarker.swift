@@ -28,16 +28,23 @@ public struct MapMarker: Equatable, Identifiable, Sendable {
 /// 넘길 수 있어 팔레트 hex 가 두 곳에 복제되지 않는다. `Color` 의 `==` 는 같은 방식으로 만든 값끼리
 /// 안정적으로 참이라(에셋 색은 이름+번들 비교) 마커 diff 가 매 업데이트마다 흔들리지 않는다.
 public struct MapMarkerStyle: Equatable, Hashable, Sendable {
-    /// 마커 색.
+    /// 마커에서 색이 들어가는 자리(핀 안쪽 원)의 색.
+    ///
+    /// > 선택 마커는 이 값을 쓰지 않는다. 시안의 선택 아이콘은 색 슬롯 없이 고정색(검정 머리 +
+    /// > 흰 눈)이라 방마다 달라지지 않는다. 값을 무시할 뿐 지우지는 않는다 — 디자인이 선택
+    /// > 상태에도 방 색을 넣기로 하면 여기만 다시 읽으면 된다.
     public let tint: Color
-    /// 선택된 마커인가. 선택 마커는 다른 마커보다 위에·크게 그려진다.
+    /// 선택된 마커인가. 선택 마커는 다른 그림으로, 다른 마커보다 위에 그려진다.
     public let isSelected: Bool
 
-    public init(tint: Color, isSelected: Bool = false) {
+    public init(tint: Color = defaultTint, isSelected: Bool = false) {
         self.tint = tint
         self.isSelected = isSelected
     }
 
+    /// 색을 고르지 않은 마커의 원 색(시안 `#DBDCDF`). 호출부가 "색 없음"을 그릴 때 쓴다.
+    public static let defaultTint = Color(red: 0xDB / 255, green: 0xDC / 255, blue: 0xDF / 255)
+
     /// 색을 지정하지 않았을 때의 마커.
-    public static let `default` = MapMarkerStyle(tint: .red)
+    public static let `default` = MapMarkerStyle()
 }

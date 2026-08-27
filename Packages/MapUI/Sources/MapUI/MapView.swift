@@ -105,6 +105,8 @@ public struct MapView: UIViewRepresentable {
         /// 선택 마커는 다른 마커보다 위에 그린다 — 핀이 겹쳐 있을 때 방금 고른 것이 뒤로 숨으면 안 된다.
         private func apply(_ style: MapMarkerStyle, to gmsMarker: GMSMarker) {
             gmsMarker.icon = icon(for: style)
+            // 그림마다 뾰족한 끝의 위치가 달라 앵커도 함께 바꾼다 — 안 바꾸면 선택할 때 핀이 튄다.
+            gmsMarker.groundAnchor = MarkerIcon.groundAnchor(for: style)
             gmsMarker.zIndex = style.isSelected ? 1 : 0
         }
 
@@ -169,32 +171,64 @@ public struct MapView: UIViewRepresentable {
 
 // MARK: - 마커 그림
 
-/// `MapMarkerStyle` → 마커 이미지.
+/// `MapMarkerStyle` → 마커 그림과 앵커. 시안(Figma `004-1-1 방 상세 peek` / `005-1 half`)의
+/// 두 아이콘을 그린다.
 ///
-/// **확정 시안이 없어 SDK 기본 마커를 방 색으로 틴트한다.** 004-1 ④ 가 선택 상태를
-/// "디자인 Attention 핀으로 변경 (작업 중)" 이라고 적어 두었고, 디자인 라이브러리에도
-/// 마커 컴포넌트는 `Default marker component` 하나뿐이라 선택 상태 에셋이 없다.
-/// 그래서 선택은 **확대 + 위로 올리기**로만 구분한다. 에셋이 나오면 이 타입만 갈아끼우면 된다.
+/// - **비선택(아이콘 1)**: 흰 몸통 + 방 색 원 + 회색 마스코트. 색이 들어가는 자리가 원 하나뿐이라
+///   몸통·마스코트만 에셋으로 두고 원은 코드에서 칠한다 — 한 장짜리 그림으로는 방마다 색을 못 바꾼다.
+/// - **선택(아이콘 2)**: 검정 마스코트 머리 + 흰 눈. 시안이 방 색과 무관한 고정색이라 통짜 에셋이다.
+///   (`MapMarkerStyle.tint` 는 이 상태에서 쓰이지 않는다 — 자세한 근거는 `MapMarkerStyle.tint` 주석)
 private enum MarkerIcon {
-    /// 선택 마커 확대 배율.
-    static let selectedScale: CGFloat = 1.4
+    /// 비선택 핀 캔버스(시안 48 × 52.5755). 몸통·마스코트 에셋이 같은 캔버스라 그대로 겹친다.
+    private static let defaultSize = CGSize(width: 48, height: 52.5755)
+
+    /// 방 색이 들어가는 원 — 시안 `Ellipse 512`(cx 24, cy 20, r 15.545).
+    private static let colorWell = CGRect(
+        x: 24 - 15.545, y: 20 - 15.545,
+        width: 15.545 * 2, height: 15.545 * 2
+    )
+
+    /// 마스코트 실루엣 색(시안 `#8A8A8A`). 방 색이 바뀌어도 이 회색은 그대로다.
+    private static let mascotColor = UIColor(white: 0x8A / 255, alpha: 1)
+
+    /// 몸통 그림자 — 시안 `filter0_dd` 의 두 겹. `stdDeviation` 은 CoreGraphics blur 로 환산해 2배다.
+    private static let shadows: [(dy: CGFloat, blur: CGFloat)] = [(4, 6), (2, 4)]
+    private static let shadowColor = UIColor(white: 0.0901961, alpha: 0.06).cgColor
 
     static func image(for style: MapMarkerStyle) -> UIImage? {
-        let base = GMSMarker.markerImage(with: UIColor(style.tint))
-        guard style.isSelected else { return base }
-        return base.scaled(by: selectedScale)
+        style.isSelected ? asset("mapPinSelected") : unselected(tint: UIColor(style.tint))
     }
-}
 
-private extension UIImage {
-    /// 마커 앵커가 아래 중앙(기본값)이라 크기만 키워도 가리키는 좌표는 그대로다.
-    func scaled(by factor: CGFloat) -> UIImage {
-        let target = CGSize(width: size.width * factor, height: size.height * factor)
-        let format = UIGraphicsImageRendererFormat.default()
-        format.scale = scale
-        return UIGraphicsImageRenderer(size: target, format: format).image { _ in
-            draw(in: CGRect(origin: .zero, size: target))
+    /// 핀의 뾰족한 끝이 좌표를 가리키게 하는 앵커(그림 안에서 끝점이 놓인 비율).
+    /// 두 그림의 끝점 위치가 달라 선택 전환 때 함께 바꿔 줘야 핀이 제자리에 선다.
+    static func groundAnchor(for style: MapMarkerStyle) -> CGPoint {
+        // 비선택: (24, 43.58) / 48 × 52.5755, 선택: (27.36, 60.18) / 55.8 × 60.8 (테두리 절반 포함)
+        style.isSelected ? CGPoint(x: 0.490, y: 0.990) : CGPoint(x: 0.5, y: 0.829)
+    }
+
+    private static func unselected(tint: UIColor) -> UIImage? {
+        guard let body = asset("mapPinBody"), let mascot = asset("mapPinMascot") else { return nil }
+        let rect = CGRect(origin: .zero, size: defaultSize)
+        return UIGraphicsImageRenderer(size: defaultSize).image { context in
+            for shadow in shadows {
+                context.cgContext.saveGState()
+                context.cgContext.setShadow(
+                    offset: CGSize(width: 0, height: shadow.dy),
+                    blur: shadow.blur,
+                    color: shadowColor
+                )
+                body.draw(in: rect)
+                context.cgContext.restoreGState()
+            }
+            body.draw(in: rect)
+            tint.setFill()
+            context.cgContext.fillEllipse(in: colorWell)
+            mascot.withTintColor(mascotColor, renderingMode: .alwaysOriginal).draw(in: rect)
         }
+    }
+
+    private static func asset(_ name: String) -> UIImage? {
+        UIImage(named: name, in: .module, compatibleWith: nil)
     }
 }
 

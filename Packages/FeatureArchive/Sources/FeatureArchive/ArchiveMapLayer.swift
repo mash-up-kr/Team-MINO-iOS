@@ -122,8 +122,9 @@ enum ArchiveMap {
         case .pink: .mhPink90
         case .purple: .mhPurple70
         case .brown: .mhBrown70
-        // 색 미선택(`gray`)과 팔레트 밖 값(`nil`)은 그릴 방 색이 없어 앱 기본색으로 떨어진다.
-        case .gray, .none: .mhPrimaryNormal
+        // 색 미선택(`gray`)과 팔레트 밖 값(`nil`)은 그릴 방 색이 없어 마커 기본색으로 떨어진다.
+        // 시안의 색 없는 핀이 쓰는 회색이라 DesignSystem 토큰이 아니라 마커 쪽 값을 받아 쓴다.
+        case .gray, .none: MapMarkerStyle.defaultTint
         }
     }
 }

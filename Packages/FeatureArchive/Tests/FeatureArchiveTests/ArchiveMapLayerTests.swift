@@ -60,11 +60,16 @@ struct ArchiveMapLayerTests {
         #expect(markers.allSatisfy { !$0.style.isSelected })
     }
 
-    @Test("선택 마커도 방 색을 그대로 쓴다 — 색이 아니라 형식만 달라진다")
-    func selectedMarkerKeepsRoomColor() {
+    @Test("선택해도 마커 색 값은 그대로다 — 바뀌는 것은 아이콘 형식뿐이다")
+    func selectionDoesNotChangeTint() {
         let pins = [pin("a", lat: 37.5, lng: 127.0)]
         let markers = ArchiveMap.markers(pins: pins, roomColor: .blue, selectedPinID: "a")
         #expect(markers.first?.style.tint == ArchiveMap.tint(for: .blue))
+    }
+
+    @Test("색 없는 방은 마커 기본색을 쓴다 — 시안의 색 없는 핀과 같은 회색")
+    func noColorUsesMarkerDefault() {
+        #expect(ArchiveMap.tint(for: nil) == MapMarkerStyle.defaultTint)
     }
 
     @Test("색 미선택(gray)은 색이 없는 방(nil)과 같은 기본색으로 떨어진다")
