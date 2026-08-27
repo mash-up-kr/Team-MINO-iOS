@@ -1,16 +1,17 @@
 import Foundation
 import Domain
 
-/// 백엔드 미연결 단계용 `PinRepository`·`PinDetailRepository` 구현.
+/// 백엔드 미연결 단계용 `PinRepository`·`PinDetailRepository`·`PinDeletionRepository` 구현.
 /// 네트워크 대신 하드코딩 장소 풀로 핀을 합성한다.
 /// 추후 네트워크 구현(DTO → `toDomain()` 매핑) 으로 교체하면 이 파일만 지운다.
 ///
 /// 리듀서가 목 데이터를 직접 만들지 않도록(순수성·아키텍처 경계) 여기로 옮겨온 것 —
 /// `page` 로 고정 풀을 회전시켜 "더 보기"마다 다른 카드처럼 보이게 한다.
 ///
-/// 목록과 상세를 **한 구현이 겸한다**. 나눠 두면 상세가 목록에 없는 값을 지어내게 되어
-/// "목록에서 본 장소"와 "상세에서 보는 장소"가 어긋난다.
-public final class MockPinRepository: PinRepository, PinDetailRepository {
+/// 목록·상세·삭제를 **한 구현이 겸한다**. 나눠 두면 상세가 목록에 없는 값을 지어내게 되어
+/// "목록에서 본 장소"와 "상세에서 보는 장소"가 어긋나고, 삭제는 지운 장소가 다음 조회에서
+/// 되살아난다 — 셋이 같은 보관소를 봐야 목업에서도 앞뒤가 맞는다.
+public final class MockPinRepository: PinRepository, PinDetailRepository, PinDeletionRepository {
     private let store = MockPinStore()
 
     public init() {}
@@ -30,6 +31,18 @@ public final class MockPinRepository: PinRepository, PinDetailRepository {
     public func pinDetail(id: PinID) async throws -> PinDetail {
         guard let entry = await store.entry(id: id) else { throw DomainError.unknown }
         return PinDetail(pin: entry.pin, sourceURL: entry.sourceURL)
+    }
+
+    /// 삭제 API 가 없어 **지운 id 를 메모리에 들고 있다가** 이후 조회에서 뺀다.
+    /// 그냥 성공만 돌려주면 시트를 닫았다 다시 열었을 때 지운 장소가 되살아난다.
+    /// 네트워크처럼 잠깐 기다렸다 성공하는 지연은 확인 버튼이 잠기는 걸 실물처럼 보기 위한 것이다.
+    ///
+    /// 목 핀 id 에는 `page`·`filter` 가 섞여 있어(``makePins``) 같은 장소라도 조회 기준이 다르면
+    /// 다른 핀이다. 방 상세에서 지운 장소가 홈의 "최신순" 덱에는 남아 있는 이유 —
+    /// 실 API 가 붙으면 서버 id 하나로 통일되면서 사라지는 목 한정 현상이다.
+    public func delete(pinID: PinID) async throws {
+        try? await Task.sleep(for: .milliseconds(300))
+        await store.markDeleted(id: pinID)
     }
 
     // MARK: - Mock 합성
@@ -61,7 +74,7 @@ public final class MockPinRepository: PinRepository, PinDetailRepository {
             await store.register(pin, sourceURL: seed.sourceURL.flatMap(URL.init(string:)))
             made.append(pin)
         }
-        return made
+        return await store.removingDeleted(made)
     }
 
     /// 실제 필터링·정렬은 서버 몫이지만, 목에서도 기준마다 순서를 다르게 줘서
@@ -148,10 +161,22 @@ private actor MockPinStore {
     }
 
     private var entries: [String: Entry] = [:]
+    private var deleted: Set<String> = []
 
     func register(_ pin: Pin, sourceURL: URL?) {
         entries[pin.id.value] = Entry(pin: pin, sourceURL: sourceURL)
     }
 
     func entry(id: PinID) -> Entry? { entries[id.value] }
+
+    func markDeleted(id: PinID) {
+        deleted.insert(id.value)
+    }
+
+    /// 합성 직후의 핀 목록에서 지워진 것을 뺀다. 합성 자체를 건너뛰지 않는 건, 지운 뒤에도
+    /// 상세 조회(`entry`)로는 닿을 수 있어야 이미 열려 있던 화면이 갑자기 오류로 바뀌지 않기 때문이다.
+    func removingDeleted(_ pins: [Pin]) -> [Pin] {
+        guard !deleted.isEmpty else { return pins }
+        return pins.filter { !deleted.contains($0.id.value) }
+    }
 }
