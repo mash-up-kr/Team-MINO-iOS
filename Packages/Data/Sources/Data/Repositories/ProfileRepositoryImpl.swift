@@ -11,7 +11,7 @@ public struct ProfileRepositoryImpl: ProfileRepository {
     }
 
     public func register(nickname: String, avatarColor: AvatarColor) async throws -> Profile {
-        let body = RegisterProfileRequestDTO(nickname: nickname, avatar: AvatarDTO(color: avatarColor.rawValue))
+        let body = RegisterProfileRequestDTO(nickname: nickname, avatar: AvatarRequestDTO(color: avatarColor.rawValue))
         return try await send(UserAPI.register(body), fallback: .profileSaveFailed)
     }
 
@@ -22,7 +22,7 @@ public struct ProfileRepositoryImpl: ProfileRepository {
     public func update(nickname: String?, avatarColor: AvatarColor?) async throws -> Profile {
         let body = UpdateProfileRequestDTO(
             nickname: nickname,
-            avatar: avatarColor.map { AvatarDTO(color: $0.rawValue) }
+            avatar: avatarColor.map { AvatarRequestDTO(color: $0.rawValue) }
         )
         return try await send(UserAPI.updateMe(body), fallback: .profileSaveFailed)
     }

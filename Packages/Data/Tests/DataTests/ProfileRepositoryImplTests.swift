@@ -57,6 +57,20 @@ struct ProfileRepositoryImplTests {
         #expect(profile.avatarColor == nil)
     }
 
+    // 서버가 avatar 객체를 주면서 color 를 빠뜨리는 응답이 실측으로 확인됐다.
+    // 여기서 깨지면 프로필 전체를 못 읽어 앱 진입이 막힌다.
+    @Test("color 없는 avatar 도 읽는다 — 아바타 없음으로 떨어뜨린다")
+    func me_withAvatarMissingColor() async throws {
+        let client = StubHTTPClient(result: .success(ProfileDTO(
+            id: "user-1", nickname: "꾹이", avatar: AvatarDTO(color: nil),
+            createdAt: Date(timeIntervalSince1970: 0)
+        )))
+        let profile = try await ProfileRepositoryImpl(client: client).me()
+
+        #expect(profile.avatarColor == nil)
+        #expect(profile.nickname == "꾹이")
+    }
+
     // 서버 팔레트가 우리보다 앞서 나갈 수 있다. 통째로 디코딩을 깨뜨리면 프로필 자체를 못 읽는다.
     @Test("모르는 색은 아바타 없음으로 떨어뜨린다 — 프로필 조회를 깨뜨리지 않는다")
     func me_withUnknownColor() async throws {
@@ -119,7 +133,7 @@ struct ProfileRepositoryImplTests {
         ProfileDTO(
             id: "user-1",
             nickname: nickname,
-            avatar: avatarColor.map(AvatarDTO.init(color:)),
+            avatar: avatarColor.map { AvatarDTO(color: $0) },
             createdAt: Date(timeIntervalSince1970: 0)
         )
     }
