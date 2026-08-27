@@ -59,6 +59,7 @@ public final class URLSessionHTTPClient: HTTPClient {
     /// 평소엔 여기까지 오지 않는다 — 토큰 공급자가 만료 임박분을 알아서 갱신하기 때문이다.
     /// 기기 시계 오차처럼 그 예측이 빗나가는 경우를 위한 안전망이다.
     /// 갱신 후에도 401 이면 그대로 던진다. 서버가 거부한 것이지 토큰이 낡은 게 아니다.
+    /// `USER_NOT_REGISTERED` 는 아예 갱신하지 않는다 — 토큰이 아니라 회원이 없는 것이다.
     ///
     /// `Session.mino` 의 `RetryPolicy` 는 408·500·502·503·504 만 재시도하므로 여기와 겹치지 않는다.
     private func send<T>(_ endpoint: Endpoint<T>) async throws -> APIEnvelope<T> {
@@ -69,7 +70,10 @@ public final class URLSessionHTTPClient: HTTPClient {
             // **토큰을 실제로 실은 요청만** 갱신할 가치가 있다. 토큰 없이 나가 401 을 받은
             // 요청을 다시 보내면 바이트까지 같은 요청이 한 번 더 나가 확정 401 을 받는다 —
             // 세션이 없는 동안 모든 화면의 대기가 두 배가 된다.
-            guard case .unauthorized = error, token != nil, let tokenProvider else { throw error }
+            guard case .unauthorized(let code, _) = error, token != nil, let tokenProvider else { throw error }
+            // 미등록 401 은 토큰 문제가 아니다 — 갱신해도 회원이 생기지 않아 결과가 같다.
+            // 온보딩 전 사용자는 앱을 켤 때마다 이 경로를 지나므로, 막지 않으면 매 실행이 두 배가 된다.
+            guard code != NetworkError.userNotRegisteredCode else { throw error }
             // 갱신했는데 같은 값이면 결과도 같다.
             guard let refreshed = await tokenProvider.refreshedToken(), refreshed != token else {
                 throw error

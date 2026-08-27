@@ -1,9 +1,14 @@
+import Core
 import Domain
 
-/// OnboardingCoordinator 가 요구하는 좁은 의존성 묶음.
+// [Convention] .claude/docs/mvi-coordinator-di.md 4절 — Coordinator 는 자기가 쓰는 의존만 담은 좁은 프로토콜을 받는다.
+/// 온보딩 flow 가 쓰는 의존.
 ///
-/// Composition Root(App)의 `AppDependencies` 가 이 프로토콜을 준수한다.
-/// reduce 는 Repository 가 아니라 **UseCase** 만 받는다(Clean Architecture 규칙).
+/// 온보딩은 프로필을 **만들기만** 한다 — 조회·수정은 마이페이지 몫이라 여기 없다.
 public protocol OnboardingDeps: Sendable {
+    var registerProfile: RegisterProfileUseCase { get }
     var createRoom: CreateRoomUseCase { get }
+    var fetchInviteCode: FetchInviteCodeUseCase { get }
+    /// 초대 링크의 스킴·호스트. 서버는 코드만 주고 링크는 클라이언트가 조립한다.
+    var deeplink: DeeplinkConfiguration { get }
 }

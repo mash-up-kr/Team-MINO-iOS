@@ -212,10 +212,8 @@ struct RoomFormContent: View {
     /// 서버 원문 message 도 쓰지 않는다(반부패 계층이 이미 버렸다).
     private static func saveErrorMessage(_ error: DomainError) -> String {
         switch error {
-        case .unauthorized, .sessionUnavailable:
-            "로그인이 만료됐어요. 앱을 다시 열어주세요."
-        default:
-            "저장하지 못했어요. 잠시 후 다시 시도해주세요."
+        case .unauthorized, .sessionUnavailable: SaveErrorText.sessionExpired
+        default: SaveErrorText.saveFailed
         }
     }
 

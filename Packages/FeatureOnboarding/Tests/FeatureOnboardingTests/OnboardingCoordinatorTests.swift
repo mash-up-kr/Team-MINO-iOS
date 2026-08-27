@@ -2,21 +2,8 @@ import Domain
 import Foundation
 import RoomCreationUI
 import Testing
+import ProfileSetupUI
 @testable import FeatureOnboarding
-
-private struct StubCreateRoom: CreateRoomUseCase {
-    func execute(name: String, description: String?, color: RoomColor) async throws -> Room {
-        Room(
-            id: "new", type: .shared, name: name, description: description, color: color,
-            ownerId: "u1", createdAt: Date(timeIntervalSince1970: 0),
-            pinCount: 0, memberCount: 1, users: []
-        )
-    }
-}
-
-private struct StubOnboardingDeps: OnboardingDeps {
-    var createRoom: CreateRoomUseCase = StubCreateRoom()
-}
 
 @MainActor
 struct OnboardingCoordinatorTests {
@@ -62,6 +49,27 @@ struct OnboardingCoordinatorTests {
             coord.handle(TutorialNav.didFinish)
             #expect(captured == .completed)
         }
+    }
+
+    // 초대 코드 발급에 방 id 가 필요하다 — 방 생성이 실어 보낸 값이 친구초대 Store 까지 닿는지 본다.
+    @Test("만든 방의 id 가 친구초대 Store 로 전달된다")
+    func createdRoomId_reachesInviteFriendsStore() {
+        let coord = OnboardingCoordinator(deps: StubOnboardingDeps())
+
+        coord.handle(RoomFormNav.didSubmit(roomId: "room-42"))
+
+        #expect(coord.makeInviteFriendsStore().state.roomId == "room-42")
+    }
+
+    // 방을 만들기 전에는 초대할 대상이 없다 — 잘못된 방으로 초대하는 대신 버튼을 잠근다.
+    @Test("방을 만들지 않았으면 초대 Store 는 방 없이 열린다")
+    func withoutCreatedRoom_inviteStoreHasNoRoom() {
+        let coord = OnboardingCoordinator(deps: StubOnboardingDeps())
+
+        let store = coord.makeInviteFriendsStore()
+
+        #expect(store.state.roomId == nil)
+        #expect(!store.state.isInviteEnabled)
     }
 
     @Test("didSubmit nav → path 에 createRoom, inviteFriends 가 순서대로 push 된다")

@@ -19,7 +19,7 @@ final class AppCoordinator {
     /// 온보딩 완료 보고를 여기로 밀어넣어야 해서 View 의 `@State` 에 둘 수 없다.
     let launch: AppLaunchStore
 
-    /// 온보딩 Coordinator 는 flow 1회당 새로 만들므로 deps 를 들고 있다가 그때 넘긴다.
+    /// 자식 flow 를 만들 때마다 넘겨야 해서 보관한다 — 온보딩은 flow 1회당 새로 만든다.
     private let deps: AppDependencies
 
     init(deps: AppDependencies) {
@@ -30,7 +30,7 @@ final class AppCoordinator {
         self.profile = ProfileCoordinator()
         self.launch = AppLaunchStore(
             AppLaunchState(),
-            reduce: appLaunchReducer(ensureSession: deps.ensureSession, onboarding: deps.onboarding)
+            reduce: appLaunchReducer(ensureSession: deps.ensureSession, fetchProfile: deps.fetchProfile)
         )
         // navigation 채널이 없는 flow 라(Nav == Never) observeNavigation 을 붙이지 않는다.
     }

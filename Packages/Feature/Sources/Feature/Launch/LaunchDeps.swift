@@ -6,5 +6,7 @@ import Domain
 /// reduce 는 Repository 가 아니라 **UseCase** 만 받는다(Clean Architecture 규칙).
 public protocol LaunchDeps {
     var ensureSession: EnsureSessionUseCase { get }
-    var onboarding: OnboardingUseCase { get }
+    /// 온보딩을 마쳤는지 묻는 창구. 프로필이 있으면 등록된 것이다 —
+    /// 이 판단만을 위한 별도 UseCase 를 두지 않고 조회 하나로 겸한다.
+    var fetchProfile: FetchProfileUseCase { get }
 }

@@ -17,18 +17,12 @@ private struct StubEnsureSession: EnsureSessionUseCase {
     }
 }
 
-/// 완료 표시가 실제로 기록되는지 세어 본다 — 기록 누락이 온보딩 재노출의 원인이었다.
-private actor SpyOnboarding: OnboardingUseCase {
-    private var completed: Bool
-    private(set) var markCalls = 0
+/// 등록 여부를 서버에 묻는 창구. 조회가 성공하면 등록된 것이고, `.notRegistered` 면 온보딩 전이다.
+private struct StubFetchProfile: FetchProfileUseCase {
+    var result: Result<Profile, DomainError> = .success(Profile(id: "user-1", nickname: "꾹이", avatarColor: .red, createdAt: nil))
 
-    init(completed: Bool) { self.completed = completed }
-
-    func hasCompleted() async -> Bool { completed }
-
-    func markCompleted() async {
-        markCalls += 1
-        completed = true
+    func execute() async throws -> Profile {
+        try result.get()
     }
 }
 
@@ -36,15 +30,18 @@ private actor SpyOnboarding: OnboardingUseCase {
 struct AppLaunchReducerTests {
     private func makeStore(
         ensureSession: EnsureSessionUseCase = StubEnsureSession(),
-        onboarding: OnboardingUseCase = SpyOnboarding(completed: true),
+        fetchProfile: FetchProfileUseCase = StubFetchProfile(),
         state: AppLaunchState = AppLaunchState()
     ) -> TestStore<AppLaunchState, AppLaunchAction, Never> {
-        TestStore(state, reduce: appLaunchReducer(ensureSession: ensureSession, onboarding: onboarding))
+        TestStore(state, reduce: appLaunchReducer(ensureSession: ensureSession, fetchProfile: fetchProfile))
     }
 
-    @Test("L2 — 세션을 얻고 온보딩을 마쳤으면 메인으로 간다")
-    func start_completedOnboarding_goesToMain() async {
-        let store = makeStore(onboarding: SpyOnboarding(completed: true))
+    /// 미등록(서버 401 + USER_NOT_REGISTERED)을 흉내 내는 조회.
+    private static let unregistered = StubFetchProfile(result: .failure(.notRegistered))
+
+    @Test("L2 — 프로필이 있으면(등록됨) 메인으로 간다")
+    func start_registered_goesToMain() async {
+        let store = makeStore()
 
         await store.send(.start) { $0.phase = .loading }
         await store.receive(.sessionReady(needsOnboarding: false)) { $0.phase = .main }
@@ -52,9 +49,10 @@ struct AppLaunchReducerTests {
         store.finish()
     }
 
-    @Test("L2 — 세션을 얻었지만 온보딩 전이면 온보딩으로 간다")
-    func start_pendingOnboarding_goesToOnboarding() async {
-        let store = makeStore(onboarding: SpyOnboarding(completed: false))
+    // 미등록은 401 로 오지만 인증 실패가 아니다 — 재시도가 아니라 온보딩으로 보내야 한다.
+    @Test("L2 — 세션은 있으나 미등록이면 온보딩으로 간다")
+    func start_notRegistered_goesToOnboarding() async {
+        let store = makeStore(fetchProfile: Self.unregistered)
 
         await store.send(.start) { $0.phase = .loading }
         await store.receive(.sessionReady(needsOnboarding: true)) { $0.phase = .onboarding }
@@ -115,29 +113,48 @@ struct AppLaunchReducerTests {
         store.finish()
     }
 
-    @Test("L2 — 온보딩을 마치면 메인으로 가고 완료를 기록한다")
-    func onboardingFinished_marksCompleted() async {
-        let spy = SpyOnboarding(completed: false)
-        let store = makeStore(onboarding: spy, state: AppLaunchState(phase: .onboarding))
+    // 인증 실패는 온보딩으로 보내지 않는다 — 프로필을 만들어도 토큰이 그대로라 등록이 다시 막힌다.
+    @Test("L2 — 401 이어도 미등록이 아니면 재시도 화면이다")
+    func start_unauthorized_showsRetry() async {
+        let store = makeStore(fetchProfile: StubFetchProfile(result: .failure(.unauthorized)))
 
-        await store.send(.onboardingFinished) { $0.phase = .main }
+        await store.send(.start) { $0.phase = .loading }
+        await store.receive(.sessionFailed) { $0.phase = .retry }
 
-        #expect(await spy.markCalls == 1)
         store.finish()
     }
 
-    // 기록이 남지 않으면 다음 실행에 온보딩이 다시 뜬다 — 되돌려진 적이 있는 실패다.
-    @Test("L2 — 온보딩을 마친 뒤 다시 진입하면 곧장 메인이다")
-    func afterOnboarding_nextLaunchSkipsIt() async {
-        let spy = SpyOnboarding(completed: false)
+    // 조회 자체가 실패한 것(네트워크 등)은 등록 여부를 **모르는** 상태다. 모른 채 메인으로
+    // 들여보내면 등록 전 사용자가 프로필 없이 들어가고, 온보딩으로 보내면 등록된 사용자가 다시 탄다.
+    @Test("L2 — 프로필 조회가 실패하면 재시도 화면이다")
+    func start_profileFetchFailure_showsRetry() async {
+        let store = makeStore(fetchProfile: StubFetchProfile(result: .failure(.profileFetchFailed)))
 
-        let first = makeStore(onboarding: spy, state: AppLaunchState(phase: .onboarding))
-        await first.send(.onboardingFinished) { $0.phase = .main }
-        first.finish()
+        await store.send(.start) { $0.phase = .loading }
+        await store.receive(.sessionFailed) { $0.phase = .retry }
 
-        let second = makeStore(onboarding: spy)
-        await second.send(.start) { $0.phase = .loading }
-        await second.receive(.sessionReady(needsOnboarding: false)) { $0.phase = .main }
-        second.finish()
+        store.finish()
+    }
+
+    // 완료를 로컬에 기록하지 않는다 — 서버에 회원이 생긴 것이 곧 기록이다.
+    @Test("L2 — 온보딩을 마치면 메인으로 가고 남기는 부수효과가 없다")
+    func onboardingFinished_goesToMainWithoutSideEffect() async {
+        let store = makeStore(state: AppLaunchState(phase: .onboarding))
+
+        await store.send(.onboardingFinished) { $0.phase = .main }
+
+        store.finish()   // 미처리 effect 가 있으면 여기서 실패한다
+    }
+
+    // 재설치 재현: 익명 세션은 Keychain 에 남아 같은 uid 로 돌아오고 로컬 플래그만 사라진다.
+    // 판단을 서버에 물으므로 이 경우가 메인으로 간다(전에는 온보딩에 갇혔다).
+    @Test("L2 — 재설치해도 서버에 회원이 있으면 곧장 메인이다")
+    func reinstall_withServerAccount_goesToMain() async {
+        let store = makeStore()   // 로컬엔 아무 기록도 없다
+
+        await store.send(.start) { $0.phase = .loading }
+        await store.receive(.sessionReady(needsOnboarding: false)) { $0.phase = .main }
+
+        store.finish()
     }
 }
