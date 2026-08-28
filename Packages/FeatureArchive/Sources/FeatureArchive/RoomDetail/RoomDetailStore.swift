@@ -19,6 +19,15 @@ struct RoomDetailState: Equatable {
     /// 두어야 남의 방에 편집 항목이 붙는 사고가 나지 않는다.
     var isOwner = false
     var isLoadingCurrentMember = false
+    /// 거리순(004-1 ⑥)의 기준점인 내 위치. 한 번 받아 두고 이 화면이 사는 동안 다시 묻지 않는다 —
+    /// 3km 를 가르는 값이라, 시트를 열어 둔 사이에 사람이 그만큼 움직이지는 않는다.
+    var myCoordinate: Coordinate?
+    /// 거리순 선택이 내 위치를 기다리는 중.
+    ///
+    /// 좌표가 서기 전에는 `sort` 를 `.distance` 로 세우지 않으므로 "거리순을 눌렀다" 는 사실이
+    /// 여기에만 남는다. 그 사이 다른 정렬을 고르면 여기서 내려, 늦게 도착한 좌표가 사용자의
+    /// 새 선택을 뒤집지 않게 한다.
+    var isLocating = false
     /// 헤더 케밥 드롭다운(004-5)이 열려 있는가.
     ///
     /// 장소 카드 케밥은 열림 상태를 View 가 들지만 이건 reduce 가 든다. peek 에서 이 메뉴는 시트
@@ -38,6 +47,7 @@ enum RoomDetailAction: Equatable {
     case dismissMoreMenu
     case selectMoreMenuItem(RoomDetailMoreMenuItemID)
     case selectSort(RoomDetailSort)
+    case locationResolved(CurrentLocationResult)
     case selectCategory(String)
     case selectViewMode(RoomDetailViewMode)
     case tapClose
@@ -66,6 +76,7 @@ func roomDetailReducer(
     useCase: FetchPinsUseCase,
     deletePin: DeletePinUseCase,
     fetchCurrentMember: CurrentMemberUseCase,
+    currentLocation: CurrentLocationUseCase,
     room: Room,
     now: @escaping () -> Date = Date.init
 ) -> (inout RoomDetailState, RoomDetailAction) -> Effect<RoomDetailAction, RoomDetailNav> {
@@ -138,7 +149,43 @@ func roomDetailReducer(
             }
 
         case .selectSort(let sort):
-            state.sort = sort
+            // 거리순만 기준점을 필요로 한다. 아직 없으면 **선택을 세우지 않고** 좌표부터 받는다 —
+            // 좌표 없이 `.distance` 를 세우면 라벨은 "거리순" 인데 목록은 3km 와 무관한 원본이다.
+            guard sort == .distance, state.myCoordinate == nil else {
+                state.isLocating = false   // 기다리던 거리순 선택이 있었다면 접는다
+                state.sort = sort
+                applyFilters(&state, now: now())
+                return .none
+            }
+            // 연타로 위치 요청(과 시스템 팝업)을 두 번 내보내지 않는다.
+            guard !state.isLocating else { return .none }
+            state.isLocating = true
+            return .run { send in
+                let result = await currentLocation.execute()
+                // 화면을 떠나 취소된 것 — 실패가 아니라 결과가 필요 없어진 것이다.
+                // (유스케이스가 throw 하지 않아 `catch is CancellationError` 대신 여기서 거른다)
+                guard !Task.isCancelled else { return }
+                send(.locationResolved(result))
+            }
+
+        case .locationResolved(let result):
+            // 기다리는 사이 다른 정렬을 골랐다면 늦게 온 좌표로 그 선택을 뒤집지 않는다.
+            guard state.isLocating else { return .none }
+            state.isLocating = false
+
+            guard case .coordinate(let coordinate) = result else {
+                // 좌표를 못 얻었다(권한 거부 · 측위 실패). 정렬은 고르기 전 값 그대로 두고 목록도
+                // 손대지 않는다 — `.distance` 를 세워 두면 라벨만 "거리순" 이고 목록은 원본이라
+                // 거짓말이 된다. 드롭다운이 그대로인 것이 곧 "거리순이 걸리지 않았다" 는 표시다
+                // (`.deleteFailed` 와 같은 결).
+                //
+                // 시안 004-1 에는 이 실패를 알리는 화면(토스트·안내·설정 앱 유도)이 **없다**.
+                // 없는 UI 를 지어내지 않고, `CurrentLocationResult` 가 사유(`permissionDenied` /
+                // `unavailable`)를 구분해 오므로 안내 화면이 정해지면 여기서 갈라 쓰면 된다.
+                return .none
+            }
+            state.myCoordinate = coordinate
+            state.sort = .distance
             applyFilters(&state, now: now())
             return .none
 
@@ -224,6 +271,6 @@ private func applyPins(_ state: inout RoomDetailState, now: Date) {
 /// 바뀌는데, 사용자가 카페 칩을 눌렀다면 그 30% 는 카페 안에서의 30% 여야 한다.
 private func applyFilters(_ state: inout RoomDetailState, now: Date) {
     let filtered = RoomDetailCategoryList.filter(state.pins, by: state.category)
-    state.locations = RoomDetailSorting.apply(state.sort, to: filtered, now: now)
+    state.locations = RoomDetailSorting.apply(state.sort, to: filtered, now: now, from: state.myCoordinate)
         .map(RoomDetailLocation.init(from:))
 }

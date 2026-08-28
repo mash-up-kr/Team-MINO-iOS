@@ -15,17 +15,26 @@ private let fixtureRoom = Room(
 /// 업종을 카페 2 · 음식점 1 로 섞는다 — 칩을 눌렀을 때 실제로 걸러지는지 보려면 섞여 있어야 한다.
 private let fixtureCategories = ["카페", "음식점", "카페"]
 
-private let fixturePins: [Pin] = zip([0, 10, 20], fixtureCategories).map { daysAgo, placeCategory in
-    PinFixture.pin(
-        id: PinID("p\(daysAgo)"),
-        roomID: fixtureRoom.id,
-        category: .worthVisiting,
-        title: "장소 \(daysAgo)",
-        address: "주소 \(daysAgo)",
-        placeCategory: placeCategory,
-        createdAt: fixtureNow.addingTimeInterval(-Double(daysAgo) * 86_400)
-    )
-}
+/// 거리순(004-1 ⑥)의 기준점. 아래 핀들을 여기서 북쪽으로 밀어 거리를 만든다.
+private let fixtureOrigin = Coordinate(latitude: 37.5443, longitude: 127.0557)
+
+/// p0 는 3km 반경 **밖**, p10·p20 은 안이다. 입력 순서를 거리와 어긋나게 둬 재정렬을 확인한다.
+private let fixtureDistances: [Double] = [5_000, 2_000, 300]
+
+private let fixturePins: [Pin] = zip(zip([0, 10, 20], fixtureCategories), fixtureDistances)
+    .map { pair, metersAway in
+        let (daysAgo, placeCategory) = pair
+        return PinFixture.pin(
+            id: PinID("p\(daysAgo)"),
+            roomID: fixtureRoom.id,
+            category: .worthVisiting,
+            title: "장소 \(daysAgo)",
+            address: "주소 \(daysAgo)",
+            coordinate: PinFixture.coordinate(metersAway, northOf: fixtureOrigin),
+            placeCategory: placeCategory,
+            createdAt: fixtureNow.addingTimeInterval(-Double(daysAgo) * 86_400)
+        )
+    }
 
 private struct StubFetchPins: FetchPinsUseCase {
     var result: Result<[Pin], DomainError> = .success(fixturePins)
@@ -64,12 +73,20 @@ private struct StubCurrentMember: CurrentMemberUseCase {
     }
 }
 
+/// 기본값은 **허용 + 좌표 있음** — 거리순이 실제로 걸리는 경로가 기본이라야 나머지 테스트가 방해받지 않는다.
+private struct StubCurrentLocation: CurrentLocationUseCase {
+    var result: CurrentLocationResult = .coordinate(fixtureOrigin)
+
+    func execute() async -> CurrentLocationResult { result }
+}
+
 @MainActor
 struct RoomDetailReducerTests {
     private func makeStore(
         _ useCase: FetchPinsUseCase = StubFetchPins(),
         deletePin: DeletePinUseCase = StubDeletePin(),
         currentMember: CurrentMemberUseCase = StubCurrentMember(),
+        currentLocation: CurrentLocationUseCase = StubCurrentLocation(),
         state: RoomDetailState = RoomDetailState(room: RoomDetailRoom(from: fixtureRoom))
     ) -> TestStore<RoomDetailState, RoomDetailAction, RoomDetailNav> {
         TestStore(
@@ -78,6 +95,7 @@ struct RoomDetailReducerTests {
                 useCase: useCase,
                 deletePin: deletePin,
                 fetchCurrentMember: currentMember,
+                currentLocation: currentLocation,
                 room: fixtureRoom,
                 now: { fixtureNow }
             )
@@ -94,8 +112,9 @@ struct RoomDetailReducerTests {
         return state
     }
 
-    private func locations(_ sort: RoomDetailSort) -> [RoomDetailLocation] {
-        RoomDetailSorting.apply(sort, to: fixturePins, now: fixtureNow).map(RoomDetailLocation.init(from:))
+    private func locations(_ sort: RoomDetailSort, from origin: Coordinate? = nil) -> [RoomDetailLocation] {
+        RoomDetailSorting.apply(sort, to: fixturePins, now: fixtureNow, from: origin)
+            .map(RoomDetailLocation.init(from:))
     }
 
     private func loadedState() -> RoomDetailState {
@@ -205,6 +224,118 @@ struct RoomDetailReducerTests {
         let target = locations(.all)[0]
         await store.send(.tapShare(target))
         store.receiveNavigation(.shareLocation(target))
+        store.finish()
+    }
+
+    // MARK: - 거리순 (004-1 ⑥ "내 기준 3km반경 내에 있는 게시물 노출")
+
+    @Test("L2 — 거리순은 좌표를 받은 뒤에야 선다. 3km 밖은 빠지고 가까운 순으로 세워진다")
+    func selectSort_distance() async {
+        let store = makeStore(state: loadedState())
+
+        // 좌표가 서기 전에는 sort 를 건드리지 않는다 — 라벨만 "거리순" 인 거짓 상태를 만들지 않는다.
+        await store.send(.selectSort(.distance)) { $0.isLocating = true }
+        #expect(store.currentState.sort == .all)
+
+        await store.receive(.locationResolved(.coordinate(fixtureOrigin))) {
+            $0.isLocating = false
+            $0.myCoordinate = fixtureOrigin
+            $0.sort = .distance
+            $0.locations = self.locations(.distance, from: fixtureOrigin)
+        }
+
+        // p0 는 5km 밖이라 빠지고, 남은 둘은 가까운 순(p20 300m → p10 2km).
+        #expect(store.currentState.locations.map(\.id) == ["p20", "p10"])
+        store.finish()
+    }
+
+    @Test("L2 — 위치 권한이 거부되면 정렬은 고르기 전 값 그대로다. 목록도 손대지 않는다")
+    func selectSort_distance_permissionDenied() async {
+        let store = makeStore(
+            currentLocation: StubCurrentLocation(result: .permissionDenied),
+            state: loadedState()
+        )
+
+        await store.send(.selectSort(.distance)) { $0.isLocating = true }
+        await store.receive(.locationResolved(.permissionDenied)) { $0.isLocating = false }
+
+        #expect(store.currentState.sort == .all)
+        #expect(store.currentState.myCoordinate == nil)
+        #expect(store.currentState.locations == locations(.all))
+        store.finish()
+    }
+
+    @Test("L2 — 권한은 있는데 측위에 실패해도 마찬가지다")
+    func selectSort_distance_unavailable() async {
+        let store = makeStore(
+            currentLocation: StubCurrentLocation(result: .unavailable),
+            state: loadedState()
+        )
+
+        await store.send(.selectSort(.distance)) { $0.isLocating = true }
+        await store.receive(.locationResolved(.unavailable)) { $0.isLocating = false }
+
+        #expect(store.currentState.sort == .all)
+        #expect(store.currentState.locations == locations(.all))
+        store.finish()
+    }
+
+    @Test("L1 — 좌표를 이미 받아 뒀으면 다시 묻지 않고 곧장 선다")
+    func selectSort_distance_reusesCoordinate() async {
+        var state = loadedState()
+        state.myCoordinate = fixtureOrigin
+        let store = makeStore(state: state)
+
+        await store.send(.selectSort(.distance)) {
+            $0.sort = .distance
+            $0.locations = self.locations(.distance, from: fixtureOrigin)
+        }
+
+        store.finish()   // 위치 요청이 또 나갔다면 미처리 effect 로 여기서 걸린다
+    }
+
+    @Test("L1 — 좌표를 기다리는 중에 또 누르면 요청을 두 번 보내지 않는다")
+    func selectSort_distance_ignoresSecondTap() async {
+        var state = loadedState()
+        state.isLocating = true
+        let store = makeStore(state: state)
+
+        await store.send(.selectSort(.distance))
+
+        store.finish()   // 두 번째 요청이 나갔다면 미처리 effect 로 여기서 걸린다
+    }
+
+    @Test("L2 — 기다리는 사이 다른 정렬을 고르면 늦게 온 좌표가 그 선택을 뒤집지 않는다")
+    func locationResolved_doesNotOverrideNewerSort() async {
+        let store = makeStore(state: loadedState())
+
+        await store.send(.selectSort(.distance)) { $0.isLocating = true }
+        await store.send(.selectSort(.latest)) {
+            $0.isLocating = false
+            $0.sort = .latest
+            $0.locations = self.locations(.latest)
+        }
+        await store.receive(.locationResolved(.coordinate(fixtureOrigin)))
+
+        #expect(store.currentState.sort == .latest)
+        #expect(store.currentState.myCoordinate == nil)
+        store.finish()
+    }
+
+    @Test("L1 — 거리순으로 보는 중에 장소를 지워도 반경·정렬이 그대로 유지된다")
+    func deleted_keepsDistanceSort() async {
+        var state = loadedState()
+        state.myCoordinate = fixtureOrigin
+        state.sort = .distance
+        state.locations = locations(.distance, from: fixtureOrigin)
+        let store = makeStore(state: state)
+
+        await store.send(.deleted(fixturePins[2].id)) {
+            $0.pins = [fixturePins[0], fixturePins[1]]
+            $0.categories = ["전체", "카페", "음식점"]
+            $0.locations = [RoomDetailLocation(from: fixturePins[1])]   // p0 는 5km 밖이라 남지 않는다
+            $0.room = RoomDetailRoom(from: fixtureRoom).removingOneLocation()
+        }
         store.finish()
     }
 
