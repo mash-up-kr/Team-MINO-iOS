@@ -81,7 +81,8 @@ struct ArchiveShellView: View {
                 createRoomChild: $coordinator.shareCreateRoomChild,
                 onClose: { coordinator.sharingLocation = nil }
             )
-            .presentationDetents([.height(RoomShareSheet.detentHeight)])
+            // `.presentationDetents` 는 시트가 직접 단다 — full 높이가 방 개수로 갈리는데
+            // 그 개수는 시트 안의 `RoomShareStore` 만 안다(``RoomShareSheet`` 주석).
             .presentationCornerRadius(20)
             .presentationDragIndicator(.hidden)
             .presentationBackground(.mhBackgroundElevatedNormal)

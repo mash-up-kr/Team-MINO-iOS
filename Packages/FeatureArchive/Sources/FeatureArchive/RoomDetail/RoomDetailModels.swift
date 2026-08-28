@@ -1,11 +1,21 @@
 import Domain
+import Foundation
 
 struct RoomDetailLocation: Identifiable, Equatable {
     let id: String
     let name: String
     let address: String
     let commentCount: Int
-    let photoCount: Int
+    /// 출처 게시물의 사진. 없을 수 있다.
+    ///
+    /// 개수만 들고 있다가 URL 이 필요해진 자리(공유 시트 썸네일)가 생겨 배열로 바꿨다 —
+    /// 개수를 따로 두면 사진과 어긋날 수 있어 ``photoCount`` 는 여기서 센다.
+    let photos: [URL]
+
+    var photoCount: Int { photos.count }
+
+    /// 장소를 한 칸으로 줄여 보여 줄 때 쓰는 대표 사진 — 첫 장이다(기획 011-1 ②).
+    var thumbnail: URL? { photos.first }
 }
 
 /// 방 헤더에 들어가는 방 정보.
@@ -55,7 +65,7 @@ extension RoomDetailLocation {
             name: pin.place.name,
             address: pin.place.address,
             commentCount: pin.commentCount,
-            photoCount: pin.images.count
+            photos: pin.images
         )
     }
 }
@@ -165,7 +175,7 @@ extension RoomDetailLocation {
             name: "레이어스튜디오 10",
             address: "서울 성동구 상원4길 10",
             commentCount: 1000,
-            photoCount: 5
+            photos: (0..<5).compactMap { URL(string: "https://picsum.photos/seed/mino-\(index)-\($0)/400/400") }
         )
     }
 }

@@ -17,7 +17,7 @@ struct SavedRoomsSheet: View {
     /// 시안이 말하는 하단 60 중 **홈 인디케이터 34** 만 iOS 가 따로 확보하는 몫이고(시안
     /// `4170:126144` 의 Home Bar 는 y=778.5·h=34 로 그 60 안에 들어 있다), `.height` 는 하단
     /// 안전영역 **위쪽** 높이라 그만큼 빼야 화면에서 442 가 된다 —
-    /// ``RoomShareSheet/detentHeight`` 와 같은 유도다.
+    /// ``RoomShareSheetMetrics`` 와 같은 유도다.
     /// 남는 26 은 목록 아래 여백으로 그대로 산다(``footer`` 가 홈 인디케이터까지 함께 덮는다).
     static let detentHeight: CGFloat = 442 - 34
 

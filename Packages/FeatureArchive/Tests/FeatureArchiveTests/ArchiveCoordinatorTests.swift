@@ -152,7 +152,7 @@ struct ArchiveCoordinatorTests {
         let coordinator = makeCoordinator()
         let location = RoomDetailLocation(
             id: "p1", name: "레이어스튜디오 10", address: "서울 성동구 상원4길 10",
-            commentCount: 0, photoCount: 1
+            commentCount: 0, photos: []
         )
         coordinator.handle(RoomDetailNav.shareLocation(location))
         #expect(coordinator.sharingLocation == location)
