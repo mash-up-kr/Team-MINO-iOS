@@ -23,7 +23,7 @@ struct RoomDetailHeader: View {
 
     private var actionRow: some View {
         HStack(spacing: 0) {
-            MHAvatarStack(Array(repeating: Image?.none, count: room.memberCount), onAdd: onAddMember)
+            MHAvatarStack(ArchiveAvatarArt.images(for: room.memberAvatarIDs), onAdd: onAddMember)
             Spacer(minLength: 8)
             HStack(spacing: 8) {
                 RoomDetailCircleIconButton(icon: .moreVertical, accessibilityLabel: "더보기", action: onMore)

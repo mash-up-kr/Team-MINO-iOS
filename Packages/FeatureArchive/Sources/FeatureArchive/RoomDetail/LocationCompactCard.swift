@@ -13,7 +13,7 @@ struct LocationCompactCard: View {
             title: location.name,
             address: location.address,
             commentCount: location.commentCount,
-            members: [nil],
+            members: ArchiveAvatarArt.images(for: location.saver),
             layout: .compact,
             menuItems: menuItems,
             menuPlacement: menuPlacement,
