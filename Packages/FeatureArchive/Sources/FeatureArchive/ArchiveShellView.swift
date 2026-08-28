@@ -182,9 +182,12 @@ struct ArchiveShellView: View {
                 withAnimation(.spring(duration: 0.3)) { detent = .medium }
             }
         } else {
-            // 방 상세로 복귀 — 단계를 건드리지 않는다.
+            // 방 상세로 복귀 — 005 ④ 가 "'나가기' 버튼 … 클릭 시 [004-1-2] 방 상세_half로
+            // 이동한다" 로 도착 단계를 half 로 못박았다. 장소 상세를 full 로 보던 사람도
+            // 방 상세는 half 로 받는다(진입을 half 로 강제하는 `syncDetailStore` 와 같은 규칙).
             guard placeStore != nil else { return }
             placeStore = nil
+            withAnimation(.spring(duration: 0.3)) { detent = .medium }
         }
     }
 
