@@ -99,6 +99,12 @@ struct PlaceDetailHeader: View {
             .accessibilityIdentifier("PlaceDetail.close")
     }
 
+    /// ⑬ 액션 행 높이. 시안은 **축소·확장 두 헤더에 같은 값**을 썼다 — 005-2-2 축소 헤더의
+    /// `Frame 295`(`2792:142299`)와 005-2-1 확장 헤더의 `Frame 295`(`2792:185141`)가 둘 다
+    /// h=64 이고, 안의 버튼이 y=12·h=40 으로 위아래 12 씩 남긴다. 축소될 때 줄어드는 건
+    /// 제목 영역뿐이라 여기서 단계를 나누지 않는다.
+    private static let actionRowHeight: CGFloat = 64
+
     private var actionRow: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
@@ -126,7 +132,7 @@ struct PlaceDetailHeader: View {
             }
             .padding(.horizontal, 20)
         }
-        .frame(height: isCollapsed ? 52 : 64)
+        .frame(height: Self.actionRowHeight)
     }
 }
 
