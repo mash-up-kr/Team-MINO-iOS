@@ -20,6 +20,11 @@ private struct QuietFetchPinDetail: FetchPinDetailUseCase {
     }
 }
 
+/// 현위치 조회는 이 스위트의 관심사가 아니다 — 부르지 않는다.
+private struct QuietCurrentLocation: CurrentLocationUseCase {
+    func execute() async -> CurrentLocationResult { .unavailable }
+}
+
 /// ⑭ "내가 게시한 댓글에만 아이콘이 표시된다" — 소유 판정과 삭제 흐름.
 @MainActor
 struct PlaceDetailCommentDeleteTests {
@@ -42,6 +47,7 @@ struct PlaceDetailCommentDeleteTests {
                 useCase: QuietFetchPinDetail(),
                 fetchCurrentMember: CurrentMemberStub(outcome: currentMember),
                 fetchSavedRooms: StubFetchSavedRooms(),
+                currentLocation: QuietCurrentLocation(),
                 pin: deletePin,
                 makeCommentID: { "c-new" }
             )

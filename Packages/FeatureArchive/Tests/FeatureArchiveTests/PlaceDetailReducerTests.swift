@@ -42,12 +42,22 @@ private struct StubFetchPinDetail: FetchPinDetailUseCase {
     }
 }
 
+/// 현위치 조회를 즉답시키는 스텁 — 좌표·권한 거부·측위 실패를 골라 재생한다.
+private struct StubCurrentLocation: CurrentLocationUseCase {
+    var result: CurrentLocationResult = .coordinate(fixtureMyCoordinate)
+
+    func execute() async -> CurrentLocationResult { result }
+}
+
+private let fixtureMyCoordinate = Coordinate(latitude: 37.5443, longitude: 127.0557)
+
 private let fixtureAuthor = MemberProfile(id: MemberID("user-0001"), nickname: "나", avatarID: 1)
 
 @MainActor
 struct PlaceDetailReducerTests {
     private func makeStore(
-        source: StubFetchPinDetail.Outcome = .source(fixtureSourceURL)
+        source: StubFetchPinDetail.Outcome = .source(fixtureSourceURL),
+        location: CurrentLocationResult = .coordinate(fixtureMyCoordinate)
     ) -> TestStore<PlaceDetailState, PlaceDetailAction, PlaceDetailNav> {
         var remaining = ["c1", "c2", "c3"]
         return TestStore(
@@ -58,6 +68,7 @@ struct PlaceDetailReducerTests {
                 useCase: StubFetchPinDetail(outcome: source),
                 fetchCurrentMember: StubCurrentMember(profile: fixtureAuthor),
                 fetchSavedRooms: StubFetchSavedRooms(),
+                currentLocation: StubCurrentLocation(result: location),
                 pin: fixturePin,
                 makeCommentID: { remaining.removeFirst() }
             )
@@ -150,6 +161,73 @@ struct PlaceDetailReducerTests {
         let store = makeStore()
         await store.send(.tapShare)
         store.receiveNavigation(.share(RoomDetailLocation(from: fixturePin)))
+        store.finish()
+    }
+
+    // MARK: - 현위치 (005-1 지도 우하단 버튼)
+
+    @Test("L2 — 현위치를 누르면 좌표를 받아 지도를 그 자리로 옮긴다")
+    func tapMyLocation_focusesMap() async {
+        let store = makeStore(location: .coordinate(fixtureMyCoordinate))
+
+        await store.send(.tapMyLocation) { $0.isLocating = true }
+        await store.receive(.myLocationResolved(.coordinate(fixtureMyCoordinate))) {
+            $0.isLocating = false
+        }
+
+        store.receiveNavigation(.focusMyLocation(fixtureMyCoordinate))
+        store.finish()
+    }
+
+    @Test("L2 — 권한이 거부되면 아무 데도 가지 않는다 — 시안 005-1 에 실패 안내가 없다")
+    func tapMyLocation_permissionDenied_doesNothing() async {
+        let store = makeStore(location: .permissionDenied)
+
+        await store.send(.tapMyLocation) { $0.isLocating = true }
+        await store.receive(.myLocationResolved(.permissionDenied)) { $0.isLocating = false }
+
+        store.finish()   // navigate 가 없었음을 잔여 검사로 확인한다
+    }
+
+    @Test("L2 — 측위에 실패해도 아무 데도 가지 않는다")
+    func tapMyLocation_unavailable_doesNothing() async {
+        let store = makeStore(location: .unavailable)
+
+        await store.send(.tapMyLocation) { $0.isLocating = true }
+        await store.receive(.myLocationResolved(.unavailable)) { $0.isLocating = false }
+
+        store.finish()
+    }
+
+    @Test("L1 — 기다리는 중 다시 눌러도 요청을 겹쳐 내보내지 않는다")
+    func tapMyLocation_ignoresWhileLocating() async {
+        let store = makeStore()
+
+        await store.send(.tapMyLocation) { $0.isLocating = true }
+        await store.send(.tapMyLocation)   // 두 번째 탭은 effect 를 만들지 않는다
+
+        await store.receive(.myLocationResolved(.coordinate(fixtureMyCoordinate))) {
+            $0.isLocating = false
+        }
+        store.receiveNavigation(.focusMyLocation(fixtureMyCoordinate))
+        store.finish()
+    }
+
+    @Test("L1 — 결과가 돌아온 뒤에는 다시 누를 수 있다")
+    func tapMyLocation_canRetryAfterResult() async {
+        let store = makeStore()
+
+        await store.send(.tapMyLocation) { $0.isLocating = true }
+        await store.receive(.myLocationResolved(.coordinate(fixtureMyCoordinate))) {
+            $0.isLocating = false
+        }
+        store.receiveNavigation(.focusMyLocation(fixtureMyCoordinate))
+
+        await store.send(.tapMyLocation) { $0.isLocating = true }
+        await store.receive(.myLocationResolved(.coordinate(fixtureMyCoordinate))) {
+            $0.isLocating = false
+        }
+        store.receiveNavigation(.focusMyLocation(fixtureMyCoordinate))
         store.finish()
     }
 }

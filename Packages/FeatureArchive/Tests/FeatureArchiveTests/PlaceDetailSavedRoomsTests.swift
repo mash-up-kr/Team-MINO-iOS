@@ -27,6 +27,11 @@ private struct QuietCurrentMember: CurrentMemberUseCase {
     }
 }
 
+/// 현위치 조회는 이 스위트의 관심사가 아니다 — 부르지 않는다.
+private struct QuietCurrentLocation: CurrentLocationUseCase {
+    func execute() async -> CurrentLocationResult { .unavailable }
+}
+
 /// 저장된 방 목록(기획 014 ②)과 그 진입 버튼(기획 005-1 ⑮)의 규칙.
 @MainActor
 struct PlaceDetailSavedRoomsTests {
@@ -40,6 +45,7 @@ struct PlaceDetailSavedRoomsTests {
                 useCase: QuietFetchPinDetail(),
                 fetchCurrentMember: QuietCurrentMember(),
                 fetchSavedRooms: StubFetchSavedRooms(outcome: savedRooms),
+                currentLocation: QuietCurrentLocation(),
                 pin: savedPin
             )
         )

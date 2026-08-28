@@ -12,6 +12,9 @@ struct ArchiveMapLayer: View {
     /// 지금 보고 있는 방의 핀. 방을 열지 않았으면 비어 있고, 그때는 기본 카메라를 유지한다.
     let pins: [Pin]
 
+    /// 현위치 버튼(005-1)이 잡아 둔 내 위치. 서 있으면 핀 맞춤 대신 여기를 비춘다.
+    let myLocation: Coordinate?
+
     /// 방 대표 색 — 마커 색이 방 색을 따른다(005-1 ①). 색을 안 고른 방(`nil`·`gray`)은 기본색.
     let roomColor: RoomColor?
 
@@ -30,7 +33,7 @@ struct ArchiveMapLayer: View {
             #if canImport(GoogleMaps)
             if MapService.isConfigured {
                 MapView(
-                    camera: ArchiveMap.camera(for: pins),
+                    camera: ArchiveMap.camera(for: pins, focusing: myLocation),
                     markers: ArchiveMap.markers(pins: pins, roomColor: roomColor, selectedPinID: selectedPinID),
                     padding: EdgeInsets(top: 0, leading: 0, bottom: bottomInset, trailing: 0),
                     onEvent: { event in
@@ -59,6 +62,13 @@ enum ArchiveMap {
     /// 핀이 화면 가장자리에 붙지 않도록 카메라를 맞출 때 두는 여백(pt).
     static let fitPadding: Double = 60
 
+    /// 현위치로 옮겨 갈 때의 줌.
+    ///
+    /// 시안(005-1)에 지정이 없다. 새 숫자를 지어내지 않고 이 화면이 이미 쓰는 기본 줌을 그대로
+    /// 쓴다 — 지금 줌을 유지하려면 카메라 idle 을 계속 추적해 들고 있어야 하는데, 버튼 하나에
+    /// 그 상태를 들일 이유가 없다.
+    static var myLocationZoom: Float { defaultCamera.zoom }
+
     /// 방의 핀을 지도 마커로 옮긴다. 마커 `id` 는 핀 id — 탭 이벤트가 이 값으로 되돌아온다.
     /// 색은 방 하나에 하나라 전부 같고, 지금 열려 있는 핀만 선택 상태가 된다(005-1 ①).
     static func markers(pins: [Pin], roomColor: RoomColor?, selectedPinID: String?) -> [MapMarker] {
@@ -77,7 +87,22 @@ enum ArchiveMap {
     }
 
     /// 핀이 있으면 전부 보이도록 맞추고(004-1 ④), 없으면 기본 카메라를 유지한다.
-    static func camera(for pins: [Pin]) -> MapCamera {
+    ///
+    /// `myLocation` 이 서 있으면 그쪽이 이긴다 — 현위치 버튼(005-1)을 누른 결과라 방금 사용자가
+    /// 낸 요청이 핀 맞춤보다 뒤에 온 판단이다. 방이 바뀌면 그 요청은 사라져(``ArchiveCoordinator``의
+    /// `mapFocus`) 다시 핀에 맞춰진다.
+    static func camera(for pins: [Pin], focusing myLocation: Coordinate? = nil) -> MapCamera {
+        if let myLocation {
+            return .position(
+                MapCameraPosition(
+                    coordinate: MapCoordinate(
+                        latitude: myLocation.latitude,
+                        longitude: myLocation.longitude
+                    ),
+                    zoom: myLocationZoom
+                )
+            )
+        }
         guard !pins.isEmpty else { return .position(defaultCamera) }
         return .fit(
             coordinates: pins.map {

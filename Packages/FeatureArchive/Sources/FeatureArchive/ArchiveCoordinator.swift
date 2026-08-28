@@ -11,6 +11,17 @@ public enum ArchiveRoute: Hashable {
     case createRoom
 }
 
+/// 지도 카메라를 내 위치로 옮겨 달라는 요청(005-1 현위치 버튼).
+///
+/// 좌표만 들지 않고 ``ordinal`` 을 함께 두는 이유는 **같은 자리를 다시 요청하는 경우** 때문이다.
+/// 지도를 손으로 옮긴 뒤 현위치를 다시 누르면 좌표는 그대로라 값이 안 바뀌고, 그러면 뷰가
+/// 갱신되지 않아 카메라가 돌아오지 않는다. 요청마다 달라지는 번호를 실어 "다시 눌렀다" 를
+/// 값으로 만든다 — 상태가 아니라 명령이라 두 요청은 목적지가 같아도 서로 다른 요청이다.
+struct ArchiveMapFocus: Equatable {
+    let coordinate: Coordinate
+    let ordinal: Int
+}
+
 /// 탭 flow 는 앱 생존 내내 유지되므로 종료가 없다 — Output = Never.
 @Observable
 @MainActor
@@ -25,6 +36,16 @@ public final class ArchiveCoordinator: Coordinator {
     public private(set) var selectedRoom: Room?
 
     public private(set) var selectedPin: Pin?
+
+    /// 지도가 핀 맞춤(``ArchiveMap/camera(for:focusing:)``) 대신 비출 자리. 현위치 버튼이 세운다.
+    ///
+    /// 보고 있는 방이 바뀌면 비운다(``showRoom(_:)``) — 새 방의 핀에 다시 맞춰야 하기 때문이다.
+    /// 장소 상세를 닫는 것만으로는 비우지 않는다: 사용자가 옮겨 둔 지도를 시트를 닫았다고
+    /// 되돌리면 되레 놀란다.
+    private(set) var mapFocus: ArchiveMapFocus?
+
+    /// ``ArchiveMapFocus/ordinal`` 에 찍을 다음 번호. 표시에 쓰이지 않아 관찰 대상이 아니다.
+    @ObservationIgnored private var mapFocusCount = 0
 
     public var isRoomDetailPresented: Bool { selectedRoom != nil }
 
@@ -89,6 +110,7 @@ public final class ArchiveCoordinator: Coordinator {
                 useCase: deps.fetchPinDetail,
                 fetchCurrentMember: deps.currentMember,
                 fetchSavedRooms: deps.fetchSavedRooms,
+                currentLocation: deps.currentLocation,
                 pin: pin
             ),
             handle: { [weak self] in self?.handle($0) }
@@ -120,7 +142,7 @@ public final class ArchiveCoordinator: Coordinator {
     func handle(_ nav: RoomListNav) {
         switch nav {
         case .openRoomDetail(let room):
-            selectedRoom = room
+            showRoom(room)
         case .goToCreateRoom:
             push(.createRoom)
         }
@@ -137,7 +159,7 @@ public final class ArchiveCoordinator: Coordinator {
     func handle(_ nav: RoomDetailNav) {
         switch nav {
         case .close:
-            selectedRoom = nil
+            showRoom(nil)
             selectedPin = nil
         case .shareLocation(let location):
             sharingLocation = location
@@ -160,7 +182,17 @@ public final class ArchiveCoordinator: Coordinator {
             sharingLocation = location
         case .openSavedRooms(let presentation):
             savedRooms = presentation
+        case .focusMyLocation(let coordinate):
+            mapFocusCount += 1
+            mapFocus = ArchiveMapFocus(coordinate: coordinate, ordinal: mapFocusCount)
         }
+    }
+
+    /// 보고 있는 방을 바꾼다. 지도 카메라 요청(``mapFocus``)은 방과 수명을 같이한다 —
+    /// 남겨 두면 새 방을 열어도 카메라가 내 위치에 붙어 그 방의 핀이 화면 밖에 남는다.
+    private func showRoom(_ room: Room?) {
+        selectedRoom = room
+        mapFocus = nil
     }
 
     /// 014 ② — 고른 방의 장소 상세로. 시트를 닫고 **방만** 갈아끼운다.
@@ -171,7 +203,7 @@ public final class ArchiveCoordinator: Coordinator {
     func selectSavedRoom(_ roomID: String) {
         guard let room = savedRooms?.rooms.first(where: { $0.id == roomID }) else { return }
         savedRooms = nil
-        selectedRoom = room
+        showRoom(room)
     }
 
     func handle(_ nav: RoomShareNav) {
