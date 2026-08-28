@@ -55,6 +55,7 @@ private struct StubArchiveDeps: ArchiveDeps {
     var fetchPinDetail: FetchPinDetailUseCase = StubFetchPinDetail()
     var createRoom: CreateRoomUseCase = StubCreateRoom()
     var fetchShareTargets: FetchShareTargetsUseCase = StubShareTargets()
+    var fetchSavedRooms: FetchSavedRoomsUseCase = StubFetchSavedRooms()
     var savePin: SavePinToRoomsUseCase = StubSavePin()
     var deletePin: DeletePinUseCase = StubDeletePin()
     var currentMember: CurrentMemberUseCase = StubCurrentMember()

@@ -16,6 +16,8 @@ public protocol ArchiveDeps: RoomShareCreateRoomDeps {
     var fetchPinDetail: FetchPinDetailUseCase { get }
     /// 다른 방에 공유 시트가 그릴 방 목록 — 각 방에 이 장소가 이미 있는지까지 함께.
     var fetchShareTargets: FetchShareTargetsUseCase { get }
+    /// 이 장소가 중복 저장된 방들 — '저장된 방' 버튼(005-1 ⑮)의 활성 조건이자 014 시트의 목록이다.
+    var fetchSavedRooms: FetchSavedRoomsUseCase { get }
     /// 다른 방에 공유 — 고른 방들에 이 장소를 담는다.
     var savePin: SavePinToRoomsUseCase { get }
     /// 장소 카드 케밥의 "장소 삭제"(004-1 ⑧) — 확인 다이얼로그를 거친 뒤 이 방에서 지운다.

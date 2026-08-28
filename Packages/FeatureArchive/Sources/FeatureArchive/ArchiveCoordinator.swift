@@ -45,6 +45,10 @@ public final class ArchiveCoordinator: Coordinator {
     /// "표시 상태 ↔ 자식" 을 손으로 맞출 짝이 없어 `onDismiss` 정리 훅을 따로 두지 않는다.
     var shareCreateRoomChild: RoomShareCreateRoomCoordinator?
 
+    /// 저장된 방 시트(014)에 띄울 목록. 목록 자체가 표시 항목이라 "열렸나" 플래그를 따로 두지
+    /// 않는다 — 두면 플래그와 목록이 어긋날 짝이 생긴다.
+    var savedRooms: SavedRoomsPresentation?
+
     /// 공유 저장이 **성공했을 때만** 서는 1회성 신호. 시트가 닫힌 뒤 껍데기가 소비해 완료 토스트를
     /// 띄운다. X 로 닫거나 저장에 실패하면 서지 않는다 — 그 자리에 완료 토스트가 뜨면 거짓말이 된다.
     /// 관찰 대상이 아니다(소비 시점이 `onDismiss`, 즉 뷰 갱신 중이라 관찰되면 재갱신을 부른다).
@@ -78,6 +82,7 @@ public final class ArchiveCoordinator: Coordinator {
             reduce: placeDetailReducer(
                 useCase: deps.fetchPinDetail,
                 fetchCurrentMember: deps.currentMember,
+                fetchSavedRooms: deps.fetchSavedRooms,
                 pin: pin
             ),
             handle: { [weak self] in self?.handle($0) }
@@ -141,7 +146,20 @@ public final class ArchiveCoordinator: Coordinator {
             selectedPin = nil
         case .share(let location):
             sharingLocation = location
+        case .openSavedRooms(let presentation):
+            savedRooms = presentation
         }
+    }
+
+    /// 014 ② — 고른 방의 장소 상세로. 시트를 닫고 **방만** 갈아끼운다.
+    ///
+    /// 보고 있던 장소(`selectedPin`)는 그대로 둔다. 같은 장소라도 방마다 핀이 따로인데 저장 API 가
+    /// 아직 그 짝을 주지 않아 "그 방 쪽 핀"을 집을 수 없기 때문이다 — 핀을 비우면 시트가 닫혀
+    /// "장소상세로 이동한다" 는 기획과 더 멀어진다. API 가 붙으면 그 방의 핀 id 로 함께 갈아끼운다.
+    func selectSavedRoom(_ roomID: String) {
+        guard let room = savedRooms?.rooms.first(where: { $0.id == roomID }) else { return }
+        savedRooms = nil
+        selectedRoom = room
     }
 
     func handle(_ nav: RoomShareNav) {

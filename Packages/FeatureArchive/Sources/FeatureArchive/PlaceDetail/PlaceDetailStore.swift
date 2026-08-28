@@ -13,6 +13,12 @@ struct PlaceDetailState: Equatable {
     /// 그러면 어떤 코멘트도 내 것으로 보지 않아 남의 글에 삭제가 붙는 사고가 나지 않는다.
     var currentMember: MemberProfile?
     var isLoadingCurrentMember = false
+    /// 이 장소가 **중복 저장된 방**들(기획 014 ②). 지금 보고 있는 방은 빠져 있다.
+    ///
+    /// 목록을 화면이 들고 있는 이유는 이게 곧 '저장된 방' 버튼의 활성 조건이기 때문이다 —
+    /// 버튼을 켜 놓고 시트에서 다시 받아오면 켠 근거와 그리는 목록이 갈라질 수 있다.
+    var savedRooms: [Room] = []
+    var isLoadingSavedRooms = false
     /// 삭제 메뉴가 열려 있는 코멘트. 목록 전체에서 하나만 열린다.
     ///
     /// 방 상세의 케밥 메뉴는 열림 상태를 View 가 들지만(모든 카드에 케밥이 있어 UI 사정일 뿐),
@@ -28,6 +34,10 @@ extension PlaceDetailState {
 
     /// 코멘트를 등록할 수 있는가. 작성자를 신원으로 싣기 때문에 내가 누구인지 모르면 쓸 수 없다.
     var canSubmitComment: Bool { currentMember != nil }
+
+    /// '저장된 방' 버튼(005-1 ⑮)을 누를 수 있는가 — "중복 저장된 장소 클릭 시에만 활성화된다".
+    /// 목록이 비면 이 장소는 지금 보는 방에만 있다는 뜻이라 보여 줄 방이 없다.
+    var canOpenSavedRooms: Bool { !savedRooms.isEmpty }
 }
 
 enum PlaceDetailAction: Equatable {
@@ -37,6 +47,10 @@ enum PlaceDetailAction: Equatable {
     case loadCurrentMember
     case currentMemberLoaded(MemberProfile)
     case currentMemberLoadFailed(DomainError)
+    case loadSavedRooms
+    case savedRoomsLoaded([Room])
+    case savedRoomsLoadFailed(DomainError)
+    case tapSavedRooms
     case submitComment(String)
     case tapCommentMenu(PlaceDetailComment.ID)
     case dismissCommentMenu
@@ -48,6 +62,9 @@ enum PlaceDetailAction: Equatable {
 enum PlaceDetailNav: Equatable, Sendable {
     case close
     case share(RoomDetailLocation)
+    /// 저장된 방 시트(014)로. 목록을 함께 실어 보낸다 — 시트가 다시 받아오면 버튼을 켠 목록과
+    /// 갈라진다.
+    case openSavedRooms(SavedRoomsPresentation)
 }
 
 typealias PlaceDetailStore = Store<PlaceDetailState, PlaceDetailAction, PlaceDetailNav>
@@ -55,6 +72,7 @@ typealias PlaceDetailStore = Store<PlaceDetailState, PlaceDetailAction, PlaceDet
 func placeDetailReducer(
     useCase: FetchPinDetailUseCase,
     fetchCurrentMember: CurrentMemberUseCase,
+    fetchSavedRooms: FetchSavedRoomsUseCase,
     pin: Pin,
     makeCommentID: @escaping () -> String = { UUID().uuidString }
 ) -> (inout PlaceDetailState, PlaceDetailAction) -> Effect<PlaceDetailAction, PlaceDetailNav> {
@@ -111,6 +129,41 @@ func placeDetailReducer(
             // 신원을 모르는 채로 두는 게 정답이다 — 오류 UI 없이 삭제 케밥이 안 붙고 등록이 잠긴다.
             state.isLoadingCurrentMember = false
             return .none
+
+        // 저장된 방도 출처·신원과 따로 받는다 — 셋 다 서로를 막을 이유가 없다.
+        case .loadSavedRooms:
+            guard !state.isLoadingSavedRooms else { return .none }
+            state.isLoadingSavedRooms = true
+            return .run { send in
+                do {
+                    send(.savedRoomsLoaded(try await fetchSavedRooms.execute(pin: pin)))
+                } catch is CancellationError {
+                    return
+                } catch let error as DomainError {
+                    send(.savedRoomsLoadFailed(error))
+                } catch {
+                    send(.savedRoomsLoadFailed(.unknown))
+                }
+            }
+
+        case .savedRoomsLoaded(let rooms):
+            state.savedRooms = rooms
+            state.isLoadingSavedRooms = false
+            return .none
+
+        case .savedRoomsLoadFailed:
+            // 출처 조회와 같은 결 — 곁가지라 오류 UI 를 띄우지 않고 버튼이 비활성으로 남는다.
+            // 목록을 비워 두는 쪽으로 실패한다: 못 받은 목록으로 시트를 여는 것보다 안 열리는 게 낫다.
+            state.savedRooms = []
+            state.isLoadingSavedRooms = false
+            return .none
+
+        case .tapSavedRooms:
+            // 뷰가 비활성으로 막지만 뷰를 고치면 뚫린다 — 빈 시트가 뜨지 않게 여기서도 지킨다.
+            guard state.canOpenSavedRooms else { return .none }
+            return .navigate(
+                .openSavedRooms(SavedRoomsPresentation(id: pin.id.value, rooms: state.savedRooms))
+            )
 
         case .submitComment(let text):
             // 작성자를 신원으로 싣기 때문에 내가 누구인지 모르면 만들 수 없다. 등록 버튼도 같은
