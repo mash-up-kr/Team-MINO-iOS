@@ -177,6 +177,7 @@ struct ArchiveShellView: View {
             detent: $detent,
             lowPeek: peek.low,
             mediumPeek: peek.medium,
+            bottomCoverage: tabBarCoverage,
             detents: placeStore == nil ? MHBottomSheetDetent.allCases : [.medium, .full]
         ) {
             if let placeStore {
@@ -201,20 +202,34 @@ struct ArchiveShellView: View {
 
     /// 시트가 지도를 가리는 높이. 구글 로고가 시트 위로 올라오도록 지도 padding 으로 넘긴다.
     /// `MapView` 가 safe-area 를 더해 적용하므로(`paddingAdjustmentBehavior = .always`)
-    /// `MHBottomSheet` 에 주는 peek 원본 pt 를 그대로 준다 — 두 값의 기준이 같다.
+    /// safe-area 를 뺀 값을 준다 — `MHBottomSheet` 에 주는 값과 기준이 같아, 탭바 보정도
+    /// 함께 얹어야 로고가 시트 상단에 맞는다.
     /// full 은 지도가 전부 가려져 로고를 밀어올릴 여백이 없으므로 0.
     private var mapBottomInset: CGFloat {
         switch detent {
-        case .low: peek.low ?? peek.medium
-        case .medium: peek.medium
+        case .low: (peek.low ?? peek.medium) + tabBarCoverage
+        case .medium: peek.medium + tabBarCoverage
         case .full: 0
         }
     }
 
-    /// 시트 단계별 노출 높이.
+    /// 시트를 아래에서 덮는 탭바의 높이.
     ///
-    /// `MHBottomSheet` 은 여기 준 값에 **하단 safe-area 를 더해** 시트를 그린다(시트가 탭바·홈
-    /// 인디케이터 뒤로 깔리는 만큼). 그래서 이 값은 "그 아래 것을 뺀 노출 높이"다.
+    /// 탭바는 `MainTabView` 가 `safeAreaInset` 으로 붙이는데 `NavigationStack` 이 그 인셋을
+    /// 스택 안 콘텐츠에 전파하지 않는다(``MHTabBar/height``) — 시트는 탭바가 없는 것처럼
+    /// safe area 바닥까지 자리를 잡아, 아래 52pt 가 탭바에 가린다. 그만큼을 되돌려 준다
+    /// (`NotificationTabView`·`ProfileTabView` 의 `tabBarSpacer` 와 같은 보정).
+    ///
+    /// 탭바가 레이아웃에서 아예 빠지는 전체화면 상태(방 상세·장소 상세)에서는 덮는 게 없어 0 이다 —
+    /// `MainTabView` 가 탭바를 넣고 빼는 조건과 **같은 값**을 보므로 이중 보정이 생기지 않는다.
+    private var tabBarCoverage: CGFloat {
+        coordinator.isFullBleedContentPresented ? 0 : MHTabBar.height
+    }
+
+    /// 시트 단계별 노출 높이 — 탭바를 뺀, 눈에 보이는 pt.
+    ///
+    /// `MHBottomSheet` 은 여기 준 값에 `bottomCoverage`(탭바) 만 더해 그린다. 홈 인디케이터는
+    /// 시트의 레이아웃 상자 밖이라 더하지 않는다(`MHBottomSheet` 의 `fraction` 주석).
     ///
     /// - 방 리스트 88·256 (004-1 ②③) — 시안이 "바텀네비게이션 높이 제외" 라고 못박아 기준이 같다.
     /// - 장소 상세 335 (005-1 ⑫) — 시안의 369 는 **화면 끝까지** 잰 값이다(375×812 프레임에서 실측
