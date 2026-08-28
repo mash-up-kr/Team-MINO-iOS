@@ -113,4 +113,21 @@ struct CardDeckLayoutTests {
         #expect(Layout.baseCardWidth(containerWidth: 375) == 375 - Layout.cardHorizontalInset)
         #expect(Layout.baseCardWidth(containerWidth: 10) == 0)
     }
+
+    @Test("cardScale 은 시안 덱의 폭·높이를 그대로 재현한다 (뒤 카드 = 비율 축소 사본)")
+    func cardScale_matchesFigmaDeck() {
+        // Figma 002-5-1 덱(2809-143391…143395): 폭 255·275·295·315·335 / 높이 249.67·269.25·288.84·308.42·328
+        let widths: [CGFloat] = [335, 315, 295, 275, 255]
+        let heights: [CGFloat] = [328, 308.418, 288.836, 269.254, 249.672]
+        for depth in 0..<5 {
+            let scale = Layout.cardScale(containerWidth: 375, effectiveDepth: CGFloat(depth))
+            #expect(abs(scale * 335 - widths[depth]) < 0.001)
+            #expect(abs(scale * 328 - heights[depth]) < 0.01)
+        }
+    }
+
+    @Test("컨테이너 폭이 인셋보다 좁으면 cardScale 은 1 로 떨어진다(0 나눗셈 방어)")
+    func cardScale_guardsZeroBase() {
+        #expect(Layout.cardScale(containerWidth: 10, effectiveDepth: 1) == 1)
+    }
 }

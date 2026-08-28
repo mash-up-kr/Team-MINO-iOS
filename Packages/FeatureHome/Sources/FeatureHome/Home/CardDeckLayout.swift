@@ -84,6 +84,18 @@ enum CardDeckLayout {
         baseCardWidth(containerWidth: containerWidth) - effectiveDepth * depthStep
     }
 
+    /// 유효 깊이의 카드 축소 배율(앞 카드 = 1).
+    ///
+    /// 시안의 뒤 카드는 **비율 그대로 줄인 사본**이다 — 폭 315 일 때 높이 308.42(= 328 × 315/335)에
+    /// 패딩·테두리까지 같은 배율(16→15.045, 1→0.94)로 줄어 있다(Figma 2809-143391…143395).
+    /// 그래서 폭만 좁히면 안 된다: 카드 높이는 내용(이미지 그리드·2줄 텍스트)이 정하므로 폭에 비례해
+    /// 줄지 않고, 그만큼 뒤 카드가 아래로 내려앉아 겹침 간격이 시안(20)보다 좁아진다.
+    static func cardScale(containerWidth: CGFloat, effectiveDepth: CGFloat) -> CGFloat {
+        let base = baseCardWidth(containerWidth: containerWidth)
+        guard base > 0 else { return 1 }
+        return max(0, cardWidth(containerWidth: containerWidth, effectiveDepth: effectiveDepth) / base)
+    }
+
     /// 스택 내 카드의 유효 깊이(넘김·복귀 진행 반영).
     /// 앞 카드(isTop)는 복귀 진행만큼 뒤로 밀리고, 뒤 카드는 넘김 진행만큼 앞으로 당겨진다.
     static func effectiveDepth(

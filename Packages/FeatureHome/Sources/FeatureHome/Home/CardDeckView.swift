@@ -16,6 +16,9 @@ struct CardDeckView: View {
     let onTapCard: (PinID) -> Void
     /// 카드 더보기 메뉴 "다른 방 저장" 탭 — 게시물 저장 바텀시트로 이어진다.
     let onSaveToOtherRoom: (PinID) -> Void
+    /// 홈 가이드가 떠 있는지. 가이드는 **맨 앞 카드만** 딤 위에 남기고(손 그래픽이 그 위에 얹힌다)
+    /// 뒷장은 딤 뒤로 물러나게 한다 — 시안에서도 겹쳐 보이던 뒷장 테두리가 딤에 묻힌다.
+    var isGuidePresented: Bool = false
 
     @State private var dragOffset: CGFloat = 0
     @State private var isFlingAnimating = false
@@ -53,15 +56,21 @@ struct CardDeckView: View {
                 let isTop = stackIndex == visibleCards.count - 1
                 let depth = visibleCards.count - 1 - stackIndex
                 let effectiveDepth = CardDeckLayout.effectiveDepth(depth: depth, isTop: isTop, shiftProgress: shiftProgress, returnProgress: returnProgress)
-                let cardWidth = CardDeckLayout.cardWidth(containerWidth: containerWidth, effectiveDepth: effectiveDepth)
+                let cardScale = CardDeckLayout.cardScale(containerWidth: containerWidth, effectiveDepth: effectiveDepth)
 
                 cardView(pin: pin)
-                    .frame(width: cardWidth)
+                    // 뒤 카드는 좁힌 게 아니라 **비율 그대로 줄인 사본**이다(시안) — 모든 카드를 같은
+                    // 기준 폭으로 레이아웃한 뒤 축소한다. 폭만 좁히면 높이가 비례해 줄지 않아
+                    // 겹침 간격이 20 보다 좁아지고, 뒤 카드 안에서 글자가 다시 줄바꿈된다.
+                    // 상단 앵커라 레이아웃 높이(= 앞 카드 높이)는 그대로 두고 위 여백만 20씩 벌어진다.
+                    .frame(width: baseCardWidth)
+                    .scaleEffect(cardScale, anchor: .top)
                     .offset(y: effectiveDepth * -CardDeckLayout.depthStep)
                     .opacity(CardDeckLayout.interpolatedOpacity(depth: depth, isTop: isTop, shiftProgress: shiftProgress) * CardDeckLayout.depthFade(effectiveDepth))
                     .zIndex(Double(stackIndex))
                     .offset(x: isTop ? dragOffset + flingXOffset : 0, y: isTop ? dragYOffset + flingYOffset : 0)
                     .rotationEffect(isTop ? .degrees(topRotation) : .zero)
+                    .homeGuideDimmed(isGuidePresented && !isTop)
                     .allowsHitTesting(isTop && !isFlingAnimating)
                     .gesture(isTop ? swipeGesture : nil)
                     .onTapGesture { onTapCard(pin.id) }

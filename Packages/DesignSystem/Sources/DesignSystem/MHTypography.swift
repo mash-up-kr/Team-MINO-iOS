@@ -69,6 +69,16 @@ public extension Text {
     func mhTypography(_ style: MHTypography) -> Text {
         self.font(style.font).tracking(style.tracking)
     }
+
+    /// 여러 줄 텍스트에 **행간까지** 적용한다(시안 라인박스 = size × lineHeightMultiple).
+    ///
+    /// `Text` 에 그냥 `.mhTypography` 를 부르면 위의 `Text` 오버로드가 잡혀 폰트·자간만 들어간다 —
+    /// 한 줄짜리엔 문제가 없지만 여러 줄이면 SUITE 의 intrinsic 행간(시안보다 좁다)이 그대로 나와
+    /// 블록 높이가 시안보다 작아진다(예: Heading 1 2줄 60 → 55). 여러 줄이면 이걸 쓴다.
+    /// (`foregroundStyle` 등을 먼저 붙여도 `Text` 가 그대로라 오버로드는 바뀌지 않는다)
+    func mhTypographyMultiline(_ style: MHTypography) -> some View {
+        modifier(MHTypographyModifier(style: style))
+    }
 }
 
 struct MHTypographyModifier: ViewModifier {

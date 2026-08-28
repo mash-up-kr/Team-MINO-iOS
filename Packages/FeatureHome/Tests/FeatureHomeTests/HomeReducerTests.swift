@@ -38,12 +38,34 @@ private struct StubFetchRooms: FetchRoomsUseCase {
     }
 }
 
-/// 핀 조회 스텁 — 초기 로드(`all`)와 "더 보기"(`more`)를 각각 제어해 결과를 결정적으로 단언한다.
+/// 방·정렬과 무관하게 같은 덱을 돌려주는 스텁(로드 흐름 테스트용).
 private struct StubFetchPins: FetchPinsUseCase {
     var all: [Pin] = []
-    var more: [Pin] = []
     func execute(rooms: [Room], filter: PinFilter) async throws -> [Pin] { all }
-    func execute(room: Room, page: Int, filter: PinFilter) async throws -> [Pin] { more }
+    func execute(room: Room, page: Int, filter: PinFilter) async throws -> [Pin] { all }
+}
+
+/// (방 × 정렬)별 덱을 돌려주는 스텁 — 홈이 방 단위로 조회하므로 그 키로 찾는다.
+/// `failing` 에 담은 키는 조회가 실패한다(복구 경로 검증용).
+private struct StubRoomDecks: FetchPinsUseCase {
+    var decks: [String: [Pin]] = [:]
+    var failing: Set<String> = []
+    func execute(rooms: [Room], filter: PinFilter) async throws -> [Pin] { [] }
+    func execute(room: Room, page: Int, filter: PinFilter) async throws -> [Pin] {
+        let key = deckKey(room.id, filter)
+        if failing.contains(key) { throw DomainError.unknown }
+        return decks[key] ?? []
+    }
+}
+
+private func deckKey(_ roomID: String, _ filter: PinFilter) -> String { "\(roomID)/\(filter.rawValue)" }
+
+/// 한 (방 × 정렬) 덱. `tag` 로 어느 덱인지 구분한다.
+private func deckPins(_ tag: String, room: String, count: Int) -> [Pin] {
+    (0..<count).map { i in
+        PinFixture.pin(id: PinID("\(tag)-\(i)"), roomID: room, category: .savedByMany,
+                       title: "\(tag)\(i)", address: "주소", createdAt: fixtureDate)
+    }
 }
 
 /// 홈 가이드 스파이 — 이미 본 상태를 주입하고, 기록(markSeen) 호출을 센다.
@@ -221,234 +243,10 @@ struct HomeReducerTests {
 
     // MARK: - Filter
 
-    @Test("L2 — selectFilter 는 기준을 바꾸고 그 기준의 덱을 새로 받아 첫 카드부터 보여준다")
-    func selectFilter_reloadsDeck() async {
-        let filtered = multiRoomPins()
-        let store = makeStore(
-            fetchPins: StubFetchPins(all: filtered),
-            state: HomeState(rooms: fixtureRooms, pins: fixturePins, currentCardIndex: 2)
-        )
-        await store.send(.selectFilter(.nearby)) {
-            $0.selectedFilter = .nearby
-            $0.isDeckLoading = true      // 아직 안 받아 본 기준이라 조회한다
-        }
-        await store.receive(.filterPinsLoaded(pins: filtered, entry: .first, for: .nearby)) {
-            $0.isDeckLoading = false
-            $0.pins = filtered
-            $0.currentCardIndex = 0
-        }
-        store.finish()
-    }
-
-    @Test("L2 — 필터 덱 조회가 실패하면 기준을 되돌리고 로딩을 꺼 기존 덱을 계속 보여준다")
-    func selectFilter_revertsOnFetchFailure() async {
-        let store = makeStore(
-            fetchPins: ThrowingFetchPins(),
-            state: HomeState(rooms: fixtureRooms, pins: fixturePins, currentCardIndex: 2)
-        )
-        await store.send(.selectFilter(.nearby)) {
-            $0.selectedFilter = .nearby
-            $0.isDeckLoading = true
-        }
-        await store.receive(.filterPinsLoadFailed(for: .nearby, revertTo: .recommended, index: 2)) {
-            $0.isDeckLoading = false
-            $0.selectedFilter = .recommended   // 못 받았으니 원래 기준으로
-        }
-        #expect(store.currentState.pins == fixturePins)   // 기존 덱 유지
-        #expect(!store.currentState.showsEmptyState)      // 조회 실패가 "장소 없음"으로 새지 않는다
-        store.finish()
-    }
-
-    @Test("L2 — 첫 카드에서 뒤로 넘기면 이전 기준의 마지막 카드로 돌아간다")
-    func swipeBackward_returnsToPreviousFilterLastCard() async {
-        let previousDeck = multiRoomPins()   // 방1 3장 + 방2 2장
-        let store = makeStore(
-            fetchPins: StubFetchPins(all: previousDeck),
-            state: HomeState(rooms: fixtureRooms, selectedFilter: .latest, pins: fixturePins)
-        )
-        await store.send(.swipeBackward) {
-            $0.selectedFilter = .recommended   // 최신순 → 꾹 Pick
-            $0.isDeckLoading = true
-        }
-        await store.receive(.filterPinsLoaded(pins: previousDeck, entry: .last, for: .recommended)) {
-            $0.isDeckLoading = false
-            $0.pins = previousDeck
-            $0.currentCardIndex = previousDeck.count - 1   // 마지막 방의 마지막 카드
-        }
-        #expect(store.currentState.currentRoom?.id == "2")   // 마지막 방
-        store.finish()
-    }
-
-    @Test("L1 — 첫 기준의 첫 카드에서 뒤로 넘기면 아무 일도 하지 않는다")
-    func swipeBackward_atFirstFilterDoesNothing() async {
-        let store = makeStore(
-            state: HomeState(rooms: fixtureRooms, selectedFilter: .recommended, pins: fixturePins)
-        )
-        await store.send(.swipeBackward)
-        store.finish()
-    }
-
-    @Test("L2 — 한 번 받아 둔 기준으로 돌아갈 땐 재조회 없이 즉시 전환한다")
-    func switchingBackToCachedFilterSkipsFetch() async {
-        let latestDeck = multiRoomPins()
-        let store = makeStore(
-            fetchPins: StubFetchPins(all: latestDeck),
-            state: HomeState(
-                rooms: fixtureRooms, selectedFilter: .recommended,
-                pins: fixturePins, currentCardIndex: fixturePins.count - 1
-            )
-        )
-        // 소진 → 최신순 덱을 받아 캐시에 남는다
-        await store.send(.swipeForward) {
-            $0.currentCardIndex = fixturePins.count
-            $0.selectedFilter = .latest
-            $0.isDeckLoading = true
-        }
-        await store.receive(.filterPinsLoaded(pins: latestDeck, entry: .first, for: .latest)) {
-            $0.isDeckLoading = false
-            $0.pins = latestDeck
-            $0.currentCardIndex = 0
-        }
-        // 뒤로 → 꾹 Pick 은 이미 받아 둔 덱이라 조회 없이 마지막 카드로
-        await store.send(.swipeBackward) {
-            $0.selectedFilter = .recommended
-            $0.currentCardIndex = fixturePins.count - 1
-        }
-        store.finish()   // 추가 effect 없음 = 재조회 안 함
-    }
-
-    @Test("previousDeckLastPin — 받아 둔 이전 기준의 마지막 카드(복귀 애니메이션이 얹을 카드)")
-    func previousDeckLastPin_exposesCachedPreviousDeckTail() async {
-        let latestDeck = multiRoomPins()
-        let store = makeStore(
-            fetchPins: StubFetchPins(all: latestDeck),
-            state: HomeState(
-                rooms: fixtureRooms, selectedFilter: .recommended,
-                pins: fixturePins, currentCardIndex: fixturePins.count - 1
-            )
-        )
-        // 첫 기준에서는 돌아갈 곳이 없다 → 뷰가 좌드래그를 막는 근거
-        #expect(!store.currentState.canReturnToPreviousFilter)
-        #expect(store.currentState.previousDeckLastPin == nil)
-
-        await store.send(.swipeForward) {   // 소진 → 최신순으로 자동 전환
-            $0.currentCardIndex = fixturePins.count
-            $0.selectedFilter = .latest
-            $0.isDeckLoading = true
-        }
-        await store.receive(.filterPinsLoaded(pins: latestDeck, entry: .first, for: .latest)) {
-            $0.isDeckLoading = false
-            $0.pins = latestDeck
-            $0.currentCardIndex = 0
-        }
-        #expect(store.currentState.canReturnToPreviousFilter)
-        #expect(store.currentState.previousDeckLastPin == fixturePins.last)
-        store.finish()
-    }
-
-    @Test("previousDeckLastPin — 아직 안 받아 둔 기준이면 nil (전환은 되고 카드만 못 얹는다)")
-    func previousDeckLastPin_nilWhenPreviousDeckNotFetched() {
-        // 꾹 Pick 을 건너뛰고 최신순부터 본 상태 — 이전 기준 덱이 캐시에 없다
-        let state = HomeState(rooms: fixtureRooms, selectedFilter: .latest, pins: fixturePins)
-        #expect(state.canReturnToPreviousFilter)
-        #expect(state.previousDeckLastPin == nil)
-    }
-
-    @Test("L1 — 지나간 기준의 응답은 화면을 움직이지 않고 제 캐시에만 담긴다")
-    func filterPinsLoaded_staleResponseOnlyFillsItsOwnCache() async {
-        let latestDeck = multiRoomPins()
-        let store = makeStore(
-            state: HomeState(
-                rooms: fixtureRooms, selectedFilter: .nearby, pins: [], isDeckLoading: true
-            )
-        )
-        // 최신순으로 갔다가 곧바로 가까운순으로 옮긴 뒤, 최신순 응답이 뒤늦게 도착한 상황
-        await store.send(.filterPinsLoaded(pins: latestDeck, entry: .first, for: .latest)) {
-            $0.decks[.latest] = latestDeck   // 캐시엔 남는다 — 그 칩으로 돌아가면 재조회하지 않는다
-        }
-        #expect(store.currentState.isDeckLoading)   // 기다리는 건 여전히 가까운순 응답
-        store.finish()
-    }
-
-    @Test("L1 — 지나간 기준의 조회 실패는 지금 기준을 되돌리지 않는다")
-    func filterPinsLoadFailed_ignoresStaleFailure() async {
-        let store = makeStore(
-            state: HomeState(
-                rooms: fixtureRooms, selectedFilter: .nearby, pins: [], isDeckLoading: true
-            )
-        )
-        await store.send(.filterPinsLoadFailed(for: .latest, revertTo: .recommended, index: 0))
-        #expect(store.currentState.selectedFilter == .nearby)
-        #expect(store.currentState.isDeckLoading)
-        store.finish()
-    }
-
     @Test("L1 — 같은 기준을 다시 고르면 아무 일도 하지 않는다(불필요한 재조회 방지)")
     func selectFilter_ignoresSameFilter() async {
         let store = makeStore(state: HomeState(rooms: fixtureRooms, selectedFilter: .latest))
         await store.send(.selectFilter(.latest))
-        store.finish()
-    }
-
-    @Test("L2 — 한 기준의 덱을 다 넘기면 다음 기준으로 자동 전환하고 새 덱을 받는다")
-    func swipeForward_advancesToNextFilter() async {
-        let nextDeck = multiRoomPins()
-        let store = makeStore(
-            fetchPins: StubFetchPins(all: nextDeck),
-            state: HomeState(
-                rooms: fixtureRooms, selectedFilter: .recommended,
-                pins: fixturePins, currentCardIndex: fixturePins.count - 1
-            )
-        )
-        await store.send(.swipeForward) {
-            $0.currentCardIndex = fixturePins.count   // 덱 밖
-            $0.selectedFilter = .latest               // 꾹 Pick → 최신순
-            $0.isDeckLoading = true
-        }
-        await store.receive(.filterPinsLoaded(pins: nextDeck, entry: .first, for: .latest)) {
-            $0.isDeckLoading = false
-            $0.pins = nextDeck
-            $0.currentCardIndex = 0
-        }
-        #expect(!store.currentState.hasViewedAllPlaces)
-        store.finish()
-    }
-
-    @Test("L2 — 소진 자동 전환이 실패하면 덱 밖 인덱스를 마지막 카드로 되돌린다")
-    func swipeForward_revertsOnFetchFailure() async {
-        let store = makeStore(
-            fetchPins: ThrowingFetchPins(),
-            state: HomeState(
-                rooms: fixtureRooms, selectedFilter: .recommended,
-                pins: fixturePins, currentCardIndex: fixturePins.count - 1
-            )
-        )
-        await store.send(.swipeForward) {
-            $0.currentCardIndex = fixturePins.count   // 덱 밖
-            $0.selectedFilter = .latest
-            $0.isDeckLoading = true
-        }
-        // 전환 직전 인덱스가 덱 밖이라, 되돌릴 때 마지막 카드로 클램프된다
-        await store.receive(.filterPinsLoadFailed(for: .latest, revertTo: .recommended, index: fixturePins.count)) {
-            $0.isDeckLoading = false
-            $0.selectedFilter = .recommended
-            $0.currentCardIndex = fixturePins.count - 1
-        }
-        #expect(!store.currentState.isCurrentDeckExhausted)   // 다시 넘기면 재시도된다
-        store.finish()
-    }
-
-    @Test("L1 — 마지막 기준(가까운순)까지 소진하면 전환 없이 소진 화면으로 간다")
-    func swipeForward_stopsAtLastFilter() async {
-        let store = makeStore(
-            state: HomeState(
-                rooms: fixtureRooms, selectedFilter: .nearby,
-                pins: fixturePins, currentCardIndex: fixturePins.count - 1
-            )
-        )
-        await store.send(.swipeForward) { $0.currentCardIndex = fixturePins.count }
-        #expect(store.currentState.hasViewedAllPlaces)   // 002-3 소진 화면
-        #expect(store.currentState.selectedFilter == .nearby)
         store.finish()
     }
 
@@ -469,28 +267,14 @@ struct HomeReducerTests {
         store.finish()
     }
 
-    // MARK: - Card Deck
-
-    @Test("L1 — pinsLoaded 는 pins·인덱스를 세팅하고 로딩을 끝낸다 (최초 실행 = 첫 방부터)")
-    func pinsLoaded() async {
-        let store = makeStore(state: HomeState(isLoading: true, currentCardIndex: 5))
-        await store.send(.pinsLoaded(pins: fixturePins, startRoomID: nil)) {
-            $0.pins = fixturePins
-            $0.currentCardIndex = 0
-            $0.isLoading = false   // 핀 도착 시점에 로딩 종료(빈 상태 깜빡임 방지)
-        }
-        store.finish()
-    }
-
     // MARK: - 홈 사용 가이드 (정책 1)
 
     @Test("L2 — 최초 진입(가이드 미표기 + 카드 있음)이면 가이드를 띄우고 그 시점에 1회 표기를 기록한다")
     func guide_showsOnceOnFirstEntry() async {
         let guide = SpyHomeGuide(seen: false)
-        let store = makeStore(homeGuide: guide, state: HomeState(isLoading: true))
-        await store.send(.pinsLoaded(pins: fixturePins, startRoomID: nil)) {
+        let store = makeStore(homeGuide: guide, state: HomeState(rooms: fixtureRooms, isLoading: true))
+        await store.send(.initialDeckLoaded(pins: fixturePins, roomID: "1")) {
             $0.pins = fixturePins
-            $0.currentCardIndex = 0
             $0.isLoading = false
         }
         await store.receive(.showGuide) { $0.isGuidePresented = true }
@@ -500,10 +284,9 @@ struct HomeReducerTests {
 
     @Test("L2 — 이미 본 가이드는 다시 띄우지 않는다")
     func guide_doesNotShowWhenSeen() async {
-        let store = makeStore(homeGuide: SpyHomeGuide(seen: true), state: HomeState(isLoading: true))
-        await store.send(.pinsLoaded(pins: fixturePins, startRoomID: nil)) {
+        let store = makeStore(homeGuide: SpyHomeGuide(seen: true), state: HomeState(rooms: fixtureRooms, isLoading: true))
+        await store.send(.initialDeckLoaded(pins: fixturePins, roomID: "1")) {
             $0.pins = fixturePins
-            $0.currentCardIndex = 0
             $0.isLoading = false
         }
         store.finish()   // showGuide 미수신 — 잔여 effect 없음
@@ -511,8 +294,12 @@ struct HomeReducerTests {
 
     @Test("L2 — 카드가 0장이면(빈 상태) 스와이프 가이드를 띄우지 않는다")
     func guide_doesNotShowWithoutCards() async {
-        let store = makeStore(homeGuide: SpyHomeGuide(seen: false), state: HomeState(isLoading: true))
-        await store.send(.pinsLoaded(pins: [], startRoomID: nil)) { $0.isLoading = false }
+        // 첫 정렬이 비면 남은 정렬을 찾아 나서므로(빈 정렬 스킵) 로딩이 이어진다 — 가이드는 뜨지 않는다.
+        let store = makeStore(homeGuide: SpyHomeGuide(seen: false),
+                              state: HomeState(rooms: fixtureRooms, isLoading: true))
+        store.exhaustive = false
+        await store.send(.initialDeckLoaded(pins: [], roomID: "1")) { $0.isLoading = false }
+        #expect(!store.currentState.isGuidePresented)
         store.finish()
     }
 
@@ -525,106 +312,26 @@ struct HomeReducerTests {
 
     // MARK: - 재실행 시 이어 보기 (정책 3)
 
-    @Test("L1 — pinsLoaded 는 마지막으로 본 방이 있으면 그 방 첫 카드부터 시작한다")
-    func pinsLoaded_startsAtLastViewedRoom() async {
-        let store = makeStore(state: HomeState(rooms: fixtureRooms, isLoading: true))
-        await store.send(.pinsLoaded(pins: multiRoomPins(), startRoomID: "2")) {
-            $0.pins = multiRoomPins()
-            $0.currentCardIndex = 3     // 방2 구간 시작
-            $0.selectedRoomID = "2"
-            $0.isLoading = false
-        }
-        #expect(store.currentState.currentRoom?.id == "2")
-        store.finish()
-    }
-
-    @Test("L1 — 마지막으로 본 방에 카드가 없으면(삭제·스루) 첫 방부터 시작한다")
-    func pinsLoaded_fallsBackWhenLastRoomHasNoCards() async {
-        // 시작 인덱스를 0 이 아닌 값으로 둔다 — 기대값 0 이 초기값과 같으면
-        // 폴백이 동작한 건지 아무 일도 안 일어난 건지 구분되지 않는다.
-        let store = makeStore(state: HomeState(rooms: fixtureRooms, isLoading: true, currentCardIndex: 3))
-        await store.send(.pinsLoaded(pins: multiRoomPins(), startRoomID: "없는-방")) {
-            $0.pins = multiRoomPins()
-            $0.currentCardIndex = 0     // 3 → 0 으로 되돌린다. selectedRoomID 도 그대로 nil
-            $0.isLoading = false
-        }
-        store.finish()
-    }
-
-    @Test("L2 — load 는 마지막으로 본 방을 함께 읽어 pinsLoaded 에 실어 보낸다")
-    func load_carriesLastViewedRoom() async {
-        let pins = multiRoomPins()
-        let store = makeStore(
-            fetchPins: StubFetchPins(all: pins),
-            lastViewedRoom: SpyLastViewedRoom(stored: "2"),
-            state: HomeState()
-        )
-        await store.send(.load) {
-            $0.isLoading = true
-            $0.errorMessage = nil
-        }
-        await store.receive(.loaded(fixtureRooms)) { $0.rooms = fixtureRooms }
-        await store.receive(.pinsLoaded(pins: pins, startRoomID: "2")) {
-            $0.pins = pins
-            $0.currentCardIndex = 3
-            $0.selectedRoomID = "2"
-            $0.isLoading = false
-        }
-        store.finish()
-    }
-
-    @Test("L2 — 방이 바뀔 때만 마지막으로 본 방을 기록한다 (같은 방 안 이동은 기록 안 함)")
-    func persistsLastViewedRoomOnlyOnRoomChange() async {
-        let spy = SpyLastViewedRoom()
-        // 방1(0,1,2) + 방2(3,4), 방1 첫 카드에서 시작
-        let store = makeStore(
-            lastViewedRoom: spy,
-            state: HomeState(rooms: fixtureRooms, pins: multiRoomPins(), currentCardIndex: 0)
-        )
-        await store.send(.swipeForward) { $0.currentCardIndex = 1 }   // 방1 안 이동
-        #expect(await spy.saved.isEmpty)
-
-        await store.send(.swipeForward) { $0.currentCardIndex = 2 }
-        await store.send(.swipeForward) { $0.currentCardIndex = 3 }   // 방2 진입
-        #expect(await spy.saved == ["2"])
-
-        await store.send(.swipeBackward) { $0.currentCardIndex = 2 }  // 방1 복귀
-        #expect(await spy.saved == ["2", "1"])
-        store.finish()
-    }
-
-    @Test("L2 — 방 리스트에서 방을 고르면 그 방을 마지막으로 본 방으로 기록한다")
-    func persistsLastViewedRoomOnSelect() async {
-        let spy = SpyLastViewedRoom()
-        let store = makeStore(
-            lastViewedRoom: spy,
-            state: HomeState(rooms: fixtureRooms, pins: multiRoomPins(), isRoomListPresented: true)
-        )
-        await store.send(.selectRoom("2")) {
-            $0.currentCardIndex = 3
-            $0.isRoomListPresented = false
-            $0.selectedRoomID = "2"
-            $0.changedRoomToastID = "2"
-        }
-        #expect(await spy.saved == ["2"])
-        store.finish()
-    }
-
     @Test("L1 — swipeForward 는 인덱스를 1 증가시킨다")
     func swipeForward() async {
         let store = makeStore(state: HomeState(pins: fixturePins, currentCardIndex: 0))
         await store.send(.swipeForward) {
             $0.currentCardIndex = 1
+            $0.deckEndingToastFilter = .recommended   // 3장 덱이라 이 한 번으로 남은 2장 — 002-2-3 ② 예고
         }
         store.finish()
     }
 
-    @Test("L1 — swipeForward 는 마지막 카드에서 한 번 더 넘어가 덱 밖(소진)으로 나가고, 그 뒤로 clamp 된다")
+    @Test("L1 — 마지막 카드에서 한 번 더 넘기면 덱 밖(소진)으로 나가고, 그 뒤로는 전진하지 않는다")
     func swipeForward_exitsDeckThenClamps() async {
-        // 마지막 기준(가까운순)이라 다음 기준으로의 자동 전환은 일어나지 않는다 — 인덱스만 검증
-        let store = makeStore(state: HomeState(selectedFilter: .nearby, pins: fixturePins, currentCardIndex: 2))
+        // 갈 곳이 없어야(마지막 방 + 마지막 미확인 정렬) 덱 밖에 머문다 — 그 상태의 인덱스를 검증한다.
+        let store = makeStore(state: HomeState(
+            rooms: [fixtureRooms[0]], selectedFilter: .nearby, pins: fixturePins, currentCardIndex: 2,
+            viewedFilters: [.recommended, .latest], filterAnchor: .nearby
+        ))
         await store.send(.swipeForward) {
             $0.currentCardIndex = 3   // = pins.count → 소진 상태(002-3)
+            $0.viewedFilters = [.recommended, .latest, .nearby]
         }
         #expect(store.currentState.hasViewedAllPlaces)
         await store.send(.swipeForward)   // 덱 밖에서는 더 이상 전진하지 않음
@@ -654,154 +361,339 @@ struct HomeReducerTests {
         store.finish()
     }
 
-    @Test("L2 — tapMorePlaces 는 page 를 올려 fetchPins 를 호출하고, 결과로 현재 방 구간을 교체하며 인덱스를 리셋한다")
-    func tapMorePlaces_regenerates() async {
-        let morePins = (0..<10).map { i in
-            PinFixture.pin(id: PinID("more-1-\(i)"), roomID: "1", category: .savedByMany,
-                title: "새 장소 \(i)", address: "주소", createdAt: fixtureDate)
-        }
+    // MARK: - 방 우선 순회 (정책: 방 × 정렬, 정렬마다 최대 10장)
+
+    @Test("L2 — 최초 진입은 마지막으로 본 방의 꾹 Pick 덱으로 시작한다")
+    func initialLoad_startsAtLastViewedRoomWithRecommended() async {
+        let room2 = deckPins("r2rec", room: "2", count: 3)
         let store = makeStore(
-            fetchPins: StubFetchPins(more: morePins),
-            state: HomeState(rooms: fixtureRooms, pins: fixturePins, currentCardIndex: 2)
+            fetchPins: StubRoomDecks(decks: [deckKey("2", .recommended): room2]),
+            lastViewedRoom: SpyLastViewedRoom(stored: "2")
         )
-        // send: page 커서만 오른다(데이터 교체는 morePlacesLoaded 응답에서)
-        await store.send(.tapMorePlaces) { $0.roomPages["1"] = 1 }
-        // receive: 방1 구간(fixturePins 3장 전부) → 새 10장으로 교체, 인덱스 0
-        await store.receive(.morePlacesLoaded(roomID: "1", pins: morePins)) {
-            $0.pins = morePins
-            $0.currentCardIndex = 0
+        await store.send(.load) {
+            $0.isLoading = true
+            $0.errorMessage = nil
         }
-        store.finish()
-    }
-
-    // MARK: - 다중 방 진행
-
-    /// 방1(3장) + 방2(2장) 을 방 순서대로 이어붙인 평면 덱.
-    private func multiRoomPins() -> [Pin] {
-        let r1 = (0..<3).map { i in
-            PinFixture.pin(id: PinID("a-\(i)"), roomID: "1", category: .savedByMany,
-                title: "A\(i)", address: "주소", createdAt: fixtureDate)
-        }
-        let r2 = (0..<2).map { i in
-            PinFixture.pin(id: PinID("b-\(i)"), roomID: "2", category: .savedByMany,
-                title: "B\(i)", address: "주소", createdAt: fixtureDate)
-        }
-        return r1 + r2
-    }
-
-    @Test("currentRoom 은 현재 맨 앞 카드가 속한 방을 반영한다")
-    func currentRoom_followsCard() {
-        var state = HomeState(rooms: fixtureRooms, pins: multiRoomPins(), currentCardIndex: 0)
-        #expect(state.currentRoom?.id == "1")
-        state.currentCardIndex = 4
-        #expect(state.currentRoom?.id == "2")
-    }
-
-    @Test("remainingInCurrentRoom 은 덱 전체가 아니라 현재 방 구간의 남은 카드를 센다")
-    func remainingInCurrentRoom_countsWithinRoom() {
-        // 방1: index 0,1,2 / 방2: index 3,4
-        var state = HomeState(rooms: fixtureRooms, pins: multiRoomPins(), currentCardIndex: 0)
-        #expect(state.remainingInCurrentRoom == 3)   // 방1 3장 남음
-        state.currentCardIndex = 2
-        #expect(state.remainingInCurrentRoom == 1)   // 방1 마지막 카드
-        state.currentCardIndex = 3
-        #expect(state.remainingInCurrentRoom == 2)   // 방2 진입, 2장 남음
-    }
-
-    @Test("L1 — swipeForward 는 방 경계를 넘어 다음 방 첫 카드로 이어진다")
-    func swipeForward_crossesRoomBoundary() async {
-        // index 2 = 방1 마지막 카드
-        let store = makeStore(state: HomeState(rooms: fixtureRooms, pins: multiRoomPins(), currentCardIndex: 2))
-        await store.send(.swipeForward) {
-            $0.currentCardIndex = 3   // 방2 첫 카드
+        await store.receive(.loaded(fixtureRooms)) { $0.rooms = fixtureRooms }
+        await store.receive(.initialDeckLoaded(pins: room2, roomID: "2")) {
+            $0.currentRoomIndex = 1
+            $0.pins = room2
+            $0.isLoading = false
         }
         #expect(store.currentState.currentRoom?.id == "2")
+        #expect(store.currentState.selectedFilter == .recommended)   // 진입 정렬은 항상 꾹 Pick
         store.finish()
     }
 
-    @Test("L1 — 마지막 방 마지막 카드에서 swipeForward 는 전 방 소진 상태로 나간다")
-    func swipeForward_entersAllViewedAtVeryLastCard() async {
-        // index 4 = 방2(마지막 방) 마지막 카드. 마지막 기준이라 필터 자동 전환은 없다.
+    @Test("L2 — 정렬 덱을 다 넘기면 다음 방이 아니라 이 방의 미확인 정렬로 자동 전환한다")
+    func deckExhausted_switchesToNextUnviewedFilterInSameRoom() async {
+        let latest = deckPins("latest", room: "1", count: 3)
         let store = makeStore(
+            fetchPins: StubRoomDecks(decks: [deckKey("1", .latest): latest]),
+            state: HomeState(rooms: fixtureRooms, pins: deckPins("rec", room: "1", count: 1))
+        )
+        await store.send(.swipeForward) {   // 1장짜리 덱 → 한 번에 소진
+            $0.currentCardIndex = 1
+            $0.viewedFilters = [.recommended]
+            $0.selectedFilter = .latest
+            $0.isDeckLoading = true
+        }
+        await store.receive(.deckLoaded(pins: latest, roomID: "1", filter: .latest, entry: .first)) {
+            $0.isDeckLoading = false
+            $0.decks[.latest] = latest
+            $0.currentCardIndex = 0
+        }
+        #expect(store.currentState.currentRoom?.id == "1")   // 방은 그대로
+        store.finish()
+    }
+
+    @Test("L2 — 세 정렬을 모두 확인해야 다음 방으로 넘어가고, 방 변경 툴팁이 뜬다")
+    func allFiltersViewed_movesToNextRoom() async {
+        let room2 = deckPins("r2rec", room: "2", count: 2)
+        let spy = SpyLastViewedRoom()
+        let store = makeStore(
+            fetchPins: StubRoomDecks(decks: [deckKey("2", .recommended): room2]),
+            lastViewedRoom: spy,
             state: HomeState(
                 rooms: fixtureRooms, selectedFilter: .nearby,
-                pins: multiRoomPins(), currentCardIndex: 4
+                pins: deckPins("near", room: "1", count: 1),
+                viewedFilters: [.recommended, .latest], filterAnchor: .nearby
             )
         )
         await store.send(.swipeForward) {
-            $0.currentCardIndex = 5   // = pins.count
+            $0.currentRoomIndex = 1
+            $0.selectedFilter = .recommended   // 방 진입 정렬은 꾹 Pick
+            $0.filterAnchor = .recommended     // 정렬 우선순위도 초기화
+            $0.viewedFilters = []
+            $0.decks = [:]
+            $0.currentCardIndex = 0
+            $0.changedRoomToastID = "2"        // 전환 안내
+            $0.isDeckLoading = true
+        }
+        await store.receive(.deckLoaded(pins: room2, roomID: "2", filter: .recommended, entry: .first)) {
+            $0.isDeckLoading = false
+            $0.decks[.recommended] = room2
+            $0.deckEndingToastFilter = .recommended   // 2장뿐이라 도착하자마자 다음 정렬을 예고
+        }
+        #expect(store.currentState.filterOrder == [.recommended, .latest, .nearby])
+        #expect(await spy.saved == ["2"])   // 이어 보기용 "마지막으로 본 방" 기록
+        store.finish()
+    }
+
+    @Test("L2 — 수동으로 고른 정렬이 이후 자동 전환 순서의 기준이 된다 (최신순 → 꾹 Pick → 가까운순)")
+    func manualFilter_becomesAnchorOfAutoSwitchOrder() async {
+        let latest = deckPins("latest", room: "1", count: 1)
+        let store = makeStore(
+            fetchPins: StubRoomDecks(decks: [deckKey("1", .latest): latest]),
+            state: HomeState(rooms: fixtureRooms, pins: deckPins("rec", room: "1", count: 3))
+        )
+        await store.send(.selectFilter(.latest)) {
+            $0.filterAnchor = .latest
+            $0.selectedFilter = .latest
+            $0.isDeckLoading = true
+        }
+        await store.receive(.deckLoaded(pins: latest, roomID: "1", filter: .latest, entry: .first)) {
+            $0.isDeckLoading = false
+            $0.decks[.latest] = latest
+            $0.deckEndingToastFilter = .latest   // 1장뿐이라 도착하자마자 다음 정렬을 예고
+        }
+        #expect(store.currentState.filterOrder == [.latest, .recommended, .nearby])
+        // 최신순을 다 넘기면 가까운순이 아니라 꾹 Pick 으로 — 받아 둔 덱이라 재조회 없이 즉시 전환한다.
+        await store.send(.swipeForward) {
+            $0.viewedFilters = [.latest]
+            $0.selectedFilter = .recommended
+            $0.deckEndingToastFilter = nil       // 옮기면서 지난 자리의 예고는 지운다
+        }
+        #expect(store.currentState.pins.count == 3)
+        #expect(store.currentState.nextUnviewedFilter == .nearby)
+        store.finish()
+    }
+
+    @Test("L2 — 빈 정렬은 건너뛰고 다음 미확인 정렬로 넘어간다")
+    func emptyDeck_skipsToNextFilter() async {
+        let nearby = deckPins("near", room: "1", count: 3)
+        let store = makeStore(
+            fetchPins: StubRoomDecks(decks: [deckKey("1", .nearby): nearby]),   // 최신순은 0장
+            state: HomeState(rooms: fixtureRooms, pins: deckPins("rec", room: "1", count: 1))
+        )
+        await store.send(.swipeForward) {
+            $0.currentCardIndex = 1
+            $0.viewedFilters = [.recommended]
+            $0.selectedFilter = .latest
+            $0.isDeckLoading = true
+        }
+        await store.receive(.deckLoaded(pins: [], roomID: "1", filter: .latest, entry: .first)) {
+            $0.viewedFilters = [.recommended, .latest]   // 빈 정렬도 "확인한 것"으로 치고 넘어간다
+            $0.selectedFilter = .nearby
+            $0.currentCardIndex = 0
+        }
+        await store.receive(.deckLoaded(pins: nearby, roomID: "1", filter: .nearby, entry: .first)) {
+            $0.isDeckLoading = false
+            $0.decks[.nearby] = nearby
+        }
+        store.finish()
+    }
+
+    @Test("L2 — 한 정렬 덱은 최대 10장까지만 싣는다")
+    func deck_capsAtTenCards() async {
+        let twelve = deckPins("many", room: "1", count: 12)
+        let store = makeStore(
+            fetchPins: StubRoomDecks(decks: [deckKey("1", .latest): twelve]),
+            state: HomeState(rooms: fixtureRooms, pins: deckPins("rec", room: "1", count: 3))
+        )
+        let capped = Array(twelve.prefix(10))
+        await store.send(.selectFilter(.latest)) {
+            $0.filterAnchor = .latest
+            $0.selectedFilter = .latest
+            $0.isDeckLoading = true
+        }
+        await store.receive(.deckLoaded(pins: capped, roomID: "1", filter: .latest, entry: .first)) {
+            $0.isDeckLoading = false
+            $0.decks[.latest] = capped
+        }
+        #expect(store.currentState.pins.count == 10)
+        store.finish()
+    }
+
+    @Test("L1 — 마지막 방의 마지막 정렬까지 넘기면 소진 화면으로 간다")
+    func lastRoomLastFilter_entersAllViewed() async {
+        let store = makeStore(state: HomeState(
+            rooms: [fixtureRooms[0]], selectedFilter: .nearby,
+            pins: deckPins("near", room: "1", count: 1),
+            viewedFilters: [.recommended, .latest], filterAnchor: .nearby
+        ))
+        await store.send(.swipeForward) {
+            $0.currentCardIndex = 1
+            $0.viewedFilters = [.recommended, .latest, .nearby]
         }
         #expect(store.currentState.hasViewedAllPlaces)
-        // 뱃지는 첫 방으로 튀지 않고 마지막으로 본 방(방2)을 유지한다
-        #expect(store.currentState.currentRoom?.id == "2")
+        store.finish()
+    }
+
+    @Test("L2 — 첫 카드에서 뒤로 넘기면 직전에 보던 정렬의 마지막 카드로 돌아간다")
+    func swipeBackward_returnsToPreviousShownFilter() async {
+        let rec = deckPins("rec", room: "1", count: 2)
+        var state = HomeState(
+            rooms: fixtureRooms, selectedFilter: .latest,
+            pins: deckPins("latest", room: "1", count: 2), viewedFilters: [.recommended]
+        )
+        state.decks[.recommended] = rec   // 앞서 보고 지나온 덱
+        let store = makeStore(state: state)
+        #expect(store.currentState.canReturnToPreviousFilter)
+        #expect(store.currentState.previousDeckLastPin == rec.last)
+        await store.send(.swipeBackward) {
+            $0.selectedFilter = .recommended
+            $0.viewedFilters = []          // 되돌아간 정렬은 다시 "보는 중"
+            $0.currentCardIndex = 1        // 그 덱의 마지막 카드
+        }
+        store.finish()
+    }
+
+    @Test("L1 — 방의 첫 정렬 첫 카드에서 뒤로 넘기면 아무 일도 하지 않는다 (방 경계는 넘지 않는다)")
+    func swipeBackward_atRoomStart_doesNothing() async {
+        let store = makeStore(state: HomeState(rooms: fixtureRooms, pins: fixturePins))
+        #expect(!store.currentState.canReturnToPreviousFilter)
+        await store.send(.swipeBackward)
+        store.finish()
+    }
+
+    @Test("L2 — 정렬 덱 조회가 실패하면 조회 직전 자리로 되돌려 기존 덱을 계속 보여준다")
+    func deckLoadFailed_revertsToPreviousPosition() async {
+        let rec = deckPins("rec", room: "1", count: 1)
+        let state = HomeState(rooms: fixtureRooms, pins: rec)
+        let store = makeStore(fetchPins: StubRoomDecks(failing: [deckKey("1", .latest)]), state: state)
+        var revert = DeckPosition(state)
+        revert.cardIndex = 1   // 덱을 다 넘겨 인덱스가 덱 밖으로 나간 시점에 조회가 시작됐다
+
+        await store.send(.swipeForward) {
+            $0.currentCardIndex = 1
+            $0.viewedFilters = [.recommended]
+            $0.selectedFilter = .latest
+            $0.isDeckLoading = true
+        }
+        await store.receive(.deckLoadFailed(roomID: "1", filter: .latest, revertTo: revert)) {
+            $0.isDeckLoading = false
+            $0.selectedFilter = .recommended
+            $0.viewedFilters = []     // 확인 기록도 되돌려 다시 넘기면 재시도된다
+            $0.currentCardIndex = 0   // 덱 밖 인덱스는 복구한 덱의 마지막 카드로 clamp
+        }
+        #expect(store.currentState.pins == rec)
+        store.finish()
+    }
+
+    @Test("L2 — 방 전환 중 덱 조회가 실패하면 옛 방의 덱·확인 기록·전환 안내까지 되돌린다")
+    func roomMoveFailed_restoresPreviousRoomState() async {
+        // 방 전환은 커서뿐 아니라 덱 캐시·확인 기록·우선순위까지 새 방 기준으로 갈아엎고 출발한다.
+        // 실패했는데 커서만 되돌리면 옛 방의 카드가 사라진 빈 화면이 남는다.
+        var state = HomeState(
+            rooms: fixtureRooms, selectedFilter: .nearby,
+            pins: deckPins("near", room: "1", count: 1),
+            viewedFilters: [.recommended, .latest], filterAnchor: .nearby
+        )
+        state.decks[.recommended] = deckPins("rec", room: "1", count: 2)   // 옛 방에서 받아 둔 덱
+        let store = makeStore(fetchPins: StubRoomDecks(failing: [deckKey("2", .recommended)]), state: state)
+        var revert = DeckPosition(state)
+        revert.cardIndex = 1
+
+        await store.send(.swipeForward) {   // 방1 의 세 정렬을 다 봐 방2 로 이동 시도
+            $0.currentRoomIndex = 1
+            $0.selectedFilter = .recommended
+            $0.filterAnchor = .recommended
+            $0.viewedFilters = []
+            $0.decks = [:]
+            $0.currentCardIndex = 0
+            $0.changedRoomToastID = "2"
+            $0.isDeckLoading = true
+        }
+        await store.receive(.deckLoadFailed(roomID: "2", filter: .recommended, revertTo: revert)) {
+            $0.isDeckLoading = false
+            $0.currentRoomIndex = 0
+            $0.selectedFilter = .nearby
+            $0.filterAnchor = .nearby
+            $0.viewedFilters = [.recommended, .latest]
+            $0.decks = revert.decks
+            $0.currentCardIndex = 0
+            $0.changedRoomToastID = nil   // 옮긴 적 없으니 "…방이에요" 안내도 거둔다
+        }
+        #expect(store.currentState.currentRoom?.id == "1")
+        #expect(store.currentState.pins.count == 1)          // 옛 방 덱이 살아 있다
+        #expect(!store.currentState.showsEmptyState)         // 빈 화면(방 만들기 CTA)으로 떨어지지 않는다
+        store.finish()
+    }
+
+    @Test("L1 — 지나간 자리(다른 방)의 응답은 화면을 움직이지 않는다")
+    func staleDeckResponse_isIgnored() async {
+        let store = makeStore(state: HomeState(rooms: fixtureRooms, pins: fixturePins))
+        await store.send(.deckLoaded(
+            pins: deckPins("other", room: "2", count: 3), roomID: "2", filter: .recommended, entry: .first
+        ))
+        store.finish()
+    }
+
+    @Test("L2 — selectRoom 은 그 방의 꾹 Pick 덱으로 옮기고 시트를 닫으며 변경 툴팁을 세운다")
+    func selectRoom_movesToThatRoomDeck() async {
+        let room2 = deckPins("r2", room: "2", count: 3)
+        let spy = SpyLastViewedRoom()
+        let store = makeStore(
+            fetchPins: StubRoomDecks(decks: [deckKey("2", .recommended): room2]),
+            lastViewedRoom: spy,
+            state: HomeState(
+                rooms: fixtureRooms, selectedFilter: .latest,
+                pins: deckPins("latest", room: "1", count: 3),
+                viewedFilters: [.recommended], filterAnchor: .latest, isRoomListPresented: true
+            )
+        )
+        await store.send(.selectRoom("2")) {
+            $0.isRoomListPresented = false
+            $0.currentRoomIndex = 1
+            $0.selectedFilter = .recommended
+            $0.filterAnchor = .recommended
+            $0.viewedFilters = []
+            $0.decks = [:]
+            $0.changedRoomToastID = "2"
+            $0.isDeckLoading = true
+        }
+        await store.receive(.deckLoaded(pins: room2, roomID: "2", filter: .recommended, entry: .first)) {
+            $0.isDeckLoading = false
+            $0.decks[.recommended] = room2
+        }
+        #expect(await spy.saved == ["2"])
+        store.finish()
+    }
+
+    @Test("currentRoom 은 카드가 아니라 순회 커서를 따른다")
+    func currentRoom_followsCursor() {
+        var state = HomeState(rooms: fixtureRooms, currentRoomIndex: 1)
+        #expect(state.currentRoom?.id == "2")
+        state.currentRoomIndex = 0
+        #expect(state.currentRoom?.id == "1")
+    }
+
+    @Test("nextUnviewedFilter — 미확인 정렬이 남아 있으면 그 정렬, 다 봤으면 nil(= 다음 방)")
+    func nextUnviewedFilter_drivesTooltipCopy() {
+        var state = HomeState(rooms: fixtureRooms, pins: fixturePins)
+        #expect(state.nextUnviewedFilter == .latest)      // 기본 진입: 꾹 Pick → 최신순
+        state.viewedFilters = [.latest]
+        #expect(state.nextUnviewedFilter == .nearby)
+        state.viewedFilters = [.latest, .nearby]
+        #expect(state.nextUnviewedFilter == nil)          // 뷰가 "곧 다음 방으로 이동해요!" 로 파생
+        // 가까운순을 직접 고르면: 가까운순 → 꾹 Pick → 최신순
+        state = HomeState(rooms: fixtureRooms, selectedFilter: .nearby, pins: fixturePins, filterAnchor: .nearby)
+        #expect(state.nextUnviewedFilter == .recommended)
+    }
+
+    @Test("L1 — 갈 곳이 없으면(마지막 방·마지막 정렬) 예고 툴팁을 띄우지 않는다")
+    func deckEndingToast_skipsWhenNowhereToGo() async {
+        let store = makeStore(state: HomeState(
+            rooms: [fixtureRooms[0]], selectedFilter: .nearby,
+            pins: deckPins("near", room: "1", count: 4), currentCardIndex: 1,
+            viewedFilters: [.recommended, .latest], filterAnchor: .nearby
+        ))
+        await store.send(.swipeForward) { $0.currentCardIndex = 2 }   // 남은 2장이지만 예고할 곳이 없다
         store.finish()
     }
 
     // MARK: - 전 방 소진 (002-3 「모든 카드를 다 봤을 때」)
-
-    @Test("소진 화면은 마지막 기준(가까운순)의 덱까지 다 넘겼을 때만 뜬다")
-    func hasViewedAllPlaces_onlyOnLastFilter() {
-        // 중간 기준(꾹 Pick)은 덱을 다 넘겨도 소진 화면이 아니라 다음 기준으로 넘어갈 자리다
-        var middle = HomeState(rooms: fixtureRooms, selectedFilter: .recommended, pins: multiRoomPins())
-        middle.currentCardIndex = 5
-        #expect(middle.isCurrentDeckExhausted)
-        #expect(!middle.hasViewedAllPlaces)
-
-        var last = HomeState(rooms: fixtureRooms, selectedFilter: .nearby, pins: multiRoomPins(), currentCardIndex: 4)
-        #expect(!last.hasViewedAllPlaces)       // 마지막 카드를 보는 중
-        last.currentCardIndex = 5
-        #expect(last.hasViewedAllPlaces)        // 마지막 기준의 덱 밖으로 나감
-        #expect(!last.showsEmptyState)          // 빈 상태(카드 0장)와는 다른 화면
-
-        let noPins = HomeState(rooms: fixtureRooms, selectedFilter: .nearby, pins: [], currentCardIndex: 0)
-        #expect(!noPins.hasViewedAllPlaces)     // 애초에 볼 장소가 없으면 소진이 아니라 빈 상태
-    }
-
-    @Test("L2 — tapMorePlaces 는 현재 방(방2) 구간만 교체하고 방1 은 그대로 두며 그 방 첫 카드로 리셋한다")
-    func tapMorePlaces_replacesOnlyCurrentRoomSlice() async {
-        let base = multiRoomPins()   // 방1 3장(index 0..2) + 방2 2장(3..4)
-        let morePins = (0..<10).map { i in
-            PinFixture.pin(id: PinID("more-2-\(i)"), roomID: "2", category: .savedByMany,
-                title: "새 장소 \(i)", address: "주소", createdAt: fixtureDate)
-        }
-        // index 4 = 방2 카드 → 방2 구간만 교체
-        let store = makeStore(
-            fetchPins: StubFetchPins(more: morePins),
-            state: HomeState(rooms: fixtureRooms, pins: base, currentCardIndex: 4)
-        )
-        await store.send(.tapMorePlaces) { $0.roomPages["2"] = 1 }
-        await store.receive(.morePlacesLoaded(roomID: "2", pins: morePins)) {
-            $0.pins = Array(base.prefix(3)) + morePins   // 방1 3장 유지 + 방2 새 10장
-            $0.currentCardIndex = 3                       // 방2 구간 시작
-        }
-        #expect(store.currentState.roomPages["1"] == nil)   // 방1 page 는 건드리지 않음
-        #expect(store.currentState.currentRoom?.id == "2")
-        store.finish()
-    }
-
-    @Test("L1 — morePlacesLoaded 가 빈 결과면 덱을 지우지 않는다(페이지 소진 방어)")
-    func morePlacesLoaded_emptyKeepsDeck() async {
-        // 실 API 가 "더 이상 없음"으로 [] 를 주면 그 방 구간이 통째로 사라지던 회귀 방어.
-        let store = makeStore(state: HomeState(rooms: fixtureRooms, pins: fixturePins, currentCardIndex: 2))
-        await store.send(.morePlacesLoaded(roomID: "1", pins: []))   // 변화 없음
-        store.finish()
-        #expect(store.currentState.pins == fixturePins)
-        #expect(store.currentState.currentCardIndex == 2)
-    }
-
-    @Test("L2 — tapMorePlaces 는 핀 조회 실패 시 덱을 훼손하지 않는다(기존 카드 유지)")
-    func tapMorePlaces_failureKeepsDeck() async {
-        let store = makeStore(
-            fetchPins: ThrowingFetchPins(),
-            state: HomeState(rooms: fixtureRooms, pins: fixturePins, currentCardIndex: 2)
-        )
-        // send: page 커서는 전진한다(현재 동작 — 실패 롤백은 tapMorePlaces 의 FIXME 참조)
-        await store.send(.tapMorePlaces) { $0.roomPages["1"] = 1 }
-        // 실패는 조용히 무시 → morePlacesLoaded 미도착, pins·인덱스 그대로
-        store.finish()
-        #expect(store.currentState.pins == fixturePins)
-        #expect(store.currentState.currentCardIndex == 2)
-    }
 
     // MARK: - 방 선택 바텀 시트
 
@@ -823,37 +715,6 @@ struct HomeReducerTests {
     func dismissRoomList_dismisses() async {
         let store = makeStore(state: HomeState(rooms: fixtureRooms, isRoomListPresented: true))
         await store.send(.dismissRoomList) { $0.isRoomListPresented = false }
-        store.finish()
-    }
-
-    @Test("L2 — selectRoom 은 해당 방 첫 카드로 전환하고 시트를 닫으며 변경 툴팁을 세운다")
-    func selectRoom_switchesAndToasts() async {
-        // 방1(index 0,1,2) + 방2(3,4), 현재 방1의 두 번째 카드
-        let store = makeStore(
-            state: HomeState(rooms: fixtureRooms, pins: multiRoomPins(), currentCardIndex: 1, isRoomListPresented: true)
-        )
-        await store.send(.selectRoom("2")) {
-            $0.currentCardIndex = 3                 // 방2 구간 시작
-            $0.isRoomListPresented = false
-            $0.selectedRoomID = "2"
-            $0.changedRoomToastID = "2"             // 식별은 id — 툴팁 표기("데이트 코스방이에요")는 뷰가 이 id 로 파생
-        }
-        store.finish()
-    }
-
-    @Test("L2 — 카드가 없어도(빈 방) selectRoom 이 현재 방을 바꾼다 (뱃지·방리스트 선택 반영)")
-    func selectRoom_withNoPins_updatesCurrentRoom() async {
-        // 모든 방이 비어 pins 가 없는 상태 — 예전엔 currentRoom 이 항상 첫 방(내 장소)에 고정됐다.
-        let store = makeStore(
-            state: HomeState(rooms: fixtureRooms, pins: [], isRoomListPresented: true)
-        )
-        #expect(store.currentState.currentRoom?.id == fixtureRooms.first?.id)   // 선택 전: 첫 방
-        await store.send(.selectRoom("2")) {
-            $0.isRoomListPresented = false
-            $0.selectedRoomID = "2"                 // 카드가 없어 currentCardIndex 는 그대로
-            $0.changedRoomToastID = "2"
-        }
-        #expect(store.currentState.currentRoom?.id == "2")   // 선택 후: 고른 방이 현재 방
         store.finish()
     }
 
@@ -886,6 +747,38 @@ struct HomeReducerTests {
         await store.send(.dismissRoomToast("a"))   // 이름은 같지만 id 가 달라 무시(이름 기반이면 잘못 지웠을 것)
         #expect(store.currentState.changedRoomToastID == "b")
         await store.send(.dismissRoomToast("b")) { $0.changedRoomToastID = nil }   // 같은 id 는 정상 숨김
+        store.finish()
+    }
+
+    // MARK: - 덱 끝 예고 툴팁 (Figma 002-2-3 ②)
+
+    /// 한 방짜리 4장 덱 — index 1 에서 한 번 넘기면 남은 카드가 2장이 되는 크기.
+    private func deckOfFour() -> [Pin] {
+        (0..<4).map { i in
+            PinFixture.pin(id: PinID("c-\(i)"), roomID: "1", category: .savedByMany,
+                title: "C\(i)", address: "주소", createdAt: fixtureDate)
+        }
+    }
+
+    @Test("L1 — 남은 카드가 2장이 되는 순간 다음 기준 전환을 예고하고, 한 장 더 넘겨도 다시 뜨지 않는다")
+    func deckEndingToast_raisesWhenTwoLeft() async {
+        let store = makeStore(state: HomeState(rooms: fixtureRooms, pins: deckOfFour(), currentCardIndex: 1))
+        await store.send(.swipeForward) {   // 남은 3 → 2 = 예고
+            $0.currentCardIndex = 2
+            $0.deckEndingToastFilter = .recommended
+        }
+        await store.send(.dismissDeckEndingToast(.recommended)) { $0.deckEndingToastFilter = nil }
+        // 3초 뒤 사라진 툴팁이 마지막 한 장을 넘길 때 다시 뜨면 성가시다 — 2장이 "되는 순간"만 예고한다.
+        await store.send(.swipeForward) { $0.currentCardIndex = 3 }
+        store.finish()
+    }
+
+    @Test("L1 — dismissDeckEndingToast 는 기준이 바뀐 뒤 뒤늦게 오면 새 툴팁을 지우지 않는다")
+    func dismissDeckEndingToast_ignoresStaleFilter() async {
+        let store = makeStore(state: HomeState(rooms: fixtureRooms, deckEndingToastFilter: .latest))
+        await store.send(.dismissDeckEndingToast(.recommended))   // 지난 기준 타이머의 뒤늦은 dismiss — 무시
+        #expect(store.currentState.deckEndingToastFilter == .latest)
+        await store.send(.dismissDeckEndingToast(.latest)) { $0.deckEndingToastFilter = nil }
         store.finish()
     }
 

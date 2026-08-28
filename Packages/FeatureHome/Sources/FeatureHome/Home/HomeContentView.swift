@@ -11,6 +11,7 @@ struct HomeContentView: View {
     // NavigationStack 이 상위 safeAreaInset(탭바)을 콘텐츠에 전파하지 않아, 안에 두면 탭바에 가린다.
     var body: some View {
         ZStack(alignment: .topTrailing) {
+            guideBackgroundWash  // 홈 가이드 딤 — 콘텐츠 아래(배경색 위)
             mainContent
             roomListDim          // 방 리스트 열릴 때 — 마스코트 아래(홈 콘텐츠만 덮는다)
             if store.state.showsRoomIdentity {
@@ -19,9 +20,13 @@ struct HomeContentView: View {
                 mascotCharacter
             }
             roomChangeTooltip
+            deckEndingTooltip
             savePostDim          // 게시물 저장 시트 딤 — 마스코트 위(시안은 화면 전체가 딤)
         }
+        .animation(.easeInOut(duration: 0.2), value: store.state.isGuidePresented)   // 루트의 가이드 페이드와 같은 속도
         .animation(.easeInOut(duration: 0.5), value: store.state.changedRoomToastID)
+        // 시안 ②의 "서서히 (점차 투명도가 낮아지며) 사라짐" — 페이드 자체가 사라지는 방식이라 명시한다.
+        .animation(.easeInOut(duration: 0.5), value: store.state.deckEndingToastFilter)
         .animation(.easeInOut(duration: 0.3), value: store.state.isRoomListPresented)
         .animation(.easeInOut(duration: 0.3), value: store.state.savePost != nil)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -37,6 +42,13 @@ struct HomeContentView: View {
             guard let roomID = store.state.changedRoomToastID else { return }
             try? await Task.sleep(for: .seconds(5))
             store.send(.dismissRoomToast(roomID))
+        }
+        .task(id: store.state.deckEndingToastFilter) {
+            // 덱 끝 예고 툴팁은 3초 뒤 스스로 사라진다(시안 ②). 방 변경 툴팁과 같은 방어 —
+            // 3초가 도는 사이 기준이 바뀌면 reducer 가 기준 불일치로 이전 dismiss 를 무시한다.
+            guard let filter = store.state.deckEndingToastFilter else { return }
+            try? await Task.sleep(for: .seconds(3))
+            store.send(.dismissDeckEndingToast(filter))
         }
         .sheet(isPresented: roomListBinding) {
             // 시스템 시트 컨테이너/슬라이드 애니메이션은 그대로 쓰되, 시스템 딤(스크림)만 제거한다.
@@ -117,6 +129,20 @@ struct HomeContentView: View {
         )
     }
 
+    /// 홈 가이드 딤(Figma 「홈 튜토리얼」 `dimd` — white 80% + backdrop blur 6)의 **배경 몫**.
+    /// 콘텐츠 아래(배경색 위)에 깔고, 흐려질 요소는 각자 `homeGuideDimmed` 로 물러난다 —
+    /// 시안이 방 뱃지·마스코트·맨 앞 카드는 딤 위에 선명하게 남기는 스포트라이트라, 화면을 통째로
+    /// 덮는 한 장으로는 그 셋을 다시 꺼낼 수 없다. 안내(화살표·문구·CTA)는 앱 루트의 ``HomeGuideOverlay``.
+    ///
+    /// 탭바 자리는 이 딤이 닿지 않지만 시안대로 가이드 CTA(Action Area)가 그 위를 통째로 덮는다.
+    private var guideBackgroundWash: some View {
+        Color.white
+            .opacity(store.state.isGuidePresented ? 0.8 : 0)
+            .ignoresSafeArea()
+            .allowsHitTesting(false)   // 터치 차단은 루트 오버레이가 맡는다
+            .accessibilityIdentifier("Home.guide.dim")
+    }
+
     /// 방 리스트가 열릴 때 홈 콘텐츠 위에 까는 딤(Figma `rgba(0,0,0,0.7)`).
     /// 마스코트 아래 레이어라 마스코트는 딤에 안 덮인다. 탭하면 시트를 닫는다.
     ///
@@ -160,6 +186,9 @@ struct HomeContentView: View {
     }
 
     /// 정책: 로딩이 끝나고 현재 정렬 기준으로 표시할 카드가 0장이면(방·공동방 유무 무관) 빈 상태를 띄운다.
+    ///
+    /// 가이드가 떠 있을 때: 카드 덱은 **맨 앞 카드만** 딤 위에 남기고(스포트라이트), 카드가 없는
+    /// 상태(로딩·빈 상태·소진)는 가리킬 대상이 없으므로 본문 통째로 딤 뒤로 물러난다.
     @ViewBuilder
     private var contentBody: some View {
         // 기준을 바꿔 덱을 받는 중이면(캐시 없을 때만) 로딩으로 둔다 — 그 사이 빈 상태·소진 화면이
@@ -168,12 +197,15 @@ struct HomeContentView: View {
             Spacer()
             ProgressView()
                 .frame(maxWidth: .infinity)
+                .homeGuideDimmed(store.state.isGuidePresented)
                 .accessibilityIdentifier("Home.state.loading")
             Spacer()
         } else if store.state.showsEmptyState {
             emptyStateBody
+                .homeGuideDimmed(store.state.isGuidePresented)
         } else if store.state.hasViewedAllPlaces {
             allViewedBody
+                .homeGuideDimmed(store.state.isGuidePresented)
         } else {
             CardDeckView(
                 pins: store.state.pins,
@@ -183,7 +215,8 @@ struct HomeContentView: View {
                 onSwipeForward: { store.send(.swipeForward) },
                 onSwipeBackward: { store.send(.swipeBackward) },
                 onTapCard: { store.send(.tapCard($0)) },
-                onSaveToOtherRoom: { store.send(.tapSaveToOtherRoom($0)) }
+                onSaveToOtherRoom: { store.send(.tapSaveToOtherRoom($0)) },
+                isGuidePresented: store.state.isGuidePresented
             )
             .padding(.top, 112)   // 앞 카드 고정 위치. 풀 덱일 때 뒤 카드 최상단이 필터 32pt 아래(112−80)에 오도록
             .accessibilityIdentifier("Home.cardDeck")
@@ -209,10 +242,13 @@ struct HomeContentView: View {
                     .accessibilityIdentifier("Home.emptyState.logo")
             }
 
+            // 2줄이라 행간까지 붙는 쪽을 쓴다 — Figma 타이틀 블록 60(= 2줄 × 라인박스 30).
+            // `.mhTypography` + `.lineSpacing(8)` 이던 시절엔 63 이라 아래 필터·카드덱이 3pt 밀려 있었다.
             Text("꾹 눌러둔 장소,\n다시 꺼내볼까요?")
-                .mhTypography(.heading1Bold)
+                .mhTypographyMultiline(.heading1Bold)
                 .foregroundStyle(.mhLabelNormal)
-                .lineSpacing(8)
+                // 가이드의 스포트라이트 대상은 방 뱃지뿐이라 타이틀만 딤 뒤로 물러난다.
+                .homeGuideDimmed(store.state.isGuidePresented)
                 .accessibilityIdentifier("Home.title")
         }
     }
@@ -221,13 +257,17 @@ struct HomeContentView: View {
 
     /// 칩 순서는 `PinFilter.allCases` 순서와 1:1 이다 — 표기(한글 라벨)만 Feature 가 매핑한다.
     private var filterBar: some View {
+        // 시안 `Category/Category` 인스턴스는 335×40 = 칩 높이 40 → size 는 xLarge.
+        // 기본값(medium=32)이던 시절엔 필터바가 8pt 낮아 아래 카드덱이 그만큼 올라와 있었다.
         MHCategory(
             PinFilter.allCases.map(\.chipTitle),
             selection: Binding(
                 get: { PinFilter.allCases.firstIndex(of: store.state.selectedFilter) ?? 0 },
                 set: { store.send(.selectFilter(PinFilter.allCases[$0])) }
-            )
+            ),
+            size: .xLarge
         )
+        .homeGuideDimmed(store.state.isGuidePresented)
         .accessibilityIdentifier("Home.filterBar")
     }
 
@@ -304,14 +344,14 @@ struct HomeContentView: View {
 
 // MARK: - 마스코트 캐릭터
 
-    /// 마스코트 오른쪽으로 살짝 보이는 세로 바 (Figma `Rectangle 6323`, node 3395-201429).
-    /// 8×148, 화면 우측 끝에 붙고 상단 50(= 시안 94 − 상태바 44). 화면 밖으로 나가는 우측 모서리는 각지고
+    /// 마스코트 오른쪽으로 살짝 보이는 세로 바 (Figma `Rectangle 6323`, node 4071-99611).
+    /// 8×148, 화면 우측 끝에 붙고 상단 34(= 시안 78 − 상태바 44). 화면 밖으로 나가는 우측 모서리는 각지고
     /// 안쪽(좌측) 모서리만 라운드 3.961 ≈ 4.
     private var mascotBar: some View {
         UnevenRoundedRectangle(topLeadingRadius: 4, bottomLeadingRadius: 4, style: .continuous)
             .fill(Color.mhCoolNeutral80)
             .frame(width: 8, height: 148)
-            .padding(.top, 50)
+            .padding(.top, 34)
             .accessibilityHidden(true)   // 장식 — 읽어줄 내용이 없다
     }
 
@@ -329,15 +369,39 @@ struct HomeContentView: View {
         // 식별은 id, 표시 문구는 그 id 로 rooms 에서 방을 찾아 파생한다.
         if let roomID = store.state.changedRoomToastID,
            let room = store.state.rooms.first(where: { $0.id == roomID }) {
-            MHTooltip(room.homeToastText, position: .left)   // 공동방 "…방이에요." / 개인방 "내 장소예요."
-                .fixedSize()
-                // Figma 002-5-1(node 2809-143382)의 Tooltip 인스턴스: x=22, y=76, 258×36 →
-                // top = 76 − 상태바 44 = 32(뱃지 행과 같은 줄), 우측 인셋 = 375 − (22+258) = 95.
-                // 방 이름이 길면 뱃지·마스코트와 겹치는데 시안도 그렇다(툴팁이 위에 그려지고 잠깐 떴다 사라진다).
+            // 공동방 "…방이에요." / 개인방 "내 장소예요."
+            // Figma 002-5-1(node 2809-143382)의 Tooltip 인스턴스: x=77, y=76, 166×56 →
+            // top = 76 − 상태바 44 = 32(뱃지 행과 같은 줄), 우측 인셋 = 375 − (77+166) = 132,
+            // 폭은 166 고정이라 긴 방 이름은 hug 하지 않고 그 안에서 줄바꿈한다(시안이 2줄).
+            // 오른쪽 끝(243)은 덱 끝 예고 툴팁과 같다 — 둘 다 마스코트를 가리키는 같은 자리다.
+            MHTooltip(room.homeToastText, position: .left, maxWidth: 166)
                 .padding(.top, 32)
-                .padding(.trailing, 95)
+                .padding(.trailing, 132)
                 .transition(.opacity)
                 .accessibilityIdentifier("Home.roomChangeToast")
+        }
+    }
+
+    /// 덱 끝 예고 툴팁 — 현재 기준의 남은 카드가 2장 이하일 때 "곧 …으로 이동해요!" 로 다음 기준 전환을
+    /// 미리 알린다 (Figma 002-2-3 ②, node 4071-99859). 3초 뒤 서서히 사라진다.
+    ///
+    /// 방 변경 툴팁과 같은 줄(상단 32)이라 둘이 동시에 서면 겹친다 — 방 변경 툴팁은 사용자가 방금 한
+    /// 조작(방 선택)에 대한 응답이라 그쪽을 우선하고, 이 예고는 물러난다(주변 안내라 다음 기회가 있다).
+    @ViewBuilder
+    private var deckEndingTooltip: some View {
+        if store.state.changedRoomToastID == nil, store.state.deckEndingToastFilter != nil {
+            // 문구는 "다음에 갈 곳" — 이 방에 미확인 정렬이 남아 있으면 그 칩 이름, 없으면 다음 방이다
+            // (Figma 002-2-3 세 장: 꾹 Pick→최신순 / 최신순→가까운순 / 가까운순→다음 방).
+            MHTooltip(store.state.nextUnviewedFilter.map { "곧 \($0.chipTitle)으로 이동해요!" }
+                        ?? "곧 다음 방으로 이동해요!",
+                      position: .left)
+                .fixedSize()
+                // Figma Tooltip 인스턴스: x=78, y=75.9, 165×36 →
+                // top = 75.9 − 상태바 44 ≈ 32(방 변경 툴팁과 같은 줄), 우측 인셋 = 375 − (78+165) = 132.
+                .padding(.top, 32)
+                .padding(.trailing, 132)
+                .transition(.opacity)
+                .accessibilityIdentifier("Home.deckEndingToast")
         }
     }
 }
@@ -358,7 +422,8 @@ private extension PinFilter {
 // MARK: - 마스코트
 
 /// 홈 우상단에서 살짝 걸쳐 보이는 방 마스코트.
-/// Figma `Group 283`(3395-200046): 126×164, 우측 화면 끝에 붙고 상단 70(= 상태바 44 + 26).
+/// Figma `Group 283`(4071-99610): 126×164, 우측 화면 끝에 붙고 **헤더(상태바) 하단에서 10** —
+/// 시안 상단 54 = 상태바 44 + 10 (002-2-3 ① "토끼 캐릭터는 헤더 하단을 기준으로 10px 간격을 두고 배치한다").
 /// 기울기가 에셋에 반영돼 있어 rotationEffect 로 돌리지 않는다(예전 에셋은 정면이라 코드에서 돌렸다).
 ///
 /// 좌우 반전은 시안의 그룹 변환이다 — 익스포트되는 건 반전 전 원본이라 여기서 뒤집어야 시안과 같다.
@@ -380,7 +445,7 @@ struct HomeMascotView: View {
                 .frame(width: 126, height: 164)
         }
         .scaleEffect(x: -1)   // 두 겹을 함께 뒤집어야 눈 자리가 어긋나지 않는다
-        .padding(.top, 26)
+        .padding(.top, 10)
     }
 }
 
