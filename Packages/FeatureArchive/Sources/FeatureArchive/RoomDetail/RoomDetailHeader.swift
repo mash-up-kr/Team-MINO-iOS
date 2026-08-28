@@ -27,6 +27,9 @@ struct RoomDetailHeader: View {
             Spacer(minLength: 8)
             HStack(spacing: 8) {
                 RoomDetailCircleIconButton(icon: .moreVertical, accessibilityLabel: "더보기", action: onMore)
+                    .accessibilityIdentifier("RoomDetail.more")
+                    // 드롭다운은 시트 밖(껍데기)이 그린다 — 이 버튼 위치를 기준점으로 올려 보낸다.
+                    .roomDetailMoreMenuAnchor()
                 RoomDetailCircleIconButton(icon: .close, accessibilityLabel: "닫기", action: onClose)
                     .accessibilityIdentifier("RoomDetail.close")
             }

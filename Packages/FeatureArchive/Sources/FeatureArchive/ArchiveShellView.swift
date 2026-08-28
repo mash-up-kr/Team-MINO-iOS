@@ -55,6 +55,8 @@ struct ArchiveShellView: View {
 
             toast
         }
+        // 방 상세 헤더 케밥 드롭다운. peek 에서 시트 위(지도 위)로 떠야 해 시트 클립 밖인 여기서 그린다.
+        .roomDetailMoreMenu(store: detailStore, detent: detent)
         .animation(.easeInOut(duration: 0.2), value: toastMessage)
         .onChange(of: detent) { _, _ in sortMenuOpen = false }
         .task {
