@@ -11,6 +11,7 @@ struct HomeContentView: View {
     // NavigationStack 이 상위 safeAreaInset(탭바)을 콘텐츠에 전파하지 않아, 안에 두면 탭바에 가린다.
     var body: some View {
         ZStack(alignment: .topTrailing) {
+            guideBackgroundWash  // 홈 가이드 딤 — 콘텐츠 아래(배경색 위)
             mainContent
             roomListDim          // 방 리스트 열릴 때 — 마스코트 아래(홈 콘텐츠만 덮는다)
             if store.state.showsRoomIdentity {
@@ -21,6 +22,7 @@ struct HomeContentView: View {
             roomChangeTooltip
             savePostDim          // 게시물 저장 시트 딤 — 마스코트 위(시안은 화면 전체가 딤)
         }
+        .animation(.easeInOut(duration: 0.2), value: store.state.isGuidePresented)   // 루트의 가이드 페이드와 같은 속도
         .animation(.easeInOut(duration: 0.5), value: store.state.changedRoomToastID)
         .animation(.easeInOut(duration: 0.3), value: store.state.isRoomListPresented)
         .animation(.easeInOut(duration: 0.3), value: store.state.savePost != nil)
@@ -115,6 +117,20 @@ struct HomeContentView: View {
         )
     }
 
+    /// 홈 가이드 딤(Figma 「홈 튜토리얼」 `dimd` — white 80% + backdrop blur 6)의 **배경 몫**.
+    /// 콘텐츠 아래(배경색 위)에 깔고, 흐려질 요소는 각자 `homeGuideDimmed` 로 물러난다 —
+    /// 시안이 방 뱃지·마스코트·맨 앞 카드는 딤 위에 선명하게 남기는 스포트라이트라, 화면을 통째로
+    /// 덮는 한 장으로는 그 셋을 다시 꺼낼 수 없다. 안내(화살표·문구·CTA)는 앱 루트의 ``HomeGuideOverlay``.
+    ///
+    /// 탭바 자리는 이 딤이 닿지 않지만 시안대로 가이드 CTA(Action Area)가 그 위를 통째로 덮는다.
+    private var guideBackgroundWash: some View {
+        Color.white
+            .opacity(store.state.isGuidePresented ? 0.8 : 0)
+            .ignoresSafeArea()
+            .allowsHitTesting(false)   // 터치 차단은 루트 오버레이가 맡는다
+            .accessibilityIdentifier("Home.guide.dim")
+    }
+
     /// 방 리스트가 열릴 때 홈 콘텐츠 위에 까는 딤(Figma `rgba(0,0,0,0.7)`).
     /// 마스코트 아래 레이어라 마스코트는 딤에 안 덮인다. 탭하면 시트를 닫는다.
     ///
@@ -158,6 +174,9 @@ struct HomeContentView: View {
     }
 
     /// 정책: 로딩이 끝나고 현재 정렬 기준으로 표시할 카드가 0장이면(방·공동방 유무 무관) 빈 상태를 띄운다.
+    ///
+    /// 가이드가 떠 있을 때: 카드 덱은 **맨 앞 카드만** 딤 위에 남기고(스포트라이트), 카드가 없는
+    /// 상태(로딩·빈 상태·소진)는 가리킬 대상이 없으므로 본문 통째로 딤 뒤로 물러난다.
     @ViewBuilder
     private var contentBody: some View {
         // 기준을 바꿔 덱을 받는 중이면(캐시 없을 때만) 로딩으로 둔다 — 그 사이 빈 상태·소진 화면이
@@ -166,12 +185,15 @@ struct HomeContentView: View {
             Spacer()
             ProgressView()
                 .frame(maxWidth: .infinity)
+                .homeGuideDimmed(store.state.isGuidePresented)
                 .accessibilityIdentifier("Home.state.loading")
             Spacer()
         } else if store.state.showsEmptyState {
             emptyStateBody
+                .homeGuideDimmed(store.state.isGuidePresented)
         } else if store.state.hasViewedAllPlaces {
             allViewedBody
+                .homeGuideDimmed(store.state.isGuidePresented)
         } else {
             CardDeckView(
                 pins: store.state.pins,
@@ -181,7 +203,8 @@ struct HomeContentView: View {
                 onSwipeForward: { store.send(.swipeForward) },
                 onSwipeBackward: { store.send(.swipeBackward) },
                 onTapCard: { store.send(.tapCard($0)) },
-                onSaveToOtherRoom: { store.send(.tapSaveToOtherRoom($0)) }
+                onSaveToOtherRoom: { store.send(.tapSaveToOtherRoom($0)) },
+                isGuidePresented: store.state.isGuidePresented
             )
             .padding(.top, 112)   // 앞 카드 고정 위치. 풀 덱일 때 뒤 카드 최상단이 필터 32pt 아래(112−80)에 오도록
             .accessibilityIdentifier("Home.cardDeck")
@@ -226,6 +249,7 @@ struct HomeContentView: View {
                 set: { store.send(.selectFilter(PinFilter.allCases[$0])) }
             )
         )
+        .homeGuideDimmed(store.state.isGuidePresented)
         .accessibilityIdentifier("Home.filterBar")
     }
 

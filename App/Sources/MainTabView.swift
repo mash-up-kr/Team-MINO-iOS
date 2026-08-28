@@ -80,11 +80,11 @@ struct MainTabView: View {
                     )
                 }
             }
-            // 홈 사용 가이드는 탭바까지 덮어야 해서 탭 콘텐츠 안이 아니라 여기(루트)에서 그린다.
-            // 상태·1회 표기 정책은 홈이 들고, 루트는 z-order 만 책임진다.
+            // 홈 사용 가이드의 "시작하기" CTA 는 탭바 자리를 통째로 덮어야 해서(시안) 탭 콘텐츠 안이
+            // 아니라 여기(루트)에서 그린다. 딤은 홈이 요소별로 걸고, 루트는 z-order 만 책임진다.
             .overlay {
                 if selectedTab == .home, coordinator.home.isGuidePresented {
-                    HomeGuideOverlay { coordinator.home.dismissGuide() }
+                    HomeGuideOverlay(onStart: { coordinator.home.dismissGuide() })
                         .transition(.opacity)
                 }
             }

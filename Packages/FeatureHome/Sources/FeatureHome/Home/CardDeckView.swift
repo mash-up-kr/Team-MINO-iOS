@@ -16,6 +16,9 @@ struct CardDeckView: View {
     let onTapCard: (PinID) -> Void
     /// 카드 더보기 메뉴 "다른 방 저장" 탭 — 게시물 저장 바텀시트로 이어진다.
     let onSaveToOtherRoom: (PinID) -> Void
+    /// 홈 가이드가 떠 있는지. 가이드는 **맨 앞 카드만** 딤 위에 남기고(손 그래픽이 그 위에 얹힌다)
+    /// 뒷장은 딤 뒤로 물러나게 한다 — 시안에서도 겹쳐 보이던 뒷장 테두리가 딤에 묻힌다.
+    var isGuidePresented: Bool = false
 
     @State private var dragOffset: CGFloat = 0
     @State private var isFlingAnimating = false
@@ -62,6 +65,7 @@ struct CardDeckView: View {
                     .zIndex(Double(stackIndex))
                     .offset(x: isTop ? dragOffset + flingXOffset : 0, y: isTop ? dragYOffset + flingYOffset : 0)
                     .rotationEffect(isTop ? .degrees(topRotation) : .zero)
+                    .homeGuideDimmed(isGuidePresented && !isTop)
                     .allowsHitTesting(isTop && !isFlingAnimating)
                     .gesture(isTop ? swipeGesture : nil)
                     .onTapGesture { onTapCard(pin.id) }
