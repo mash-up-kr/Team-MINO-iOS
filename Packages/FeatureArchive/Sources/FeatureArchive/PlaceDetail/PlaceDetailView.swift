@@ -44,6 +44,7 @@ struct PlaceDetailView: View {
     private var header: some View {
         PlaceDetailHeader(
             place: place,
+            detent: detent,
             isCollapsed: isHeaderCollapsed,
             canOpenSource: store.state.sourceURL != nil,
             onOpenMap: openMap,
