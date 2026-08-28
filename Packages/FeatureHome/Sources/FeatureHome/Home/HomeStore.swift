@@ -6,18 +6,24 @@ public struct HomeState: Equatable {
     public var rooms: [Room]
     public var isLoading: Bool
     public var errorMessage: String?
-    /// 현재 조회 기준(필터 칩). 덱을 다 넘기면 다음 기준으로 자동 전환된다.
+    /// 현재 조회 기준(필터 칩). 덱을 다 넘기면 이 방의 **미확인 정렬**로 자동 전환된다.
     public var selectedFilter: PinFilter
-    /// 기준별로 받아 둔 덱(캐시). 칩을 오가도 재조회 없이 이어 본다 —
-    /// 소진 시 다음 칩, 첫 카드에서 뒤로 가면 이전 칩의 마지막 카드로 이어지는 정책 때문에
-    /// 앞뒤로 오가는 일이 잦아 매번 다시 받으면 화면이 비었다 채워진다.
+    /// **현재 방**의 기준별 덱(캐시). 칩을 오가도 재조회 없이 이어 본다 —
+    /// 소진 시 다음 칩, 첫 카드에서 뒤로 가면 직전 칩의 마지막 카드로 이어지는 정책 때문에
+    /// 앞뒤로 오가는 일이 잦아 매번 다시 받으면 화면이 비었다 채워진다. 방이 바뀌면 비운다.
     public var decks: [PinFilter: [Pin]]
+    /// 방 우선 순회의 커서 — `rooms` 배열 인덱스. 이 방의 세 정렬을 다 보면 다음 방으로 +1 된다.
+    public var currentRoomIndex: Int
+    /// 현재 방에서 **끝까지 본** 정렬. 다음에 어느 정렬로 넘어갈지(미확인 정렬) 판단에 쓴다.
+    /// 방이 바뀌면 비운다 — 방마다 세 정렬을 새로 본다.
+    public var viewedFilters: Set<PinFilter>
+    /// 자동 전환 순서의 기준 — 사용자가 마지막으로 **직접 고른** 정렬. 기본은 꾹 Pick 이고,
+    /// 방이 바뀌면 기본으로 되돌린다(정책: 방 진입 시 우선순위는 꾹 Pick → 최신순 → 가까운순).
+    public var filterAnchor: PinFilter
     /// 다른 기준의 덱을 받아오는 중인지. 받는 동안에는 빈 상태·소진 화면을 띄우지 않는다(깜빡임 방지).
     public var isDeckLoading: Bool
     /// 현재 맨 앞 카드 인덱스
     public var currentCardIndex: Int
-    /// 방별 "더 보기" 페이지 커서(roomID → page). 더 보기마다 +1 해 UseCase 에 넘긴다(다음 페이지 조회).
-    public var roomPages: [String: Int]
     /// 방 선택 바텀 시트 표시 여부 (뱃지·캐릭터 탭으로 열림).
     public var isRoomListPresented: Bool
     /// 방 변경 직후 뜨는 툴팁이 가리키는 방의 id (nil = 숨김). 5초 후 자동으로 nil 이 된다.
@@ -30,9 +36,6 @@ public struct HomeState: Equatable {
     public var deckEndingToastFilter: PinFilter?
     /// 홈 사용 가이드(좌우 스와이프 안내) 표시 여부. 최초 진입 1회만 뜬다(Figma 「홈 사용 가이드」).
     public var isGuidePresented: Bool
-    /// 방 리스트에서 명시적으로 고른 방 (nil = 미선택). 표시할 카드가 없을 때(빈 방들) 현재 방을 정하는 근거 —
-    /// 카드가 있을 땐 덱의 맨 앞 카드가 현재 방을 정하므로 이 값은 쓰이지 않는다.
-    public var selectedRoomID: String?
     /// 게시물 저장 시트 상태 (nil = 닫힘). 카드 더보기 메뉴 "다른 방 저장" 으로 열린다.
     public var savePost: SavePostState?
     /// 저장 완료 토스트(Figma 013-2)의 식별자 (nil = 숨김). 저장할 때마다 1씩 올라가
@@ -48,12 +51,13 @@ public struct HomeState: Equatable {
         pins: [Pin] = [],
         isDeckLoading: Bool = false,
         currentCardIndex: Int = 0,
-        roomPages: [String: Int] = [:],
+        currentRoomIndex: Int = 0,
+        viewedFilters: Set<PinFilter> = [],
+        filterAnchor: PinFilter = .recommended,
         isRoomListPresented: Bool = false,
         changedRoomToastID: String? = nil,
         deckEndingToastFilter: PinFilter? = nil,
         isGuidePresented: Bool = false,
-        selectedRoomID: String? = nil,
         savePost: SavePostState? = nil,
         savedToastID: Int? = nil
     ) {
@@ -64,12 +68,13 @@ public struct HomeState: Equatable {
         self.decks = pins.isEmpty ? [:] : [selectedFilter: pins]
         self.isDeckLoading = isDeckLoading
         self.currentCardIndex = currentCardIndex
-        self.roomPages = roomPages
+        self.currentRoomIndex = currentRoomIndex
+        self.viewedFilters = viewedFilters
+        self.filterAnchor = filterAnchor
         self.isRoomListPresented = isRoomListPresented
         self.changedRoomToastID = changedRoomToastID
         self.deckEndingToastFilter = deckEndingToastFilter
         self.isGuidePresented = isGuidePresented
-        self.selectedRoomID = selectedRoomID
         self.savePost = savePost
         self.savedToastID = savedToastID
     }
@@ -98,52 +103,60 @@ public struct HomeState: Equatable {
         decks.values.contains { !$0.isEmpty } || rooms.contains { $0.type == .shared }
     }
 
-    /// 현재 방(뱃지·방 리스트 선택 표시의 기준). 카드가 있으면 맨 앞 카드가 속한 방(넘기면 그 방으로 바뀜),
-    /// 카드가 없으면(빈 방들) 방 리스트에서 고른 방(selectedRoomID) — 없으면 첫 방(내 장소).
-    /// 덱을 끝까지 넘겨 인덱스가 덱 밖으로 나간 뒤([[hasViewedAllPlaces]])에도 뱃지는 마지막으로 본 방을
-    /// 유지해야 하므로 인덱스를 덱 안으로 클램프해서 찾는다(안 하면 소진 순간 뱃지가 첫 방으로 튄다).
+    /// 현재 방 — 방 우선 순회의 커서가 가리키는 방(뱃지·마스코트·방 리스트 선택 표시의 기준).
+    /// 카드에서 파생하지 않고 커서를 진실로 삼는다: 한 덱은 한 방의 것이고, 덱을 다 넘겨 인덱스가
+    /// 덱 밖으로 나간 순간에도([[isCurrentDeckExhausted]]) 뱃지는 그 방에 머물러야 하기 때문.
     public var currentRoom: Room? {
-        if !pins.isEmpty {
-            let roomID = pins[min(currentCardIndex, pins.count - 1)].roomID
-            return rooms.first { $0.id == roomID } ?? rooms.first
-        }
-        return rooms.first { $0.id == selectedRoomID } ?? rooms.first
+        guard !rooms.isEmpty else { return nil }
+        return rooms[min(max(0, currentRoomIndex), rooms.count - 1)]
     }
 
-    /// 모든 방의 장소를 끝까지 넘겼는지 (Figma 002-3 「모든 카드를 다 봤을 때」).
-    /// 마지막 카드에서 한 번 더 넘기면 인덱스가 덱 밖(pins.count)으로 나가 이 상태가 된다 —
-    /// 본문이 소진 일러스트로 바뀌고 플로팅 CTA 가 "장소 더 보기"(전 방 다음 페이지)로 바뀐다.
-    public var hasViewedAllPlaces: Bool { isCurrentDeckExhausted && selectedFilter.next == nil }
+    /// 이 방에서 정렬을 노출할 순서 — 사용자가 고른 정렬([[filterAnchor]])이 먼저, 나머지는 기본 순서.
+    /// 정책: 기본 진입 꾹 Pick → 최신순 → 가까운순 / 최신순 선택 최신순 → 꾹 Pick → 가까운순 /
+    /// 가까운순 선택 가까운순 → 꾹 Pick → 최신순.
+    public var filterOrder: [PinFilter] {
+        [filterAnchor] + PinFilter.allCases.filter { $0 != filterAnchor }
+    }
 
-    /// 현재 기준의 덱을 끝까지 넘겼는지(다음 기준 유무와 무관). 다음 기준이 남아 있으면 소진 화면 대신
-    /// 그 기준으로 자동 전환한다 — 그래서 화면 판정([[hasViewedAllPlaces]])과 분리해 둔다.
+    /// 현재 정렬을 다 본 뒤 이어서 볼 정렬 — [[filterOrder]] 에서 아직 확인하지 않은 첫 정렬.
+    /// nil 이면 이 방의 세 정렬을 모두 봤다는 뜻이라 다음 방으로 넘어간다.
+    public var nextUnviewedFilter: PinFilter? {
+        filterOrder.first { $0 != selectedFilter && !viewedFilters.contains($0) }
+    }
+
+    /// 이어서 볼 방이 남아 있는지 (방 우선 순회의 다음 커서).
+    public var hasNextRoom: Bool { currentRoomIndex + 1 < rooms.count }
+
+    /// 모든 방의 장소를 끝까지 넘겼는지 (Figma 002-3 「모든 카드를 다 봤을 때」).
+    /// 마지막 방의 마지막 미확인 정렬까지 넘겨 인덱스가 덱 밖으로 나가면 이 상태가 된다.
+    public var hasViewedAllPlaces: Bool {
+        isCurrentDeckExhausted && nextUnviewedFilter == nil && !hasNextRoom
+    }
+
+    /// 현재 정렬의 덱을 끝까지 넘겼는지(다음 갈 곳 유무와 무관). 갈 곳이 남아 있으면 소진 화면 대신
+    /// 그쪽으로 자동 전환한다 — 그래서 화면 판정([[hasViewedAllPlaces]])과 분리해 둔다.
     var isCurrentDeckExhausted: Bool { !pins.isEmpty && currentCardIndex >= pins.count }
 
-    /// 첫 카드에서 뒤로 넘겨 이전 기준으로 돌아갈 수 있는지 — 첫 기준(`recommended`)에서만 false.
-    /// 앞으로 소진되면 다음 기준으로 넘어가는 것([[isCurrentDeckExhausted]])의 반대 방향이다.
-    public var canReturnToPreviousFilter: Bool { selectedFilter.previous != nil }
+    /// 이 방에서 직전에 보던 정렬 — 첫 카드에서 뒤로 넘겼을 때 돌아갈 곳.
+    /// 앞으로 나아간 경로([[filterOrder]] 위에서 이미 확인한 정렬들)를 그대로 되짚는다.
+    /// 방 경계는 거슬러 올라가지 않는다(정책에 없는 이동이라 방 안에서만 왕복한다).
+    public var previousShownFilter: PinFilter? {
+        filterOrder.prefix { $0 != selectedFilter }.last { viewedFilters.contains($0) }
+    }
 
-    /// 뒤로 돌아갔을 때 맨 앞에 올 카드 — 이전 기준 덱의 마지막 카드. 그 기준을 아직 받아 두지 않았으면 nil
+    /// 첫 카드에서 뒤로 넘겨 직전 정렬로 돌아갈 수 있는지.
+    public var canReturnToPreviousFilter: Bool { previousShownFilter != nil }
+
+    /// 뒤로 돌아갔을 때 맨 앞에 올 카드 — 직전 정렬 덱의 마지막 카드. 그 덱을 아직 받아 두지 않았으면 nil
     /// (전환은 그대로 일어나고, 덱을 받는 동안 복귀 애니메이션에 얹을 카드만 없다).
     public var previousDeckLastPin: Pin? {
-        guard let previous = selectedFilter.previous else { return nil }
+        guard let previous = previousShownFilter else { return nil }
         return decks[previous]?.last
     }
 
-    /// 현재 기준 덱에서 (현재 카드 포함) 아직 넘기지 않은 카드 수. 덱 끝 예고 툴팁([[deckEndingToastFilter]])
-    /// 판단에 쓴다 — 방 구간이 아니라 **덱 전체** 기준이라 다음 기준으로 넘어가기 직전에만 걸린다.
-    /// 덱을 다 넘겨 인덱스가 덱 밖으로 나가면([[isCurrentDeckExhausted]]) 0 이다.
+    /// 현재 정렬 덱에서 (현재 카드 포함) 아직 넘기지 않은 카드 수. 덱 끝 예고 툴팁([[deckEndingToastFilter]])
+    /// 판단에 쓴다. 덱을 다 넘겨 인덱스가 덱 밖으로 나가면([[isCurrentDeckExhausted]]) 0 이다.
     public var remainingInCurrentDeck: Int { max(0, pins.count - currentCardIndex) }
-
-    /// 현재 맨 앞 카드가 속한 방에서 (현재 카드 포함) 아직 넘기지 않은 카드 수.
-    /// "이 방 장소 더 보기" 버튼 노출 판단에 쓴다 — 덱 전체가 아니라 현재 방 구간 기준이라, 방마다 끝자락에서 뜬다.
-    /// 덱을 다 넘긴 뒤([[hasViewedAllPlaces]])엔 0 이다 — 그 상태의 CTA 는 이 값이 아니라 소진 여부로 정한다.
-    public var remainingInCurrentRoom: Int {
-        guard pins.indices.contains(currentCardIndex) else { return 0 }
-        let roomID = pins[currentCardIndex].roomID
-        let end = pins[currentCardIndex...].firstIndex { $0.roomID != roomID } ?? pins.count
-        return end - currentCardIndex
-    }
 }
 
 /// 게시물 저장 시트(Figma 013-1-3) 상태. 시트가 홈 화면 안에서 열고 닫히므로 별도 Store 없이
@@ -182,22 +195,18 @@ public enum HomeAction: Equatable {
     case loaded([Room])
     case loadFailed(DomainError)
     case selectFilter(PinFilter)
-    /// 필터가 바뀌어(직접 선택·소진 자동 전환·뒤로 돌아가기) 새로 받은 덱과, 그 덱의 어느 끝에서 시작할지.
-    /// `for` 는 이 응답이 **어느 기준의 것인지** — 칩을 연속으로 눌러 응답이 엇갈려 도착해도 제 슬롯에 담기게 한다.
-    case filterPinsLoaded(pins: [Pin], entry: DeckEntry, for: PinFilter)
-    /// 필터 전환용 덱 조회 실패 — 바꾸려던 기준을 되돌리고 기존 덱을 그대로 유지한다.
-    /// 연관값은 실패한 조회의 기준, 되돌릴 기준, 전환 직전의 카드 인덱스.
-    case filterPinsLoadFailed(for: PinFilter, revertTo: PinFilter, index: Int)
+    /// 최초 진입 덱이 도착했다 — 이어 볼 방(마지막으로 본 방)의 꾹 Pick 덱. `roomID` 가 그 방이다.
+    case initialDeckLoaded(pins: [Pin], roomID: String)
+    /// 한 (방 × 정렬) 덱이 도착했다. `roomID`·`filter` 는 이 응답이 **어느 자리의 것인지** —
+    /// 칩·방을 연속으로 옮겨 응답이 엇갈려 도착해도 지나간 자리의 덱이 화면을 끌고 가지 않게 한다.
+    /// `entry` 는 그 덱의 어느 끝에서 시작할지(앞으로 왔으면 첫 카드, 뒤로 돌아왔으면 마지막 카드).
+    case deckLoaded(pins: [Pin], roomID: String, filter: PinFilter, entry: DeckEntry)
+    /// 덱 조회 실패 — 가려던 자리를 버리고 조회 직전 자리로 되돌린다.
+    case deckLoadFailed(roomID: String, filter: PinFilter, revertTo: DeckPosition)
     case tapCreateRoom
-    /// 초기 로드 결과 — 핀 목록과, 이어 볼 방(마지막으로 본 방) id. 최초 실행이면 startRoomID 가 nil.
-    case pinsLoaded(pins: [Pin], startRoomID: String?)
-    /// "이 방 장소 더 보기" 결과 — 해당 방 구간을 이 핀들로 교체한다.
-    case morePlacesLoaded(roomID: String, pins: [Pin])
     case swipeForward
     case swipeBackward
     case tapCard(PinID)
-    /// 카드 덱 하단 "이 방 장소 더 보기" 버튼 탭 (동작 미정 — 팀 논의 후 결정)
-    case tapMorePlaces
     /// 홈 사용 가이드를 띄운다 — 아직 안 보여준 최초 진입일 때만 도착하는 응답 action.
     case showGuide
     /// 가이드 X 버튼 탭 → 닫기
@@ -245,6 +254,19 @@ extension Room {
     var homeToastText: String { "\(homeDisplayName)\(type == .shared ? "이에요." : "예요.")" }
 }
 
+/// 덱 조회가 실패했을 때 되돌아갈 자리 — 조회를 시작하기 직전의 방·정렬·카드 인덱스.
+public struct DeckPosition: Equatable, Sendable {
+    public var roomIndex: Int
+    public var filter: PinFilter
+    public var cardIndex: Int
+
+    public init(roomIndex: Int, filter: PinFilter, cardIndex: Int) {
+        self.roomIndex = roomIndex
+        self.filter = filter
+        self.cardIndex = cardIndex
+    }
+}
+
 /// 새 기준의 덱에 어느 끝으로 들어가는지 — 앞으로 넘어가면 첫 카드, 뒤로 돌아가면 마지막 카드.
 public enum DeckEntry: Equatable, Sendable {
     case first
@@ -258,57 +280,100 @@ public enum DeckEntry: Equatable, Sendable {
     }
 }
 
-/// 기준을 바꾼다. 이미 받아 둔 덱이 있으면 재조회 없이 즉시 전환하고(앞뒤로 오갈 때 화면이 비지 않는다),
-/// 없으면 받아와 filterPinsLoaded 로 되돌린다. 실패도 filterPinsLoadFailed 로 되돌려 기준을 원위치시킨다 —
-/// 성공했을 때만 되돌리면 isDeckLoading 이 꺼지지 않아 화면이 스피너에 영구히 멈춘다.
-private func switchFilter(
-    to filter: PinFilter,
+/// 한 정렬 덱의 최대 카드 수 — 정책: 각 정렬은 최대 10장, 모자라면 보유한 만큼만.
+private let deckPageSize = 10
+
+/// 지금 방의 `filter` 덱으로 옮긴다. 받아 둔 덱이 있으면 재조회 없이 즉시 전환하고,
+/// 없으면 그 방의 첫 페이지를 받아 `deckLoaded` 로 되돌린다. 실패도 `deckLoadFailed` 로 되돌려
+/// 조회 직전 자리로 복구한다 — 성공했을 때만 되돌리면 isDeckLoading 이 꺼지지 않아 스피너에 멈춘다.
+private func showDeck(
+    filter: PinFilter,
     entering entry: DeckEntry,
+    persistingRoom persist: Bool = false,
     state: inout HomeState,
-    fetchPins: FetchPinsUseCase
+    fetchPins: FetchPinsUseCase,
+    lastViewedRoom: LastViewedRoomUseCase
 ) -> Effect<HomeAction, HomeNav> {
-    let previousFilter = state.selectedFilter
-    let previousIndex = state.currentCardIndex
+    let revert = DeckPosition(
+        roomIndex: state.currentRoomIndex, filter: state.selectedFilter, cardIndex: state.currentCardIndex
+    )
     state.selectedFilter = filter
-    // 전환하는 순간 지난 기준의 예고 툴팁은 할 말을 잃는다("곧 최신순으로" 를 최신순에서 띄우고 있게 된다).
+    // 옮기는 순간 지난 자리의 예고 툴팁은 할 말을 잃는다("곧 최신순으로" 를 최신순에서 띄우고 있게 된다).
     state.deckEndingToastFilter = nil
     if let cached = state.decks[filter], !cached.isEmpty {
         state.currentCardIndex = entry.index(in: cached)
-        // 앞으로 넘어와 첫 카드에 선 경우만 예고한다 — 뒤로 돌아가 마지막 카드에 선 것(.last)은
-        // 사용자가 방금 떠나온 길이라 "곧 …으로 이동해요"가 안내가 아니라 잔소리가 된다.
         if entry == .first { announceDeckEndingIfNeeded(&state) }
         return .none
     }
+    guard let room = state.currentRoom else { return .none }
     state.isDeckLoading = true   // 받는 동안 빈 상태·소진 화면이 끼어들지 않게 한다
-    let rooms = state.rooms
     return .run { send in
         do {
-            let pins = try await fetchPins.execute(rooms: rooms, filter: filter)
-            send(.filterPinsLoaded(pins: pins, entry: entry, for: filter))
+            // 정책 3: 재실행 시 마지막으로 보던 방부터 이어 본다 — 방을 옮길 때 함께 기록한다.
+            if persist { await lastViewedRoom.save(roomID: room.id) }
+            let pins = try await fetchPins.execute(room: room, page: 0, filter: filter)
+            send(.deckLoaded(pins: Array(pins.prefix(deckPageSize)), roomID: room.id, filter: filter, entry: entry))
+        } catch is CancellationError {
+            return   // 취소는 결과가 없는 것이지 실패가 아니다
         } catch {
-            send(.filterPinsLoadFailed(for: filter, revertTo: previousFilter, index: previousIndex))
+            send(.deckLoadFailed(roomID: room.id, filter: filter, revertTo: revert))
         }
     }
 }
 
+/// 방을 옮긴다 — 정렬 상태(확인 기록·우선순위·덱 캐시)를 새 방 기준으로 초기화하고 첫 정렬 덱을 연다.
+/// 정책: 방 진입 시 우선순위는 꾹 Pick → 최신순 → 가까운순이라 anchor 를 기본으로 되돌린다.
+/// 전환 안내로 방 변경 툴팁도 함께 세운다(자동·수동 전환 모두 같은 안내).
+private func moveToRoom(
+    index: Int,
+    state: inout HomeState,
+    fetchPins: FetchPinsUseCase,
+    lastViewedRoom: LastViewedRoomUseCase
+) -> Effect<HomeAction, HomeNav> {
+    guard state.rooms.indices.contains(index) else { return .none }
+    state.currentRoomIndex = index
+    state.viewedFilters = []
+    state.filterAnchor = .recommended
+    state.decks = [:]            // 덱 캐시는 방에 딸린 것이다
+    state.currentCardIndex = 0
+    state.changedRoomToastID = state.rooms[index].id
+    return showDeck(
+        filter: .recommended, entering: .first, persistingRoom: true,
+        state: &state, fetchPins: fetchPins, lastViewedRoom: lastViewedRoom
+    )
+}
+
+/// 현재 정렬의 덱을 다 봤을 때 이어서 갈 곳으로 옮긴다.
+/// 정책: 이 방에 미확인 정렬이 남아 있으면 **다음 방으로 가지 않고** 그 정렬로 자동 전환하고,
+/// 세 정렬을 모두 확인했을 때만 다음 방으로 넘어간다. 마지막 방까지 끝나면 소진 화면(002-3)에 남는다.
+private func advanceAfterDeck(
+    state: inout HomeState,
+    fetchPins: FetchPinsUseCase,
+    lastViewedRoom: LastViewedRoomUseCase
+) -> Effect<HomeAction, HomeNav> {
+    state.viewedFilters.insert(state.selectedFilter)
+    if let next = state.nextUnviewedFilter {
+        return showDeck(
+            filter: next, entering: .first,
+            state: &state, fetchPins: fetchPins, lastViewedRoom: lastViewedRoom
+        )
+    }
+    guard state.hasNextRoom else { return .none }
+    return moveToRoom(
+        index: state.currentRoomIndex + 1,
+        state: &state, fetchPins: fetchPins, lastViewedRoom: lastViewedRoom
+    )
+}
+
 /// 덱 끝 예고 툴팁("곧 …으로 이동해요!")을 세운다 — 남은 카드가 2장 이하일 때 (Figma 002-2-3 ②).
 ///
-/// 마지막 기준에서도 띄운다 — 시안이 그때 "곧 다음 방으로 이동해요!" 로 다음 방 이동을 예고한다.
+/// 문구는 뷰가 "다음에 갈 곳"으로 파생한다 — 미확인 정렬이 남아 있으면 그 칩 이름, 없으면 "다음 방".
+/// 갈 곳이 아무것도 없으면(마지막 방의 마지막 정렬) 예고하지 않는다 — 그땐 소진 화면이 답이다.
 /// 스와이프 경로에서는 호출부가 "막 2장이 된 순간"만 걸러 부른다(2→1 에서 다시 뜨지 않게).
 private func announceDeckEndingIfNeeded(_ state: inout HomeState) {
     guard !state.pins.isEmpty, state.remainingInCurrentDeck <= 2 else { return }
+    guard state.nextUnviewedFilter != nil || state.hasNextRoom else { return }
     state.deckEndingToastFilter = state.selectedFilter
-}
-
-/// 현재 방이 바뀌었을 때만 "마지막으로 본 방"을 기록한다(정책 3 — 재실행 시 이어 보기).
-/// 결과 action 이 없는 단발 부수효과라 Effect.run 의 send 를 쓰지 않는다.
-private func persistIfRoomChanged(
-    from previous: String?,
-    to state: HomeState,
-    using useCase: LastViewedRoomUseCase
-) -> Effect<HomeAction, HomeNav> {
-    guard let roomID = state.currentRoom?.id, roomID != previous else { return .none }
-    return .run { _ in await useCase.save(roomID: roomID) }
 }
 
 /// 순수 reduce. UseCase(fetchRooms·fetchPins·lastViewedRoom)는 Effect.run 안에서만 사용한다.
@@ -324,7 +389,6 @@ public func homeReducer(
         case .load:
             state.isLoading = true
             state.errorMessage = nil
-            state.roomPages = [:]
             return .run { send in
                 do {
                     let rooms = try await fetchRooms.execute()
@@ -339,18 +403,25 @@ public func homeReducer(
         case .loaded(let rooms):
             // 홈은 개인방(personal, "내 장소")을 먼저, 그다음 공동방(shared)을 보여준다 — 데이터 순서와
             // 무관하게 항상 이 순서. 공동방 내부 순서는 서버가 준 순서를 그대로 유지(클라 정렬 없음).
-            // 뱃지·카드덱·방리스트가 모두 이 order 를 따른다(방리스트에서 개인방이 "방 만들기" 우측 고정).
+            // 이 순서가 곧 **방 우선 순회의 순서**이기도 하다(뱃지·카드덱·방리스트가 모두 이 order 를 따른다).
             let ordered = rooms.filter { $0.type == .personal } + rooms.filter { $0.type == .shared }
             state.rooms = ordered
-            let filter = state.selectedFilter   // 조회 기준도 함께 넘긴다(필터링은 서버 몫)
-            // isLoading 은 여기서 끄지 않는다 — 핀까지 로드돼야 표시할 카드 유무가 정해지므로,
-            // pinsLoaded 에서 끈다. (여기서 끄면 핀 도착 전 빈 상태+CTA 가 한 프레임 깜빡인다)
+            // isLoading 은 여기서 끄지 않는다 — 첫 덱까지 도착해야 표시할 카드 유무가 정해지므로
+            // initialDeckLoaded 에서 끈다. (여기서 끄면 카드 도착 전 빈 상태+CTA 가 한 프레임 깜빡인다)
             return .run { send in
                 do {
-                    // 정책: 재실행 시 마지막으로 보던 방부터 이어 본다 — 핀과 함께 병렬로 받아 한 액션으로 되돌린다.
-                    async let pins = fetchPins.execute(rooms: ordered, filter: filter)
-                    async let startRoomID = lastViewedRoom.load()
-                    send(.pinsLoaded(pins: try await pins, startRoomID: await startRoomID))
+                    // 정책 3: 재실행 시 마지막으로 보던 방부터 이어 본다. 그 방이 사라졌으면 첫 방.
+                    let startRoomID = await lastViewedRoom.load()
+                    let room = ordered.first { $0.id == startRoomID } ?? ordered.first
+                    guard let room else {
+                        send(.initialDeckLoaded(pins: [], roomID: ""))
+                        return
+                    }
+                    // 진입 정렬은 항상 꾹 Pick (정책: 홈 최초 진입 시 기본 정렬).
+                    let pins = try await fetchPins.execute(room: room, page: 0, filter: .recommended)
+                    send(.initialDeckLoaded(pins: Array(pins.prefix(deckPageSize)), roomID: room.id))
+                } catch is CancellationError {
+                    return
                 } catch let error as DomainError {
                     send(.loadFailed(error))
                 } catch {
@@ -368,119 +439,98 @@ public func homeReducer(
 
         case .selectFilter(let filter):
             guard filter != state.selectedFilter else { return .none }
-            return switchFilter(to: filter, entering: .first, state: &state, fetchPins: fetchPins)
+            // 정책: 직접 고른 정렬이 이후 자동 전환 순서의 기준이 된다(고른 것 먼저, 나머지는 기본 순서).
+            state.filterAnchor = filter
+            state.viewedFilters.remove(filter)   // 다시 고른 정렬은 처음부터 다시 본다
+            return showDeck(
+                filter: filter, entering: .first,
+                state: &state, fetchPins: fetchPins, lastViewedRoom: lastViewedRoom
+            )
 
-        case .filterPinsLoaded(let pins, let entry, let filter):
-            let roomBeforeFilter = state.currentRoom?.id
-            // 받아 온 기준의 슬롯에 담는다(state.pins 는 "지금 보는 기준"에 쓰므로 늦게 온 응답이 남의 칸을 덮는다).
-            // 이렇게 두면 지나간 기준의 응답도 자기 캐시에 남아, 그 칩으로 돌아갈 때 재조회하지 않는다.
+        case .deckLoaded(let pins, let roomID, let filter, let entry):
+            // 지나간 방의 응답은 캐시에도 담지 않는다 — 덱 캐시는 지금 방의 것이다.
+            guard roomID == state.currentRoom?.id else { return .none }
             state.decks[filter] = pins.isEmpty ? nil : pins
-            // 화면을 움직이는 건 지금 보고 있는 기준의 응답일 때만. 아니면 다른 기준 덱이 잠깐 앉았다 사라진다.
+            // 화면을 움직이는 건 지금 보고 있는 정렬의 응답일 때만. 아니면 남의 덱이 잠깐 앉았다 사라진다.
             guard filter == state.selectedFilter else { return .none }
             state.isDeckLoading = false
             state.currentCardIndex = entry.index(in: pins)
-            // 받아 온 덱이 이미 2장 이하면 넘길 새도 없이 다음 기준이 코앞이다 (Figma 002-2-3 「데이터 2개 이하일 때」).
+            // 빈 정렬은 보여줄 게 없으므로 확인한 것으로 치고 다음 갈 곳으로 넘어간다
+            // (가려던 자리가 비었다고 빈 화면을 띄우면, 남은 정렬·방을 못 보고 막힌다).
+            guard !pins.isEmpty else {
+                return advanceAfterDeck(state: &state, fetchPins: fetchPins, lastViewedRoom: lastViewedRoom)
+            }
+            // 받아 온 덱이 이미 2장 이하면 넘길 새도 없이 다음 자리가 코앞이다 (Figma 002-2-3).
             if entry == .first { announceDeckEndingIfNeeded(&state) }
-            return persistIfRoomChanged(from: roomBeforeFilter, to: state, using: lastViewedRoom)
+            return .none
 
-        case .filterPinsLoadFailed(let filter, let previousFilter, let index):
-            // 이미 다른 기준으로 옮겨 갔으면 지나간 조회의 실패다 — 되돌리면 지금 화면을 엉뚱하게 끌고 간다.
-            guard filter == state.selectedFilter else { return .none }
-            // 실패하면 바꾸려던 기준을 되돌려 기존 덱을 계속 보여준다. 기준을 새것으로 둔 채 로딩만 끄면
-            // 그 덱이 비어 있어 빈 상태("공동방 만들기")가 뜬다 — 조회가 실패한 건데 장소가 없다고 말하게 된다.
+        case .deckLoadFailed(let roomID, let filter, let revert):
+            // 이미 다른 자리로 옮겨 갔으면 지나간 조회의 실패다 — 되돌리면 지금 화면을 엉뚱하게 끌고 간다.
+            guard roomID == state.currentRoom?.id, filter == state.selectedFilter else { return .none }
+            // 실패하면 가려던 자리를 버리고 조회 직전 자리로 되돌려 기존 덱을 계속 보여준다.
+            // 자리를 새것으로 둔 채 로딩만 끄면 그 덱이 비어 빈 상태("공동방 만들기")가 뜬다 —
+            // 조회가 실패한 건데 장소가 없다고 말하게 된다.
             state.isDeckLoading = false
-            state.selectedFilter = previousFilter
+            state.currentRoomIndex = revert.roomIndex
+            state.selectedFilter = revert.filter
             // 소진 자동 전환 경로에선 인덱스가 이미 덱 밖(pins.count)으로 밀려 있어, 그대로 되돌리면
             // 카드 없는 덱 분기에 들어간다. 복구한 덱의 마지막 카드로 클램프해 거기서 다시 넘기면 재시도된다.
-            state.currentCardIndex = min(index, max(0, state.pins.count - 1))
+            state.currentCardIndex = min(revert.cardIndex, max(0, state.pins.count - 1))
             return .none
 
         case .tapCreateRoom:
             state.isRoomListPresented = false
             return .navigate(.goToCreateRoom)
 
-        case .pinsLoaded(let pins, let startRoomID):
+        case .initialDeckLoaded(let pins, let roomID):
+            state.currentRoomIndex = state.rooms.firstIndex { $0.id == roomID } ?? 0
+            state.selectedFilter = .recommended
+            state.filterAnchor = .recommended
+            state.viewedFilters = []
+            state.decks = [:]
             state.pins = pins
-            // 마지막으로 본 방에 카드가 있으면 그 방부터, 없으면(최초 실행·방 삭제·그 방이 비어 스루됨) 첫 방부터.
-            if let startRoomID, let start = pins.firstIndex(where: { $0.roomID == startRoomID }) {
-                state.currentCardIndex = start
-                state.selectedRoomID = startRoomID
-            } else {
-                state.currentCardIndex = 0
+            state.currentCardIndex = 0
+            state.isLoading = false   // 첫 덱까지 도착 → 이제 카드 유무가 확정돼 로딩 종료
+            // 첫 정렬이 비어 있으면 남은 정렬·방으로 넘어간다(빈 화면에 막히지 않게).
+            guard !pins.isEmpty else {
+                return advanceAfterDeck(state: &state, fetchPins: fetchPins, lastViewedRoom: lastViewedRoom)
             }
-            state.isLoading = false   // 핀까지 도착 → 이제 카드 유무가 확정돼 로딩 종료
             announceDeckEndingIfNeeded(&state)   // 첫 덱부터 2장 이하일 수 있다
             // 정책: 홈 사용 가이드는 최초 진입 1회. 넘길 카드가 있을 때만 띄운다(빈 상태에선 안내가 무의미).
-            guard !pins.isEmpty else { return .none }
             return .run { send in
                 if await homeGuide.hasSeen() == false { send(.showGuide) }
             }
 
-        case .morePlacesLoaded(let roomID, let newPins):
-            // "더 보기" 결과를 해당 방 구간에만 splice 하고 그 방 첫 카드로 이동. 다른 방 구간은 그대로.
-            // 결과가 비면(페이지 소진) 기존 카드를 지우지 않는다 — 안 그러면 그 방 덱이 통째로 사라진다.
-            guard !newPins.isEmpty else { return .none }
-            guard let start = state.pins.firstIndex(where: { $0.roomID == roomID }) else { return .none }
-            let end = state.pins[start...].firstIndex(where: { $0.roomID != roomID }) ?? state.pins.count
-            state.pins.replaceSubrange(start..<end, with: newPins)
-            // FIXME(백엔드 연동): 실 API 지연 중 사용자가 다른 방으로 이동하면, 뒤늦게 온 이 응답이
-            //   currentCardIndex 를 roomID 방으로 도로 끌고 간다(레이스). 실물 계약 확인 후
-            //   "현재 방이 아직 roomID 일 때만 인덱스 리셋"(또는 in-flight Task 취소)으로 정리한다.
-            state.currentCardIndex = start
-            announceDeckEndingIfNeeded(&state)   // 페이지가 얼마 안 실려 와 곧 덱이 끝날 수도 있다
-            return .none
-
         case .swipeForward:
             // 마지막 카드에서 한 번 더 넘기면 인덱스가 덱 밖(pins.count)으로 나간다.
-            let roomBeforeForward = state.currentRoom?.id
             if state.currentCardIndex < state.pins.count {
                 state.currentCardIndex += 1
             }
-            // 정책: 한 기준의 카드를 다 넘기면 다음 기준으로 자동 전환하고, 마지막 기준까지 소진하면
-            // 그때 소진 화면(002-3)을 띄운다. 데이터 유무와 무관하게 기준만 넘긴다(필터링은 서버 몫).
-            if state.isCurrentDeckExhausted, let next = state.selectedFilter.next {
-                return switchFilter(to: next, entering: .first, state: &state, fetchPins: fetchPins)
+            if state.isCurrentDeckExhausted {
+                return advanceAfterDeck(state: &state, fetchPins: fetchPins, lastViewedRoom: lastViewedRoom)
             }
-            // 정책: 남은 카드가 2장이 **되는 순간** 다음 기준 전환을 예고한다 (Figma 002-2-3 ②).
+            // 정책: 남은 카드가 2장이 **되는 순간** 다음 자리를 예고한다 (Figma 002-2-3 ②).
             // `<= 2` 가 아니라 `== 2` 인 이유: 3초 뒤 사라진 툴팁이 2→1 한 장 더 넘길 때 다시 뜨지 않게 한다.
             if state.remainingInCurrentDeck == 2 { announceDeckEndingIfNeeded(&state) }
-            return persistIfRoomChanged(from: roomBeforeForward, to: state, using: lastViewedRoom)
+            return .none
 
         case .swipeBackward:
-            let roomBeforeBackward = state.currentRoom?.id
             if state.currentCardIndex > 0 {
                 state.currentCardIndex -= 1
-                return persistIfRoomChanged(from: roomBeforeBackward, to: state, using: lastViewedRoom)
+                return .none
             }
-            // 정책: 첫 카드에서 뒤로 넘기면 이전 기준의 **마지막 카드**(마지막 방의 마지막 장소)로 돌아간다.
-            // 앞으로 자동 전환된 경로를 그대로 되짚는 이동이라, 첫 기준에서는 더 갈 곳이 없다.
-            guard let previous = state.selectedFilter.previous else { return .none }
-            return switchFilter(to: previous, entering: .last, state: &state, fetchPins: fetchPins)
+            // 첫 카드에서 뒤로 넘기면 이 방에서 직전에 보던 정렬의 **마지막 카드**로 돌아간다.
+            // 앞으로 자동 전환된 경로를 그대로 되짚는 이동이라, 방 경계는 넘지 않는다.
+            guard let previous = state.previousShownFilter else { return .none }
+            state.viewedFilters.remove(previous)   // 되돌아간 정렬은 다시 "보는 중"이 된다
+            return showDeck(
+                filter: previous, entering: .last,
+                state: &state, fetchPins: fetchPins, lastViewedRoom: lastViewedRoom
+            )
 
         case .tapCard:
             // TODO: 카드 탭 동작 미정(장소 상세 진입 등) — 팀 논의 후 Nav 를 추가한다.
             return .none
-
-        case .tapMorePlaces:
-            // 정책: "더 보기" 탭 → 현재 카드가 속한 방의 다음 페이지를 받아 그 방 구간만 교체하고 그 방 첫 카드로 이동.
-            // page 커서를 +1 해 UseCase 에 넘기고(mock 은 풀 회전, 실제는 이미 본 장소 뺀 다음 10개), 결과는
-            // morePlacesLoaded 로 되돌려 받아 splice 한다 — 데이터 합성은 Effect.run 안에서만(reduce 순수 유지).
-            // TODO: "더 보기" 소진(페이지 끝) 시 동작 미정 — 팀 논의 후 결정.
-            // FIXME(백엔드 연동): page 커서를 fetch 전에 올려서, 실패해도 전진한다(다음 성공이 한 페이지 건너뜀).
-            //   실 API 계약(page 번호 vs cursor 토큰, "다음 있음" 여부 응답) 확인 후 "성공 시에만 커서 확정"
-            //   (실패 시 .morePlacesFailed 로 롤백)으로 정리한다. 목은 throw 안 해 지금은 무해.
-            guard let room = state.currentRoom else { return .none }
-            let page = (state.roomPages[room.id] ?? 0) + 1
-            state.roomPages[room.id] = page
-            let filter = state.selectedFilter
-            return .run { send in
-                do {
-                    let pins = try await fetchPins.execute(room: room, page: page, filter: filter)
-                    send(.morePlacesLoaded(roomID: room.id, pins: pins))
-                } catch {
-                    // 더 보기 실패는 조용히 무시(기존 카드 유지). 에러 UI 정책 확정 시 처리 추가.
-                }
-            }
 
         case .showGuide:
             state.isGuidePresented = true
@@ -503,16 +553,11 @@ public func homeReducer(
             return .none
 
         case .selectRoom(let roomID):
-            // 정책: 방 클릭 시 해당 방으로 바로 적용 + 시트 닫기 + 변경 툴팁.
+            // 정책: 방 클릭 시 해당 방으로 바로 적용 + 시트 닫기 + 변경 툴팁(moveToRoom 이 함께 세운다).
             // 툴팁의 5초 표시 시간은 뷰(페이드 애니메이션과 함께)가 관리하고, 여기서는 상태만 세운다.
-            let roomBeforeSelect = state.currentRoom?.id
             state.isRoomListPresented = false
-            state.selectedRoomID = roomID   // 카드가 없어도(빈 방) 현재 방으로 반영되도록 명시 기록
-            if let start = state.pins.firstIndex(where: { $0.roomID == roomID }) {
-                state.currentCardIndex = start
-            }
-            state.changedRoomToastID = roomID   // 식별은 id 로 — 표시 이름은 뷰가 이 id 로 파생한다
-            return persistIfRoomChanged(from: roomBeforeSelect, to: state, using: lastViewedRoom)
+            guard let index = state.rooms.firstIndex(where: { $0.id == roomID }) else { return .none }
+            return moveToRoom(index: index, state: &state, fetchPins: fetchPins, lastViewedRoom: lastViewedRoom)
 
         case .dismissRoomToast(let roomID):
             // 이 타이머가 세운 그 방 툴팁일 때만(id 일치) 숨긴다. 5초가 도는 사이 방을 바꾸면

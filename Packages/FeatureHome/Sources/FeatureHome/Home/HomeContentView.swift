@@ -387,11 +387,11 @@ struct HomeContentView: View {
     /// 조작(방 선택)에 대한 응답이라 그쪽을 우선하고, 이 예고는 물러난다(주변 안내라 다음 기회가 있다).
     @ViewBuilder
     private var deckEndingTooltip: some View {
-        if store.state.changedRoomToastID == nil,
-           let filter = store.state.deckEndingToastFilter {
-            // 문구는 "다음에 갈 곳" — 다음 기준이 남아 있으면 그 칩 이름, 마지막 기준이면 다음 방이다
+        if store.state.changedRoomToastID == nil, store.state.deckEndingToastFilter != nil {
+            // 문구는 "다음에 갈 곳" — 이 방에 미확인 정렬이 남아 있으면 그 칩 이름, 없으면 다음 방이다
             // (Figma 002-2-3 세 장: 꾹 Pick→최신순 / 최신순→가까운순 / 가까운순→다음 방).
-            MHTooltip(filter.next.map { "곧 \($0.chipTitle)으로 이동해요!" } ?? "곧 다음 방으로 이동해요!",
+            MHTooltip(store.state.nextUnviewedFilter.map { "곧 \($0.chipTitle)으로 이동해요!" }
+                        ?? "곧 다음 방으로 이동해요!",
                       position: .left)
                 .fixedSize()
                 // Figma Tooltip 인스턴스: x=78, y=75.9, 165×36 →
