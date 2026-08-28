@@ -16,13 +16,6 @@ import SwiftUI
 /// 반면 **자식** flow(``RoomShareCreateRoomCoordinator``)는 시트가 직접 안다 — 커버를 시트 안에
 /// 붙여야 시트를 살려 둔 채 덮을 수 있기 때문이다(`MemberHomeView` 가 `editChild` 를 아는 것과 같다).
 struct RoomShareSheet: View {
-    /// `presentationDetents(.height(_:))` 에 넘길 값.
-    ///
-    /// 시안 시트 높이 500 은 홈 인디케이터(34)까지 포함한 값인데, iOS 의 `.height` 는 하단 안전영역
-    /// **위쪽** 높이라 그만큼 뺀다(시뮬레이터 실측: 500 을 주면 화면상 534 가 나온다).
-    /// 홈 인디케이터가 없는 기기에서는 시트가 34pt 짧아지지만 리스트가 그만큼 줄 뿐이라 무해하다.
-    static let detentHeight: CGFloat = 500 - 34
-
     let location: RoomDetailLocation
     let makeStore: @MainActor () -> RoomShareStore
     /// 공동방 만들기 자식 flow. **시트 안에서** 커버로 띄운다 — 시트를 닫고 띄우면
@@ -33,6 +26,8 @@ struct RoomShareSheet: View {
     let onClose: () -> Void
 
     @State private var store: RoomShareStore?
+    /// 시트 단계. 진입은 peek 이다(기획 011-1 ①).
+    @State private var detent: PresentationDetent = .height(RoomShareSheetMetrics.peekDetentHeight)
 
     var body: some View {
         VStack(spacing: 0) {
@@ -44,6 +39,19 @@ struct RoomShareSheet: View {
         }
         .background(.mhBackgroundElevatedNormal)
         .accessibilityIdentifier("RoomShare.sheet")
+        // 다른 presentation 설정과 달리 **여기** 붙는다(나머지는 띄우는 쪽 ``ArchiveShellView``) —
+        // full 높이가 방 개수로 갈리는데(676/708) 그 개수는 시트 안에서 만드는 `RoomShareStore` 만
+        // 안다. 껍데기에 두려면 껍데기가 Store 를 소유해야 하고, 그러면 "누가 띄웠는지 몰라도 되게"
+        // 하려고 `makeStore` 클로저를 받은 구조가 무너진다.
+        .presentationDetents(
+            [.height(RoomShareSheetMetrics.peekDetentHeight), .height(fullDetentHeight)],
+            selection: $detent
+        )
+        .onChange(of: fullDetentHeight) { old, new in
+            // 방을 만들고 돌아와 4→5 로 넘어가면 full 높이가 바뀐다. `PresentationDetent` 는 값으로
+            // 같고 다름을 가려 옛 높이를 든 selection 은 집합 밖이 되므로 새 값으로 옮겨 준다.
+            if detent == .height(old) { detent = .height(new) }
+        }
         .fullScreenCover(item: $createRoomChild) { child in
             // 저장 탭 헤더 "+" 와 같은 화면 — 건너뛰기 없음(showsSkip: false).
             RoomFormView(makeStore: child.makeRoomFormStore, showsSkip: false)
@@ -53,6 +61,12 @@ struct RoomShareSheet: View {
                     store?.send(.createRoomFinished(result))
                 }
         }
+    }
+
+    /// 로딩 중에는 방 개수를 모른다 — 0 으로 보고 있다가 목록이 오면 한 번 자란다(`SaveLinkView`
+    /// 와 같은 처리). 진입 단계가 peek 이라 사용자가 끌어올리기 전에는 이 값이 눈에 띄지 않는다.
+    private var fullDetentHeight: CGFloat {
+        RoomShareSheetMetrics.fullDetentHeight(roomCount: store?.state.rooms.count ?? 0)
     }
 
     /// 방 목록·공유 버튼은 Store 가 생긴 뒤에 그린다. 그래버·헤더(닫기)는 바깥에 둬서
@@ -291,5 +305,5 @@ private struct PreviewSavePin: SavePinToRoomsUseCase {
         createRoomChild: .constant(nil),
         onClose: {}
     )
-    .frame(height: RoomShareSheet.detentHeight)
+    .frame(height: RoomShareSheetMetrics.peekDetentHeight)
 }
