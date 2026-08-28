@@ -41,6 +41,7 @@ struct PlaceDetailCommentDeleteTests {
             reduce: placeDetailReducer(
                 useCase: QuietFetchPinDetail(),
                 fetchCurrentMember: CurrentMemberStub(outcome: currentMember),
+                fetchSavedRooms: StubFetchSavedRooms(),
                 pin: deletePin,
                 makeCommentID: { "c-new" }
             )

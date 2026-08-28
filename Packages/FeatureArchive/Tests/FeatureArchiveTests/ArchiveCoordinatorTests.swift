@@ -55,6 +55,7 @@ private struct StubArchiveDeps: ArchiveDeps {
     var fetchPinDetail: FetchPinDetailUseCase = StubFetchPinDetail()
     var createRoom: CreateRoomUseCase = StubCreateRoom()
     var fetchShareTargets: FetchShareTargetsUseCase = StubShareTargets()
+    var fetchSavedRooms: FetchSavedRoomsUseCase = StubFetchSavedRooms()
     var savePin: SavePinToRoomsUseCase = StubSavePin()
     var deletePin: DeletePinUseCase = StubDeletePin()
     var currentMember: CurrentMemberUseCase = StubCurrentMember()
@@ -70,6 +71,8 @@ private let fixtureRoom = Room(
     ownerId: "u1", createdAt: Date(timeIntervalSince1970: 0),
     pinCount: 3, memberCount: 2, users: []
 )
+
+private let savedRoomB = SavedRoomFixture.room("room-B", name: "가고싶은 카페", pinCount: 5)
 
 private let fixturePin = PinFixture.pin(
     id: PinID("p1"), roomID: fixtureRoom.id, category: .worthVisiting,
@@ -295,6 +298,47 @@ struct ArchiveCoordinatorTests {
 
         await waitUntil { coordinator.path.isEmpty }
         #expect(coordinator.path.isEmpty)
+    }
+
+    // MARK: - 저장된 방 (005-1 ⑮ → 014)
+
+    @Test("openSavedRooms 는 받은 목록을 그대로 시트 항목으로 올린다")
+    func openSavedRooms() {
+        let coordinator = makeCoordinator()
+        let presentation = SavedRoomsPresentation(id: "p1", rooms: [savedRoomB])
+
+        coordinator.handle(PlaceDetailNav.openSavedRooms(presentation))
+
+        #expect(coordinator.savedRooms == presentation)
+    }
+
+    @Test("방 카드를 고르면 시트를 닫고 그 방으로 갈아끼운다 — 보던 장소는 그대로다")
+    func selectSavedRoom_switchesRoomKeepingPlace() {
+        let coordinator = makeCoordinator()
+        coordinator.handle(.openRoomDetail(fixtureRoom))
+        coordinator.handle(RoomDetailNav.openPlaceDetail(fixturePin))
+        coordinator.handle(
+            PlaceDetailNav.openSavedRooms(SavedRoomsPresentation(id: "p1", rooms: [savedRoomB]))
+        )
+
+        coordinator.selectSavedRoom(savedRoomB.id)
+
+        #expect(coordinator.savedRooms == nil)
+        #expect(coordinator.selectedRoom == savedRoomB)
+        #expect(coordinator.selectedPin == fixturePin)   // 장소 상세는 닫히지 않는다
+    }
+
+    @Test("목록에 없는 방 id 는 무시한다 — 시트도 방도 그대로")
+    func selectSavedRoom_ignoresUnknownID() {
+        let coordinator = makeCoordinator()
+        coordinator.handle(.openRoomDetail(fixtureRoom))
+        let presentation = SavedRoomsPresentation(id: "p1", rooms: [savedRoomB])
+        coordinator.handle(PlaceDetailNav.openSavedRooms(presentation))
+
+        coordinator.selectSavedRoom("room-없음")
+
+        #expect(coordinator.savedRooms == presentation)
+        #expect(coordinator.selectedRoom == fixtureRoom)
     }
 }
 

@@ -57,6 +57,7 @@ struct PlaceDetailReducerTests {
             reduce: placeDetailReducer(
                 useCase: StubFetchPinDetail(outcome: source),
                 fetchCurrentMember: StubCurrentMember(profile: fixtureAuthor),
+                fetchSavedRooms: StubFetchSavedRooms(),
                 pin: fixturePin,
                 makeCommentID: { remaining.removeFirst() }
             )

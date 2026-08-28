@@ -68,6 +68,9 @@ struct PlaceDetailView: View {
         .task(id: ObjectIdentifier(store)) {
             store.send(.load)
             store.send(.loadCurrentMember)
+            // 저장된 방은 지도 위 버튼(005-1 ⑮)이 쓰는 값이지만 같은 Store 라 여기서 함께 부른다 —
+            // 버튼은 시트 밖(껍데기)에 있어 스스로 진입 시점을 잡을 자리가 없다.
+            store.send(.loadSavedRooms)
         }
     }
 
