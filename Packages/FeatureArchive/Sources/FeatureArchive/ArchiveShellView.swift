@@ -142,10 +142,15 @@ struct ArchiveShellView: View {
                 Spacer()
                 MHSnackbar(title: toastMessage, icon: .checkThick)
                     .padding(.horizontal, 20)
-                    // 011-2: "스크린 하단에서 40px". 홈 인디케이터 위(safe area 기준)로 잰다 —
-                    // 인디케이터 아래로 내리면 스낵바가 그 위에 겹쳐 읽힌다.
+                    // 011-2 스펙(node 2400:270035): "표출 위치는 스크린 하단에서 40px을 띄워 표시한다".
+                    // 말 그대로 **스크린 바닥** 기준이라 아래 `ignoresSafeArea` 로 컨테이너 인셋을
+                    // 벗어나 잰다 — 안 벗어나면 홈 인디케이터 34 가 더해져 74 가 된다.
+                    // 홈 인디케이터와 겹치지도 않는다: 스낵바 48(`MHSnackbar` 단일 라인)이라
+                    // 아래끝 40 · 위끝 88 인데, 인디케이터 영역은 바닥에서 34 까지다.
                     .padding(.bottom, 40)
             }
+            // 익스텐션의 같은 스낵바(`SaveLinkView.snackbar`)도 화면 바닥에서 40 이다.
+            .ignoresSafeArea(.container, edges: .bottom)
             .allowsHitTesting(false)
             .transition(.opacity)
             .task(id: toastToken) {
