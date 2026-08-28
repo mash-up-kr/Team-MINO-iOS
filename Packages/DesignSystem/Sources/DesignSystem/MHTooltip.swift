@@ -51,6 +51,18 @@ public struct MHTooltip: View {
     private var m: Metric { Metric(size) }
 
     public var body: some View {
+        if let maxWidth {
+            // `maxWidth` 는 **폭 상한이자 제안 상한**이다. 말풍선 자신에게 `frame(maxWidth:)` 를 걸면
+            // 짧은 문구도 상한만큼 늘어나므로(frame 은 제안된 폭까지 채운다), 바깥에서 제안만 좁히고
+            // 말풍선은 그대로 hug 시킨다 — 넘칠 때만 그 폭에서 줄바꿈된다.
+            // 남는 자리는 투명하고, 화살표가 붙는 변으로 정렬해 앵커 쪽 가장자리는 제자리에 남는다.
+            content.frame(maxWidth: maxWidth, alignment: hugAlignment)
+        } else {
+            content
+        }
+    }
+
+    private var content: some View {
         bubble
             .padding(arrowEdge, m.arrowH)                       // 화살표 자리 확보
             .overlay(alignment: overlayAlignment) { arrowView }
@@ -73,9 +85,7 @@ public struct MHTooltip: View {
         .frame(minHeight: m.lineHeight)                        // SUITE intrinsic < Figma 라인박스 → 고정(칩·버튼과 동일)
         .padding(.horizontal, m.hPad)
         .padding(.vertical, m.vPad)
-        // maxWidth 는 **툴팁 전체**(화살표 포함) 기준으로 받는다 — 시안에서 재는 값이 그것이라
-        // 화살표가 붙는 변만큼 빼서 말풍선에 건다. 안 주면(nil) 지금까지처럼 무제한 hug.
-        .frame(minWidth: m.minWidth, maxWidth: bubbleMaxWidth, alignment: .leading)
+        .frame(minWidth: m.minWidth, alignment: .leading)
         .background(fillBackground)
         .clipShape(RoundedRectangle(cornerRadius: m.radius))
     }
@@ -125,10 +135,14 @@ public struct MHTooltip: View {
             .padding(horizontal ? .vertical : .horizontal, m.arrowInset)
     }
 
-    // 말풍선 자체의 최대 폭 — 전체 폭에서 화살표가 차지하는 변(좌/우일 때만 가로)을 뺀다.
-    private var bubbleMaxWidth: CGFloat? {
-        guard let maxWidth else { return nil }
-        return position == .left || position == .right ? maxWidth - m.arrowH : maxWidth
+    // hug 한 말풍선이 상한 폭 안에서 어느 쪽에 붙을지 — 화살표(앵커를 가리키는 변) 쪽에 붙인다.
+    // 그래야 호출부가 앵커 기준으로 잡아 둔 가장자리가 문구 길이와 무관하게 고정된다.
+    private var hugAlignment: Alignment {
+        switch position {
+        case .left:  return .trailing
+        case .right: return .leading
+        case .top, .bottom: return .center
+        }
     }
 
     // 화살표가 놓이는 변(패딩 방향).
