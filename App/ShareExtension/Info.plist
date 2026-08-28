@@ -20,6 +20,10 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<!-- 앱 본체(`App/Info.plist`)와 같은 선언 — 근거도 거기에 적었다. Apple 문서는 "앱의
+	     Info.plist" 만 말하지만 익스텐션도 같은 .ipa 안 번들이고 사실관계가 같아 함께 둔다. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSExtension</key>
 	<dict>
 		<key>NSExtensionAttributes</key>
