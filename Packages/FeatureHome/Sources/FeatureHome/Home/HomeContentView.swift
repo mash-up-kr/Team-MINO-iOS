@@ -240,10 +240,13 @@ struct HomeContentView: View {
                     .accessibilityIdentifier("Home.emptyState.logo")
             }
 
+            // 2줄이라 행간까지 붙는 쪽을 쓴다 — Figma 타이틀 블록 60(= 2줄 × 라인박스 30).
+            // `.mhTypography` + `.lineSpacing(8)` 이던 시절엔 63 이라 아래 필터·카드덱이 3pt 밀려 있었다.
             Text("꾹 눌러둔 장소,\n다시 꺼내볼까요?")
-                .mhTypography(.heading1Bold)
+                .mhTypographyMultiline(.heading1Bold)
                 .foregroundStyle(.mhLabelNormal)
-                .lineSpacing(8)
+                // 가이드의 스포트라이트 대상은 방 뱃지뿐이라 타이틀만 딤 뒤로 물러난다.
+                .homeGuideDimmed(store.state.isGuidePresented)
                 .accessibilityIdentifier("Home.title")
         }
     }
@@ -252,12 +255,15 @@ struct HomeContentView: View {
 
     /// 칩 순서는 `PinFilter.allCases` 순서와 1:1 이다 — 표기(한글 라벨)만 Feature 가 매핑한다.
     private var filterBar: some View {
+        // 시안 `Category/Category` 인스턴스는 335×40 = 칩 높이 40 → size 는 xLarge.
+        // 기본값(medium=32)이던 시절엔 필터바가 8pt 낮아 아래 카드덱이 그만큼 올라와 있었다.
         MHCategory(
             PinFilter.allCases.map(\.chipTitle),
             selection: Binding(
                 get: { PinFilter.allCases.firstIndex(of: store.state.selectedFilter) ?? 0 },
                 set: { store.send(.selectFilter(PinFilter.allCases[$0])) }
-            )
+            ),
+            size: .xLarge
         )
         .homeGuideDimmed(store.state.isGuidePresented)
         .accessibilityIdentifier("Home.filterBar")

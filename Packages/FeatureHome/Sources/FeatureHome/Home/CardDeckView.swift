@@ -56,10 +56,15 @@ struct CardDeckView: View {
                 let isTop = stackIndex == visibleCards.count - 1
                 let depth = visibleCards.count - 1 - stackIndex
                 let effectiveDepth = CardDeckLayout.effectiveDepth(depth: depth, isTop: isTop, shiftProgress: shiftProgress, returnProgress: returnProgress)
-                let cardWidth = CardDeckLayout.cardWidth(containerWidth: containerWidth, effectiveDepth: effectiveDepth)
+                let cardScale = CardDeckLayout.cardScale(containerWidth: containerWidth, effectiveDepth: effectiveDepth)
 
                 cardView(pin: pin)
-                    .frame(width: cardWidth)
+                    // 뒤 카드는 좁힌 게 아니라 **비율 그대로 줄인 사본**이다(시안) — 모든 카드를 같은
+                    // 기준 폭으로 레이아웃한 뒤 축소한다. 폭만 좁히면 높이가 비례해 줄지 않아
+                    // 겹침 간격이 20 보다 좁아지고, 뒤 카드 안에서 글자가 다시 줄바꿈된다.
+                    // 상단 앵커라 레이아웃 높이(= 앞 카드 높이)는 그대로 두고 위 여백만 20씩 벌어진다.
+                    .frame(width: baseCardWidth)
+                    .scaleEffect(cardScale, anchor: .top)
                     .offset(y: effectiveDepth * -CardDeckLayout.depthStep)
                     .opacity(CardDeckLayout.interpolatedOpacity(depth: depth, isTop: isTop, shiftProgress: shiftProgress) * CardDeckLayout.depthFade(effectiveDepth))
                     .zIndex(Double(stackIndex))
