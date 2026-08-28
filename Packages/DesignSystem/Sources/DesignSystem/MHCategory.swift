@@ -41,7 +41,15 @@ public struct MHCategory<Trailing: View>: View {
     private let verticalPadding: Bool
     private let trailing: Trailing
 
-    private let chipGap: CGFloat = 6           // Figma Wrapper gap
+    // 칩 사이 간격(Figma Wrapper gap)은 사이즈마다 다르다 — 실측: Medium 6, XLarge 10
+    // (XLarge 는 홈 필터바 `Category/Category` 인스턴스, 칩 73·67·80 이 x=0·83·160 에 놓인다).
+    // Small·Large 는 아직 그 사이즈 시안을 만나지 못해 가까운 쪽을 따른다 — 만나면 실측해 고친다.
+    private var chipGap: CGFloat {
+        switch size {
+        case .small, .medium: return 6
+        case .large, .xLarge: return 10
+        }
+    }
     private let sidePadding: CGFloat = 20      // Figma horizontalPadding=True (Leading px-20)
     private let vSpace: CGFloat = 8            // Figma verticalPadding=True (Space h-8)
     private let trailingGap: CGFloat = 20      // Figma Content gap-20 (칩↔아이콘버튼)
