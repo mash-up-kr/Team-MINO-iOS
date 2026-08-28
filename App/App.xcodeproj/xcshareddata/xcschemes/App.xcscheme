@@ -112,6 +112,16 @@
             skipped = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
+               BlueprintIdentifier = "SavePostUITests"
+               BuildableName = "SavePostUITests"
+               BlueprintName = "SavePostUITests"
+               ReferencedContainer = "container:../Packages/SavePostUI">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
                BlueprintIdentifier = "DomainTests"
                BuildableName = "DomainTests"
                BlueprintName = "DomainTests"
