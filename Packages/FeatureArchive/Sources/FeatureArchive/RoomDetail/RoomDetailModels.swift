@@ -104,6 +104,22 @@ enum RoomDetailMenuItemID: String, CaseIterable {
     }
 }
 
+/// 방 상세 헤더 케밥(점 세 개) 메뉴의 항목. 시안 `004-5 방 더보기 버튼 클릭시`.
+///
+/// 004-1 ② 2-2 — "클릭 시 방 편집 (방장 시에만) / 방 나가기 드롭다운". **방장이 아니면 "방 편집" 은
+/// 비활성이 아니라 아예 없다** — 목록 구성은 ``RoomDetailMenuCatalog/moreItemIDs(isOwner:)`` 가 정한다.
+enum RoomDetailMoreMenuItemID: String, CaseIterable {
+    case editRoom
+    case leaveRoom
+
+    var title: String {
+        switch self {
+        case .editRoom: "방 편집"
+        case .leaveRoom: "방 나가기"
+        }
+    }
+}
+
 /// 헤더 아래 카테고리 칩 목록.
 ///
 /// 시안 004-1 ⑨ — "인스타에서 가져 온 저장 값에서 추가되는 형식(전시회 관련된 것을 저장 →
