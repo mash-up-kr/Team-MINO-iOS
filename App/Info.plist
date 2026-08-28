@@ -27,6 +27,12 @@
 	<false/>
 	<key>GMSApiKey</key>
 	<string>$(GOOGLE_MAPS_API_KEY)</string>
+	<!-- 이 앱은 HTTPS(TLS) 표준 암호화만 쓰고 자체 암호화는 넣지 않았다 — 수출 규정 면제 대상이다.
+	     이 키가 없으면 App Store Connect 가 업로드마다 수출 규정 질문을 걸고, 답하기 전까지
+	     빌드를 테스터에게 풀어주지 않아 TestFlight 에 "사용할 수 있는 빌드 없음" 으로 뜬다.
+	     자체 암호화(독자 알고리즘·비표준 키 교환 등)를 넣게 되면 이 값을 다시 판단해야 한다. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<!-- 마이페이지 '위치 설정' 스위치가 위치 권한을 요청한다(FR-008). 이 문구가 없으면
 	     requestWhenInUseAuthorization 이 조용히 무시돼 팝업 자체가 뜨지 않는다. -->
 	<key>NSLocationWhenInUseUsageDescription</key>
