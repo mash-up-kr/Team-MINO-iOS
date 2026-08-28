@@ -3,19 +3,21 @@ import Domain
 import SwiftUI
 
 struct PlaceDetailCommentSection: View {
-    let comments: [PlaceDetailComment]
+    let comments: [PinComment]
+    /// 아직 불러오는 중인가. 빈 상태를 잠깐 띄우지 않기 위해 받는다.
+    let isLoading: Bool
     /// 삭제 메뉴가 열려 있는 코멘트. 목록 전체에서 하나만 열린다 — 각 코멘트가 자기 상태를 들면
     /// 여러 개가 동시에 열린다(``MHComment`` 문서 권고).
-    let menuCommentID: PlaceDetailComment.ID?
+    let menuCommentID: PinCommentID?
     /// ⑭ 이 코멘트에 삭제 케밥을 붙일지. 내 코멘트일 때만 true 다.
-    let canDelete: (PlaceDetailComment) -> Bool
+    let canDelete: (PinComment) -> Bool
     @Binding var draft: String
-    /// 등록 가능한가. 내 신원을 모르면 작성자를 실을 수 없어 잠긴다.
+    /// 등록 가능한가. 내 신원을 모르거나 보낸 요청이 아직 안 돌아왔으면 잠긴다.
     let canSubmit: Bool
     /// 메뉴 여닫기. nil 이면 닫기.
-    let onToggleMenu: (PlaceDetailComment.ID?) -> Void
+    let onToggleMenu: (PinCommentID?) -> Void
     /// 삭제 **요청**. 실제 삭제는 확인 다이얼로그를 거친 뒤라 이 자리에서 일어나지 않는다(⑭).
-    let onRequestDelete: (PlaceDetailComment.ID) -> Void
+    let onRequestDelete: (PinCommentID) -> Void
     let onSubmit: () -> Void
 
     private var trimmedDraft: String {
@@ -29,10 +31,12 @@ struct PlaceDetailCommentSection: View {
                     .mhTypography(.headline1Bold)
                     .foregroundStyle(.mhLabelNormal)
 
-                if comments.isEmpty {
-                    emptyState
-                } else {
+                if !comments.isEmpty {
                     commentList
+                } else if !isLoading {
+                    // 불러오는 동안에는 "아직 코멘트가 없어요" 를 띄우지 않는다 — 곧 채워질
+                    // 자리에 빈 상태가 스치면 거짓말이 된다.
+                    emptyState
                 }
 
                 input
@@ -62,7 +66,7 @@ struct PlaceDetailCommentSection: View {
         .accessibilityIdentifier("PlaceDetail.commentList")
     }
 
-    private func commentRow(_ comment: PlaceDetailComment) -> some View {
+    private func commentRow(_ comment: PinComment) -> some View {
         MHComment(
             avatar: nil,
             name: comment.author.nickname,
@@ -74,7 +78,7 @@ struct PlaceDetailCommentSection: View {
             ),
             moreButtonLabel: "내 코멘트 더보기"
         )
-        .accessibilityIdentifier("PlaceDetail.comment.\(comment.id)")
+        .accessibilityIdentifier("PlaceDetail.comment.\(comment.id.value)")
     }
 
     private var emptyState: some View {
@@ -100,7 +104,7 @@ struct PlaceDetailCommentSection: View {
             text: $draft,
             identifier: "PlaceDetail.commentInput",
             bottomLeading: {
-                MHCharacterCounter(count: draft.count, limit: PlaceDetailComment.bodyLimit)
+                MHCharacterCounter(count: draft.count, limit: PinComment.bodyLimit)
             }
         )
     }
@@ -120,6 +124,7 @@ struct PlaceDetailCommentSection: View {
         var body: some View {
             PlaceDetailCommentSection(
                 comments: [],
+                isLoading: false,
                 menuCommentID: nil,
                 canDelete: { _ in false },
                 draft: $draft,
@@ -136,14 +141,15 @@ struct PlaceDetailCommentSection: View {
 #Preview("코멘트 있음 — 내 것에만 케밥") {
     struct Host: View {
         @State private var draft = ""
-        @State private var comments = PlaceDetailComment.samples
-        @State private var menuCommentID: PlaceDetailComment.ID?
+        @State private var comments = PinComment.placeDetailSamples
+        @State private var menuCommentID: PinCommentID?
         private let me = MemberID("user-0001")
 
         var body: some View {
             ScrollView {
                 PlaceDetailCommentSection(
                     comments: comments,
+                    isLoading: false,
                     menuCommentID: menuCommentID,
                     canDelete: { $0.isWritten(by: me) },
                     draft: $draft,

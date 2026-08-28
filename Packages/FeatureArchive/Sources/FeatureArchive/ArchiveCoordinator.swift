@@ -89,6 +89,9 @@ public final class ArchiveCoordinator: Coordinator {
                 useCase: deps.fetchPinDetail,
                 fetchCurrentMember: deps.currentMember,
                 fetchSavedRooms: deps.fetchSavedRooms,
+                fetchComments: deps.fetchComments,
+                postComment: deps.postComment,
+                deleteComment: deps.deleteComment,
                 pin: pin
             ),
             handle: { [weak self] in self?.handle($0) }

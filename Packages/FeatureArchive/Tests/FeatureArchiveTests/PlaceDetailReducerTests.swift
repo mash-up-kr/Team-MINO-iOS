@@ -49,17 +49,16 @@ struct PlaceDetailReducerTests {
     private func makeStore(
         source: StubFetchPinDetail.Outcome = .source(fixtureSourceURL)
     ) -> TestStore<PlaceDetailState, PlaceDetailAction, PlaceDetailNav> {
-        var remaining = ["c1", "c2", "c3"]
-        return TestStore(
-            // 코멘트 등록은 신원이 있어야 하므로 처음부터 채워 둔다 — 신원 조회 자체는
-            // `PlaceDetailCommentDeleteTests` 가 본다.
+        TestStore(
             PlaceDetailState(place: PlaceDetailPlace(from: fixturePin), currentMember: fixtureAuthor),
             reduce: placeDetailReducer(
                 useCase: StubFetchPinDetail(outcome: source),
                 fetchCurrentMember: StubCurrentMember(profile: fixtureAuthor),
                 fetchSavedRooms: StubFetchSavedRooms(),
-                pin: fixturePin,
-                makeCommentID: { remaining.removeFirst() }
+                fetchComments: StubFetchPinComments(),
+                postComment: StubPostPinComment(outcome: .failure(.unknown)),
+                deleteComment: StubDeletePinComment(),
+                pin: fixturePin
             )
         )
     }
@@ -105,35 +104,6 @@ struct PlaceDetailReducerTests {
         let store = makeStore(source: .cancelled)
         await store.send(.load) { $0.isLoadingSource = true }
         await store.send(.load)
-        store.finish()
-    }
-
-    @Test("L1 — submitComment 는 내 코멘트를 목록 끝에 붙인다")
-    func submitComment() async {
-        let store = makeStore()
-        await store.send(.submitComment("좋았어요")) {
-            $0.comments = [PlaceDetailComment(id: "c1", author: fixtureAuthor, body: "좋았어요")]
-        }
-        store.finish()
-    }
-
-    @Test("L1 — 앞뒤 공백은 잘라내고, 공백뿐이면 아무것도 추가하지 않는다")
-    func submitComment_trimsAndIgnoresBlank() async {
-        let store = makeStore()
-        await store.send(.submitComment("  좋았어요  ")) {
-            $0.comments = [PlaceDetailComment(id: "c1", author: fixtureAuthor, body: "좋았어요")]
-        }
-        await store.send(.submitComment("   "))
-        store.finish()
-    }
-
-    @Test("L1 — 200자를 넘는 코멘트는 잘라 저장한다")
-    func submitComment_clampsToLimit() async {
-        let store = makeStore()
-        let clamped = String(repeating: "가", count: PlaceDetailComment.bodyLimit)
-        await store.send(.submitComment(String(repeating: "가", count: 250))) {
-            $0.comments = [PlaceDetailComment(id: "c1", author: fixtureAuthor, body: clamped)]
-        }
         store.finish()
     }
 

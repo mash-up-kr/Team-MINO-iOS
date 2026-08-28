@@ -40,6 +40,9 @@ struct PlaceDetailSavedRoomsTests {
                 useCase: QuietFetchPinDetail(),
                 fetchCurrentMember: QuietCurrentMember(),
                 fetchSavedRooms: StubFetchSavedRooms(outcome: savedRooms),
+                fetchComments: StubFetchPinComments(),
+                postComment: StubPostPinComment(outcome: .failure(.unknown)),
+                deleteComment: StubDeletePinComment(),
                 pin: savedPin
             )
         )
