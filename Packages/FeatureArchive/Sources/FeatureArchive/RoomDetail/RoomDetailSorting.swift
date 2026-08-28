@@ -4,7 +4,13 @@ import Foundation
 enum RoomDetailSorting {
     private static let topRatio = 0.3
 
-    static func apply(_ sort: RoomDetailSort, to pins: [Pin], now: Date) -> [Pin] {
+    /// - Parameter origin: 거리순의 기준점(내 위치). 다른 정렬은 쓰지 않는다.
+    static func apply(
+        _ sort: RoomDetailSort,
+        to pins: [Pin],
+        now: Date,
+        from origin: Coordinate? = nil
+    ) -> [Pin] {
         switch sort {
         case .all:
             return pins
@@ -27,8 +33,13 @@ enum RoomDetailSorting {
             )
 
         case .distance:
-            // 내 위치가 있어야 잴 수 있다(3km 반경). 위치 권한이 붙기 전까지는 원본 순서.
-            return pins
+            // 시안 004-1 ⑥ — "거리순 - 내 기준 3km반경 내에 있는 게시물 노출".
+            // 반경과 거리 계산은 비즈니스 규칙이라 `Domain.NearbyPins` 가 갖는다.
+            //
+            // 기준점이 없으면 원본 그대로다. reduce 는 좌표를 얻은 뒤에만 `sort` 를 `.distance` 로
+            // 세우므로 실제로는 여기 닿지 않는다 — 전체 함수로 남겨 두기 위한 갈래다.
+            guard let origin else { return pins }
+            return NearbyPins.sortedByDistance(pins, from: origin)
         }
     }
 

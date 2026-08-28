@@ -49,6 +49,12 @@ private struct StubCurrentMember: CurrentMemberUseCase {
     }
 }
 
+private struct StubCurrentLocation: CurrentLocationUseCase {
+    func execute() async -> CurrentLocationResult {
+        .coordinate(Coordinate(latitude: 37.5443, longitude: 127.0557))
+    }
+}
+
 private struct StubArchiveDeps: ArchiveDeps {
     var fetchRooms: FetchRoomsUseCase = StubFetchRooms()
     var fetchPins: FetchPinsUseCase = StubFetchPins()
@@ -59,6 +65,7 @@ private struct StubArchiveDeps: ArchiveDeps {
     var savePin: SavePinToRoomsUseCase = StubSavePin()
     var deletePin: DeletePinUseCase = StubDeletePin()
     var currentMember: CurrentMemberUseCase = StubCurrentMember()
+    var currentLocation: CurrentLocationUseCase = StubCurrentLocation()
     var roomCreationPromptSnooze = SnoozeSwitch(
         key: "ArchiveCoordinatorTests.prompt",
         period: .days(14),
