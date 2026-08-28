@@ -51,4 +51,57 @@ final class MHBottomSheetLayoutTests: XCTestCase {
         XCTAssertEqual(twoStep.clampedHeight(1000), 800)
         XCTAssertEqual(twoStep.clampedHeight(500), 500)
     }
+
+    // MARK: - peek → fraction
+
+    /// 덮는 크롬이 없으면 peek 이 그대로 노출 높이가 된다.
+    func testFractionWithoutCoverageExposesPeek() {
+        let fraction = MHBottomSheetLayout.fraction(
+            peek: 88, bottomCoverage: 0, containerHeight: 800, minimum: 0.05, maximum: 0.99
+        )
+        XCTAssertEqual(800 * fraction, 88, accuracy: 0.001)
+    }
+
+    /// 탭바가 덮는 만큼을 더해야 peek 이 **탭바 위로** 노출된다.
+    /// 402×874 기기 실측: 컨테이너 778, 탭바 52 → 시트 140 이라야 탭바 위 88 이 보인다.
+    func testFractionAddsBottomCoverage() {
+        let fraction = MHBottomSheetLayout.fraction(
+            peek: 88, bottomCoverage: 52, containerHeight: 778, minimum: 0.05, maximum: 0.99
+        )
+        XCTAssertEqual(778 * fraction, 140, accuracy: 0.001)
+    }
+
+    /// 하단 safe-area 는 섞이지 않는다 — 기기 인셋이 달라도 노출 높이는 같다.
+    func testFractionIsIndependentOfContainerHeight() {
+        let tall = MHBottomSheetLayout.fraction(
+            peek: 256, bottomCoverage: 52, containerHeight: 778, minimum: 0.1, maximum: 0.99
+        )
+        let short = MHBottomSheetLayout.fraction(
+            peek: 256, bottomCoverage: 52, containerHeight: 600, minimum: 0.1, maximum: 0.99
+        )
+        XCTAssertEqual(778 * tall, 308, accuracy: 0.001)
+        XCTAssertEqual(600 * short, 308, accuracy: 0.001)
+    }
+
+    func testFractionClampsToMaximum() {
+        let fraction = MHBottomSheetLayout.fraction(
+            peek: 900, bottomCoverage: 52, containerHeight: 800, minimum: 0.1, maximum: 0.99
+        )
+        XCTAssertEqual(fraction, 0.99, accuracy: 0.0001)
+    }
+
+    /// 상한이 하한보다 낮은 비정상 입력에서는 하한이 이긴다(low 상한 = medium − 0.01).
+    func testFractionLowerBoundWinsOverInvertedRange() {
+        let fraction = MHBottomSheetLayout.fraction(
+            peek: 1, bottomCoverage: 0, containerHeight: 800, minimum: 0.05, maximum: 0.02
+        )
+        XCTAssertEqual(fraction, 0.05, accuracy: 0.0001)
+    }
+
+    func testFractionFallsBackWhenContainerIsEmpty() {
+        let fraction = MHBottomSheetLayout.fraction(
+            peek: 88, bottomCoverage: 52, containerHeight: 0, minimum: 0.05, maximum: 0.99
+        )
+        XCTAssertEqual(fraction, 0.05, accuracy: 0.0001)
+    }
 }
