@@ -108,8 +108,8 @@ struct PlaceDetailCommentDeleteTests {
 
     // MARK: - 삭제 흐름
 
-    @Test("L2 — 케밥을 눌러 연 메뉴에서 삭제하면 목록에서 사라진다")
-    func deleteComment_removesMine() async {
+    @Test("L2 — 케밥에서 삭제를 골라도 확인 모달을 거치기 전에는 지워지지 않는다")
+    func tapDeleteComment_asksBeforeRemoving() async {
         let store = makeStore(comments: [Self.mine, Self.theirs])
         await store.send(.loadCurrentMember) { $0.isLoadingCurrentMember = true }
         await store.receive(.currentMemberLoaded(Self.me)) {
@@ -117,10 +117,61 @@ struct PlaceDetailCommentDeleteTests {
             $0.isLoadingCurrentMember = false
         }
         await store.send(.tapCommentMenu("c-mine")) { $0.menuCommentID = "c-mine" }
-        await store.send(.deleteComment("c-mine")) {
+        // 메뉴는 닫히고 모달이 뜬다
+        await store.send(.tapDeleteComment("c-mine")) {
             $0.menuCommentID = nil
+            $0.commentDeletion = PlaceDetailCommentDeletion(commentID: "c-mine")
+        }
+        #expect(store.currentState.comments == [Self.mine, Self.theirs])   // 아직 그대로다
+        store.finish()
+    }
+
+    @Test("L2 — 확인 모달에서 삭제를 누르면 목록에서 사라진다")
+    func confirmDeleteComment_removesMine() async {
+        let store = makeStore(comments: [Self.mine, Self.theirs])
+        await store.send(.loadCurrentMember) { $0.isLoadingCurrentMember = true }
+        await store.receive(.currentMemberLoaded(Self.me)) {
+            $0.currentMember = Self.me
+            $0.isLoadingCurrentMember = false
+        }
+        await store.send(.tapCommentMenu("c-mine")) { $0.menuCommentID = "c-mine" }
+        await store.send(.tapDeleteComment("c-mine")) {
+            $0.menuCommentID = nil
+            $0.commentDeletion = PlaceDetailCommentDeletion(commentID: "c-mine")
+        }
+        await store.send(.confirmDeleteComment) {
+            $0.commentDeletion = nil
             $0.comments = [Self.theirs]
         }
+        store.finish()
+    }
+
+    @Test("L2 — 확인 모달에서 취소하면 코멘트가 남는다")
+    func cancelDeleteComment_keepsComment() async {
+        let store = makeStore(comments: [Self.mine, Self.theirs])
+        await store.send(.loadCurrentMember) { $0.isLoadingCurrentMember = true }
+        await store.receive(.currentMemberLoaded(Self.me)) {
+            $0.currentMember = Self.me
+            $0.isLoadingCurrentMember = false
+        }
+        await store.send(.tapDeleteComment("c-mine")) {
+            $0.commentDeletion = PlaceDetailCommentDeletion(commentID: "c-mine")
+        }
+        await store.send(.cancelDeleteComment) { $0.commentDeletion = nil }
+        #expect(store.currentState.comments == [Self.mine, Self.theirs])
+        store.finish()
+    }
+
+    @Test("L1 — 모달이 떠 있지 않은데 확인이 들어오면 아무 것도 지우지 않는다")
+    func confirmDeleteComment_withoutDialog_isNoop() async {
+        let store = makeStore(comments: [Self.mine, Self.theirs])
+        await store.send(.loadCurrentMember) { $0.isLoadingCurrentMember = true }
+        await store.receive(.currentMemberLoaded(Self.me)) {
+            $0.currentMember = Self.me
+            $0.isLoadingCurrentMember = false
+        }
+        await store.send(.confirmDeleteComment)
+        #expect(store.currentState.comments == [Self.mine, Self.theirs])
         store.finish()
     }
 
@@ -146,9 +197,10 @@ struct PlaceDetailCommentDeleteTests {
             $0.currentMember = Self.me
             $0.isLoadingCurrentMember = false
         }
-        await store.send(.tapCommentMenu("c-friend"))    // 열리지 않는다
-        await store.send(.deleteComment("c-friend"))     // 지워지지 않는다
+        await store.send(.tapCommentMenu("c-friend"))       // 열리지 않는다
+        await store.send(.tapDeleteComment("c-friend"))     // 모달도 뜨지 않는다
         #expect(store.currentState.menuCommentID == nil)
+        #expect(store.currentState.commentDeletion == nil)
         #expect(store.currentState.comments == [Self.mine, Self.theirs])
         store.finish()
     }
@@ -157,7 +209,9 @@ struct PlaceDetailCommentDeleteTests {
     func deleteComment_blockedWhenViewerUnknown() async {
         let store = makeStore(comments: [Self.mine])
         await store.send(.tapCommentMenu("c-mine"))
-        await store.send(.deleteComment("c-mine"))
+        await store.send(.tapDeleteComment("c-mine"))
+        #expect(store.currentState.commentDeletion == nil)
+        await store.send(.confirmDeleteComment)
         #expect(store.currentState.comments == [Self.mine])
         store.finish()
     }

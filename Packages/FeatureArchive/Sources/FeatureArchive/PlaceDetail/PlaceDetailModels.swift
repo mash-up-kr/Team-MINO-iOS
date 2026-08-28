@@ -44,6 +44,16 @@ extension PlaceDetailComment {
     }
 }
 
+/// ⑭ 코멘트 삭제 확인 다이얼로그가 겨냥한 코멘트. nil 이면 다이얼로그가 닫혀 있다.
+///
+/// 열림 여부를 Bool 로 두지 않는다 — "열렸다" 와 "무엇을 지운다" 가 갈라지면 확인을 누른 순간
+/// 엉뚱한 줄이 사라진다. 방 상세의 장소 삭제(``RoomDetailDeletion``)와 같은 모양이다.
+struct PlaceDetailCommentDeletion: Equatable, Identifiable {
+    let commentID: PlaceDetailComment.ID
+
+    var id: PlaceDetailComment.ID { commentID }
+}
+
 extension PlaceDetailPlace {
     static let sample = PlaceDetailPlace(
         name: "레이어스튜디오 10",
