@@ -326,14 +326,14 @@ struct HomeContentView: View {
 
 // MARK: - 마스코트 캐릭터
 
-    /// 마스코트 오른쪽으로 살짝 보이는 세로 바 (Figma `Rectangle 6323`, node 3395-201429).
-    /// 8×148, 화면 우측 끝에 붙고 상단 50(= 시안 94 − 상태바 44). 화면 밖으로 나가는 우측 모서리는 각지고
+    /// 마스코트 오른쪽으로 살짝 보이는 세로 바 (Figma `Rectangle 6323`, node 4071-99611).
+    /// 8×148, 화면 우측 끝에 붙고 상단 34(= 시안 78 − 상태바 44). 화면 밖으로 나가는 우측 모서리는 각지고
     /// 안쪽(좌측) 모서리만 라운드 3.961 ≈ 4.
     private var mascotBar: some View {
         UnevenRoundedRectangle(topLeadingRadius: 4, bottomLeadingRadius: 4, style: .continuous)
             .fill(Color.mhCoolNeutral80)
             .frame(width: 8, height: 148)
-            .padding(.top, 50)
+            .padding(.top, 34)
             .accessibilityHidden(true)   // 장식 — 읽어줄 내용이 없다
     }
 
@@ -380,7 +380,8 @@ private extension PinFilter {
 // MARK: - 마스코트
 
 /// 홈 우상단에서 살짝 걸쳐 보이는 방 마스코트.
-/// Figma `Group 283`(3395-200046): 126×164, 우측 화면 끝에 붙고 상단 70(= 상태바 44 + 26).
+/// Figma `Group 283`(4071-99610): 126×164, 우측 화면 끝에 붙고 **헤더(상태바) 하단에서 10** —
+/// 시안 상단 54 = 상태바 44 + 10 (002-2-3 ① "토끼 캐릭터는 헤더 하단을 기준으로 10px 간격을 두고 배치한다").
 /// 기울기가 에셋에 반영돼 있어 rotationEffect 로 돌리지 않는다(예전 에셋은 정면이라 코드에서 돌렸다).
 ///
 /// 좌우 반전은 시안의 그룹 변환이다 — 익스포트되는 건 반전 전 원본이라 여기서 뒤집어야 시안과 같다.
@@ -402,7 +403,7 @@ struct HomeMascotView: View {
                 .frame(width: 126, height: 164)
         }
         .scaleEffect(x: -1)   // 두 겹을 함께 뒤집어야 눈 자리가 어긋나지 않는다
-        .padding(.top, 26)
+        .padding(.top, 10)
     }
 }
 
