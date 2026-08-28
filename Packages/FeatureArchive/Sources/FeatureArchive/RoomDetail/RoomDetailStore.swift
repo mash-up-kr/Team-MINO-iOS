@@ -13,12 +13,30 @@ struct RoomDetailState: Equatable {
     var viewMode: RoomDetailViewMode = .list
     /// 장소 삭제 확인 다이얼로그(004-1-3-1). nil 이면 닫혀 있다.
     var deletion: RoomDetailDeletion?
+    /// 내가 이 방의 방장인가 — 헤더 케밥에 "방 편집" 을 붙일지의 유일한 기준(004-1 ② 2-2).
+    ///
+    /// 신원을 아직 못 받았거나 조회에 실패하면 `false` 로 남는다. 모르는 쪽을 "방장 아님" 으로
+    /// 두어야 남의 방에 편집 항목이 붙는 사고가 나지 않는다.
+    var isOwner = false
+    var isLoadingCurrentMember = false
+    /// 헤더 케밥 드롭다운(004-5)이 열려 있는가.
+    ///
+    /// 장소 카드 케밥은 열림 상태를 View 가 들지만 이건 reduce 가 든다. peek 에서 이 메뉴는 시트
+    /// **위**(지도 위)로 떠야 하는데 시트는 콘텐츠를 잘라내므로(``MHBottomSheet`` 의 clipShape)
+    /// 그림은 시트 밖에서 그린다 — 버튼을 가진 뷰와 그리는 뷰가 갈라져 공통 진실이 필요하다.
+    var isMoreMenuPresented = false
 }
 
 enum RoomDetailAction: Equatable {
     case load
     case loaded([Pin])
     case loadFailed(DomainError)
+    case loadCurrentMember
+    case currentMemberLoaded(MemberProfile)
+    case currentMemberLoadFailed(DomainError)
+    case tapMore
+    case dismissMoreMenu
+    case selectMoreMenuItem(RoomDetailMoreMenuItemID)
     case selectSort(RoomDetailSort)
     case selectCategory(String)
     case selectViewMode(RoomDetailViewMode)
@@ -36,6 +54,10 @@ enum RoomDetailNav: Equatable, Sendable {
     case close
     case shareLocation(RoomDetailLocation)
     case openPlaceDetail(Pin)
+    /// 헤더 케밥 "방 편집" (방장만). 도착 화면은 아직 없다 — `ArchiveCoordinator.handle(_: RoomDetailNav)` 참조.
+    case editRoom(Room)
+    /// 헤더 케밥 "방 나가기". 도착 화면은 아직 없다 — 위와 같다.
+    case leaveRoom(Room)
 }
 
 typealias RoomDetailStore = Store<RoomDetailState, RoomDetailAction, RoomDetailNav>
@@ -43,6 +65,7 @@ typealias RoomDetailStore = Store<RoomDetailState, RoomDetailAction, RoomDetailN
 func roomDetailReducer(
     useCase: FetchPinsUseCase,
     deletePin: DeletePinUseCase,
+    fetchCurrentMember: CurrentMemberUseCase,
     room: Room,
     now: @escaping () -> Date = Date.init
 ) -> (inout RoomDetailState, RoomDetailAction) -> Effect<RoomDetailAction, RoomDetailNav> {
@@ -69,6 +92,50 @@ func roomDetailReducer(
 
         case .loadFailed:
             return .none
+
+        // 장소 조회와 한 effect 로 묶지 않는다 — 한쪽 실패가 다른 쪽 결과까지 끌고 내려갈 이유가 없다.
+        case .loadCurrentMember:
+            guard !state.isLoadingCurrentMember else { return .none }
+            state.isLoadingCurrentMember = true
+            return .run { send in
+                do {
+                    send(.currentMemberLoaded(try await fetchCurrentMember.execute()))
+                } catch is CancellationError {
+                    return   // 화면을 떠난 것 — 실패가 아니다
+                } catch {
+                    send(.currentMemberLoadFailed(error as? DomainError ?? .unknown))
+                }
+            }
+
+        case .currentMemberLoaded(let profile):
+            // 방장 판정은 뷰가 아니라 여기서 한다 — 신원과 방 주인을 맞대 보는 건 도메인 규칙이다.
+            state.isOwner = profile.id.value == room.ownerId
+            state.isLoadingCurrentMember = false
+            return .none
+
+        case .currentMemberLoadFailed:
+            // 신원을 모르면 방장이 아닌 쪽으로 남는다 — 오류 UI 없이 "방 편집" 만 안 붙는다.
+            state.isLoadingCurrentMember = false
+            return .none
+
+        case .tapMore:
+            state.isMoreMenuPresented.toggle()
+            return .none
+
+        case .dismissMoreMenu:
+            state.isMoreMenuPresented = false
+            return .none
+
+        case .selectMoreMenuItem(let item):
+            state.isMoreMenuPresented = false
+            switch item {
+            case .editRoom:
+                // 방장이 아니면 항목 자체가 없지만, 노출 판정을 뷰에만 맡기지 않는다.
+                guard state.isOwner else { return .none }
+                return .navigate(.editRoom(room))
+            case .leaveRoom:
+                return .navigate(.leaveRoom(room))
+            }
 
         case .selectSort(let sort):
             state.sort = sort
