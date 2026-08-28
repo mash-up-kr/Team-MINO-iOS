@@ -72,9 +72,13 @@ extension RoomDetailRoom {
 }
 
 /// 툴바 좌측 드롭다운의 정렬 기준.
+///
+/// **선언 순서가 곧 드롭다운 노출 순서다** — ``RoomDetailSortMenu`` 와 peek 의 `MHFilterBar` 가
+/// `allCases` 를 그대로 그린다. 순서는 시안 `004-1-3_방 상세 full_리스트형` 의 열린 드롭다운과 맞췄다.
+/// 첫 항목이 기본 선택은 아니다 — 기본은 `.all` 이다(004-1 ① "'전체'로 기본 선택되어있다").
 enum RoomDetailSort: String, CaseIterable, Identifiable {
-    case all = "전체"
     case pick = "꾹 Pick"
+    case all = "전체"
     case latest = "최신순"
     case distance = "거리순"
     case comment = "코멘트순"
