@@ -24,6 +24,7 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
     let fetchPinDetail: FetchPinDetailUseCase
     let deletePin: DeletePinUseCase
     let fetchShareTargets: FetchShareTargetsUseCase
+    let fetchSavedRooms: FetchSavedRoomsUseCase
     let currentMember: CurrentMemberUseCase
     let createRoom: CreateRoomUseCase
     let roomCreationPromptSnooze: SnoozeSwitch
@@ -91,6 +92,9 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
         let savePinRepository = MockSavePinRepository(rooms: rooms, pins: pins)
         self.savePin = DefaultSavePinToRoomsUseCase(repository: savePinRepository)
         self.fetchShareTargets = DefaultFetchShareTargetsUseCase(repository: savePinRepository)
+        // 저장된 방(014)도 같은 저장소를 봐야 한다 — 다른 인스턴스로 만들면 방금 공유한 방이
+        // 목록에 없다.
+        self.fetchSavedRooms = DefaultFetchSavedRoomsUseCase(repository: savePinRepository)
 
         // 지금 앱을 쓰는 사람: 프로필 API 미연결 → Mock. MockRoomRepository 의 user-0001 과 같은 사람이다.
         self.currentMember = DefaultCurrentMemberUseCase(repository: MockCurrentMemberRepository())
