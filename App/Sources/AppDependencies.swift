@@ -36,6 +36,8 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
     let updateProfile: UpdateProfileUseCase
     let notificationSetting: NotificationSettingUseCase
     let locationSetting: LocationSettingUseCase
+    /// 방 상세 거리순 정렬(004-1 ⑥)의 기준점 — "내 기준 3km" 를 재려면 내 위치가 있어야 한다.
+    let currentLocation: CurrentLocationUseCase
     let fetchInviteCode: FetchInviteCodeUseCase
     /// 초대 링크의 스킴·호스트. 서버는 코드만 주고 링크는 앱이 조립한다(`Core.DeeplinkBuilder`).
     ///
@@ -137,6 +139,13 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
             push: RemoteNotificationRegistrationRepository()
         )
         self.locationSetting = DefaultLocationSettingUseCase(permissions: permissions)
+
+        // 1회 측위는 권한 저장소와 CLLocationManager 를 나눠 갖는다 — 이유는
+        // SystemCurrentLocationRepository 주석(한 delegate 에 두 종류 콜백을 얹지 않는다).
+        self.currentLocation = DefaultCurrentLocationUseCase(
+            permissions: permissions,
+            location: SystemCurrentLocationRepository()
+        )
 
         // 초대 코드: 실 API(POST /api/v1/rooms/{roomId}/invitations).
         self.fetchInviteCode = DefaultFetchInviteCodeUseCase(
