@@ -118,7 +118,7 @@ public struct HomeGuideOverlay: View {
 
 // MARK: - 가이드 딤
 
-public extension View {
+extension View {
     /// 가이드 딤 뒤로 물러나는 요소. 시안의 `backdrop-blur 6 + white 80%`(Figma `dimd`)를
     /// 요소 쪽에서 재현한다 — 흰 딤을 요소 **위**에 덮는 대신 요소를 흐리고 20% 로 낮춘다.
     ///
