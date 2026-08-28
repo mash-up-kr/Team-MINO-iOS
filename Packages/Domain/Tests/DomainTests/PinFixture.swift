@@ -8,13 +8,14 @@ enum PinFixture {
         id: String = "place-1",
         name: String = "레이어스튜디오 10",
         address: String = "서울 성동구 상원4길 10",
+        coordinate: Coordinate = Coordinate(latitude: 37.5443, longitude: 127.0557),
         category: String? = nil
     ) -> Place {
         Place(
             id: PlaceID(id),
             name: name,
             address: address,
-            coordinate: Coordinate(latitude: 37.5443, longitude: 127.0557),
+            coordinate: coordinate,
             category: category
         )
     }
