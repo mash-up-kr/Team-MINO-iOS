@@ -49,11 +49,27 @@ private struct StubDeletePin: DeletePinUseCase {
     }
 }
 
+/// `fixtureRoom.ownerId` 가 "u1" 이라 기본값은 **방장 본인**이다.
+private struct StubCurrentMember: CurrentMemberUseCase {
+    var result: Result<MemberProfile, DomainError> = .success(owner)
+
+    static let owner = MemberProfile(id: MemberID("u1"), nickname: "방장", avatarID: 0)
+    static let member = MemberProfile(id: MemberID("u9"), nickname: "멤버", avatarID: 1)
+
+    func execute() async throws -> MemberProfile {
+        switch result {
+        case .success(let profile): return profile
+        case .failure(let error): throw error
+        }
+    }
+}
+
 @MainActor
 struct RoomDetailReducerTests {
     private func makeStore(
         _ useCase: FetchPinsUseCase = StubFetchPins(),
         deletePin: DeletePinUseCase = StubDeletePin(),
+        currentMember: CurrentMemberUseCase = StubCurrentMember(),
         state: RoomDetailState = RoomDetailState(room: RoomDetailRoom(from: fixtureRoom))
     ) -> TestStore<RoomDetailState, RoomDetailAction, RoomDetailNav> {
         TestStore(
@@ -61,6 +77,7 @@ struct RoomDetailReducerTests {
             reduce: roomDetailReducer(
                 useCase: useCase,
                 deletePin: deletePin,
+                fetchCurrentMember: currentMember,
                 room: fixtureRoom,
                 now: { fixtureNow }
             )
@@ -304,6 +321,108 @@ struct RoomDetailReducerTests {
 
         #expect(store.currentState.pins == fixturePins)
         #expect(store.currentState.room.locationCountText == "3개")
+        store.finish()
+    }
+
+    // MARK: - 헤더 케밥 드롭다운 (004-1 ② 2-2 / 004-5)
+
+    @Test("L2 — 신원이 방 주인과 같으면 방장으로 판정한다")
+    func currentMember_owner() async {
+        let store = makeStore()
+
+        await store.send(.loadCurrentMember) { $0.isLoadingCurrentMember = true }
+        await store.receive(.currentMemberLoaded(StubCurrentMember.owner)) {
+            $0.isOwner = true
+            $0.isLoadingCurrentMember = false
+        }
+        store.finish()
+    }
+
+    @Test("L2 — 방 주인이 아니면 방장이 아니다")
+    func currentMember_member() async {
+        let store = makeStore(currentMember: StubCurrentMember(result: .success(StubCurrentMember.member)))
+
+        await store.send(.loadCurrentMember) { $0.isLoadingCurrentMember = true }
+        await store.receive(.currentMemberLoaded(StubCurrentMember.member)) {
+            $0.isLoadingCurrentMember = false
+        }
+        #expect(store.currentState.isOwner == false)
+        store.finish()
+    }
+
+    @Test("L2 — 신원 조회에 실패해도 방장이 되지 않는다. 오류 UI 도 띄우지 않는다")
+    func currentMember_failure() async {
+        let store = makeStore(currentMember: StubCurrentMember(result: .failure(.unknown)))
+
+        await store.send(.loadCurrentMember) { $0.isLoadingCurrentMember = true }
+        await store.receive(.currentMemberLoadFailed(.unknown)) { $0.isLoadingCurrentMember = false }
+        #expect(store.currentState.isOwner == false)
+        store.finish()
+    }
+
+    @Test("L2 — 조회가 진행 중이면 다시 요청하지 않는다")
+    func loadCurrentMember_ignoresSecondRequest() async {
+        var state = loadedState()
+        state.isLoadingCurrentMember = true
+        let store = makeStore(state: state)
+
+        await store.send(.loadCurrentMember)
+
+        store.finish()   // 두 번째 요청이 나갔다면 미처리 effect 로 여기서 걸린다
+    }
+
+    @Test("L1 — 케밥은 눌러서 열고 다시 눌러서 닫는다")
+    func tapMore_toggles() async {
+        let store = makeStore(state: loadedState())
+
+        await store.send(.tapMore) { $0.isMoreMenuPresented = true }
+        await store.send(.tapMore) { $0.isMoreMenuPresented = false }
+        store.finish()
+    }
+
+    @Test("L1 — 바깥 탭·단계 전환은 dismissMoreMenu 로 닫는다")
+    func dismissMoreMenu() async {
+        var state = loadedState()
+        state.isMoreMenuPresented = true
+        let store = makeStore(state: state)
+
+        await store.send(.dismissMoreMenu) { $0.isMoreMenuPresented = false }
+        store.finish()
+    }
+
+    @Test("L1 — 방장이 '방 편집' 을 고르면 메뉴가 닫히고 editRoom 으로 navigate 한다")
+    func selectMoreMenuItem_editRoom_owner() async {
+        var state = loadedState()
+        state.isOwner = true
+        state.isMoreMenuPresented = true
+        let store = makeStore(state: state)
+
+        await store.send(.selectMoreMenuItem(.editRoom)) { $0.isMoreMenuPresented = false }
+
+        store.receiveNavigation(.editRoom(fixtureRoom))
+        store.finish()
+    }
+
+    @Test("L1 — 방장이 아니면 '방 편집' 이 들어와도 navigate 하지 않는다. 노출 판정을 뷰에만 맡기지 않는다")
+    func selectMoreMenuItem_editRoom_member() async {
+        var state = loadedState()
+        state.isMoreMenuPresented = true
+        let store = makeStore(state: state)
+
+        await store.send(.selectMoreMenuItem(.editRoom)) { $0.isMoreMenuPresented = false }
+
+        store.finish()   // navigate 가 나갔다면 미처리 nav 로 여기서 걸린다
+    }
+
+    @Test("L1 — '방 나가기' 는 방장이 아니어도 leaveRoom 으로 navigate 한다")
+    func selectMoreMenuItem_leaveRoom() async {
+        var state = loadedState()
+        state.isMoreMenuPresented = true
+        let store = makeStore(state: state)
+
+        await store.send(.selectMoreMenuItem(.leaveRoom)) { $0.isMoreMenuPresented = false }
+
+        store.receiveNavigation(.leaveRoom(fixtureRoom))
         store.finish()
     }
 }

@@ -71,7 +71,12 @@ public final class ArchiveCoordinator: Coordinator {
     func makeRoomDetailStore(room: Room) -> RoomDetailStore {
         Store(
             RoomDetailState(room: RoomDetailRoom(from: room)),
-            reduce: roomDetailReducer(useCase: deps.fetchPins, deletePin: deps.deletePin, room: room),
+            reduce: roomDetailReducer(
+                useCase: deps.fetchPins,
+                deletePin: deps.deletePin,
+                fetchCurrentMember: deps.currentMember,
+                room: room
+            ),
             handle: { [weak self] in self?.handle($0) }
         )
     }
@@ -137,6 +142,12 @@ public final class ArchiveCoordinator: Coordinator {
             sharingLocation = location
         case .openPlaceDetail(let pin):
             selectedPin = pin
+        case .editRoom, .leaveRoom:
+            // 아직 갈 곳이 없다 — 비워 둔 것이 아니라 도착 화면이 이 PR 범위 밖이다.
+            // 방 편집(시안 004-5 방편집_방장)·방 나가기(004-5 나가기_방장 / 나가기_방멤버)는
+            // 다른 담당자(유빈·윤지) 스펙이라 그 화면이 생기는 PR 에서 여기에 전환을 붙인다.
+            // 그때까지 헤더 케밥은 항목만 닫고 아무 데도 가지 않는다.
+            break
         }
     }
 
