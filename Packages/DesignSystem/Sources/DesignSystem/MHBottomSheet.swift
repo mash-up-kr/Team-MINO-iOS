@@ -35,6 +35,24 @@ struct MHBottomSheetLayout: Equatable {
             abs(self.height(of: $0) - height) < abs(self.height(of: $1) - height)
         } ?? .medium
     }
+
+    /// peek(노출 pt) → 컨테이너 높이 대비 비율.
+    ///
+    /// 시트의 레이아웃 상자는 **safe area 안에서 끝난다** — 402×874 기기에서 시트가 받는
+    /// `GeometryReader` 는 `frame(in: .global) = (0, 62, 402, 778)`, 즉 상자 바닥이 y=840 이고
+    /// `safeAreaInsets.bottom` 은 34 다(시뮬레이터 실측). 그래서 홈 인디케이터는 시트 콘텐츠를
+    /// 가리지 않으며, 되돌려 줄 것은 **시트 위에 겹쳐 그려지는 하단 크롬**(`bottomCoverage`)뿐이다.
+    static func fraction(
+        peek: CGFloat,
+        bottomCoverage: CGFloat,
+        containerHeight: CGFloat,
+        minimum: CGFloat,
+        maximum: CGFloat
+    ) -> CGFloat {
+        guard containerHeight > 0 else { return minimum }
+        // 하한을 나중에 적용해 상한이 하한보다 낮아도(비정상 입력) 하한이 이긴다.
+        return max(minimum, min(maximum, (peek + bottomCoverage) / containerHeight))
+    }
 }
 
 // MARK: - MHBottomSheet
@@ -61,10 +79,12 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
     @Binding private var detent: MHBottomSheetDetent
     private let lowFraction: CGFloat
     private let mediumFraction: CGFloat
-    /// 설정 시 low 높이를 비율 대신 "콘텐츠 pt + 하단 safe-area" 로 계산한다(그래버+헤더만 보이는 peek).
+    /// 설정 시 low 높이를 비율 대신 "노출 pt" 로 계산한다(그래버+헤더만 보이는 peek).
     private let lowPeek: CGFloat?
-    /// 설정 시 medium 높이를 비율 대신 "콘텐츠 pt + 하단 safe-area" 로 계산한다(카드 영역까지 보이는 half).
+    /// 설정 시 medium 높이를 비율 대신 "노출 pt" 로 계산한다(카드 영역까지 보이는 half).
     private let mediumPeek: CGFloat?
+    /// 시트 위에 겹쳐 그려지는 하단 크롬(탭바 등)의 높이. peek 이 그 **위로** 노출되도록 그만큼 더 그린다.
+    private let bottomCoverage: CGFloat
     private let detents: [MHBottomSheetDetent]
     private let contentID: ID?
     private let content: (ID?) -> Content
@@ -109,6 +129,7 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
         erasedContentID: ID?,
         lowPeek: CGFloat? = nil,
         mediumPeek: CGFloat? = nil,
+        bottomCoverage: CGFloat = 0,
         detents: [MHBottomSheetDetent] = MHBottomSheetDetent.allCases,
         content: @escaping (ID?) -> Content
     ) {
@@ -120,6 +141,7 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
         self.mediumFraction = mediumFraction
         self.lowPeek = lowPeek
         self.mediumPeek = mediumPeek
+        self.bottomCoverage = bottomCoverage
         self.detents = detents
         self.contentID = erasedContentID
         self.content = content
@@ -147,17 +169,21 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
 
     public var body: some View {
         GeometryReader { geometry in
-            // lowPeek/mediumPeek 지정 시: 시트가 탭바 뒤로 깔리는 만큼(하단 safe-area)을 더해,
-            // 지정 pt 만큼이 탭바 위로 보이도록 비율 환산.
+            // lowPeek/mediumPeek 지정 시: 시트를 덮는 하단 크롬만큼(bottomCoverage)을 더해,
+            // 지정 pt 가 그 위로 온전히 보이도록 비율 환산 (MHBottomSheetLayout.fraction).
             let effectiveMedium: CGFloat = {
                 guard let mediumPeek, geometry.size.height > 0 else { return appliedMedium }
-                let target = (mediumPeek + geometry.safeAreaInsets.bottom) / geometry.size.height
-                return max(0.1, min(0.99, target))
+                return MHBottomSheetLayout.fraction(
+                    peek: mediumPeek, bottomCoverage: bottomCoverage,
+                    containerHeight: geometry.size.height, minimum: 0.1, maximum: 0.99
+                )
             }()
             let effectiveLow: CGFloat = {
                 guard let lowPeek, geometry.size.height > 0 else { return appliedLow }
-                let target = (lowPeek + geometry.safeAreaInsets.bottom) / geometry.size.height
-                return max(0.05, min(effectiveMedium - 0.01, target))
+                return MHBottomSheetLayout.fraction(
+                    peek: lowPeek, bottomCoverage: bottomCoverage,
+                    containerHeight: geometry.size.height, minimum: 0.05, maximum: effectiveMedium - 0.01
+                )
             }()
             let layout = MHBottomSheetLayout(
                 containerHeight: geometry.size.height,
@@ -333,29 +359,39 @@ public extension MHBottomSheet where ID == Never {
                   erasedContentID: nil, content: { _ in content() })
     }
 
-    /// low 를 비율 대신 "콘텐츠 pt"(그래버+헤더 등 peek 에 보일 높이)로 지정한다. 시트가 탭바 뒤로
-    /// 깔리는 만큼(하단 safe-area)을 내부에서 더해, 지정 pt 만큼이 탭바 위로 온전히 보인다(기기 무관).
+    /// low 를 비율 대신 "노출 pt"(그래버+헤더 등 peek 에 보일 높이)로 지정한다.
+    /// - Parameter bottomCoverage: 시트 위에 겹쳐 그려지는 하단 크롬(탭바 등)의 높이. 그만큼을
+    ///   내부에서 더해, 지정 pt 가 그 **위로** 온전히 보인다. 덮는 게 없으면 0(기본).
     init(
         detent: Binding<MHBottomSheetDetent>,
         lowPeek: CGFloat,
         mediumFraction: CGFloat,
+        bottomCoverage: CGFloat = 0,
         @ViewBuilder content: @escaping () -> Content
     ) {
         self.init(detent: detent, lowFraction: 0.15, mediumFraction: mediumFraction,
-                  erasedContentID: nil, lowPeek: lowPeek, content: { _ in content() })
+                  erasedContentID: nil, lowPeek: lowPeek, bottomCoverage: bottomCoverage,
+                  content: { _ in content() })
     }
 
-    /// low·medium 모두 "콘텐츠 pt" 로 지정한다. 각각 하단 safe-area 를 내부에서 더해
-    /// 탭바 위로 지정 pt 만큼 온전히 보인다(기기 무관).
+    /// low·medium 모두 "노출 pt" 로 지정한다.
+    /// - Parameter bottomCoverage: 시트 위에 겹쳐 그려지는 하단 크롬(탭바 등)의 높이. 그만큼을
+    ///   내부에서 더해, 지정 pt 가 그 **위로** 온전히 보인다. 덮는 게 없으면 0(기본).
+    ///
+    ///   하단 safe-area 는 여기 넣지 않는다 — 시트의 레이아웃 상자가 이미 safe area 안에서
+    ///   끝나 홈 인디케이터가 콘텐츠를 가리지 않는다(``MHBottomSheetLayout/fraction``).
+    ///   시트를 safe area 밖까지 깔아 두는 화면이 생기면 그 몫은 여기에 함께 넣는다.
     init(
         detent: Binding<MHBottomSheetDetent>,
         lowPeek: CGFloat? = nil,
         mediumPeek: CGFloat,
+        bottomCoverage: CGFloat = 0,
         detents: [MHBottomSheetDetent] = MHBottomSheetDetent.allCases,
         @ViewBuilder content: @escaping () -> Content
     ) {
         self.init(detent: detent, lowFraction: 0.15, mediumFraction: 0.5,
-                  erasedContentID: nil, lowPeek: lowPeek, mediumPeek: mediumPeek, detents: detents,
+                  erasedContentID: nil, lowPeek: lowPeek, mediumPeek: mediumPeek,
+                  bottomCoverage: bottomCoverage, detents: detents,
                   content: { _ in content() })
     }
 }
