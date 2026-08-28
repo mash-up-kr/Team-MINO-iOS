@@ -20,10 +20,13 @@ struct HomeContentView: View {
                 mascotCharacter
             }
             roomChangeTooltip
+            deckEndingTooltip
             savePostDim          // 게시물 저장 시트 딤 — 마스코트 위(시안은 화면 전체가 딤)
         }
         .animation(.easeInOut(duration: 0.2), value: store.state.isGuidePresented)   // 루트의 가이드 페이드와 같은 속도
         .animation(.easeInOut(duration: 0.5), value: store.state.changedRoomToastID)
+        // 시안 ②의 "서서히 (점차 투명도가 낮아지며) 사라짐" — 페이드 자체가 사라지는 방식이라 명시한다.
+        .animation(.easeInOut(duration: 0.5), value: store.state.deckEndingToastFilter)
         .animation(.easeInOut(duration: 0.3), value: store.state.isRoomListPresented)
         .animation(.easeInOut(duration: 0.3), value: store.state.savePost != nil)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -39,6 +42,13 @@ struct HomeContentView: View {
             guard let roomID = store.state.changedRoomToastID else { return }
             try? await Task.sleep(for: .seconds(5))
             store.send(.dismissRoomToast(roomID))
+        }
+        .task(id: store.state.deckEndingToastFilter) {
+            // 덱 끝 예고 툴팁은 3초 뒤 스스로 사라진다(시안 ②). 방 변경 툴팁과 같은 방어 —
+            // 3초가 도는 사이 기준이 바뀌면 reducer 가 기준 불일치로 이전 dismiss 를 무시한다.
+            guard let filter = store.state.deckEndingToastFilter else { return }
+            try? await Task.sleep(for: .seconds(3))
+            store.send(.dismissDeckEndingToast(filter))
         }
         .sheet(isPresented: roomListBinding) {
             // 시스템 시트 컨테이너/슬라이드 애니메이션은 그대로 쓰되, 시스템 딤(스크림)만 제거한다.
@@ -360,6 +370,27 @@ struct HomeContentView: View {
                 .padding(.trailing, 95)
                 .transition(.opacity)
                 .accessibilityIdentifier("Home.roomChangeToast")
+        }
+    }
+
+    /// 덱 끝 예고 툴팁 — 현재 기준의 남은 카드가 2장 이하일 때 "곧 …으로 이동해요!" 로 다음 기준 전환을
+    /// 미리 알린다 (Figma 002-2-3 ②, node 4071-99859). 3초 뒤 서서히 사라진다.
+    ///
+    /// 방 변경 툴팁과 같은 줄(상단 32)이라 둘이 동시에 서면 겹친다 — 방 변경 툴팁은 사용자가 방금 한
+    /// 조작(방 선택)에 대한 응답이라 그쪽을 우선하고, 이 예고는 물러난다(주변 안내라 다음 기회가 있다).
+    @ViewBuilder
+    private var deckEndingTooltip: some View {
+        if store.state.changedRoomToastID == nil,
+           let filter = store.state.deckEndingToastFilter,
+           let next = filter.next {
+            MHTooltip("곧 \(next.chipTitle)으로 이동해요!", position: .left)
+                .fixedSize()
+                // Figma Tooltip 인스턴스: x=78, y=75.9, 165×36 →
+                // top = 75.9 − 상태바 44 ≈ 32(방 변경 툴팁과 같은 줄), 우측 인셋 = 375 − (78+165) = 132.
+                .padding(.top, 32)
+                .padding(.trailing, 132)
+                .transition(.opacity)
+                .accessibilityIdentifier("Home.deckEndingToast")
         }
     }
 }

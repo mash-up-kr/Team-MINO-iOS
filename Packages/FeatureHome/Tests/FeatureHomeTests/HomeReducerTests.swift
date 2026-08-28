@@ -533,6 +533,7 @@ struct HomeReducerTests {
             $0.currentCardIndex = 3     // 방2 구간 시작
             $0.selectedRoomID = "2"
             $0.isLoading = false
+            $0.deckEndingToastFilter = .recommended   // 이어 보기 지점이 덱 끝에서 2장 — 002-2-3 ② 예고
         }
         #expect(store.currentState.currentRoom?.id == "2")
         store.finish()
@@ -569,6 +570,7 @@ struct HomeReducerTests {
             $0.currentCardIndex = 3
             $0.selectedRoomID = "2"
             $0.isLoading = false
+            $0.deckEndingToastFilter = .recommended   // 시작 지점이 덱 끝에서 2장 — 002-2-3 ② 예고
         }
         store.finish()
     }
@@ -585,7 +587,10 @@ struct HomeReducerTests {
         #expect(await spy.saved.isEmpty)
 
         await store.send(.swipeForward) { $0.currentCardIndex = 2 }
-        await store.send(.swipeForward) { $0.currentCardIndex = 3 }   // 방2 진입
+        await store.send(.swipeForward) {
+            $0.currentCardIndex = 3   // 방2 진입
+            $0.deckEndingToastFilter = .recommended   // 덱(5장) 기준 남은 2장 — 002-2-3 ② 예고
+        }
         #expect(await spy.saved == ["2"])
 
         await store.send(.swipeBackward) { $0.currentCardIndex = 2 }  // 방1 복귀
@@ -615,6 +620,7 @@ struct HomeReducerTests {
         let store = makeStore(state: HomeState(pins: fixturePins, currentCardIndex: 0))
         await store.send(.swipeForward) {
             $0.currentCardIndex = 1
+            $0.deckEndingToastFilter = .recommended   // 3장 덱이라 이 한 번으로 남은 2장 — 002-2-3 ② 예고
         }
         store.finish()
     }
@@ -714,6 +720,7 @@ struct HomeReducerTests {
         let store = makeStore(state: HomeState(rooms: fixtureRooms, pins: multiRoomPins(), currentCardIndex: 2))
         await store.send(.swipeForward) {
             $0.currentCardIndex = 3   // 방2 첫 카드
+            $0.deckEndingToastFilter = .recommended   // 덱(5장) 기준 남은 2장 — 002-2-3 ② 예고
         }
         #expect(store.currentState.currentRoom?.id == "2")
         store.finish()
@@ -886,6 +893,91 @@ struct HomeReducerTests {
         await store.send(.dismissRoomToast("a"))   // 이름은 같지만 id 가 달라 무시(이름 기반이면 잘못 지웠을 것)
         #expect(store.currentState.changedRoomToastID == "b")
         await store.send(.dismissRoomToast("b")) { $0.changedRoomToastID = nil }   // 같은 id 는 정상 숨김
+        store.finish()
+    }
+
+    // MARK: - 덱 끝 예고 툴팁 (Figma 002-2-3 ②)
+
+    /// 한 방짜리 4장 덱 — index 1 에서 한 번 넘기면 남은 카드가 2장이 되는 크기.
+    private func deckOfFour() -> [Pin] {
+        (0..<4).map { i in
+            PinFixture.pin(id: PinID("c-\(i)"), roomID: "1", category: .savedByMany,
+                title: "C\(i)", address: "주소", createdAt: fixtureDate)
+        }
+    }
+
+    @Test("L1 — 남은 카드가 2장이 되는 순간 다음 기준 전환을 예고하고, 한 장 더 넘겨도 다시 뜨지 않는다")
+    func deckEndingToast_raisesWhenTwoLeft() async {
+        let store = makeStore(state: HomeState(rooms: fixtureRooms, pins: deckOfFour(), currentCardIndex: 1))
+        await store.send(.swipeForward) {   // 남은 3 → 2 = 예고
+            $0.currentCardIndex = 2
+            $0.deckEndingToastFilter = .recommended
+        }
+        await store.send(.dismissDeckEndingToast(.recommended)) { $0.deckEndingToastFilter = nil }
+        // 3초 뒤 사라진 툴팁이 마지막 한 장을 넘길 때 다시 뜨면 성가시다 — 2장이 "되는 순간"만 예고한다.
+        await store.send(.swipeForward) { $0.currentCardIndex = 3 }
+        store.finish()
+    }
+
+    @Test("L1 — 마지막 기준에서는 예고할 다음 기준이 없어 툴팁이 뜨지 않는다")
+    func deckEndingToast_skipsOnLastFilter() async {
+        // 가까운순은 마지막 기준 — 여기서 덱이 끝나면 다음 기준이 아니라 소진 화면(002-3)으로 간다.
+        let store = makeStore(state: HomeState(
+            rooms: fixtureRooms, selectedFilter: .nearby, pins: deckOfFour(), currentCardIndex: 1
+        ))
+        await store.send(.swipeForward) { $0.currentCardIndex = 2 }
+        store.finish()
+    }
+
+    @Test("L2 — 받아 온 덱이 2장 이하면 넘기기 전부터 예고 툴팁이 떠 있다 (002-2-3 「데이터 2개 이하일 때」)")
+    func deckEndingToast_raisesOnDeckArrival() async {
+        let twoCards = Array(deckOfFour().prefix(2))
+        let store = makeStore(
+            fetchPins: StubFetchPins(all: twoCards),
+            state: HomeState(rooms: fixtureRooms, pins: fixturePins, currentCardIndex: fixturePins.count - 1)
+        )
+        await store.send(.swipeForward) {   // 소진 → 최신순으로 자동 전환
+            $0.currentCardIndex = fixturePins.count
+            $0.selectedFilter = .latest
+            $0.isDeckLoading = true
+        }
+        await store.receive(.filterPinsLoaded(pins: twoCards, entry: .first, for: .latest)) {
+            $0.isDeckLoading = false
+            $0.pins = twoCards
+            $0.currentCardIndex = 0
+            $0.deckEndingToastFilter = .latest   // 2장뿐이라 도착하자마자 "곧 가까운순으로 이동해요!"
+        }
+        store.finish()
+    }
+
+    @Test("L1 — 기준이 바뀌면 지난 기준의 예고 툴팁은 지운다")
+    func deckEndingToast_clearedOnFilterSwitch() async {
+        let latestDeck = deckOfFour()
+        let store = makeStore(
+            fetchPins: StubFetchPins(all: latestDeck),
+            state: HomeState(rooms: fixtureRooms, pins: fixturePins,
+                             currentCardIndex: 1, deckEndingToastFilter: .recommended)
+        )
+        // "곧 최신순으로 이동해요!" 를 띄운 채 최신순으로 옮기면 그 문구는 할 말을 잃는다.
+        await store.send(.selectFilter(.latest)) {
+            $0.selectedFilter = .latest
+            $0.deckEndingToastFilter = nil
+            $0.isDeckLoading = true
+        }
+        await store.receive(.filterPinsLoaded(pins: latestDeck, entry: .first, for: .latest)) {
+            $0.isDeckLoading = false
+            $0.pins = latestDeck
+            $0.currentCardIndex = 0   // 4장 덱이라 예고는 아직 뜨지 않는다
+        }
+        store.finish()
+    }
+
+    @Test("L1 — dismissDeckEndingToast 는 기준이 바뀐 뒤 뒤늦게 오면 새 툴팁을 지우지 않는다")
+    func dismissDeckEndingToast_ignoresStaleFilter() async {
+        let store = makeStore(state: HomeState(rooms: fixtureRooms, deckEndingToastFilter: .latest))
+        await store.send(.dismissDeckEndingToast(.recommended))   // 지난 기준 타이머의 뒤늦은 dismiss — 무시
+        #expect(store.currentState.deckEndingToastFilter == .latest)
+        await store.send(.dismissDeckEndingToast(.latest)) { $0.deckEndingToastFilter = nil }
         store.finish()
     }
 

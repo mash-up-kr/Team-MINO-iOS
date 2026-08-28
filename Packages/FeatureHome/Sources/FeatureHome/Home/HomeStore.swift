@@ -23,6 +23,11 @@ public struct HomeState: Equatable {
     /// 방 변경 직후 뜨는 툴팁이 가리키는 방의 id (nil = 숨김). 5초 후 자동으로 nil 이 된다.
     /// 표시 문구(방 이름)는 뷰가 이 id 로 rooms 에서 파생한다 — 이름이 같은 방도 안정적으로 식별하려 id 로 든다.
     public var changedRoomToastID: String?
+    /// "곧 …으로 이동해요!" 예고 툴팁이 붙은 기준 (nil = 숨김). 현재 기준 덱의 남은 카드가 2장 이하가 되면
+    /// 뜨고 3초 후 서서히 사라진다 (Figma 002-2-3 ②). 표시 문구(다음 기준 이름)는 뷰가 이 값의
+    /// `next` 로 파생한다 — 기준을 들고 있어야 3초 타이머가 도는 사이 기준이 바뀌어도
+    /// 이전 타이머가 새 툴팁을 지우지 않는다([[changedRoomToastID]] 와 같은 방어).
+    public var deckEndingToastFilter: PinFilter?
     /// 홈 사용 가이드(좌우 스와이프 안내) 표시 여부. 최초 진입 1회만 뜬다(Figma 「홈 사용 가이드」).
     public var isGuidePresented: Bool
     /// 방 리스트에서 명시적으로 고른 방 (nil = 미선택). 표시할 카드가 없을 때(빈 방들) 현재 방을 정하는 근거 —
@@ -46,6 +51,7 @@ public struct HomeState: Equatable {
         roomPages: [String: Int] = [:],
         isRoomListPresented: Bool = false,
         changedRoomToastID: String? = nil,
+        deckEndingToastFilter: PinFilter? = nil,
         isGuidePresented: Bool = false,
         selectedRoomID: String? = nil,
         savePost: SavePostState? = nil,
@@ -61,6 +67,7 @@ public struct HomeState: Equatable {
         self.roomPages = roomPages
         self.isRoomListPresented = isRoomListPresented
         self.changedRoomToastID = changedRoomToastID
+        self.deckEndingToastFilter = deckEndingToastFilter
         self.isGuidePresented = isGuidePresented
         self.selectedRoomID = selectedRoomID
         self.savePost = savePost
@@ -122,6 +129,11 @@ public struct HomeState: Equatable {
         guard let previous = selectedFilter.previous else { return nil }
         return decks[previous]?.last
     }
+
+    /// 현재 기준 덱에서 (현재 카드 포함) 아직 넘기지 않은 카드 수. 덱 끝 예고 툴팁([[deckEndingToastFilter]])
+    /// 판단에 쓴다 — 방 구간이 아니라 **덱 전체** 기준이라 다음 기준으로 넘어가기 직전에만 걸린다.
+    /// 덱을 다 넘겨 인덱스가 덱 밖으로 나가면([[isCurrentDeckExhausted]]) 0 이다.
+    public var remainingInCurrentDeck: Int { max(0, pins.count - currentCardIndex) }
 
     /// 현재 맨 앞 카드가 속한 방에서 (현재 카드 포함) 아직 넘기지 않은 카드 수.
     /// "이 방 장소 더 보기" 버튼 노출 판단에 쓴다 — 덱 전체가 아니라 현재 방 구간 기준이라, 방마다 끝자락에서 뜬다.
@@ -199,6 +211,9 @@ public enum HomeAction: Equatable {
     /// 방 변경 툴팁 숨기기 (선택 5초 후 자동 발생). 연관값은 이 타이머가 세운 방의 id —
     /// 5초가 도는 사이 다른 방으로 바꾸면 이전 타이머가 새 방 툴팁을 지우지 않도록 방어한다.
     case dismissRoomToast(String)
+    /// 덱 끝 예고 툴팁 숨기기 (노출 3초 후 자동 발생). 연관값은 이 타이머가 띄운 툴팁의 기준 —
+    /// 3초가 도는 사이 기준이 바뀌면 이전 타이머가 새 툴팁을 지우지 않도록 방어한다.
+    case dismissDeckEndingToast(PinFilter)
     /// 카드 더보기 메뉴 "다른 방 저장" 탭 → 게시물 저장 시트 열기
     case tapSaveToOtherRoom(PinID)
     /// 게시물 저장 시트 닫기 (스와이프 dismiss 포함)
@@ -255,8 +270,13 @@ private func switchFilter(
     let previousFilter = state.selectedFilter
     let previousIndex = state.currentCardIndex
     state.selectedFilter = filter
+    // 전환하는 순간 지난 기준의 예고 툴팁은 할 말을 잃는다("곧 최신순으로" 를 최신순에서 띄우고 있게 된다).
+    state.deckEndingToastFilter = nil
     if let cached = state.decks[filter], !cached.isEmpty {
         state.currentCardIndex = entry.index(in: cached)
+        // 앞으로 넘어와 첫 카드에 선 경우만 예고한다 — 뒤로 돌아가 마지막 카드에 선 것(.last)은
+        // 사용자가 방금 떠나온 길이라 "곧 …으로 이동해요"가 안내가 아니라 잔소리가 된다.
+        if entry == .first { announceDeckEndingIfNeeded(&state) }
         return .none
     }
     state.isDeckLoading = true   // 받는 동안 빈 상태·소진 화면이 끼어들지 않게 한다
@@ -269,6 +289,15 @@ private func switchFilter(
             send(.filterPinsLoadFailed(for: filter, revertTo: previousFilter, index: previousIndex))
         }
     }
+}
+
+/// 덱 끝 예고 툴팁("곧 …으로 이동해요!")을 세운다 — 남은 카드가 2장 이하일 때 (Figma 002-2-3 ②).
+///
+/// 마지막 기준(다음 기준이 없음)에서는 예고할 전환이 없으므로 띄우지 않는다 — 그땐 소진 화면(002-3)이 답이다.
+/// 스와이프 경로에서는 호출부가 "막 2장이 된 순간"만 걸러 부른다(2→1 에서 다시 뜨지 않게).
+private func announceDeckEndingIfNeeded(_ state: inout HomeState) {
+    guard state.selectedFilter.next != nil, !state.pins.isEmpty, state.remainingInCurrentDeck <= 2 else { return }
+    state.deckEndingToastFilter = state.selectedFilter
 }
 
 /// 현재 방이 바뀌었을 때만 "마지막으로 본 방"을 기록한다(정책 3 — 재실행 시 이어 보기).
@@ -350,6 +379,8 @@ public func homeReducer(
             guard filter == state.selectedFilter else { return .none }
             state.isDeckLoading = false
             state.currentCardIndex = entry.index(in: pins)
+            // 받아 온 덱이 이미 2장 이하면 넘길 새도 없이 다음 기준이 코앞이다 (Figma 002-2-3 「데이터 2개 이하일 때」).
+            if entry == .first { announceDeckEndingIfNeeded(&state) }
             return persistIfRoomChanged(from: roomBeforeFilter, to: state, using: lastViewedRoom)
 
         case .filterPinsLoadFailed(let filter, let previousFilter, let index):
@@ -378,6 +409,7 @@ public func homeReducer(
                 state.currentCardIndex = 0
             }
             state.isLoading = false   // 핀까지 도착 → 이제 카드 유무가 확정돼 로딩 종료
+            announceDeckEndingIfNeeded(&state)   // 첫 덱부터 2장 이하일 수 있다
             // 정책: 홈 사용 가이드는 최초 진입 1회. 넘길 카드가 있을 때만 띄운다(빈 상태에선 안내가 무의미).
             guard !pins.isEmpty else { return .none }
             return .run { send in
@@ -395,6 +427,7 @@ public func homeReducer(
             //   currentCardIndex 를 roomID 방으로 도로 끌고 간다(레이스). 실물 계약 확인 후
             //   "현재 방이 아직 roomID 일 때만 인덱스 리셋"(또는 in-flight Task 취소)으로 정리한다.
             state.currentCardIndex = start
+            announceDeckEndingIfNeeded(&state)   // 페이지가 얼마 안 실려 와 곧 덱이 끝날 수도 있다
             return .none
 
         case .swipeForward:
@@ -408,6 +441,9 @@ public func homeReducer(
             if state.isCurrentDeckExhausted, let next = state.selectedFilter.next {
                 return switchFilter(to: next, entering: .first, state: &state, fetchPins: fetchPins)
             }
+            // 정책: 남은 카드가 2장이 **되는 순간** 다음 기준 전환을 예고한다 (Figma 002-2-3 ②).
+            // `<= 2` 가 아니라 `== 2` 인 이유: 3초 뒤 사라진 툴팁이 2→1 한 장 더 넘길 때 다시 뜨지 않게 한다.
+            if state.remainingInCurrentDeck == 2 { announceDeckEndingIfNeeded(&state) }
             return persistIfRoomChanged(from: roomBeforeForward, to: state, using: lastViewedRoom)
 
         case .swipeBackward:
@@ -484,6 +520,14 @@ public func homeReducer(
             // id 로 비교하므로 이름이 같은 방들끼리도 정확히 구분된다.
             if state.changedRoomToastID == roomID {
                 state.changedRoomToastID = nil
+            }
+            return .none
+
+        case .dismissDeckEndingToast(let filter):
+            // 이 타이머가 세운 그 기준의 툴팁일 때만 숨긴다 — 3초가 도는 사이 기준이 바뀌면
+            // 뒤늦게 도착한 dismiss 가 새 기준의 툴팁을 지우는 걸 막는다([[dismissRoomToast]] 와 같은 방어).
+            if state.deckEndingToastFilter == filter {
+                state.deckEndingToastFilter = nil
             }
             return .none
 
