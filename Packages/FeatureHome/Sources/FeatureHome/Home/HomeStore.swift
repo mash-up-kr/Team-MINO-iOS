@@ -254,16 +254,49 @@ extension Room {
     var homeToastText: String { "\(homeDisplayName)\(type == .shared ? "이에요." : "예요.")" }
 }
 
-/// 덱 조회가 실패했을 때 되돌아갈 자리 — 조회를 시작하기 직전의 방·정렬·카드 인덱스.
+/// 덱 조회가 실패했을 때 되돌아갈 자리 — 조회를 시작하기 **직전**의 순회 상태.
+///
+/// 커서(방·정렬·카드)만으로는 부족하다: 방을 옮길 때는 덱 캐시·확인 기록·정렬 우선순위·전환 안내까지
+/// 새 방 기준으로 갈아엎기 때문에, 그것들을 함께 들고 있지 않으면 조회가 실패했을 때 옛 방의 카드가
+/// 사라진 빈 화면(공동방 만들기 CTA)이 남는다.
 public struct DeckPosition: Equatable, Sendable {
     public var roomIndex: Int
     public var filter: PinFilter
     public var cardIndex: Int
+    public var decks: [PinFilter: [Pin]]
+    public var viewedFilters: Set<PinFilter>
+    public var filterAnchor: PinFilter
+    public var changedRoomToastID: String?
 
-    public init(roomIndex: Int, filter: PinFilter, cardIndex: Int) {
+    public init(
+        roomIndex: Int,
+        filter: PinFilter,
+        cardIndex: Int,
+        decks: [PinFilter: [Pin]] = [:],
+        viewedFilters: Set<PinFilter> = [],
+        filterAnchor: PinFilter = .recommended,
+        changedRoomToastID: String? = nil
+    ) {
         self.roomIndex = roomIndex
         self.filter = filter
         self.cardIndex = cardIndex
+        self.decks = decks
+        self.viewedFilters = viewedFilters
+        self.filterAnchor = filterAnchor
+        self.changedRoomToastID = changedRoomToastID
+    }
+
+    /// 지금 자리를 그대로 담는다 — 조회를 시작하며 상태를 건드리기 **전에** 캡처해야 한다.
+    public init(_ state: HomeState) {
+        self.init(
+            roomIndex: state.currentRoomIndex,
+            filter: state.selectedFilter,
+            cardIndex: state.currentCardIndex,
+            decks: state.decks,
+            viewedFilters: state.viewedFilters,
+            filterAnchor: state.filterAnchor,
+            changedRoomToastID: state.changedRoomToastID
+        )
     }
 }
 
@@ -289,14 +322,14 @@ private let deckPageSize = 10
 private func showDeck(
     filter: PinFilter,
     entering entry: DeckEntry,
+    revertingTo revert: DeckPosition,
     persistingRoom persist: Bool = false,
     state: inout HomeState,
     fetchPins: FetchPinsUseCase,
     lastViewedRoom: LastViewedRoomUseCase
 ) -> Effect<HomeAction, HomeNav> {
-    let revert = DeckPosition(
-        roomIndex: state.currentRoomIndex, filter: state.selectedFilter, cardIndex: state.currentCardIndex
-    )
+    // revert 는 여기서 만들지 않고 호출부가 넘긴다 — 방 전환은 showDeck 을 부르기 **전에** 커서·캐시를
+    // 새 방 기준으로 바꿔 두므로, 여기서 캡처하면 "옛 자리"가 아니라 이미 바뀐 자리를 담게 된다.
     state.selectedFilter = filter
     // 옮기는 순간 지난 자리의 예고 툴팁은 할 말을 잃는다("곧 최신순으로" 를 최신순에서 띄우고 있게 된다).
     state.deckEndingToastFilter = nil
@@ -326,6 +359,7 @@ private func showDeck(
 /// 전환 안내로 방 변경 툴팁도 함께 세운다(자동·수동 전환 모두 같은 안내).
 private func moveToRoom(
     index: Int,
+    revertingTo revert: DeckPosition,
     state: inout HomeState,
     fetchPins: FetchPinsUseCase,
     lastViewedRoom: LastViewedRoomUseCase
@@ -338,7 +372,7 @@ private func moveToRoom(
     state.currentCardIndex = 0
     state.changedRoomToastID = state.rooms[index].id
     return showDeck(
-        filter: .recommended, entering: .first, persistingRoom: true,
+        filter: .recommended, entering: .first, revertingTo: revert, persistingRoom: true,
         state: &state, fetchPins: fetchPins, lastViewedRoom: lastViewedRoom
     )
 }
@@ -351,16 +385,17 @@ private func advanceAfterDeck(
     fetchPins: FetchPinsUseCase,
     lastViewedRoom: LastViewedRoomUseCase
 ) -> Effect<HomeAction, HomeNav> {
+    let revert = DeckPosition(state)   // 확인 기록을 넣기 전 자리를 담아 둔다(실패하면 여기로 돌아온다)
     state.viewedFilters.insert(state.selectedFilter)
     if let next = state.nextUnviewedFilter {
         return showDeck(
-            filter: next, entering: .first,
+            filter: next, entering: .first, revertingTo: revert,
             state: &state, fetchPins: fetchPins, lastViewedRoom: lastViewedRoom
         )
     }
     guard state.hasNextRoom else { return .none }
     return moveToRoom(
-        index: state.currentRoomIndex + 1,
+        index: state.currentRoomIndex + 1, revertingTo: revert,
         state: &state, fetchPins: fetchPins, lastViewedRoom: lastViewedRoom
     )
 }
@@ -440,10 +475,11 @@ public func homeReducer(
         case .selectFilter(let filter):
             guard filter != state.selectedFilter else { return .none }
             // 정책: 직접 고른 정렬이 이후 자동 전환 순서의 기준이 된다(고른 것 먼저, 나머지는 기본 순서).
+            let revert = DeckPosition(state)
             state.filterAnchor = filter
             state.viewedFilters.remove(filter)   // 다시 고른 정렬은 처음부터 다시 본다
             return showDeck(
-                filter: filter, entering: .first,
+                filter: filter, entering: .first, revertingTo: revert,
                 state: &state, fetchPins: fetchPins, lastViewedRoom: lastViewedRoom
             )
 
@@ -473,6 +509,12 @@ public func homeReducer(
             state.isDeckLoading = false
             state.currentRoomIndex = revert.roomIndex
             state.selectedFilter = revert.filter
+            // 방 전환 실패는 커서만 되돌려선 안 된다 — 옛 방의 덱 캐시·확인 기록·우선순위까지 함께
+            // 갈아엎고 출발했기 때문에, 그대로 두면 카드가 사라진 빈 화면이 남는다.
+            state.decks = revert.decks
+            state.viewedFilters = revert.viewedFilters
+            state.filterAnchor = revert.filterAnchor
+            state.changedRoomToastID = revert.changedRoomToastID   // 옮긴 적 없으니 전환 안내도 거둔다
             // 소진 자동 전환 경로에선 인덱스가 이미 덱 밖(pins.count)으로 밀려 있어, 그대로 되돌리면
             // 카드 없는 덱 분기에 들어간다. 복구한 덱의 마지막 카드로 클램프해 거기서 다시 넘기면 재시도된다.
             state.currentCardIndex = min(revert.cardIndex, max(0, state.pins.count - 1))
@@ -522,9 +564,10 @@ public func homeReducer(
             // 첫 카드에서 뒤로 넘기면 이 방에서 직전에 보던 정렬의 **마지막 카드**로 돌아간다.
             // 앞으로 자동 전환된 경로를 그대로 되짚는 이동이라, 방 경계는 넘지 않는다.
             guard let previous = state.previousShownFilter else { return .none }
+            let revert = DeckPosition(state)
             state.viewedFilters.remove(previous)   // 되돌아간 정렬은 다시 "보는 중"이 된다
             return showDeck(
-                filter: previous, entering: .last,
+                filter: previous, entering: .last, revertingTo: revert,
                 state: &state, fetchPins: fetchPins, lastViewedRoom: lastViewedRoom
             )
 
@@ -557,7 +600,10 @@ public func homeReducer(
             // 툴팁의 5초 표시 시간은 뷰(페이드 애니메이션과 함께)가 관리하고, 여기서는 상태만 세운다.
             state.isRoomListPresented = false
             guard let index = state.rooms.firstIndex(where: { $0.id == roomID }) else { return .none }
-            return moveToRoom(index: index, state: &state, fetchPins: fetchPins, lastViewedRoom: lastViewedRoom)
+            return moveToRoom(
+                index: index, revertingTo: DeckPosition(state),
+                state: &state, fetchPins: fetchPins, lastViewedRoom: lastViewedRoom
+            )
 
         case .dismissRoomToast(let roomID):
             // 이 타이머가 세운 그 방 툴팁일 때만(id 일치) 숨긴다. 5초가 도는 사이 방을 바꾸면

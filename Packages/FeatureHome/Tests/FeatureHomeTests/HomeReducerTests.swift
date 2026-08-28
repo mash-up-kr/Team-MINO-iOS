@@ -557,28 +557,67 @@ struct HomeReducerTests {
         store.finish()
     }
 
-    @Test("L2 — 덱 조회가 실패하면 조회 직전 자리로 되돌려 기존 덱을 계속 보여준다")
+    @Test("L2 — 정렬 덱 조회가 실패하면 조회 직전 자리로 되돌려 기존 덱을 계속 보여준다")
     func deckLoadFailed_revertsToPreviousPosition() async {
         let rec = deckPins("rec", room: "1", count: 1)
-        let store = makeStore(
-            fetchPins: StubRoomDecks(failing: [deckKey("1", .latest)]),
-            state: HomeState(rooms: fixtureRooms, pins: rec)
-        )
+        let state = HomeState(rooms: fixtureRooms, pins: rec)
+        let store = makeStore(fetchPins: StubRoomDecks(failing: [deckKey("1", .latest)]), state: state)
+        var revert = DeckPosition(state)
+        revert.cardIndex = 1   // 덱을 다 넘겨 인덱스가 덱 밖으로 나간 시점에 조회가 시작됐다
+
         await store.send(.swipeForward) {
             $0.currentCardIndex = 1
             $0.viewedFilters = [.recommended]
             $0.selectedFilter = .latest
             $0.isDeckLoading = true
         }
-        await store.receive(.deckLoadFailed(
-            roomID: "1", filter: .latest,
-            revertTo: DeckPosition(roomIndex: 0, filter: .recommended, cardIndex: 1)
-        )) {
+        await store.receive(.deckLoadFailed(roomID: "1", filter: .latest, revertTo: revert)) {
             $0.isDeckLoading = false
             $0.selectedFilter = .recommended
+            $0.viewedFilters = []     // 확인 기록도 되돌려 다시 넘기면 재시도된다
             $0.currentCardIndex = 0   // 덱 밖 인덱스는 복구한 덱의 마지막 카드로 clamp
         }
         #expect(store.currentState.pins == rec)
+        store.finish()
+    }
+
+    @Test("L2 — 방 전환 중 덱 조회가 실패하면 옛 방의 덱·확인 기록·전환 안내까지 되돌린다")
+    func roomMoveFailed_restoresPreviousRoomState() async {
+        // 방 전환은 커서뿐 아니라 덱 캐시·확인 기록·우선순위까지 새 방 기준으로 갈아엎고 출발한다.
+        // 실패했는데 커서만 되돌리면 옛 방의 카드가 사라진 빈 화면이 남는다.
+        var state = HomeState(
+            rooms: fixtureRooms, selectedFilter: .nearby,
+            pins: deckPins("near", room: "1", count: 1),
+            viewedFilters: [.recommended, .latest], filterAnchor: .nearby
+        )
+        state.decks[.recommended] = deckPins("rec", room: "1", count: 2)   // 옛 방에서 받아 둔 덱
+        let store = makeStore(fetchPins: StubRoomDecks(failing: [deckKey("2", .recommended)]), state: state)
+        var revert = DeckPosition(state)
+        revert.cardIndex = 1
+
+        await store.send(.swipeForward) {   // 방1 의 세 정렬을 다 봐 방2 로 이동 시도
+            $0.currentRoomIndex = 1
+            $0.selectedFilter = .recommended
+            $0.filterAnchor = .recommended
+            $0.viewedFilters = []
+            $0.decks = [:]
+            $0.currentCardIndex = 0
+            $0.changedRoomToastID = "2"
+            $0.isDeckLoading = true
+        }
+        await store.receive(.deckLoadFailed(roomID: "2", filter: .recommended, revertTo: revert)) {
+            $0.isDeckLoading = false
+            $0.currentRoomIndex = 0
+            $0.selectedFilter = .nearby
+            $0.filterAnchor = .nearby
+            $0.viewedFilters = [.recommended, .latest]
+            $0.decks = revert.decks
+            $0.currentCardIndex = 0
+            $0.changedRoomToastID = nil   // 옮긴 적 없으니 "…방이에요" 안내도 거둔다
+        }
+        #expect(store.currentState.currentRoom?.id == "1")
+        #expect(store.currentState.pins.count == 1)          // 옛 방 덱이 살아 있다
+        #expect(!store.currentState.showsEmptyState)         // 빈 화면(방 만들기 CTA)으로 떨어지지 않는다
         store.finish()
     }
 
