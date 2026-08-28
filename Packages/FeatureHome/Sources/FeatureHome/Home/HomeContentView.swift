@@ -103,8 +103,10 @@ struct HomeContentView: View {
         }
     }
 
+    /// 홈은 단계 없이 `full` 하나다 — peek/full 드래그는 013-1 ① 의 **외부 공유** 시트 규칙이고
+    /// 홈 진입에는 대응 시안이 없다. 시스템 시트가 하단 인셋을 넣어 주므로 safeAreaBottom 은 0.
     private func detentHeight(roomCount: Int) -> CGFloat {
-        SavePostSheetMetrics.height(roomCount: roomCount, safeAreaBottom: 0)
+        SavePostSheetMetrics.height(.full, roomCount: roomCount, safeAreaBottom: 0)
     }
 
     /// 게시물 저장 시트 표시 바인딩 — 스와이프 dismiss 도 reducer 로 흘려보낸다.
