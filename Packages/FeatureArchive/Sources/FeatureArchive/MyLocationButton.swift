@@ -3,6 +3,23 @@ import SwiftUI
 
 /// 지도 우하단 현위치 버튼. Figma `005-1 half`(`2792:142415`) 안의 `3276:209987`.
 ///
+/// ## 왜 GoogleMaps 기본 버튼(`settings.myLocationButton`)이 아닌가
+/// SDK 에도 같은 일을 하는 버튼이 있지만 **모양도 자리도 우리가 못 정한다.**
+///
+/// - `GMSUISettings.myLocationButton` 은 `BOOL` 하나뿐이다. 헤더 전체에 프레임·크기·radius·
+///   그림자를 정하는 API 가 없어, 시안의 40×40 / radius 999 / 2단 `Shadow/Normal/Medium` 을
+///   맞출 수단이 없다.
+/// - 자리도 `GMSMapView.padding` 으로 간접적으로만 밀린다("safe area insets position map
+///   controls such as the compass, my location button and floor picker"). 그 padding 은 이미
+///   attribution 을 시트 위로 올리는 데 쓰고 있어(``ArchiveMapLayer/bottomInset``) 버튼 자리를
+///   맞추자고 건드릴 수 없고, 건드리면 Google Maps Platform 약관(attribution 가림 금지)이 깨진다.
+///   `저장된 방` 과 8pt 간격으로 나란히 세우는 것도 좌표계가 달라 보장할 수 없다.
+/// - 아이콘도 다르다. 시안은 **고리 + 안쪽 4눈금, 가운데 점 없음**이고, SDK 가 쓰는 Material
+///   `my_location` 은 바깥으로 뻗는 눈금 + 가운데 점이다(시안 렌더 픽셀 확인).
+/// - `myLocationEnabled` 를 켜야 따라오는 파란 점·정확도 원이 시안에 없다. 게다가 SDK 가 자기
+///   CoreLocation 스택으로 권한을 따로 물어 ``CurrentLocationUseCase``·`PermissionRepository`
+///   를 우회한다 — 거리순 정렬(004-1 ⑥)과 권한 상태가 갈릴 수 있다.
+///
 /// ## 왜 ``MHIconButton`` 이 아닌가
 /// 크기(40×40 원형)·아이콘(20×20)·아이콘 색(`Label/Normal`)까지 DS 의 `Button/Icon/Outlined` 와
 /// 같지만, 시안의 이 버튼은 그 컴포넌트의 인스턴스가 **아니라** 손으로 짠 프레임이다 —
