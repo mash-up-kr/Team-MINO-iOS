@@ -361,13 +361,14 @@ struct HomeContentView: View {
         // 식별은 id, 표시 문구는 그 id 로 rooms 에서 방을 찾아 파생한다.
         if let roomID = store.state.changedRoomToastID,
            let room = store.state.rooms.first(where: { $0.id == roomID }) {
-            MHTooltip(room.homeToastText, position: .left)   // 공동방 "…방이에요." / 개인방 "내 장소예요."
-                .fixedSize()
-                // Figma 002-5-1(node 2809-143382)의 Tooltip 인스턴스: x=22, y=76, 258×36 →
-                // top = 76 − 상태바 44 = 32(뱃지 행과 같은 줄), 우측 인셋 = 375 − (22+258) = 95.
-                // 방 이름이 길면 뱃지·마스코트와 겹치는데 시안도 그렇다(툴팁이 위에 그려지고 잠깐 떴다 사라진다).
+            // 공동방 "…방이에요." / 개인방 "내 장소예요."
+            // Figma 002-5-1(node 2809-143382)의 Tooltip 인스턴스: x=77, y=76, 166×56 →
+            // top = 76 − 상태바 44 = 32(뱃지 행과 같은 줄), 우측 인셋 = 375 − (77+166) = 132,
+            // 폭은 166 고정이라 긴 방 이름은 hug 하지 않고 그 안에서 줄바꿈한다(시안이 2줄).
+            // 오른쪽 끝(243)은 덱 끝 예고 툴팁과 같다 — 둘 다 마스코트를 가리키는 같은 자리다.
+            MHTooltip(room.homeToastText, position: .left, maxWidth: 166)
                 .padding(.top, 32)
-                .padding(.trailing, 95)
+                .padding(.trailing, 132)
                 .transition(.opacity)
                 .accessibilityIdentifier("Home.roomChangeToast")
         }
