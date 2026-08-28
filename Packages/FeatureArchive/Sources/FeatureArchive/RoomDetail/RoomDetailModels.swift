@@ -11,6 +11,27 @@ struct RoomDetailLocation: Identifiable, Equatable {
     /// 개수만 들고 있다가 URL 이 필요해진 자리(공유 시트 썸네일)가 생겨 배열로 바꿨다 —
     /// 개수를 따로 두면 사진과 어긋날 수 있어 ``photoCount`` 는 여기서 센다.
     let photos: [URL]
+    /// 이 장소를 방에 저장한 사람. 시안 004-1 장소 카드 우하단의 아바타 자리다.
+    /// 서버가 저장자를 안 실어 주면 nil 이고, 그때는 자리를 **비운다** — 익명 회색 원을 대신
+    /// 띄우면 "이름 모를 누군가가 저장했다"로 읽혀 없는 정보를 있는 것처럼 보이게 한다.
+    let saver: MemberProfile?
+
+    /// `saver` 만 기본값을 갖는다 — 저장자를 모르는 자리(공유 시트로 넘어가는 값 등)가 있어서다.
+    init(
+        id: String,
+        name: String,
+        address: String,
+        commentCount: Int,
+        photos: [URL],
+        saver: MemberProfile? = nil
+    ) {
+        self.id = id
+        self.name = name
+        self.address = address
+        self.commentCount = commentCount
+        self.photos = photos
+        self.saver = saver
+    }
 
     var photoCount: Int { photos.count }
 
@@ -27,7 +48,9 @@ struct RoomDetailRoom: Equatable {
     /// 방에 담긴 장소 수. 서버가 주는 방 집계값이라 지금 받아 온 페이지의 장소 수와는 다르다.
     /// 표시 문자열이 아니라 수로 들고 있어야 삭제 후 헤더를 다시 조회 없이 맞출 수 있다.
     let locationCount: Int
-    let memberCount: Int
+    /// 방 참여자들의 아바타 프리셋 번호. 헤더 아바타 pill 이 이 순서대로 얼굴을 늘어놓는다.
+    /// 수가 아니라 목록으로 드는 건, 그리려면 몇 명인지가 아니라 **누구인지**를 알아야 하기 때문이다.
+    let memberAvatarIDs: [Int]
 
     var locationCountText: String {
         locationCount > Self.countCap ? "\(Self.countCap)+개" : "\(locationCount)개"
@@ -40,7 +63,7 @@ struct RoomDetailRoom: Equatable {
             title: title,
             memo: memo,
             locationCount: max(0, locationCount - 1),
-            memberCount: memberCount
+            memberAvatarIDs: memberAvatarIDs
         )
     }
 }
@@ -65,7 +88,8 @@ extension RoomDetailLocation {
             name: pin.place.name,
             address: pin.place.address,
             commentCount: pin.commentCount,
-            photos: pin.images
+            photos: pin.images,
+            saver: pin.createdBy
         )
     }
 }
@@ -76,7 +100,7 @@ extension RoomDetailRoom {
             title: room.name,
             memo: room.description ?? "",
             locationCount: room.pinCount,
-            memberCount: room.users.count
+            memberAvatarIDs: room.users.map(\.avatarID)
         )
     }
 }
@@ -168,7 +192,7 @@ extension RoomDetailRoom {
         title: "가나다라마바사아자차카타파하다",
         memo: "memo",
         locationCount: 1_000,   // 상한(999) 을 넘겨 "999+개" 표기를 프리뷰에서 확인한다
-        memberCount: 1
+        memberAvatarIDs: [1, 2, 3, 4]
     )
 }
 
@@ -179,7 +203,8 @@ extension RoomDetailLocation {
             name: "레이어스튜디오 10",
             address: "서울 성동구 상원4길 10",
             commentCount: 1000,
-            photos: (0..<5).compactMap { URL(string: "https://picsum.photos/seed/mino-\(index)-\($0)/400/400") }
+            photos: (0..<5).compactMap { URL(string: "https://picsum.photos/seed/mino-\(index)-\($0)/400/400") },
+            saver: MemberProfile(id: MemberID("user-000\(index % 4 + 1)"), nickname: "저장자\(index)", avatarID: index % 4 + 1)
         )
     }
 }

@@ -64,7 +64,7 @@ struct PlaceDetailCommentSection: View {
 
     private func commentRow(_ comment: PlaceDetailComment) -> some View {
         MHComment(
-            avatar: nil,
+            avatar: ArchiveAvatarArt.image(for: comment.author.avatarID),
             name: comment.author.nickname,
             comment: comment.body,
             menuItems: canDelete(comment) ? [MHMenuItem("댓글 삭제") { onRequestDelete(comment.id) }] : [],

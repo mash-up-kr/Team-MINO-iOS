@@ -184,7 +184,7 @@ struct RoomListItem: Identifiable, Equatable {
 // MARK: - Room → RoomListItem 매핑
 
 extension RoomListItem {
-    /// 도메인 `Room` → 카드 표시 모델. 아바타 이미지는 아직 없어 개수만큼 `nil` 플레이스홀더로 채운다.
+    /// 도메인 `Room` → 카드 표시 모델.
     init(from room: Room) {
         self.init(
             id: room.id,
@@ -192,7 +192,7 @@ extension RoomListItem {
             memo: room.description,
             placeCount: room.pinCount,
             thumbnail: Self.thumbnail(for: room),
-            members: Array(repeating: nil, count: min(room.users.count, 5))
+            members: ArchiveAvatarArt.images(for: room.users.map(\.avatarID))
         )
     }
 
