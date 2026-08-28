@@ -68,7 +68,7 @@ struct PlaceDetailView: View {
                 divider
                 PlaceDetailCommentSection(
                     comments: store.state.comments,
-                    isLoading: store.state.isLoadingComments,
+                    showsEmptyState: store.state.showsCommentEmptyState,
                     menuCommentID: store.state.menuCommentID,
                     canDelete: store.state.canDelete,
                     draft: $draft,

@@ -4,8 +4,9 @@ import SwiftUI
 
 struct PlaceDetailCommentSection: View {
     let comments: [PinComment]
-    /// 아직 불러오는 중인가. 빈 상태를 잠깐 띄우지 않기 위해 받는다.
-    let isLoading: Bool
+    /// "아직 코멘트가 없어요" 를 띄울 때인가. 조회가 끝나고 정말 비었을 때만 true 다 —
+    /// 목록이 비어 있다는 것만으로 그리면 조회 전에 잠깐 스친다.
+    let showsEmptyState: Bool
     /// 삭제 메뉴가 열려 있는 코멘트. 목록 전체에서 하나만 열린다 — 각 코멘트가 자기 상태를 들면
     /// 여러 개가 동시에 열린다(``MHComment`` 문서 권고).
     let menuCommentID: PinCommentID?
@@ -33,9 +34,7 @@ struct PlaceDetailCommentSection: View {
 
                 if !comments.isEmpty {
                     commentList
-                } else if !isLoading {
-                    // 불러오는 동안에는 "아직 코멘트가 없어요" 를 띄우지 않는다 — 곧 채워질
-                    // 자리에 빈 상태가 스치면 거짓말이 된다.
+                } else if showsEmptyState {
                     emptyState
                 }
 
@@ -124,7 +123,7 @@ struct PlaceDetailCommentSection: View {
         var body: some View {
             PlaceDetailCommentSection(
                 comments: [],
-                isLoading: false,
+                showsEmptyState: true,
                 menuCommentID: nil,
                 canDelete: { _ in false },
                 draft: $draft,
@@ -149,7 +148,7 @@ struct PlaceDetailCommentSection: View {
             ScrollView {
                 PlaceDetailCommentSection(
                     comments: comments,
-                    isLoading: false,
+                    showsEmptyState: true,
                     menuCommentID: menuCommentID,
                     canDelete: { $0.isWritten(by: me) },
                     draft: $draft,

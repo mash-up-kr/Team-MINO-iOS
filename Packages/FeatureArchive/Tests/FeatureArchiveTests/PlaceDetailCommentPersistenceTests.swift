@@ -68,6 +68,7 @@ struct PlaceDetailCommentPersistenceTests {
         await store.receive(.commentsLoaded(storedComments)) {
             $0.comments = storedComments
             $0.isLoadingComments = false
+            $0.hasLoadedComments = true
         }
 
         // 화면이 지어낸 게 아니라 받아 온 목록이라, 나갔다 들어와 같은 조회를 하면 같은 줄이 온다.
@@ -107,15 +108,35 @@ struct PlaceDetailCommentPersistenceTests {
         store.finish()
     }
 
-    @Test("L1 — 불러오는 중에는 빈 상태를 띄우지 않는다")
+    @Test("L2 — 조회가 끝나기 전에는 '아직 코멘트가 없어요' 를 띄우지 않는다")
     func emptyStateWaitsForLoad() async {
         let store = makeStore(comments: .comments([]))
 
-        await store.send(.loadComments) { $0.isLoadingComments = true }
+        // 진입 첫 프레임: 목록은 비었지만 아직 물어보지도 않았다 — 빈 상태를 띄우면 거짓말이다.
         #expect(store.currentState.comments.isEmpty)
-        #expect(store.currentState.isLoadingComments)   // 뷰는 이 값으로 빈 상태를 미룬다
-        await store.receive(.commentsLoaded([])) { $0.isLoadingComments = false }
+        #expect(!store.currentState.showsCommentEmptyState)
 
+        await store.send(.loadComments) { $0.isLoadingComments = true }
+        #expect(!store.currentState.showsCommentEmptyState)   // 물어보는 중에도 아직
+
+        await store.receive(.commentsLoaded([])) {
+            $0.isLoadingComments = false
+            $0.hasLoadedComments = true
+        }
+        #expect(store.currentState.showsCommentEmptyState)    // 물어봤더니 없더라 — 이제 띄운다
+
+        store.finish()
+    }
+
+    @Test("L2 — 조회에 실패하면 빈 상태도 띄우지 않는다: 없는 것과 모르는 것은 다르다")
+    func emptyStateStaysHiddenAfterFailure() async {
+        let store = makeStore(comments: .failure(.unknown))
+
+        await store.send(.loadComments) { $0.isLoadingComments = true }
+        await store.receive(.commentsLoadFailed(.unknown)) { $0.isLoadingComments = false }
+
+        #expect(store.currentState.comments.isEmpty)
+        #expect(!store.currentState.showsCommentEmptyState)
         store.finish()
     }
 

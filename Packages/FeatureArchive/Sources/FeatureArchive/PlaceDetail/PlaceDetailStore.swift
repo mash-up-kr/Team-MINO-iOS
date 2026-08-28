@@ -8,6 +8,10 @@ struct PlaceDetailState: Equatable {
     /// 화면을 나갔다 들어와도 같은 목록이 온다(#165).
     var comments: [PinComment] = []
     var isLoadingComments = false
+    /// 조회가 한 번이라도 끝났는가. "아직 안 물어봤다" 와 "물어봤더니 없더라" 를 가른다 —
+    /// 이걸 안 가르면 진입 첫 프레임(조회 시작 전)에 "아직 코멘트가 없어요" 가 스쳤다가
+    /// 목록으로 바뀐다.
+    var hasLoadedComments = false
     /// 등록 요청을 보내고 응답을 기다리는 중 — 등록 버튼이 이 값으로 잠긴다.
     var isSubmittingComment = false
     /// 출처(인스타그램 게시물) 링크. 목록 응답에는 실리지 않아 진입 후 핀 단독 조회로 채운다.
@@ -42,6 +46,9 @@ extension PlaceDetailState {
     /// 코멘트를 등록할 수 있는가. 작성자를 신원으로 싣기 때문에 내가 누구인지 모르면 쓸 수 없고,
     /// 보낸 요청이 아직 안 돌아왔으면 같은 글이 두 번 올라가지 않게 잠근다.
     var canSubmitComment: Bool { currentMember != nil && !isSubmittingComment }
+
+    /// "아직 코멘트가 없어요" 를 띄울 때인가. 물어보기 전·물어보는 중에는 띄우지 않는다.
+    var showsCommentEmptyState: Bool { comments.isEmpty && hasLoadedComments }
 
     /// '저장된 방' 버튼(005-1 ⑮)을 누를 수 있는가 — "중복 저장된 장소 클릭 시에만 활성화된다".
     /// 목록이 비면 이 장소는 지금 보는 방에만 있다는 뜻이라 보여 줄 방이 없다.
@@ -141,14 +148,16 @@ func placeDetailReducer(
         case .commentsLoaded(let comments):
             state.comments = comments
             state.isLoadingComments = false
+            state.hasLoadedComments = true
             return .none
 
         case .commentsLoadFailed:
             // 이미 그려 둔 목록은 손대지 않는다 — 못 받은 것과 없는 것은 다르고, 있던 줄을
             // 지우면 실패가 "코멘트가 사라졌다" 로 보인다.
             //
-            // 첫 조회가 실패하면 목록이 비어 있어 "아직 코멘트가 없어요" 가 뜬다. 시안 005-1 에
-            // 조회 실패 화면이 없어 지금은 그대로 두지만, 실 API 가 붙으면 재시도 UI 를 붙일 자리다.
+            // `hasLoadedComments` 도 켜지 않는다: 실패는 "없더라" 가 아니라 "모르겠다" 라서
+            // 빈 상태를 띄우면 거짓말이 된다. 시안 005-1 에 조회 실패 화면이 없어 지금은 자리가
+            // 비어 있고, 실 API 가 붙으면 여기에 재시도 UI 를 붙인다.
             state.isLoadingComments = false
             return .none
 
