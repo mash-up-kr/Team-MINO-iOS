@@ -39,5 +39,9 @@
 		<key>NSExtensionPrincipalClass</key>
 		<string>$(PRODUCT_MODULE_NAME).ShareViewController</string>
 	</dict>
+	<!-- 앱 본체와 같은 고정 — 근거는 `App/Info.plist` 에. 익스텐션은 별도 번들이라
+	     본체 키가 상속되지 않아 여기에도 선언해야 한다. -->
+	<key>UIUserInterfaceStyle</key>
+	<string>Light</string>
 </dict>
 </plist>

@@ -41,6 +41,13 @@
 	<true/>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
+	<!-- 앱을 라이트 모드로 고정한다. DesignSystem 의 시맨틱 컬러는 에셋 카탈로그가 라이트/다크를
+	     자동 전환하지만, 시안이 라이트 하나로만 그려져 있어 다크에서는 검증된 적 없는 색 조합이
+	     나온다(예: `MHDialog` 주석의 흰 배경 위 흰 글씨). 다크를 지원하기로 하면 이 키를 지운다.
+	     Apple: "force the light user interface style, even when the systemwide style is set to
+	     dark. Your app will ignore any changes to the systemwide style." -->
+	<key>UIUserInterfaceStyle</key>
+	<string>Light</string>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
