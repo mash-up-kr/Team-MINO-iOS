@@ -24,6 +24,12 @@ public protocol ArchiveDeps: RoomShareCreateRoomDeps {
     var deletePin: DeletePinUseCase { get }
     /// 지금 앱을 쓰는 사람 — 장소 상세가 "이 코멘트가 내 것인가"(삭제 케밥을 붙일지)를 이걸로 가른다.
     var currentMember: CurrentMemberUseCase { get }
+    /// 장소 상세의 "친구들의 코멘트" 목록 — 화면 상태가 아니라 저장소에서 받아 온다(#165).
+    var fetchComments: FetchPinCommentsUseCase { get }
+    /// 코멘트 등록. 작성자·식별자는 서버가 정하므로 결과를 받아 목록에 붙인다.
+    var postComment: PostPinCommentUseCase { get }
+    /// 코멘트 삭제(005-1 ⑭) — 확인 다이얼로그를 거친 뒤 지운다.
+    var deleteComment: DeletePinCommentUseCase { get }
     /// 방 상세 거리순 정렬(004-1 ⑥) 의 기준점 — "내 기준 3km" 를 재려면 내 위치가 있어야 한다.
     var currentLocation: CurrentLocationUseCase { get }
     /// 공동방 생성 유도 시트를 "나중에 만들래요" 로 미뤄 둔 상태(2주). 서버가 모르는 기기 로컬

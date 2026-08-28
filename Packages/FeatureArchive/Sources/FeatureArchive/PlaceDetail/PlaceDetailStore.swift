@@ -4,7 +4,16 @@ import MVI
 
 struct PlaceDetailState: Equatable {
     var place: PlaceDetailPlace
-    var comments: [PlaceDetailComment] = []
+    /// 이 장소에 달린 코멘트. 화면이 지어내는 값이 아니라 **저장소에서 받아 온 것**이라
+    /// 화면을 나갔다 들어와도 같은 목록이 온다(#165).
+    var comments: [PinComment] = []
+    var isLoadingComments = false
+    /// 조회가 한 번이라도 끝났는가. "아직 안 물어봤다" 와 "물어봤더니 없더라" 를 가른다 —
+    /// 이걸 안 가르면 진입 첫 프레임(조회 시작 전)에 "아직 코멘트가 없어요" 가 스쳤다가
+    /// 목록으로 바뀐다.
+    var hasLoadedComments = false
+    /// 등록 요청을 보내고 응답을 기다리는 중 — 등록 버튼이 이 값으로 잠긴다.
+    var isSubmittingComment = false
     /// 출처(인스타그램 게시물) 링크. 목록 응답에는 실리지 않아 진입 후 핀 단독 조회로 채운다.
     /// 끝까지 nil 이면 열 곳이 없다는 뜻이라 "원문보기" 를 비활성으로 둔다.
     var sourceURL: URL?
@@ -23,19 +32,23 @@ struct PlaceDetailState: Equatable {
     ///
     /// 방 상세의 케밥 메뉴는 열림 상태를 View 가 들지만(모든 카드에 케밥이 있어 UI 사정일 뿐),
     /// 이쪽은 **열 수 있는지 자체가 소유 판정**이라 reduce 가 쥔다.
-    var menuCommentID: PlaceDetailComment.ID?
+    var menuCommentID: PinCommentID?
     /// ⑭ 코멘트 삭제 확인 다이얼로그. nil 이면 닫혀 있다.
     var commentDeletion: PlaceDetailCommentDeletion?
 }
 
 extension PlaceDetailState {
     /// 이 코멘트에 삭제 케밥을 붙일 수 있는가. 뷰가 그릴지 말지를 이 값 하나로 정한다.
-    func canDelete(_ comment: PlaceDetailComment) -> Bool {
+    func canDelete(_ comment: PinComment) -> Bool {
         comment.isWritten(by: currentMember?.id)
     }
 
-    /// 코멘트를 등록할 수 있는가. 작성자를 신원으로 싣기 때문에 내가 누구인지 모르면 쓸 수 없다.
-    var canSubmitComment: Bool { currentMember != nil }
+    /// 코멘트를 등록할 수 있는가. 작성자를 신원으로 싣기 때문에 내가 누구인지 모르면 쓸 수 없고,
+    /// 보낸 요청이 아직 안 돌아왔으면 같은 글이 두 번 올라가지 않게 잠근다.
+    var canSubmitComment: Bool { currentMember != nil && !isSubmittingComment }
+
+    /// "아직 코멘트가 없어요" 를 띄울 때인가. 물어보기 전·물어보는 중에는 띄우지 않는다.
+    var showsCommentEmptyState: Bool { comments.isEmpty && hasLoadedComments }
 
     /// '저장된 방' 버튼(005-1 ⑮)을 누를 수 있는가 — "중복 저장된 장소 클릭 시에만 활성화된다".
     /// 목록이 비면 이 장소는 지금 보는 방에만 있다는 뜻이라 보여 줄 방이 없다.
@@ -46,6 +59,9 @@ enum PlaceDetailAction: Equatable {
     case load
     case sourceLoaded(URL?)
     case sourceLoadFailed(DomainError)
+    case loadComments
+    case commentsLoaded([PinComment])
+    case commentsLoadFailed(DomainError)
     case loadCurrentMember
     case currentMemberLoaded(MemberProfile)
     case currentMemberLoadFailed(DomainError)
@@ -54,11 +70,15 @@ enum PlaceDetailAction: Equatable {
     case savedRoomsLoadFailed(DomainError)
     case tapSavedRooms
     case submitComment(String)
-    case tapCommentMenu(PlaceDetailComment.ID)
+    case commentPosted(PinComment)
+    case commentPostFailed(DomainError)
+    case tapCommentMenu(PinCommentID)
     case dismissCommentMenu
-    case tapDeleteComment(PlaceDetailComment.ID)
+    case tapDeleteComment(PinCommentID)
     case cancelDeleteComment
     case confirmDeleteComment
+    case commentDeleted(PinCommentID)
+    case commentDeleteFailed(DomainError)
     case tapClose
     case tapShare
 }
@@ -77,8 +97,10 @@ func placeDetailReducer(
     useCase: FetchPinDetailUseCase,
     fetchCurrentMember: CurrentMemberUseCase,
     fetchSavedRooms: FetchSavedRoomsUseCase,
-    pin: Pin,
-    makeCommentID: @escaping () -> String = { UUID().uuidString }
+    fetchComments: FetchPinCommentsUseCase,
+    postComment: PostPinCommentUseCase,
+    deleteComment: DeletePinCommentUseCase,
+    pin: Pin
 ) -> (inout PlaceDetailState, PlaceDetailAction) -> Effect<PlaceDetailAction, PlaceDetailNav> {
     { state, action in
         switch action {
@@ -107,8 +129,38 @@ func placeDetailReducer(
             state.isLoadingSource = false
             return .none
 
-        // 출처 조회와 한 effect 로 묶지 않는다 — 둘은 실패해도 서로 막을 이유가 없고,
-        // 하나로 합치면 한쪽 실패가 다른 쪽 결과까지 끌고 내려간다.
+        // 코멘트도 출처·신원·저장된 방과 따로 받는다 — 넷 다 서로를 막을 이유가 없다.
+        case .loadComments:
+            guard !state.isLoadingComments else { return .none }
+            state.isLoadingComments = true
+            return .run { send in
+                do {
+                    send(.commentsLoaded(try await fetchComments.execute(pinID: pin.id)))
+                } catch is CancellationError {
+                    return
+                } catch let error as DomainError {
+                    send(.commentsLoadFailed(error))
+                } catch {
+                    send(.commentsLoadFailed(.unknown))
+                }
+            }
+
+        case .commentsLoaded(let comments):
+            state.comments = comments
+            state.isLoadingComments = false
+            state.hasLoadedComments = true
+            return .none
+
+        case .commentsLoadFailed:
+            // 이미 그려 둔 목록은 손대지 않는다 — 못 받은 것과 없는 것은 다르고, 있던 줄을
+            // 지우면 실패가 "코멘트가 사라졌다" 로 보인다.
+            //
+            // `hasLoadedComments` 도 켜지 않는다: 실패는 "없더라" 가 아니라 "모르겠다" 라서
+            // 빈 상태를 띄우면 거짓말이 된다. 시안 005-1 에 조회 실패 화면이 없어 지금은 자리가
+            // 비어 있고, 실 API 가 붙으면 여기에 재시도 UI 를 붙인다.
+            state.isLoadingComments = false
+            return .none
+
         case .loadCurrentMember:
             guard state.currentMember == nil, !state.isLoadingCurrentMember else { return .none }
             state.isLoadingCurrentMember = true
@@ -134,7 +186,6 @@ func placeDetailReducer(
             state.isLoadingCurrentMember = false
             return .none
 
-        // 저장된 방도 출처·신원과 따로 받는다 — 셋 다 서로를 막을 이유가 없다.
         case .loadSavedRooms:
             guard !state.isLoadingSavedRooms else { return .none }
             state.isLoadingSavedRooms = true
@@ -169,17 +220,50 @@ func placeDetailReducer(
                 .openSavedRooms(SavedRoomsPresentation(id: pin.id.value, rooms: state.savedRooms))
             )
 
+        // 낙관적 갱신(먼저 붙이고 실패하면 되돌리기)을 쓰지 않는다. 이유 셋:
+        //  · 코멘트 id 는 삭제·메뉴의 손잡이인데, 낙관적으로 붙이려면 임시 id 를 만들어 응답이 온 뒤
+        //    서버 id 로 바꿔치기해야 한다. 그 사이에 케밥을 열면 사라진 id 를 가리킨다
+        //  · 시안 005-1 에 등록 실패를 알리는 UI(토스트·스낵바)가 없다. 붙였다 되돌리면 사용자에겐
+        //    아무 설명 없이 글이 사라지는 것으로만 보인다
+        //  · 같은 화면 계열의 장소 삭제(``roomDetailReducer`` 의 `.confirmDelete`)가 이미 응답 후
+        //    갱신이다. 바로 옆 흐름과 실패 거동이 갈리면 무엇이 반영된 것인지 읽을 수 없다
         case .submitComment(let text):
             // 작성자를 신원으로 싣기 때문에 내가 누구인지 모르면 만들 수 없다. 등록 버튼도 같은
             // 조건으로 잠겨 있어 정상 흐름에서는 여기 도달하지 않는다.
-            guard let author = state.currentMember else { return .none }
-            let body = String(
-                text.trimmingCharacters(in: .whitespacesAndNewlines).prefix(PlaceDetailComment.bodyLimit)
-            )
+            guard state.canSubmitComment else { return .none }
+            // 빈 글로 요청을 내보내지 않기 위한 앞단 검사다. 공백 제거·200자 절단의 **최종 판정은
+            // 유스케이스**(``DefaultPostPinCommentUseCase``)에 있다 — 상한은 서버가 거절하는
+            // 길이라 화면이 아니라 도메인의 규칙이다.
+            let body = text.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !body.isEmpty else { return .none }
-            state.comments.append(
-                PlaceDetailComment(id: makeCommentID(), author: author, body: body)
-            )
+            state.isSubmittingComment = true
+            return .run { send in
+                do {
+                    send(.commentPosted(try await postComment.execute(pinID: pin.id, body: body)))
+                } catch is CancellationError {
+                    return
+                } catch let error as DomainError {
+                    send(.commentPostFailed(error))
+                } catch {
+                    send(.commentPostFailed(.unknown))
+                }
+            }
+
+        case .commentPosted(let comment):
+            state.isSubmittingComment = false
+            // 같은 등록이 두 번 들어와도 줄이 겹쳐 늘지 않는다.
+            guard !state.comments.contains(where: { $0.id == comment.id }) else { return .none }
+            state.comments.append(comment)
+            return .none
+
+        case .commentPostFailed:
+            // 실패 피드백(토스트)은 시안 005-1 에 없다. 목록에 아무것도 안 붙는 것이 곧
+            // "안 올라갔다" 는 표시다.
+            //
+            // 이때 입력창은 이미 비어 있어(뷰가 보낸 직후 지운다) 친 글이 사라진다. 목은 실패하지
+            // 않아 지금은 닿지 않는 경로지만, 실 API 가 붙어 실패가 실제로 일어나면 draft 를
+            // State 로 올려 되돌려 줘야 한다.
+            state.isSubmittingComment = false
             return .none
 
         case .tapCommentMenu(let id):
@@ -209,12 +293,38 @@ func placeDetailReducer(
             return .none
 
         case .confirmDeleteComment:
-            guard let deletion = state.commentDeletion else { return .none }
-            state.commentDeletion = nil
-            // 서버 API 가 없어 목록에서 빼는 게 전부다. 그래도 소유는 여기서 한 번 더 본다 —
-            // 이 화면이 언젠가 삭제 UseCase 를 부르게 되면 그 호출을 감쌀 자리가 여기다.
+            // 이미 보낸 요청이 있으면 무시한다 — 확인 버튼은 잠기지만 접근성 조작 등으로 두 번 들어올 수 있다.
+            guard let deletion = state.commentDeletion, !deletion.isSubmitting else { return .none }
+            // 소유는 여기서 한 번 더 본다 — 서버가 최종 판정하지만, 남의 줄로 요청이 나가는 것부터 막는다.
             let owner = state.currentMember?.id
-            state.comments.removeAll { $0.id == deletion.commentID && $0.isWritten(by: owner) }
+            guard state.comments.contains(where: {
+                $0.id == deletion.commentID && $0.isWritten(by: owner)
+            }) else { return .none }
+
+            state.commentDeletion?.isSubmitting = true
+            return .run { send in
+                do {
+                    try await deleteComment.execute(commentID: deletion.commentID)
+                    send(.commentDeleted(deletion.commentID))
+                } catch is CancellationError {
+                    return
+                } catch let error as DomainError {
+                    send(.commentDeleteFailed(error))
+                } catch {
+                    send(.commentDeleteFailed(.unknown))
+                }
+            }
+
+        case .commentDeleted(let id):
+            state.commentDeletion = nil
+            state.comments.removeAll { $0.id == id }
+            return .none
+
+        case .commentDeleteFailed:
+            // 장소 삭제(``roomDetailReducer`` 의 `.deleteFailed`)와 같은 결 — 실패 UI 가 시안에
+            // 없다. 다이얼로그만 닫고 목록은 손대지 않는다: 지우려던 줄이 그 자리에 남아 있는 것이
+            // 곧 "안 지워졌다" 는 표시다.
+            state.commentDeletion = nil
             return .none
 
         case .tapClose:

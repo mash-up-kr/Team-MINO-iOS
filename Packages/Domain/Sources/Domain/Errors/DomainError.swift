@@ -31,5 +31,10 @@ public enum DomainError: Error, Equatable, Sendable {
     case profileSaveFailed
     /// 초대 코드를 얻지 못했다. 재시도가 의미 있다.
     case inviteCodeFetchFailed
+    /// 빈 코멘트를 등록하려 했다 — 공백만 친 경우를 포함한다.
+    ///
+    /// 등록 버튼이 이미 잠기지만(화면), 유스케이스도 스스로 막는다. 뷰를 고치면 뚫리는 방어라
+    /// 도메인 경계에서 한 번 더 세우고, 그 거절을 오류로 드러낸다.
+    case commentBodyEmpty
     case unknown
 }

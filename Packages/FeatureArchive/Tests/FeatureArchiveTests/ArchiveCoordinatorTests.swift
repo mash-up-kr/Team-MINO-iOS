@@ -65,6 +65,9 @@ private struct StubArchiveDeps: ArchiveDeps {
     var savePin: SavePinToRoomsUseCase = StubSavePin()
     var deletePin: DeletePinUseCase = StubDeletePin()
     var currentMember: CurrentMemberUseCase = StubCurrentMember()
+    var fetchComments: FetchPinCommentsUseCase = StubFetchPinComments()
+    var postComment: PostPinCommentUseCase = StubPostPinComment(outcome: .failure(.unknown))
+    var deleteComment: DeletePinCommentUseCase = StubDeletePinComment()
     var currentLocation: CurrentLocationUseCase = StubCurrentLocation()
     var roomCreationPromptSnooze = SnoozeSwitch(
         key: "ArchiveCoordinatorTests.prompt",

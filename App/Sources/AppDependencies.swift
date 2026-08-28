@@ -26,6 +26,10 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
     let fetchShareTargets: FetchShareTargetsUseCase
     let fetchSavedRooms: FetchSavedRoomsUseCase
     let currentMember: CurrentMemberUseCase
+    /// 장소 상세의 "친구들의 코멘트" — 조회·등록·삭제. 화면 상태가 아니라 저장소에 남는다(#165).
+    let fetchComments: FetchPinCommentsUseCase
+    let postComment: PostPinCommentUseCase
+    let deleteComment: DeletePinCommentUseCase
     let createRoom: CreateRoomUseCase
     let roomCreationPromptSnooze: SnoozeSwitch
     let ensureSession: EnsureSessionUseCase
@@ -99,7 +103,18 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
         self.fetchSavedRooms = DefaultFetchSavedRoomsUseCase(repository: savePinRepository)
 
         // 지금 앱을 쓰는 사람: 프로필 API 미연결 → Mock. MockRoomRepository 의 user-0001 과 같은 사람이다.
-        self.currentMember = DefaultCurrentMemberUseCase(repository: MockCurrentMemberRepository())
+        let currentMemberRepository = MockCurrentMemberRepository()
+        self.currentMember = DefaultCurrentMemberUseCase(repository: currentMemberRepository)
+
+        // 코멘트: 실 API 미연결 → Mock. 등록·삭제가 메모리에 남아야 시트를 닫았다 다시 열어도
+        // 쓴 코멘트가 그대로다(#165). 핀 저장소를 함께 넘기는 건 카드가 보여 준 "코멘트 N" 만큼
+        // 친구 코멘트를 깔아 두기 위해서고, 신원 저장소는 등록한 코멘트의 작성자를 구하는 자리다
+        // (실 서버는 토큰에서 뽑으므로 인터페이스가 작성자를 받지 않는다).
+        // 추후 PinCommentRepositoryImpl 로 교체.
+        let comments = MockPinCommentRepository(pins: pins, currentMember: currentMemberRepository)
+        self.fetchComments = DefaultFetchPinCommentsUseCase(repository: comments)
+        self.postComment = DefaultPostPinCommentUseCase(repository: comments)
+        self.deleteComment = DefaultDeletePinCommentUseCase(repository: comments)
 
         // 방 생성: 실 API. 편집(UpdateRoomUseCase)은 진입점이 아직 없어 조립하지 않는다.
         self.createRoom = DefaultCreateRoomUseCase(
