@@ -32,6 +32,13 @@ struct ArchiveShellView: View {
                 onSelectPin: { detailStore?.send(.tapLocation($0)) }
             )
 
+            if let placeStore {
+                savedRoomsButton(place: placeStore)
+                    // 루트에는 이미 공유 시트가 붙어 있어(같은 뷰에 `.sheet` 를 둘 달면 하나만 뜬다)
+                    // 저장된 방 시트는 버튼 쪽에 붙인다.
+                    .sheet(item: $coordinator.savedRooms, content: savedRoomsSheet)
+            }
+
             if let roomListStore {
                 if placeStore == nil {
                     // zIndex 로 시트 위에 올리지 않는다. 올리면 바깥탭 스크림이 시트를 덮는데,
@@ -77,6 +84,37 @@ struct ArchiveShellView: View {
             .presentationDragIndicator(.hidden)
             .presentationBackground(.mhBackgroundElevatedNormal)
         }
+    }
+
+    /// 005-1 ⑮ — 지도 위 '저장된 방'. 장소 상세를 보는 동안에만 뜨고, 그 장소가 다른 방에도
+    /// 저장돼 있을 때만 눌린다("중복 저장된 장소 클릭 시에만 활성화된다").
+    ///
+    /// 시트보다 **먼저** 그려 시트가 올라오면 그 뒤로 가려지게 둔다 — full 단계에서 따로 숨기지
+    /// 않아도 된다. 시트를 손으로 끌어 올리는 동안 버튼이 따라 움직이지 않는 건 필터바와 같은 한계다.
+    private func savedRoomsButton(place: PlaceDetailStore) -> some View {
+        VStack(spacing: 0) {
+            Spacer(minLength: 0)
+            HStack(spacing: 0) {
+                Spacer(minLength: 0)
+                SavedRoomsButton { place.send(.tapSavedRooms) }
+                    .disabled(!place.state.canOpenSavedRooms)
+            }
+            .padding(.trailing, 20)
+            // 시안(005-1 half `4170:129600`)에서 버튼 아래끝 423, 시트 윗끝 441 → 18.
+            // `peek.medium` 은 시트가 안전영역 위로 드러내는 높이라 기준이 같다.
+            .padding(.bottom, peek.medium + 18)
+        }
+    }
+
+    private func savedRoomsSheet(_ presentation: SavedRoomsPresentation) -> some View {
+        SavedRoomsSheet(
+            rooms: presentation.rooms.map(RoomListItem.init(from:)),
+            onSelect: coordinator.selectSavedRoom
+        )
+        .presentationDetents([.height(SavedRoomsSheet.detentHeight)])
+        .presentationCornerRadius(20)
+        .presentationDragIndicator(.hidden)   // 그래버는 시트가 직접 그린다
+        .presentationBackground(.mhBackgroundElevatedNormal)
     }
 
     /// 스와이프 dismiss 도 reducer 를 거치게 한다 — state 와 실제 표시가 갈라지면 시트가 다시 안 뜬다.
