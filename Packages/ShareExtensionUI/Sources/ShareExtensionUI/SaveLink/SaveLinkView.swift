@@ -15,6 +15,17 @@ public struct SaveLinkView: View {
     private let makeStore: @MainActor () -> SaveLinkStore
     @State private var store: SaveLinkStore?
 
+    /// 013-1 ① 의 두 단계. 진입은 peek(node 2792:176010), 그래버·헤더를 끌어 full 로 올린다.
+    @State private var detent: SavePostSheetDetent = .peek
+
+    /// 드래그 중 손가락 이동량(아래로 양수). `@GestureState` 라 제스처가 취소돼도 0 으로 되돌아온다 —
+    /// `onEnded` 가 안 오는 경로(시스템 취소)에서 시트가 어긋난 높이로 굳는 걸 막는다.
+    ///
+    /// `resetTransaction` 이 없으면 손을 뗄 때 이 값만 애니메이션 없이 0 으로 튀어, 단계 스냅이
+    /// 스프링이 아니라 한 프레임 점프로 보인다 — 아래 `onEnded` 의 애니메이션과 같은 스프링을 준다.
+    @GestureState(resetTransaction: Transaction(animation: .spring(duration: 0.3)))
+    private var dragTranslation: CGFloat = 0
+
     public init(makeStore: @escaping @MainActor () -> SaveLinkStore) {
         self.makeStore = makeStore
     }
@@ -65,7 +76,7 @@ public struct SaveLinkView: View {
         }
     }
 
-    /// 시트 본체 + 익스텐션 쪽 컨테이너(고정 높이·둥근 상단 배경).
+    /// 시트 본체 + 익스텐션 쪽 컨테이너(단계 높이·둥근 상단 배경·드래그 핸들).
     /// 홈은 시스템 `.sheet` 가 이 둘을 대신하므로 ``SavePostSheet`` 는 컨테이너를 그리지 않는다.
     @ViewBuilder
     private func sheet(store: SaveLinkStore, safeAreaBottom: CGFloat) -> some View {
@@ -89,12 +100,51 @@ public struct SaveLinkView: View {
             }
         }
         // 로딩 중에는 방 개수를 모른다 — 목록이 오면 개수에 맞는 높이로 한 번 자란다.
-        .frame(height: SavePostSheetMetrics.height(roomCount: rooms.count, safeAreaBottom: safeAreaBottom))
+        .frame(height: draggedHeight(roomCount: rooms.count, safeAreaBottom: safeAreaBottom))
         .frame(maxWidth: .infinity)
         .background {
             UnevenRoundedRectangle(topLeadingRadius: 20, topTrailingRadius: 20)
                 .fill(Color.mhBackgroundElevatedNormal)
         }
+        // 단계 전환 드래그는 시트 상단(그래버+헤더)에서만 받는다 — 목록 위 드래그는 스크롤로 남겨야
+        // 한다. 시트 전체에 `simultaneousGesture` 로 걸면 카드를 훑는 동작이 시트까지 끌어올린다.
+        .overlay(alignment: .top) {
+            // 바깥탭 스크림과 같은 이유로 `Color.clear` 대신 최소 불투명도를 준다 — 색이 아니라
+            // 히트 테스트가 목적이다.
+            Color.black.opacity(0.001)
+                .frame(height: SavePostSheetMetrics.headerHeight)
+                .gesture(dragGesture(roomCount: rooms.count, safeAreaBottom: safeAreaBottom))
+                .accessibilityIdentifier("SaveLink.sheetDragHandle")
+        }
+    }
+
+    // MARK: - peek ↔ full 드래그 (013-1 ①)
+
+    /// 현재 단계 높이에서 손가락 이동량을 뺀 값 — 두 단계 사이로만 움직인다(고무줄 없음).
+    private func draggedHeight(roomCount: Int, safeAreaBottom: CGFloat) -> CGFloat {
+        let (peek, full) = detentHeights(roomCount: roomCount, safeAreaBottom: safeAreaBottom)
+        let current = SavePostSheetMetrics.height(detent, roomCount: roomCount, safeAreaBottom: safeAreaBottom)
+        return min(max(current - dragTranslation, peek), full)
+    }
+
+    private func detentHeights(roomCount: Int, safeAreaBottom: CGFloat) -> (peek: CGFloat, full: CGFloat) {
+        (SavePostSheetMetrics.height(.peek, roomCount: roomCount, safeAreaBottom: safeAreaBottom),
+         SavePostSheetMetrics.height(.full, roomCount: roomCount, safeAreaBottom: safeAreaBottom))
+    }
+
+    private func dragGesture(roomCount: Int, safeAreaBottom: CGFloat) -> some Gesture {
+        DragGesture(minimumDistance: 4)
+            .updating($dragTranslation) { value, state, _ in state = value.translation.height }
+            .onEnded { value in
+                let (peek, full) = detentHeights(roomCount: roomCount, safeAreaBottom: safeAreaBottom)
+                let current = SavePostSheetMetrics.height(detent, roomCount: roomCount,
+                                                          safeAreaBottom: safeAreaBottom)
+                // 손을 뗀 위치가 아니라 관성까지 반영한 도착 높이로 판정한다(짧고 빠른 플릭도 넘어간다).
+                let projected = current - value.predictedEndTranslation.height
+                withAnimation(.spring(duration: 0.3)) {
+                    detent = abs(projected - peek) <= abs(projected - full) ? .peek : .full
+                }
+            }
     }
 
     /// 저장이 끝나면 시트는 사라지고 스낵바만 남는다. Figma `013-2`(node 2792:177961 — 화면 바닥에서 40).
@@ -134,7 +184,7 @@ public struct SaveLinkView: View {
             onToggleRoom: { _ in },
             onSave: {}
         )
-        .frame(height: SavePostSheetMetrics.height(roomCount: rooms.count, safeAreaBottom: 34))
+        .frame(height: SavePostSheetMetrics.height(.full, roomCount: rooms.count, safeAreaBottom: 34))
         .background {
             UnevenRoundedRectangle(topLeadingRadius: 20, topTrailingRadius: 20)
                 .fill(Color.mhBackgroundElevatedNormal)

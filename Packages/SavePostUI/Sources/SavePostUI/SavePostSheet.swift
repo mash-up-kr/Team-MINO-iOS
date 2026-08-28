@@ -1,7 +1,7 @@
 import DesignSystem
 import SwiftUI
 
-/// 저장할 방을 고르는 바텀시트 콘텐츠. Figma `013-1-3 게시물 저장`(node 2862:177988).
+/// 저장할 방을 고르는 바텀시트 콘텐츠. Figma `013-1-3 외부 공유 시 바텀시트_full_4개 이상`(node 2862:177988).
 ///
 /// 그래버 + "게시물 저장" 헤더 + 방 목록(체크박스) + `저장하기` 액션까지만 그린다.
 /// **높이·배경·딤은 그리지 않는다** — 홈은 시스템 `.sheet`(딤 포함), 익스텐션은 호스트 화면 위에
@@ -25,8 +25,10 @@ public struct SavePostSheet: View {
     /// - Parameters:
     ///   - checkedRoomIDs: 체크로 보이는 방 — 이미 저장된 방도 포함해서 넘긴다(Figma 013-1-2).
     ///   - disabledRoomIDs: 이미 이 게시물이 들어 있어 끌 수 없는 방(중복 저장 방지, Figma 002-1).
-    ///   - safeAreaBottom: 액션 영역 아래로 확보할 홈 인디케이터 높이. 시스템 시트처럼 SwiftUI 가
-    ///     이미 하단 인셋을 넣어 주는 컨테이너에서는 0 을 준다(이중으로 잡히면 시안보다 커진다).
+    ///   - safeAreaBottom: 이 시트가 직접 들고 있는 기기 하단 인셋(홈 인디케이터). 시스템 시트처럼
+    ///     SwiftUI 가 이미 하단 인셋을 넣어 주는 컨테이너에서는 0 을 준다(이중으로 잡히면 시안보다 커진다).
+    ///     액션 영역 아래에 실제로 깔리는 띠는 여기서 컨테이너 하단 패딩 20 을 뺀 만큼이다
+    ///     (``SavePostSheetMetrics/actionAreaBottomBand(safeAreaBottom:)``).
     ///   - identifierPrefix: 접근성 식별자 접두어(`\(prefix).sheet` 식). 같은 시트를 여러 진입점이
     ///     쓰므로 QA 시나리오가 화면을 구분할 수 있게 호출부가 정한다.
     public init(
@@ -141,9 +143,14 @@ public struct SavePostSheet: View {
             )
             // sticky 배경은 **컨테이너 안전영역**까지만 내려간다. 익스텐션처럼 그 인셋을 직접 들고 있는
             // (ignoresSafeArea) 화면에서는 여기까지 닿지 않아, 그 띠를 같은 색으로 직접 메운다.
-            if safeAreaBottom > 0 {
+            //
+            // 인셋 전체가 아니라 컨테이너 하단 패딩 20 을 뺀 만큼만 깐다 — 시안의 액션 영역은
+            // 102(컨테이너 88 + `Bottom Safe Area` 14)라 그 20 이 이미 인디케이터 영역 안에 있다.
+            // 자세한 근거는 ``SavePostSheetMetrics``.
+            let band = SavePostSheetMetrics.actionAreaBottomBand(safeAreaBottom: safeAreaBottom)
+            if band > 0 {
                 Color.mhBackgroundElevatedNormal
-                    .frame(height: safeAreaBottom)
+                    .frame(height: band)
             }
         }
         .background {
@@ -179,7 +186,7 @@ public struct SavePostSheet: View {
             onToggleRoom: { _ in },
             onSave: {}
         )
-        .frame(height: SavePostSheetMetrics.height(roomCount: rooms.count, safeAreaBottom: 34))
+        .frame(height: SavePostSheetMetrics.height(.full, roomCount: rooms.count, safeAreaBottom: 34))
         .background {
             UnevenRoundedRectangle(topLeadingRadius: 20, topTrailingRadius: 20)
                 .fill(Color.mhBackgroundElevatedNormal)
