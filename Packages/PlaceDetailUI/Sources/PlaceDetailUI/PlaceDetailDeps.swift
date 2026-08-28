@@ -17,6 +17,9 @@ public protocol PlaceDetailDeps {
     var postComment: PostPinCommentUseCase { get }
     /// 코멘트 삭제(005-1 ⑭) — 확인 다이얼로그를 거친 뒤 지운다.
     var deleteComment: DeletePinCommentUseCase { get }
+    /// 005-1 현위치 버튼이 쓰는 내 위치. 버튼은 지도 위에 있으므로 지도가 없는 진입점(홈)에서는
+    /// 그리지 않지만, 화면이 같은 리듀서를 쓰므로 의존은 그대로 받는다.
+    var currentLocation: CurrentLocationUseCase { get }
 }
 
 /// 장소 상세 Store 를 만든다. 이 화면의 **유일한 진입점**이다.
@@ -45,6 +48,7 @@ public func makePlaceDetailStore(
             fetchComments: deps.fetchComments,
             postComment: deps.postComment,
             deleteComment: deps.deleteComment,
+            currentLocation: deps.currentLocation,
             pin: pin
         ),
         handle: handle

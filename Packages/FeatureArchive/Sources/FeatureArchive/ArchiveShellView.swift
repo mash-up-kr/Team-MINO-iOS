@@ -28,13 +28,14 @@ struct ArchiveShellView: View {
             ArchiveMapLayer(
                 bottomInset: mapBottomInset,
                 pins: detailStore?.state.pins ?? [],
+                myLocation: coordinator.mapFocus?.coordinate,
                 roomColor: coordinator.selectedRoom?.color,
                 selectedPinID: coordinator.selectedPin?.id.value,
                 onSelectPin: { detailStore?.send(.tapLocation($0)) }
             )
 
             if let placeStore {
-                savedRoomsButton(place: placeStore)
+                mapButtons(place: placeStore)
                     // 루트에는 이미 공유 시트가 붙어 있어(같은 뷰에 `.sheet` 를 둘 달면 하나만 뜬다)
                     // 저장된 방 시트는 버튼 쪽에 붙인다.
                     .sheet(item: $coordinator.savedRooms, content: savedRoomsSheet)
@@ -90,23 +91,31 @@ struct ArchiveShellView: View {
         }
     }
 
-    /// 005-1 ⑮ — 지도 위 '저장된 방'. 장소 상세를 보는 동안에만 뜨고, 그 장소가 다른 방에도
-    /// 저장돼 있을 때만 눌린다("중복 저장된 장소 클릭 시에만 활성화된다").
+    /// 지도 위 부유 버튼 줄(005-1) — '저장된 방'(⑮) + 현위치.
+    ///
+    /// 둘 다 **장소 상세를 보는 동안에만** 뜬다. 현위치도 지도 전역 컨트롤이 아니라 이 화면의
+    /// 것이다 — 방 상세(004-1-2 half `1604:97399`·peek `1604:97350`)와 방 리스트 시안에는
+    /// 이 버튼이 없다(직접 확인). 없는 화면에 지어 붙이지 않는다.
+    ///
+    /// '저장된 방' 은 그 장소가 다른 방에도 저장돼 있을 때만 눌린다("중복 저장된 장소 클릭
+    /// 시에만 활성화된다"). 현위치는 늘 눌린다 — 권한·측위 결과로 갈리는 것은 누른 **뒤**의
+    /// 일이라 미리 잠글 근거가 없다.
     ///
     /// 시트보다 **먼저** 그려 시트가 올라오면 그 뒤로 가려지게 둔다 — full 단계에서 따로 숨기지
     /// 않아도 된다. 시트를 손으로 끌어 올리는 동안 버튼이 따라 움직이지 않는 건 필터바와 같은 한계다.
-    private func savedRoomsButton(place: PlaceDetailStore) -> some View {
+    ///
+    /// 자리 값의 근거는 ``ArchiveMapButtonMetrics``.
+    private func mapButtons(place: PlaceDetailStore) -> some View {
         VStack(spacing: 0) {
             Spacer(minLength: 0)
-            HStack(spacing: 0) {
+            HStack(spacing: ArchiveMapButtonMetrics.spacing) {
                 Spacer(minLength: 0)
                 SavedRoomsButton { place.send(.tapSavedRooms) }
                     .disabled(!place.state.canOpenSavedRooms)
+                MyLocationButton { place.send(.tapMyLocation) }
             }
-            .padding(.trailing, 20)
-            // 시안(005-1 half `4170:129600`)에서 버튼 아래끝 423, 시트 윗끝 441 → 18.
-            // `peek.medium` 은 시트가 안전영역 위로 드러내는 높이라 기준이 같다.
-            .padding(.bottom, peek.medium + 18)
+            .padding(.trailing, ArchiveMapButtonMetrics.trailing)
+            .padding(.bottom, peek.medium + ArchiveMapButtonMetrics.bottomGap)
         }
     }
 

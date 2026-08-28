@@ -50,10 +50,10 @@ private struct StubCurrentMember: CurrentMemberUseCase {
     }
 }
 
+private let fixtureCoordinate = Coordinate(latitude: 37.5443, longitude: 127.0557)
+
 private struct StubCurrentLocation: CurrentLocationUseCase {
-    func execute() async -> CurrentLocationResult {
-        .coordinate(Coordinate(latitude: 37.5443, longitude: 127.0557))
-    }
+    func execute() async -> CurrentLocationResult { .coordinate(fixtureCoordinate) }
 }
 
 private struct StubArchiveDeps: ArchiveDeps {
@@ -336,6 +336,88 @@ struct ArchiveCoordinatorTests {
         #expect(coordinator.savedRooms == nil)
         #expect(coordinator.selectedRoom == savedRoomB)
         #expect(coordinator.selectedPin == fixturePin)   // 장소 상세는 닫히지 않는다
+    }
+
+    // MARK: - 지도 현위치 (005-1)
+
+    @Test("focusMyLocation 은 지도가 비출 자리를 세운다")
+    func focusMyLocation_setsMapFocus() {
+        let coordinator = makeCoordinator()
+
+        coordinator.handle(PlaceDetailNav.focusMyLocation(fixtureCoordinate))
+
+        #expect(coordinator.mapFocus?.coordinate == fixtureCoordinate)
+    }
+
+    @Test("같은 자리를 다시 요청해도 값이 달라진다 — 지도를 옮긴 뒤 다시 눌러도 돌아와야 한다")
+    func focusMyLocation_repeatRequestIsANewValue() {
+        let coordinator = makeCoordinator()
+
+        coordinator.handle(PlaceDetailNav.focusMyLocation(fixtureCoordinate))
+        let first = coordinator.mapFocus
+        coordinator.handle(PlaceDetailNav.focusMyLocation(fixtureCoordinate))
+
+        #expect(coordinator.mapFocus != first)
+        #expect(coordinator.mapFocus?.coordinate == fixtureCoordinate)
+    }
+
+    @Test("방을 바꾸면 카메라 요청이 사라진다 — 새 방의 핀에 다시 맞춰야 한다")
+    func openRoomDetail_clearsMapFocus() {
+        let coordinator = makeCoordinator()
+        coordinator.handle(PlaceDetailNav.focusMyLocation(fixtureCoordinate))
+
+        coordinator.handle(.openRoomDetail(fixtureRoom))
+
+        #expect(coordinator.mapFocus == nil)
+    }
+
+    @Test("저장된 방으로 갈아끼울 때도 카메라 요청이 사라진다")
+    func selectSavedRoom_clearsMapFocus() {
+        let coordinator = makeCoordinator()
+        coordinator.handle(.openRoomDetail(fixtureRoom))
+        coordinator.handle(
+            PlaceDetailNav.openSavedRooms(SavedRoomsPresentation(id: "p1", rooms: [savedRoomB]))
+        )
+        coordinator.handle(PlaceDetailNav.focusMyLocation(fixtureCoordinate))
+
+        coordinator.selectSavedRoom(savedRoomB.id)
+
+        #expect(coordinator.mapFocus == nil)
+    }
+
+    @Test("방 상세를 닫아도 카메라 요청이 사라진다")
+    func closeRoomDetail_clearsMapFocus() {
+        let coordinator = makeCoordinator()
+        coordinator.handle(.openRoomDetail(fixtureRoom))
+        coordinator.handle(PlaceDetailNav.focusMyLocation(fixtureCoordinate))
+
+        coordinator.handle(RoomDetailNav.close)
+
+        #expect(coordinator.mapFocus == nil)
+    }
+
+    @Test("장소 상세만 닫으면 카메라 요청은 남는다 — 사용자가 옮겨 둔 지도를 되돌리지 않는다")
+    func closePlaceDetail_keepsMapFocus() {
+        let coordinator = makeCoordinator()
+        coordinator.handle(.openRoomDetail(fixtureRoom))
+        coordinator.handle(RoomDetailNav.openPlaceDetail(fixturePin))
+        coordinator.handle(PlaceDetailNav.focusMyLocation(fixtureCoordinate))
+
+        coordinator.handle(PlaceDetailNav.close)
+
+        #expect(coordinator.mapFocus?.coordinate == fixtureCoordinate)
+    }
+
+    @Test("배선 — 장소 상세 Store 의 현위치 탭이 지도 카메라까지 닿는다")
+    func placeDetailStore_isWiredToMapFocus() async {
+        let coordinator = makeCoordinator()
+        coordinator.handle(.openRoomDetail(fixtureRoom))
+        let store = coordinator.makePlaceDetailStore(pin: fixturePin)
+
+        store.send(.tapMyLocation)
+
+        await waitUntil { coordinator.mapFocus != nil }
+        #expect(coordinator.mapFocus?.coordinate == fixtureCoordinate)
     }
 
     @Test("목록에 없는 방 id 는 무시한다 — 시트도 방도 그대로")

@@ -129,9 +129,9 @@ public final class HomeCoordinator: Coordinator {
             selectedPin = nil
             homeStore?.send(.tapSaveToOtherRoom(pin.id))
 
-        case .openSavedRooms:
-            // '저장된 방' 버튼(005-1 ⑮)은 시트 밖 **지도 위**에 그려지는데 홈에는 지도가 없어
-            // 버튼 자체를 띄우지 않는다. 즉 이 전환은 홈에서 발생하지 않는다.
+        case .openSavedRooms, .focusMyLocation:
+            // 둘 다 시트 밖 **지도 위**에 그려지는 버튼('저장된 방' 005-1 ⑮ · 현위치)이 내는
+            // 전환이다. 홈에는 지도가 없어 버튼 자체를 띄우지 않으므로 여기 도달하지 않는다.
             break
         }
     }

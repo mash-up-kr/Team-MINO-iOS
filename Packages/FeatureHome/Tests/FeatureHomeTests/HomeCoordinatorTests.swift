@@ -19,18 +19,22 @@ private struct StubDeps: HomeDeps {
     var fetchComments: FetchPinCommentsUseCase = StubUnused()
     var postComment: PostPinCommentUseCase = StubUnused()
     var deleteComment: DeletePinCommentUseCase = StubUnused()
+    var currentLocation: CurrentLocationUseCase = StubUnused()
 }
 
 /// 이 스위트가 쓰지 않는 장소 상세 유스케이스들. 불리면 값이 아니라 **실패**를 돌려준다 —
 /// 조용한 기본값을 주면 나중에 실제로 부르는 경로가 생겨도 테스트가 통과해 버린다.
 private struct StubUnused: FetchPinDetailUseCase, CurrentMemberUseCase, FetchSavedRoomsUseCase,
-                           FetchPinCommentsUseCase, PostPinCommentUseCase, DeletePinCommentUseCase {
+                           FetchPinCommentsUseCase, PostPinCommentUseCase, DeletePinCommentUseCase,
+                           CurrentLocationUseCase {
     func execute(pinID: PinID) async throws -> PinDetail { throw DomainError.unknown }
     func execute() async throws -> MemberProfile { throw DomainError.unknown }
     func execute(pin: Pin) async throws -> [Room] { throw DomainError.unknown }
     func execute(pinID: PinID) async throws -> [PinComment] { throw DomainError.unknown }
     func execute(pinID: PinID, body: String) async throws -> PinComment { throw DomainError.unknown }
     func execute(commentID: PinCommentID) async throws { throw DomainError.unknown }
+    // 현위치만 throw 할 수 없다(유스케이스가 throws 가 아니다) — 못 얻은 것으로 답한다.
+    func execute() async -> CurrentLocationResult { .unavailable }
 }
 
 private struct StubFetchRooms: FetchRoomsUseCase {

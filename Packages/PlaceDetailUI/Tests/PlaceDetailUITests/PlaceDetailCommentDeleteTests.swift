@@ -20,6 +20,11 @@ private struct QuietFetchPinDetail: FetchPinDetailUseCase {
     }
 }
 
+/// 현위치 조회는 이 스위트의 관심사가 아니다 — 부르지 않는다.
+private struct QuietCurrentLocation: CurrentLocationUseCase {
+    func execute() async -> CurrentLocationResult { .unavailable }
+}
+
 // 표본은 타입 밖에 둔다 — 스위트가 `@MainActor` 라 static 프로퍼티도 격리되고, 스텁의
 // `@Sendable` 클로저에서는 격리된 값을 읽을 수 없다.
 private let me = MemberProfile(id: MemberID("user-0001"), nickname: "나", avatarID: 1)
@@ -52,6 +57,7 @@ struct PlaceDetailCommentDeleteTests {
                     outcome: .posted { PinCommentFixture.comment(id: "c-new", author: me, body: $0) }
                 ),
                 deleteComment: StubDeletePinComment(outcome: delete),
+                currentLocation: QuietCurrentLocation(),
                 pin: deletePin
             )
         )
