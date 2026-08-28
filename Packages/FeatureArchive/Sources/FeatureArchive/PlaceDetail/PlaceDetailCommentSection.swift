@@ -14,7 +14,8 @@ struct PlaceDetailCommentSection: View {
     let canSubmit: Bool
     /// 메뉴 여닫기. nil 이면 닫기.
     let onToggleMenu: (PlaceDetailComment.ID?) -> Void
-    let onDelete: (PlaceDetailComment.ID) -> Void
+    /// 삭제 **요청**. 실제 삭제는 확인 다이얼로그를 거친 뒤라 이 자리에서 일어나지 않는다(⑭).
+    let onRequestDelete: (PlaceDetailComment.ID) -> Void
     let onSubmit: () -> Void
 
     private var trimmedDraft: String {
@@ -66,7 +67,7 @@ struct PlaceDetailCommentSection: View {
             avatar: nil,
             name: comment.author.nickname,
             comment: comment.body,
-            menuItems: canDelete(comment) ? [MHMenuItem("댓글 삭제") { onDelete(comment.id) }] : [],
+            menuItems: canDelete(comment) ? [MHMenuItem("댓글 삭제") { onRequestDelete(comment.id) }] : [],
             menuPresented: Binding(
                 get: { menuCommentID == comment.id },
                 set: { onToggleMenu($0 ? comment.id : nil) }
@@ -124,7 +125,7 @@ struct PlaceDetailCommentSection: View {
                 draft: $draft,
                 canSubmit: true,
                 onToggleMenu: { _ in },
-                onDelete: { _ in },
+                onRequestDelete: { _ in },
                 onSubmit: {}
             )
         }
@@ -148,7 +149,9 @@ struct PlaceDetailCommentSection: View {
                     draft: $draft,
                     canSubmit: true,
                     onToggleMenu: { menuCommentID = $0 },
-                    onDelete: { id in
+                    // 앱에서는 확인 다이얼로그를 거치지만(⑭) 그 다이얼로그는 화면 쪽에 있다 —
+                    // 여기선 섹션만 보는 프리뷰라 바로 지운다.
+                    onRequestDelete: { id in
                         menuCommentID = nil
                         comments.removeAll { $0.id == id }
                     },

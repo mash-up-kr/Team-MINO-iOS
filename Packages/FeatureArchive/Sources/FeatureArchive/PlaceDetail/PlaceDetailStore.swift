@@ -24,6 +24,8 @@ struct PlaceDetailState: Equatable {
     /// 방 상세의 케밥 메뉴는 열림 상태를 View 가 들지만(모든 카드에 케밥이 있어 UI 사정일 뿐),
     /// 이쪽은 **열 수 있는지 자체가 소유 판정**이라 reduce 가 쥔다.
     var menuCommentID: PlaceDetailComment.ID?
+    /// ⑭ 코멘트 삭제 확인 다이얼로그. nil 이면 닫혀 있다.
+    var commentDeletion: PlaceDetailCommentDeletion?
 }
 
 extension PlaceDetailState {
@@ -54,7 +56,9 @@ enum PlaceDetailAction: Equatable {
     case submitComment(String)
     case tapCommentMenu(PlaceDetailComment.ID)
     case dismissCommentMenu
-    case deleteComment(PlaceDetailComment.ID)
+    case tapDeleteComment(PlaceDetailComment.ID)
+    case cancelDeleteComment
+    case confirmDeleteComment
     case tapClose
     case tapShare
 }
@@ -190,12 +194,27 @@ func placeDetailReducer(
             state.menuCommentID = nil
             return .none
 
-        case .deleteComment(let id):
+        // ⑭ "클릭 시 삭제하기 모달이 활성화된다" — 메뉴를 누른 것만으로는 지우지 않는다.
+        case .tapDeleteComment(let id):
             state.menuCommentID = nil
+            // 남의 코멘트엔 케밥이 없지만, 뷰를 고치면 뚫린다 — 다이얼로그를 여는 자리에서도 소유를 본다.
+            let viewer = state.currentMember?.id
+            guard state.comments.contains(where: { $0.id == id && $0.isWritten(by: viewer) })
+            else { return .none }
+            state.commentDeletion = PlaceDetailCommentDeletion(commentID: id)
+            return .none
+
+        case .cancelDeleteComment:
+            state.commentDeletion = nil
+            return .none
+
+        case .confirmDeleteComment:
+            guard let deletion = state.commentDeletion else { return .none }
+            state.commentDeletion = nil
             // 서버 API 가 없어 목록에서 빼는 게 전부다. 그래도 소유는 여기서 한 번 더 본다 —
             // 이 화면이 언젠가 삭제 UseCase 를 부르게 되면 그 호출을 감쌀 자리가 여기다.
-            let viewer = state.currentMember?.id
-            state.comments.removeAll { $0.id == id && $0.isWritten(by: viewer) }
+            let owner = state.currentMember?.id
+            state.comments.removeAll { $0.id == deletion.commentID && $0.isWritten(by: owner) }
             return .none
 
         case .tapClose:

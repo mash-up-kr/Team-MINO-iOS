@@ -28,6 +28,17 @@ struct PlaceDetailView: View {
             collapseRef.isCollapsed = false
             isScrolledPastHeader = false
         }
+        // ⑭ "클릭 시 삭제하기 모달이 활성화된다". 코멘트 삭제 전용 시안이 없어 같은 앱의 장소
+        // 삭제 모달(004-1-3-1 `3222:87768`)을 준용한다 — 제목 "이 …를 삭제할까요?" + 되돌릴 수
+        // 없다는 한 줄 + 취소/삭제 두 버튼이 이 앱 확인 모달의 공통 꼴이다(004-2-2 방 나가기도 같다).
+        .mhDialog(item: store.state.commentDeletion) { _ in
+            MHDialog(
+                title: "이 댓글을 삭제할까요?",
+                message: "삭제한 댓글은 다시 되돌릴 수 없어요.",
+                cancel: MHAction("취소") { store.send(.cancelDeleteComment) },
+                confirm: MHAction("삭제") { store.send(.confirmDeleteComment) }
+            )
+        }
     }
 
     private var header: some View {
@@ -58,7 +69,7 @@ struct PlaceDetailView: View {
                     draft: $draft,
                     canSubmit: store.state.canSubmitComment,
                     onToggleMenu: toggleCommentMenu,
-                    onDelete: { store.send(.deleteComment($0)) },
+                    onRequestDelete: { store.send(.tapDeleteComment($0)) },
                     onSubmit: submitComment
                 )
             }
