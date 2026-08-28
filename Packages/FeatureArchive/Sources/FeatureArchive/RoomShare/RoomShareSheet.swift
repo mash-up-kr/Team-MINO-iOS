@@ -93,7 +93,7 @@ struct RoomShareSheet: View {
     // 공유할 장소 — 썸네일 46 + 제목/메모 + 닫기. Figma `1672:73596`.
     private var locationHeader: some View {
         HStack(spacing: 14) {
-            RoomShareLocationThumbnail()
+            RoomShareLocationThumbnail(photo: location.thumbnail)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(location.name)
@@ -255,21 +255,47 @@ private struct RoomShareCover: View {
     }
 }
 
-/// 공유할 장소의 썸네일 46pt. 사진 에셋이 없어 카드 썸네일과 같은 플레이스홀더로 그린다.
+/// 공유할 장소의 썸네일 46pt — 그 장소 사진 중 **첫 장**이다(기획 011-1 ②).
+///
+/// 사진이 없거나 로딩·실패 중에는 자리표로 떨어진다 — 셋을 같은 자리표로 받는 건
+/// ``PlaceDetailPhotoCarousel`` 과 같은 이유로, 자리가 비면 옆 텍스트가 밀리기 때문이다.
 private struct RoomShareLocationThumbnail: View {
+    let photo: URL?
+
+    private static let side: CGFloat = 46
+    private static let cornerRadius: CGFloat = 7.83
+
     var body: some View {
-        RoundedRectangle(cornerRadius: 7.83, style: .continuous)
-            .fill(.mhBackgroundNormalNormal)
-            .overlay {
-                RoundedRectangle(cornerRadius: 7.83, style: .continuous).fill(.mhFillAlternative)
+        Group {
+            if let photo {
+                AsyncImage(url: photo) { phase in
+                    if case .success(let image) = phase {
+                        image.resizable().scaledToFill()
+                    } else {
+                        placeholder
+                    }
+                }
+            } else {
+                placeholder
             }
+        }
+        .frame(width: Self.side, height: Self.side)
+        .clipShape(shape)
+    }
+
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous)
+    }
+
+    private var placeholder: some View {
+        Rectangle()
+            .fill(.mhFillAlternative)
             .overlay {
                 Image(.image)
                     .resizable()
                     .frame(width: 20, height: 20)
                     .foregroundStyle(.mhLineNormalNeutral)
             }
-            .frame(width: 46, height: 46)
     }
 }
 
