@@ -1,8 +1,39 @@
 import DesignSystem
 import SwiftUI
 
+/// 헤더 상단 여백. **시트 단계마다 다르다** — 시안을 375×812 PNG 로 받아 픽셀로 실측한 값이다.
+///
+/// | 단계 | 시안 | 기준선 | 헤더 첫 줄(닫기 버튼 40pt 상자) 윗끝 |
+/// |---|---|---|---|
+/// | half | `005-1` `2792:142415` | 시트 흰 면 윗끝 y=441 | y=471 → **30** |
+/// | full | `005-2-1` `2792:142205` | 상태바 아래 y=54 | `Frame 303` 의 `Button/Icon/Outlined` y=12 → **12** |
+/// | full 축소 | `005-2-2` `2792:142297` | 상태바 아래 y=54 | `Frame 37` 의 같은 버튼 y=12 → **12** |
+///
+/// half 의 30 은 `MHBottomSheet` 그래버 프레임(30pt)이 통째로 메운다(캡슐이 시트 윗끝에서 13pt —
+/// 시안 실측과 일치). 그래서 헤더가 더 얹을 값은 **0** 이다. full 은 그래버가 없어
+/// (`MHBottomSheet` 가 full 에서 뺀다) 헤더가 12 를 직접 낸다.
+///
+/// **왜 `detent` 를 받는가.** 대안은 ① 그래버 높이를 시트가 environment 로 알려주고 헤더가 빼는 것,
+/// ② `hasGrabber: Bool` 을 받는 것이었다. ①은 성립하지 않는다 — 두 단계의 시안 값(30/12)이
+/// "고정값 − 그래버 높이" 꼴로 유도되지 않아, 그래버 높이를 알아도 여백이 나오지 않는다(두 단계가
+/// 그냥 서로 다른 스펙이다). ②는 "full 에는 그래버가 없다" 는 시트 내부 규칙을 피쳐가 한 번 더
+/// 베껴 적는 것이라, 이미 `PlaceDetailView` 가 들고 있는 detent 를 그대로 넘겨 출처를 하나로 둔다.
+enum PlaceDetailHeaderMetrics {
+    /// full 에서 헤더가 직접 내는 값.
+    static let fullTopInset: CGFloat = 12
+
+    static func topInset(for detent: MHBottomSheetDetent) -> CGFloat {
+        switch detent {
+        case .low, .medium: 0   // 그래버 프레임(30pt)이 시안의 30 을 이미 채웠다
+        case .full: fullTopInset
+        }
+    }
+}
+
 struct PlaceDetailHeader: View {
     let place: PlaceDetailPlace
+    /// 상단 여백이 단계마다 다르다 — ``PlaceDetailHeaderMetrics`` 참조.
+    let detent: MHBottomSheetDetent
     let isCollapsed: Bool
     /// 출처 링크가 확보됐는가. 없으면 "원문보기" 는 눌러도 갈 곳이 없어 비활성으로 둔다.
     let canOpenSource: Bool
@@ -34,7 +65,7 @@ struct PlaceDetailHeader: View {
             closeButton
         }
         .padding(.horizontal, 20)
-        .padding(.top, 12)
+        .padding(.top, PlaceDetailHeaderMetrics.topInset(for: detent))
         .padding(.bottom, 18)
     }
 
@@ -90,7 +121,7 @@ struct PlaceDetailHeader: View {
             closeButton
         }
         .padding(.horizontal, 20)
-        .padding(.top, 12)
+        .padding(.top, PlaceDetailHeaderMetrics.topInset(for: detent))
         .padding(.bottom, 18)
     }
 
@@ -139,6 +170,7 @@ struct PlaceDetailHeader: View {
 #Preview("확장") {
     PlaceDetailHeader(
         place: .sample,
+        detent: .full,
         isCollapsed: false,
         canOpenSource: true,
         onOpenMap: {}, onOpenSource: {}, onShare: {}, onClose: {}
@@ -148,6 +180,7 @@ struct PlaceDetailHeader: View {
 #Preview("축소") {
     PlaceDetailHeader(
         place: .sample,
+        detent: .full,
         isCollapsed: true,
         canOpenSource: true,
         onOpenMap: {}, onOpenSource: {}, onShare: {}, onClose: {}
@@ -157,6 +190,7 @@ struct PlaceDetailHeader: View {
 #Preview("출처 없음") {
     PlaceDetailHeader(
         place: .sample,
+        detent: .medium,
         isCollapsed: false,
         canOpenSource: false,
         onOpenMap: {}, onOpenSource: {}, onShare: {}, onClose: {}
