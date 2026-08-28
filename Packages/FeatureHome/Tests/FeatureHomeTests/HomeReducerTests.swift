@@ -919,13 +919,16 @@ struct HomeReducerTests {
         store.finish()
     }
 
-    @Test("L1 — 마지막 기준에서는 예고할 다음 기준이 없어 툴팁이 뜨지 않는다")
-    func deckEndingToast_skipsOnLastFilter() async {
-        // 가까운순은 마지막 기준 — 여기서 덱이 끝나면 다음 기준이 아니라 소진 화면(002-3)으로 간다.
+    @Test("L1 — 마지막 기준에서도 예고한다 (문구는 뷰가 '곧 다음 방으로 이동해요!' 로 파생)")
+    func deckEndingToast_raisesOnLastFilter() async {
+        // 가까운순은 마지막 기준 — 다음 기준이 없으니 다음에 갈 곳은 다음 방이다(Figma 002-2-3).
         let store = makeStore(state: HomeState(
             rooms: fixtureRooms, selectedFilter: .nearby, pins: deckOfFour(), currentCardIndex: 1
         ))
-        await store.send(.swipeForward) { $0.currentCardIndex = 2 }
+        await store.send(.swipeForward) {
+            $0.currentCardIndex = 2
+            $0.deckEndingToastFilter = .nearby
+        }
         store.finish()
     }
 

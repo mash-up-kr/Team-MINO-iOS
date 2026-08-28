@@ -24,8 +24,8 @@ public struct HomeState: Equatable {
     /// 표시 문구(방 이름)는 뷰가 이 id 로 rooms 에서 파생한다 — 이름이 같은 방도 안정적으로 식별하려 id 로 든다.
     public var changedRoomToastID: String?
     /// "곧 …으로 이동해요!" 예고 툴팁이 붙은 기준 (nil = 숨김). 현재 기준 덱의 남은 카드가 2장 이하가 되면
-    /// 뜨고 3초 후 서서히 사라진다 (Figma 002-2-3 ②). 표시 문구(다음 기준 이름)는 뷰가 이 값의
-    /// `next` 로 파생한다 — 기준을 들고 있어야 3초 타이머가 도는 사이 기준이 바뀌어도
+    /// 뜨고 3초 후 서서히 사라진다 (Figma 002-2-3 ②). 표시 문구는 뷰가 이 값에서 파생한다 —
+    /// 다음 기준이 있으면 그 칩 이름, 마지막 기준이면 "다음 방". 기준을 들고 있어야 3초 타이머가 도는 사이 기준이 바뀌어도
     /// 이전 타이머가 새 툴팁을 지우지 않는다([[changedRoomToastID]] 와 같은 방어).
     public var deckEndingToastFilter: PinFilter?
     /// 홈 사용 가이드(좌우 스와이프 안내) 표시 여부. 최초 진입 1회만 뜬다(Figma 「홈 사용 가이드」).
@@ -293,10 +293,10 @@ private func switchFilter(
 
 /// 덱 끝 예고 툴팁("곧 …으로 이동해요!")을 세운다 — 남은 카드가 2장 이하일 때 (Figma 002-2-3 ②).
 ///
-/// 마지막 기준(다음 기준이 없음)에서는 예고할 전환이 없으므로 띄우지 않는다 — 그땐 소진 화면(002-3)이 답이다.
+/// 마지막 기준에서도 띄운다 — 시안이 그때 "곧 다음 방으로 이동해요!" 로 다음 방 이동을 예고한다.
 /// 스와이프 경로에서는 호출부가 "막 2장이 된 순간"만 걸러 부른다(2→1 에서 다시 뜨지 않게).
 private func announceDeckEndingIfNeeded(_ state: inout HomeState) {
-    guard state.selectedFilter.next != nil, !state.pins.isEmpty, state.remainingInCurrentDeck <= 2 else { return }
+    guard !state.pins.isEmpty, state.remainingInCurrentDeck <= 2 else { return }
     state.deckEndingToastFilter = state.selectedFilter
 }
 

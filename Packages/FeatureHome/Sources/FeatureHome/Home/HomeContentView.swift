@@ -388,9 +388,11 @@ struct HomeContentView: View {
     @ViewBuilder
     private var deckEndingTooltip: some View {
         if store.state.changedRoomToastID == nil,
-           let filter = store.state.deckEndingToastFilter,
-           let next = filter.next {
-            MHTooltip("곧 \(next.chipTitle)으로 이동해요!", position: .left)
+           let filter = store.state.deckEndingToastFilter {
+            // 문구는 "다음에 갈 곳" — 다음 기준이 남아 있으면 그 칩 이름, 마지막 기준이면 다음 방이다
+            // (Figma 002-2-3 세 장: 꾹 Pick→최신순 / 최신순→가까운순 / 가까운순→다음 방).
+            MHTooltip(filter.next.map { "곧 \($0.chipTitle)으로 이동해요!" } ?? "곧 다음 방으로 이동해요!",
+                      position: .left)
                 .fixedSize()
                 // Figma Tooltip 인스턴스: x=78, y=75.9, 165×36 →
                 // top = 75.9 − 상태바 44 ≈ 32(방 변경 툴팁과 같은 줄), 우측 인셋 = 375 − (78+165) = 132.
