@@ -1,4 +1,5 @@
 import DesignSystem
+import Domain
 import ProfileSetupUI
 import SwiftUI
 
@@ -24,7 +25,7 @@ struct RoomDetailHeader: View {
 
     private var actionRow: some View {
         HStack(spacing: 0) {
-            MHAvatarStack(AvatarArt.images(for: room.memberAvatarIDs), onAdd: onAddMember)
+            MHAvatarStack(AvatarPalette.images(of: room.memberAvatarColors), onAdd: onAddMember)
             Spacer(minLength: 8)
             HStack(spacing: 8) {
                 MHCircleIconButton(icon: .moreVertical, accessibilityLabel: "더보기", action: onMore)

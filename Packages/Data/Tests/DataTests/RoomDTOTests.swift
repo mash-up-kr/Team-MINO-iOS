@@ -74,10 +74,10 @@ struct RoomDTOTests {
         #expect(room.memberCount == 0)
     }
 
-    @Test("RoomMemberDTO 는 avatar.id 를 avatarID 로 평탄화해 매핑한다")
+    @Test("RoomMemberDTO 는 avatar.color 를 AvatarColor 로 평탄화해 매핑한다")
     func mapsRoomMemberFields() throws {
         let memberDTO = RoomMemberDTO(
-            userId: "u2", nickname: "지훈", avatar: .init(id: 7),
+            userId: "u2", nickname: "지훈", avatar: .init(color: "light_blue"),
             isOwner: false, joinedAt: Date(timeIntervalSince1970: 0)
         )
         let dto = makeDTO(users: [memberDTO])
@@ -87,8 +87,23 @@ struct RoomDTOTests {
         #expect(room.users.count == 1)
         #expect(room.users[0].userId == "u2")
         #expect(room.users[0].nickname == "지훈")
-        #expect(room.users[0].avatarID == 7)
+        #expect(room.users[0].avatarColor == .lightBlue)
         #expect(room.users[0].isOwner == false)
+    }
+
+    // 아바타는 장식이라 없거나 모르는 색이어도 멤버를 통째로 버리지 않는다 — 얼굴만 기본으로 떨군다.
+    @Test("아바타가 없거나 팔레트에 없는 색이면 avatarColor 는 nil 이다", arguments: [
+        AvatarDTO?.none, AvatarDTO(color: nil), AvatarDTO(color: "chartreuse"),
+    ])
+    func unknownAvatarBecomesNil(_ avatar: AvatarDTO?) throws {
+        let memberDTO = RoomMemberDTO(
+            userId: "u3", nickname: "서연", avatar: avatar,
+            isOwner: false, joinedAt: Date(timeIntervalSince1970: 0)
+        )
+
+        let room = makeDTO(users: [memberDTO]).toDomain()
+
+        #expect(room.users[0].avatarColor == nil)
     }
 
     // 날짜 파싱은 이제 DTO 가 아니라 APIDecoder 의 몫이라, 디코딩 경로로 검증한다.

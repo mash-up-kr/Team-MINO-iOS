@@ -50,7 +50,7 @@ struct RoomDetailRoom: Equatable {
     let locationCount: Int
     /// 방 참여자들의 아바타 프리셋 번호. 헤더 아바타 pill 이 이 순서대로 얼굴을 늘어놓는다.
     /// 수가 아니라 목록으로 드는 건, 그리려면 몇 명인지가 아니라 **누구인지**를 알아야 하기 때문이다.
-    let memberAvatarIDs: [Int]
+    let memberAvatarColors: [AvatarColor?]
 
     var locationCountText: String {
         locationCount > Self.countCap ? "\(Self.countCap)+개" : "\(locationCount)개"
@@ -63,7 +63,7 @@ struct RoomDetailRoom: Equatable {
             title: title,
             memo: memo,
             locationCount: max(0, locationCount - 1),
-            memberAvatarIDs: memberAvatarIDs
+            memberAvatarColors: memberAvatarColors
         )
     }
 }
@@ -100,7 +100,7 @@ extension RoomDetailRoom {
             title: room.name,
             memo: room.description ?? "",
             locationCount: room.pinCount,
-            memberAvatarIDs: room.users.map(\.avatarID)
+            memberAvatarColors: room.users.map(\.avatarColor)
         )
     }
 }
@@ -192,7 +192,7 @@ extension RoomDetailRoom {
         title: "가나다라마바사아자차카타파하다",
         memo: "memo",
         locationCount: 1_000,   // 상한(999) 을 넘겨 "999+개" 표기를 프리뷰에서 확인한다
-        memberAvatarIDs: [1, 2, 3, 4]
+        memberAvatarColors: [.red, .redOrange, .orange, .green]
     )
 }
 

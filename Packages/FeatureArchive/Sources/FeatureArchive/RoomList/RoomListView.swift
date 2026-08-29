@@ -193,7 +193,7 @@ extension RoomListItem {
             memo: room.description,
             placeCount: room.pinCount,
             thumbnail: Self.thumbnail(for: room),
-            members: AvatarArt.images(for: room.users.map(\.avatarID))
+            members: AvatarPalette.images(of: room.users.map(\.avatarColor))
         )
     }
 

@@ -39,7 +39,7 @@ public final class MockRoomRepository: RoomRepository {
           "pinCount": 0,
           "memberCount": 1,
           "users": [
-            { "userId": "user-0001", "nickname": "나", "avatar": { "id": 1 }, "isOwner": true, "joinedAt": "2026-08-01T09:00:00Z" }
+            { "userId": "user-0001", "nickname": "나", "avatar": { "color": "red" }, "isOwner": true, "joinedAt": "2026-08-01T09:00:00Z" }
           ]
         },
         {
@@ -53,9 +53,9 @@ public final class MockRoomRepository: RoomRepository {
           "pinCount": 12,
           "memberCount": 3,
           "users": [
-            { "userId": "user-0001", "nickname": "나", "avatar": { "id": 1 }, "isOwner": true, "joinedAt": "2026-08-03T12:30:00Z" },
-            { "userId": "user-0002", "nickname": "지훈", "avatar": { "id": 2 }, "isOwner": false, "joinedAt": "2026-08-03T13:00:00Z" },
-            { "userId": "user-0003", "nickname": "서연", "avatar": { "id": 3 }, "isOwner": false, "joinedAt": "2026-08-03T13:10:00Z" }
+            { "userId": "user-0001", "nickname": "나", "avatar": { "color": "red" }, "isOwner": true, "joinedAt": "2026-08-03T12:30:00Z" },
+            { "userId": "user-0002", "nickname": "지훈", "avatar": { "color": "red_orange" }, "isOwner": false, "joinedAt": "2026-08-03T13:00:00Z" },
+            { "userId": "user-0003", "nickname": "서연", "avatar": { "color": "orange" }, "isOwner": false, "joinedAt": "2026-08-03T13:10:00Z" }
           ]
         },
         {
@@ -69,8 +69,8 @@ public final class MockRoomRepository: RoomRepository {
           "pinCount": 5,
           "memberCount": 2,
           "users": [
-            { "userId": "user-0002", "nickname": "지훈", "avatar": { "id": 2 }, "isOwner": true, "joinedAt": "2026-08-05T18:00:00Z" },
-            { "userId": "user-0001", "nickname": "나", "avatar": { "id": 1 }, "isOwner": false, "joinedAt": "2026-08-05T18:20:00Z" }
+            { "userId": "user-0002", "nickname": "지훈", "avatar": { "color": "red_orange" }, "isOwner": true, "joinedAt": "2026-08-05T18:00:00Z" },
+            { "userId": "user-0001", "nickname": "나", "avatar": { "color": "red" }, "isOwner": false, "joinedAt": "2026-08-05T18:20:00Z" }
           ]
         },
         {
@@ -84,10 +84,10 @@ public final class MockRoomRepository: RoomRepository {
           "pinCount": 8,
           "memberCount": 4,
           "users": [
-            { "userId": "user-0003", "nickname": "서연", "avatar": { "id": 3 }, "isOwner": true, "joinedAt": "2026-08-06T08:15:00Z" },
-            { "userId": "user-0001", "nickname": "나", "avatar": { "id": 1 }, "isOwner": false, "joinedAt": "2026-08-06T09:00:00Z" },
-            { "userId": "user-0002", "nickname": "지훈", "avatar": { "id": 2 }, "isOwner": false, "joinedAt": "2026-08-06T09:05:00Z" },
-            { "userId": "user-0004", "nickname": "민준", "avatar": { "id": 4 }, "isOwner": false, "joinedAt": "2026-08-06T10:00:00Z" }
+            { "userId": "user-0003", "nickname": "서연", "avatar": { "color": "orange" }, "isOwner": true, "joinedAt": "2026-08-06T08:15:00Z" },
+            { "userId": "user-0001", "nickname": "나", "avatar": { "color": "red" }, "isOwner": false, "joinedAt": "2026-08-06T09:00:00Z" },
+            { "userId": "user-0002", "nickname": "지훈", "avatar": { "color": "red_orange" }, "isOwner": false, "joinedAt": "2026-08-06T09:05:00Z" },
+            { "userId": "user-0004", "nickname": "민준", "avatar": { "color": "green" }, "isOwner": false, "joinedAt": "2026-08-06T10:00:00Z" }
           ]
         }
       ]
