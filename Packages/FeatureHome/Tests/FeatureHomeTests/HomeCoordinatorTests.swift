@@ -1,5 +1,6 @@
 import Domain
 import Foundation
+import PlaceDetailUI
 import RoomCreationUI
 import Testing
 @testable import FeatureHome
@@ -11,6 +12,25 @@ private struct StubDeps: HomeDeps {
     var homeGuide: HomeGuideUseCase = StubHomeGuide()
     var savePin: SavePinToRoomsUseCase = StubSavePin()
     var createRoom: CreateRoomUseCase = StubCreateRoom()
+    // 장소 상세(PlaceDetailDeps) 몫 — 라우팅 테스트는 Store 를 만들지 않아 호출되지 않는다.
+    var fetchPinDetail: FetchPinDetailUseCase = StubUnused()
+    var currentMember: CurrentMemberUseCase = StubUnused()
+    var fetchSavedRooms: FetchSavedRoomsUseCase = StubUnused()
+    var fetchComments: FetchPinCommentsUseCase = StubUnused()
+    var postComment: PostPinCommentUseCase = StubUnused()
+    var deleteComment: DeletePinCommentUseCase = StubUnused()
+}
+
+/// 이 스위트가 쓰지 않는 장소 상세 유스케이스들. 불리면 값이 아니라 **실패**를 돌려준다 —
+/// 조용한 기본값을 주면 나중에 실제로 부르는 경로가 생겨도 테스트가 통과해 버린다.
+private struct StubUnused: FetchPinDetailUseCase, CurrentMemberUseCase, FetchSavedRoomsUseCase,
+                           FetchPinCommentsUseCase, PostPinCommentUseCase, DeletePinCommentUseCase {
+    func execute(pinID: PinID) async throws -> PinDetail { throw DomainError.unknown }
+    func execute() async throws -> MemberProfile { throw DomainError.unknown }
+    func execute(pin: Pin) async throws -> [Room] { throw DomainError.unknown }
+    func execute(pinID: PinID) async throws -> [PinComment] { throw DomainError.unknown }
+    func execute(pinID: PinID, body: String) async throws -> PinComment { throw DomainError.unknown }
+    func execute(commentID: PinCommentID) async throws { throw DomainError.unknown }
 }
 
 private struct StubFetchRooms: FetchRoomsUseCase {

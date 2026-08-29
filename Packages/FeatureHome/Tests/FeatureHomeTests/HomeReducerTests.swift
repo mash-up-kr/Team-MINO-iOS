@@ -354,10 +354,22 @@ struct HomeReducerTests {
         store.finish()
     }
 
-    @Test("L1 — tapCard 는 상태를 변경하지 않는다")
-    func tapCard_noop() async {
+    // 002-1-1 「홈 > 장소 상세 진입」 — 카드 탭은 상태를 건드리지 않고 전환만 낸다.
+
+    @Test("L1 — tapCard 는 그 장소의 상세로 전환한다 (Figma 002-1-1)")
+    func tapCard_navigatesToPlaceDetail() async {
         let store = makeStore(state: HomeState(pins: fixturePins))
-        await store.send(.tapCard(PinID("pin-0")))
+        await store.send(.tapCard(PinID("pin-1")))
+        // 상세가 사진·저장자·라벨을 그리려면 id 가 아니라 핀이 통째로 필요하다.
+        store.receiveNavigation(.openPlaceDetail(fixturePins[1]))
+        store.finish()
+    }
+
+    @Test("L1 — 덱에 없는 카드 탭은 아무 데도 가지 않는다")
+    func tapCard_unknownPinDoesNothing() async {
+        // 방·기준이 갈리는 순간에 들어온 탭 — 열어야 할 장소가 이미 덱에 없다.
+        let store = makeStore(state: HomeState(pins: fixturePins))
+        await store.send(.tapCard(PinID("pin-없음")))
         store.finish()
     }
 

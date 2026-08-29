@@ -239,6 +239,11 @@ public enum HomeAction: Equatable {
 
 public enum HomeNav: Equatable, Sendable {
     case goToCreateRoom
+    /// 카드 탭 → 그 장소의 상세 화면 (Figma 002-1-1).
+    ///
+    /// 식별자가 아니라 핀을 통째로 싣는다. 상세가 그리는 사진·저장자·라벨이 전부 이 값 안에 있어,
+    /// id 만 넘기면 받아 둔 덱을 두고 같은 장소를 다시 조회하게 된다.
+    case openPlaceDetail(Pin)
 }
 
 public typealias HomeStore = Store<HomeState, HomeAction, HomeNav>
@@ -571,9 +576,11 @@ public func homeReducer(
                 state: &state, fetchPins: fetchPins, lastViewedRoom: lastViewedRoom
             )
 
-        case .tapCard:
-            // TODO: 카드 탭 동작 미정(장소 상세 진입 등) — 팀 논의 후 Nav 를 추가한다.
-            return .none
+        case .tapCard(let pinID):
+            // 카드가 넘긴 건 id 뿐이라 지금 덱에서 핀을 되찾는다. 못 찾으면 아무 데도 가지 않는다 —
+            // 덱이 갈리는 순간(방·기준 전환)에 들어온 탭이라 열어야 할 장소가 이미 없다.
+            guard let pin = state.pins.first(where: { $0.id == pinID }) else { return .none }
+            return .navigate(.openPlaceDetail(pin))
 
         case .showGuide:
             state.isGuidePresented = true
