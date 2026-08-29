@@ -7,7 +7,9 @@ import PlaceDetailUI
 /// (Figma 002-1-1). 조립부(App)는 지금처럼 `HomeDeps` 하나만 준수하면 된다.
 public protocol HomeDeps: PlaceDetailDeps {
     var fetchRooms: FetchRoomsUseCase { get }
-    var fetchPins: FetchPinsUseCase { get }
+    /// 홈 카드 덱 — 서버가 조회 기준으로 골라 준 한 덱. 가까운순의 기준점(`currentLocation`)은
+    /// 장소 상세와 같은 것을 쓴다(``PlaceDetailDeps`` 가 이미 요구한다).
+    var fetchHomeCards: FetchHomeCardsUseCase { get }
     var lastViewedRoom: LastViewedRoomUseCase { get }
     var homeGuide: HomeGuideUseCase { get }
     var savePin: SavePinToRoomsUseCase { get }

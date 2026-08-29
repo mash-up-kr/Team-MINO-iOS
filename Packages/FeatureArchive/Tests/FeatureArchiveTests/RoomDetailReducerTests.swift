@@ -36,11 +36,10 @@ private let fixturePins: [Pin] = zip(zip([0, 10, 20], fixtureCategories), fixtur
         )
     }
 
-private struct StubFetchPins: FetchPinsUseCase {
+private struct StubFetchPins: FetchRoomPinsUseCase {
     var result: Result<[Pin], DomainError> = .success(fixturePins)
 
-    func execute(rooms: [Room], filter: PinFilter) async throws -> [Pin] { try pins() }
-    func execute(room: Room, page: Int, filter: PinFilter) async throws -> [Pin] { try pins() }
+    func execute(room: Room) async throws -> [Pin] { try pins() }
 
     private func pins() throws -> [Pin] {
         switch result {
@@ -83,7 +82,7 @@ private struct StubCurrentLocation: CurrentLocationUseCase {
 @MainActor
 struct RoomDetailReducerTests {
     private func makeStore(
-        _ useCase: FetchPinsUseCase = StubFetchPins(),
+        _ useCase: FetchRoomPinsUseCase = StubFetchPins(),
         deletePin: DeletePinUseCase = StubDeletePin(),
         currentMember: CurrentMemberUseCase = StubCurrentMember(),
         currentLocation: CurrentLocationUseCase = StubCurrentLocation(),

@@ -12,7 +12,8 @@ import PlaceDetailUI
 /// 자식은 그 좁은 창만 보고, 조립부(App)는 지금처럼 `ArchiveDeps` 하나만 준수하면 된다.
 public protocol ArchiveDeps: RoomShareCreateRoomDeps, PlaceDetailDeps {
     var fetchRooms: FetchRoomsUseCase { get }
-    var fetchPins: FetchPinsUseCase { get }
+    /// 방에 저장된 장소 전부 — 정렬·필터는 `RoomDetailSorting` 이 클라이언트에서 한다.
+    var fetchRoomPins: FetchRoomPinsUseCase { get }
     /// 다른 방에 공유 시트가 그릴 방 목록 — 각 방에 이 장소가 이미 있는지까지 함께.
     var fetchShareTargets: FetchShareTargetsUseCase { get }
     /// 다른 방에 공유 — 고른 방들에 이 장소를 담는다.

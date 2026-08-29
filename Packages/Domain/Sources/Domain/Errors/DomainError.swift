@@ -36,5 +36,7 @@ public enum DomainError: Error, Equatable, Sendable {
     /// 등록 버튼이 이미 잠기지만(화면), 유스케이스도 스스로 막는다. 뷰를 고치면 뚫리는 방어라
     /// 도메인 경계에서 한 번 더 세우고, 그 거절을 오류로 드러낸다.
     case commentBodyEmpty
+    /// 저장한 장소를 읽지 못했다 — 홈 카드 덱·방 상세 목록·장소 상세 공통. 재시도가 의미 있다.
+    case pinsFetchFailed
     case unknown
 }

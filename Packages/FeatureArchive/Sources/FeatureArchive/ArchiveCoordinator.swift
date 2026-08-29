@@ -94,7 +94,7 @@ public final class ArchiveCoordinator: Coordinator {
         Store(
             RoomDetailState(room: RoomDetailRoom(from: room)),
             reduce: roomDetailReducer(
-                useCase: deps.fetchPins,
+                useCase: deps.fetchRoomPins,
                 deletePin: deps.deletePin,
                 fetchCurrentMember: deps.currentMember,
                 currentLocation: deps.currentLocation,

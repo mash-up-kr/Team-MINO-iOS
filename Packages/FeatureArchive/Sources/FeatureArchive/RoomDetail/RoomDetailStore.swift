@@ -73,7 +73,7 @@ enum RoomDetailNav: Equatable, Sendable {
 typealias RoomDetailStore = Store<RoomDetailState, RoomDetailAction, RoomDetailNav>
 
 func roomDetailReducer(
-    useCase: FetchPinsUseCase,
+    useCase: FetchRoomPinsUseCase,
     deletePin: DeletePinUseCase,
     fetchCurrentMember: CurrentMemberUseCase,
     currentLocation: CurrentLocationUseCase,
@@ -85,9 +85,9 @@ func roomDetailReducer(
         case .load:
             return .run { send in
                 do {
-                    // 방 상세는 서버 조회 기준이 없다 — 목록 정렬은 `RoomDetailSorting` 이 클라이언트에서 하고
-                    // `PinFilter` 는 홈 카드 덱의 칩(꾹 Pick/최신순/가까운순) 개념이다. 기본 기준으로 받아온다.
-                    let pins = try await useCase.execute(room: room, page: 0, filter: .recommended)
+                    // 방 상세는 서버 조회 기준이 없다 — 서버는 이 방의 장소를 전부 주고
+                    // 정렬·필터는 `RoomDetailSorting` 이 클라이언트에서 한다.
+                    let pins = try await useCase.execute(room: room)
                     send(.loaded(pins))
                 } catch let error as DomainError {
                     send(.loadFailed(error))

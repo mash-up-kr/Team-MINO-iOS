@@ -472,7 +472,8 @@ struct HomeMascotView: View {
             ]),
             reduce: homeReducer(
                 fetchRooms: PreviewFetchRooms(),
-                fetchPins: PreviewFetchPins(),
+                fetchHomeCards: PreviewFetchHomeCards(),
+                currentLocation: PreviewCurrentLocation(),
                 lastViewedRoom: PreviewLastViewedRoom(),
                 homeGuide: PreviewHomeGuide(),
                 savePin: PreviewSavePin(),
@@ -488,7 +489,8 @@ struct HomeMascotView: View {
             HomeState(),
             reduce: homeReducer(
                 fetchRooms: PreviewFetchRooms(),
-                fetchPins: PreviewFetchPins(),
+                fetchHomeCards: PreviewFetchHomeCards(),
+                currentLocation: PreviewCurrentLocation(),
                 lastViewedRoom: PreviewLastViewedRoom(),
                 homeGuide: PreviewHomeGuide(),
                 savePin: PreviewSavePin(),
@@ -528,7 +530,11 @@ private struct PreviewSavePin: SavePinToRoomsUseCase {
 }
 
 /// 프리뷰 전용 핀 UseCase. 빈 배열을 반환한다(카드 덱 없이 셸만 확인).
-private struct PreviewFetchPins: FetchPinsUseCase {
-    func execute(rooms: [Room], filter: PinFilter) async throws -> [Pin] { [] }
-    func execute(room: Room, page: Int, filter: PinFilter) async throws -> [Pin] { [] }
+private struct PreviewFetchHomeCards: FetchHomeCardsUseCase {
+    func execute(room: Room, filter: PinFilter, origin: Coordinate?) async throws -> [Pin] { [] }
+}
+
+/// 프리뷰 전용 — 측위하지 않는다(가까운순 덱을 열지 않으므로 닿지 않는다).
+private struct PreviewCurrentLocation: CurrentLocationUseCase {
+    func execute() async -> CurrentLocationResult { .permissionDenied }
 }

@@ -16,7 +16,8 @@ import Networking
 struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, LaunchDeps, OnboardingDeps, ProfileDeps {
     let fetchMember: FetchMemberUseCase
     let fetchRooms: FetchRoomsUseCase
-    let fetchPins: FetchPinsUseCase
+    let fetchHomeCards: FetchHomeCardsUseCase
+    let fetchRoomPins: FetchRoomPinsUseCase
     let fetchNotifications: FetchNotificationsUseCase
     let lastViewedRoom: LastViewedRoomUseCase
     let homeGuide: HomeGuideUseCase
@@ -71,19 +72,18 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
         // showUsers 를 켠 채로 받는다(RoomAPI.list 주석).
         let rooms = RoomRepositoryImpl(client: httpClient)
 
-        // 목 저장소는 인스턴스를 공유한다 — 핀/저장 상태가 서로를 참조하므로 따로 만들면
-        // "이미 저장된 방" 같은 관계적 사실이 저장소마다 달라진다.
-        // 핀 목은 넘겨받은 방으로 핀을 만들므로 실 API 가 준 방 id 와 어긋나지 않는다.
-        let pins = MockPinRepository()
+        // 저장한 장소: 실 API. 홈 카드 덱(`GET /rooms/{roomId}/cards`)·방 상세 목록
+        // (`GET /pins?roomId=`)·장소 상세(`GET /pins/{pinId}`)를 한 인스턴스가 겸한다 —
+        // 상세가 목록에 없는 값을 지어내면 두 화면이 어긋난다.
+        let pins = PinRepositoryImpl(client: httpClient)
 
         self.fetchRooms = DefaultFetchRoomsUseCase(repository: rooms)
 
-        // 홈 카드 핀: 실 API 미연결 → Mock Repository(하드코딩 장소 풀) 사용. 추후 PinRepositoryImpl 로 교체.
-        // 목록과 상세를 한 인스턴스가 겸한다 — 상세가 목록에 없는 값을 지어내면 두 화면이 어긋난다.
-        self.fetchPins = DefaultFetchPinsUseCase(repository: pins)
+        self.fetchHomeCards = DefaultFetchHomeCardsUseCase(repository: pins)
+        self.fetchRoomPins = DefaultFetchRoomPinsUseCase(repository: pins)
         self.fetchPinDetail = DefaultFetchPinDetailUseCase(repository: pins)
-        // 삭제도 같은 인스턴스여야 한다 — 따로 만들면 지운 장소가 다음 조회에서 되살아난다.
-        self.deletePin = DefaultDeletePinUseCase(repository: pins)
+        // 삭제만 스텁이다 — 서버에 삭제 엔드포인트가 없다(`StubPinDeletionRepository` 주석).
+        self.deletePin = DefaultDeletePinUseCase(repository: StubPinDeletionRepository())
 
         // 알림 목록: 실 API 미연결 → Mock Repository(하드코딩 JSON) 사용. 추후 NotificationRepositoryImpl 로 교체.
         self.fetchNotifications = DefaultFetchNotificationsUseCase(repository: MockNotificationRepository())
