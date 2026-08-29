@@ -125,7 +125,7 @@ struct CardDeckView: View {
             badgeColor: badge.color,
             title: pin.place.name,
             address: pin.place.address,
-            images: [],
+            imageURLs: pin.images,
             menuItems: moreMenuItems(for: pin)
         )
     }
