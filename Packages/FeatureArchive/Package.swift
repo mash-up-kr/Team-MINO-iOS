@@ -15,11 +15,12 @@ let package = Package(
         .package(path: "../Core"),
         .package(path: "../RoomCreationUI"),
         .package(path: "../MapUI"),
+        .package(path: "../ProfileSetupUI"),
     ],
     targets: [
         .target(
             name: "FeatureArchive",
-            dependencies: ["FlowCoordination", "DesignSystem", "MVI", "Domain", "Core", "RoomCreationUI", "MapUI"],
+            dependencies: ["FlowCoordination", "DesignSystem", "MVI", "Domain", "Core", "RoomCreationUI", "MapUI", "ProfileSetupUI"],
             // develop 이 emptyCommentIllustration 을 이 카탈로그에 넣었다 — 내 쪽에서 지웠던 선언을 되살린다.
             resources: [.process("Resources")]
         ),

@@ -1,4 +1,5 @@
 import DesignSystem
+import ProfileSetupUI
 import SwiftUI
 
 /// 시트 최상단 — 멤버 pill·더보기·닫기 줄과 `Header_Room`(제목/메모/장소 수).
@@ -23,7 +24,7 @@ struct RoomDetailHeader: View {
 
     private var actionRow: some View {
         HStack(spacing: 0) {
-            MHAvatarStack(ArchiveAvatarArt.images(for: room.memberAvatarIDs), onAdd: onAddMember)
+            MHAvatarStack(AvatarArt.images(for: room.memberAvatarIDs), onAdd: onAddMember)
             Spacer(minLength: 8)
             HStack(spacing: 8) {
                 RoomDetailCircleIconButton(icon: .moreVertical, accessibilityLabel: "더보기", action: onMore)

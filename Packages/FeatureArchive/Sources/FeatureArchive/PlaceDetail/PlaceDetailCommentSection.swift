@@ -1,5 +1,6 @@
 import DesignSystem
 import Domain
+import ProfileSetupUI
 import SwiftUI
 
 struct PlaceDetailCommentSection: View {
@@ -67,7 +68,7 @@ struct PlaceDetailCommentSection: View {
 
     private func commentRow(_ comment: PinComment) -> some View {
         MHComment(
-            avatar: ArchiveAvatarArt.image(for: comment.author.avatarID),
+            avatar: AvatarArt.image(for: comment.author.avatarID),
             name: comment.author.nickname,
             comment: comment.body,
             menuItems: canDelete(comment) ? [MHMenuItem("댓글 삭제") { onRequestDelete(comment.id) }] : [],
