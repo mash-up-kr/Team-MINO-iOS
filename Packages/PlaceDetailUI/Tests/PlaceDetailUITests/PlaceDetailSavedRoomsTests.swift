@@ -23,7 +23,7 @@ private struct QuietFetchPinDetail: FetchPinDetailUseCase {
 
 private struct QuietCurrentMember: CurrentMemberUseCase {
     func execute() async throws -> MemberProfile {
-        MemberProfile(id: MemberID("user-0001"), nickname: "나", avatarID: 1)
+        MemberProfile(id: MemberID("user-0001"), nickname: "나", avatarColor: .red)
     }
 }
 

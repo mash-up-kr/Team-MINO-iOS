@@ -27,10 +27,10 @@ private struct QuietCurrentLocation: CurrentLocationUseCase {
 
 // 표본은 타입 밖에 둔다 — 스위트가 `@MainActor` 라 static 프로퍼티도 격리되고, 스텁의
 // `@Sendable` 클로저에서는 격리된 값을 읽을 수 없다.
-private let me = MemberProfile(id: MemberID("user-0001"), nickname: "나", avatarID: 1)
+private let me = MemberProfile(id: MemberID("user-0001"), nickname: "나", avatarColor: .red)
 /// **닉네임은 나와 같고 식별자만 다른** 사람. 문자열 비교로 판정하면 이 사람 코멘트가 내 것이 된다.
-private let impostor = MemberProfile(id: MemberID("user-0009"), nickname: "나", avatarID: 9)
-private let friend = MemberProfile(id: MemberID("user-0003"), nickname: "서연", avatarID: 3)
+private let impostor = MemberProfile(id: MemberID("user-0009"), nickname: "나", avatarColor: .blue)
+private let friend = MemberProfile(id: MemberID("user-0003"), nickname: "서연", avatarColor: .orange)
 
 private let mine = PinCommentFixture.comment(id: "c-mine", author: me, body: "내가 남긴 코멘트")
 private let theirs = PinCommentFixture.comment(id: "c-friend", author: friend, body: "친구가 남긴 코멘트")

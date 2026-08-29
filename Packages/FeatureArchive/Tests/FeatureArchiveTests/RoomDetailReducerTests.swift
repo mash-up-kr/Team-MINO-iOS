@@ -62,8 +62,8 @@ private struct StubDeletePin: DeletePinUseCase {
 private struct StubCurrentMember: CurrentMemberUseCase {
     var result: Result<MemberProfile, DomainError> = .success(owner)
 
-    static let owner = MemberProfile(id: MemberID("u1"), nickname: "방장", avatarID: 0)
-    static let member = MemberProfile(id: MemberID("u9"), nickname: "멤버", avatarID: 1)
+    static let owner = MemberProfile(id: MemberID("u1"), nickname: "방장", avatarColor: .violet)
+    static let member = MemberProfile(id: MemberID("u9"), nickname: "멤버", avatarColor: .red)
 
     func execute() async throws -> MemberProfile {
         switch result {

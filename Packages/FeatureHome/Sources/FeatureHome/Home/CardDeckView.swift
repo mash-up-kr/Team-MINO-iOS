@@ -122,7 +122,7 @@ struct CardDeckView: View {
         let badge = badgeInfo(for: pin.category)
         return MHHomeCard(
             // 저장자를 모르면 nil 로 둬 익명 자리표가 뜬다 — 아무 얼굴이나 넣으면 남의 얼굴이 된다.
-            avatar: pin.createdBy.map { AvatarArt.image(for: $0.avatarID) },
+            avatar: pin.createdBy.map { AvatarPalette.image(of: $0.avatarColor) },
             badgeText: badge.text,
             badgeColor: badge.color,
             title: pin.place.name,

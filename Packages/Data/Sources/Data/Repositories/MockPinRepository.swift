@@ -103,10 +103,10 @@ public final class MockPinRepository: PinRepository, PinDetailRepository, PinDel
     /// 저장자 풀. `MockRoomRepository` 의 방 멤버(user-0001~0004)와 같은 사람들이라
     /// 방 멤버 목록과 카드의 아바타가 어긋나지 않는다.
     private static let members: [MemberProfile] = [
-        MemberProfile(id: MemberID("user-0001"), nickname: "나", avatarID: 1),
-        MemberProfile(id: MemberID("user-0002"), nickname: "지훈", avatarID: 2),
-        MemberProfile(id: MemberID("user-0003"), nickname: "서연", avatarID: 3),
-        MemberProfile(id: MemberID("user-0004"), nickname: "민준", avatarID: 4),
+        MemberProfile(id: MemberID("user-0001"), nickname: "나", avatarColor: .red),
+        MemberProfile(id: MemberID("user-0002"), nickname: "지훈", avatarColor: .redOrange),
+        MemberProfile(id: MemberID("user-0003"), nickname: "서연", avatarColor: .orange),
+        MemberProfile(id: MemberID("user-0004"), nickname: "민준", avatarColor: .green),
     ]
 
     /// 좌표는 **서로 다른 실제 값**이라야 지도 마커가 겹치지 않고 거리순 정렬도 눈으로 검증된다.

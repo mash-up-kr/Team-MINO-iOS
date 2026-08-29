@@ -58,7 +58,7 @@ extension PlaceDetailPlace {
             URL(string: "https://picsum.photos/seed/gguk-0-0/800/600")!,
             URL(string: "https://picsum.photos/seed/gguk-0-1/800/600")!,
         ],
-        sharer: MemberProfile(id: MemberID("user-0003"), nickname: "서연", avatarID: 3),
+        sharer: MemberProfile(id: MemberID("user-0003"), nickname: "서연", avatarColor: .orange),
         label: .popularAmongFriends
     )
 }
@@ -70,21 +70,21 @@ extension PinComment {
         PinComment(
             id: PinCommentID("c1"),
             pinID: PinID("p1"),
-            author: MemberProfile(id: MemberID("user-0003"), nickname: "서연", avatarID: 3),
+            author: MemberProfile(id: MemberID("user-0003"), nickname: "서연", avatarColor: .orange),
             body: "친구가 남긴 코멘트입니다.",
             createdAt: Date(timeIntervalSince1970: 1_700_000_000)
         ),
         PinComment(
             id: PinCommentID("c2"),
             pinID: PinID("p1"),
-            author: MemberProfile(id: MemberID("user-0001"), nickname: "나", avatarID: 1),
+            author: MemberProfile(id: MemberID("user-0001"), nickname: "나", avatarColor: .red),
             body: String(repeating: "친구가 남긴 코멘트입니다.", count: 6),
             createdAt: Date(timeIntervalSince1970: 1_700_003_600)
         ),
         PinComment(
             id: PinCommentID("c3"),
             pinID: PinID("p1"),
-            author: MemberProfile(id: MemberID("user-0004"), nickname: "에린", avatarID: 4),
+            author: MemberProfile(id: MemberID("user-0004"), nickname: "에린", avatarColor: .green),
             body: String(repeating: "친구가 남긴 코멘트입니다.", count: 12),
             createdAt: Date(timeIntervalSince1970: 1_700_007_200)
         ),

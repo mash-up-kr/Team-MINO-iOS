@@ -94,9 +94,9 @@ public final class MockPinCommentRepository: PinCommentRepository {
     /// 씨앗 작성자에 "나"(user-0001)를 넣지 않는다 — 넣으면 쓴 적 없는 코멘트에 삭제 케밥이
     /// 붙는다. ``MockRoomRepository`` 의 방 멤버와 같은 사람들이라 아바타·닉네임이 어긋나지 않는다.
     private static let friends: [MemberProfile] = [
-        MemberProfile(id: MemberID("user-0002"), nickname: "지훈", avatarID: 2),
-        MemberProfile(id: MemberID("user-0003"), nickname: "서연", avatarID: 3),
-        MemberProfile(id: MemberID("user-0004"), nickname: "민준", avatarID: 4),
+        MemberProfile(id: MemberID("user-0002"), nickname: "지훈", avatarColor: .redOrange),
+        MemberProfile(id: MemberID("user-0003"), nickname: "서연", avatarColor: .orange),
+        MemberProfile(id: MemberID("user-0004"), nickname: "민준", avatarColor: .green),
     ]
 
     private static let bodies: [String] = [

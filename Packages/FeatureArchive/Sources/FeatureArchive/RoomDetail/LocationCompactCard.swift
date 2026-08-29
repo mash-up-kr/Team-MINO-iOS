@@ -14,7 +14,7 @@ struct LocationCompactCard: View {
             title: location.name,
             address: location.address,
             commentCount: location.commentCount,
-            members: AvatarArt.images(for: location.saver),
+            members: AvatarPalette.images(of: location.saver),
             layout: .compact,
             menuItems: menuItems,
             menuPlacement: menuPlacement,

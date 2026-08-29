@@ -52,7 +52,7 @@ final class PlaceUseCaseTests: XCTestCase {
     }
 
     func test_currentMember_returnsProfileFromRepository() async throws {
-        let expected = MemberProfile(id: MemberID("me"), nickname: "지훈", avatarID: 3)
+        let expected = MemberProfile(id: MemberID("me"), nickname: "지훈", avatarColor: .orange)
         let sut = DefaultCurrentMemberUseCase(repository: StubCurrentMemberRepository(result: .success(expected)))
 
         let member = try await sut.execute()

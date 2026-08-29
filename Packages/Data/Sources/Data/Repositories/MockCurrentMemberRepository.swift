@@ -11,6 +11,6 @@ public final class MockCurrentMemberRepository: CurrentMemberRepository {
     public init() {}
 
     public func currentMember() async throws -> MemberProfile {
-        MemberProfile(id: MemberID("user-0001"), nickname: "나", avatarID: 1)
+        MemberProfile(id: MemberID("user-0001"), nickname: "나", avatarColor: .red)
     }
 }

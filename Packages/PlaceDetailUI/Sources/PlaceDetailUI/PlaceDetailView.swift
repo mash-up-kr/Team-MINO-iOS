@@ -147,7 +147,7 @@ private final class CollapseRef {
             place: .sample,
             comments: PinComment.placeDetailSamples,
             // 표본 중 `c2` 의 작성자 — 이 한 줄에만 삭제 케밥이 붙는다.
-            currentMember: MemberProfile(id: MemberID("user-0001"), nickname: "나", avatarID: 1)
+            currentMember: MemberProfile(id: MemberID("user-0001"), nickname: "나", avatarColor: .red)
         ),
         reduce: { _, _ in .none }
     )
