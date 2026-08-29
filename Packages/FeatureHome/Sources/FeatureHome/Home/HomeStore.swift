@@ -42,6 +42,9 @@ public struct HomeState: Equatable {
     /// 뷰의 자동 dismiss 타이머가 매번 새로 시작된다 — 연속 저장에서 앞 타이머가 뒤 토스트를 지우지 않게
     /// dismiss action 이 이 id 를 실어 보낸다([[changedRoomToastID]] 와 같은 방어).
     public var savedToastID: Int?
+    /// 가까운순 조회의 기준점(내 위치). 그 기준을 처음 고른 순간에 한 번 얻어 들고 있는다 —
+    /// 서버가 `sort=nearby` 에 좌표를 요구하고, 매번 다시 측위하면 칩을 오갈 때마다 몇 초씩 걸린다.
+    public var myCoordinate: Coordinate?
     /// 내 프로필 아바타 색 — 홈 우상단 마스코트가 이 색의 소품을 단다 (Figma `character/Home_Avatar`).
     /// 아직 못 읽었거나 색을 고른 적 없는 계정이면 nil 이라 소품 없는 기본 마스코트가 뜬다.
     public var myAvatarColor: AvatarColor?
@@ -63,6 +66,7 @@ public struct HomeState: Equatable {
         isGuidePresented: Bool = false,
         savePost: SavePostState? = nil,
         savedToastID: Int? = nil,
+        myCoordinate: Coordinate? = nil,
         myAvatarColor: AvatarColor? = nil
     ) {
         self.rooms = rooms
@@ -81,6 +85,7 @@ public struct HomeState: Equatable {
         self.isGuidePresented = isGuidePresented
         self.savePost = savePost
         self.savedToastID = savedToastID
+        self.myCoordinate = myCoordinate
         self.myAvatarColor = myAvatarColor
     }
 
@@ -201,6 +206,8 @@ public enum HomeAction: Equatable {
     /// 없어서다 — 마스코트는 장식이라 방·덱 조회가 늦거나 실패해도 제 색으로 떠야 한다.
     case loadMyAvatar
     case myAvatarLoaded(AvatarColor?)
+    /// 가까운순 덱을 여는 길에 얻은 내 위치. 다음 가까운순 조회가 다시 측위하지 않게 들고 있는다.
+    case myCoordinateResolved(Coordinate)
     case loaded([Room])
     case loadFailed(DomainError)
     case selectFilter(PinFilter)
@@ -339,7 +346,8 @@ private func showDeck(
     revertingTo revert: DeckPosition,
     persistingRoom persist: Bool = false,
     state: inout HomeState,
-    fetchPins: FetchPinsUseCase,
+    fetchHomeCards: FetchHomeCardsUseCase,
+    currentLocation: CurrentLocationUseCase,
     lastViewedRoom: LastViewedRoomUseCase
 ) -> Effect<HomeAction, HomeNav> {
     // revert 는 여기서 만들지 않고 호출부가 넘긴다 — 방 전환은 showDeck 을 부르기 **전에** 커서·캐시를
@@ -354,11 +362,23 @@ private func showDeck(
     }
     guard let room = state.currentRoom else { return .none }
     state.isDeckLoading = true   // 받는 동안 빈 상태·소진 화면이 끼어들지 않게 한다
+    let known = state.myCoordinate
     return .run { send in
         do {
             // 정책 3: 재실행 시 마지막으로 보던 방부터 이어 본다 — 방을 옮길 때 함께 기록한다.
             if persist { await lastViewedRoom.save(roomID: room.id) }
-            let pins = try await fetchPins.execute(room: room, page: 0, filter: filter)
+            // 가까운순은 좌표 없이 요청하면 서버가 거절한다. 위치가 필요해진 순간(이 기준을 고른
+            // 순간)에만 묻는다 — 홈 진입에서 미리 물으면 요청 맥락이 사라진다.
+            var origin = known
+            if filter == .nearby, origin == nil {
+                guard case .coordinate(let resolved) = await currentLocation.execute() else {
+                    send(.deckLoadFailed(roomID: room.id, filter: filter, revertTo: revert))
+                    return
+                }
+                origin = resolved
+                send(.myCoordinateResolved(resolved))   // 한 번 얻으면 이후 가까운순은 다시 묻지 않는다
+            }
+            let pins = try await fetchHomeCards.execute(room: room, filter: filter, origin: origin)
             send(.deckLoaded(pins: Array(pins.prefix(deckPageSize)), roomID: room.id, filter: filter, entry: entry))
         } catch is CancellationError {
             return   // 취소는 결과가 없는 것이지 실패가 아니다
@@ -375,7 +395,8 @@ private func moveToRoom(
     index: Int,
     revertingTo revert: DeckPosition,
     state: inout HomeState,
-    fetchPins: FetchPinsUseCase,
+    fetchHomeCards: FetchHomeCardsUseCase,
+    currentLocation: CurrentLocationUseCase,
     lastViewedRoom: LastViewedRoomUseCase
 ) -> Effect<HomeAction, HomeNav> {
     guard state.rooms.indices.contains(index) else { return .none }
@@ -387,7 +408,7 @@ private func moveToRoom(
     state.changedRoomToastID = state.rooms[index].id
     return showDeck(
         filter: .recommended, entering: .first, revertingTo: revert, persistingRoom: true,
-        state: &state, fetchPins: fetchPins, lastViewedRoom: lastViewedRoom
+        state: &state, fetchHomeCards: fetchHomeCards, currentLocation: currentLocation, lastViewedRoom: lastViewedRoom
     )
 }
 
@@ -396,7 +417,8 @@ private func moveToRoom(
 /// 세 정렬을 모두 확인했을 때만 다음 방으로 넘어간다. 마지막 방까지 끝나면 소진 화면(002-3)에 남는다.
 private func advanceAfterDeck(
     state: inout HomeState,
-    fetchPins: FetchPinsUseCase,
+    fetchHomeCards: FetchHomeCardsUseCase,
+    currentLocation: CurrentLocationUseCase,
     lastViewedRoom: LastViewedRoomUseCase
 ) -> Effect<HomeAction, HomeNav> {
     let revert = DeckPosition(state)   // 확인 기록을 넣기 전 자리를 담아 둔다(실패하면 여기로 돌아온다)
@@ -404,13 +426,13 @@ private func advanceAfterDeck(
     if let next = state.nextUnviewedFilter {
         return showDeck(
             filter: next, entering: .first, revertingTo: revert,
-            state: &state, fetchPins: fetchPins, lastViewedRoom: lastViewedRoom
+            state: &state, fetchHomeCards: fetchHomeCards, currentLocation: currentLocation, lastViewedRoom: lastViewedRoom
         )
     }
     guard state.hasNextRoom else { return .none }
     return moveToRoom(
         index: state.currentRoomIndex + 1, revertingTo: revert,
-        state: &state, fetchPins: fetchPins, lastViewedRoom: lastViewedRoom
+        state: &state, fetchHomeCards: fetchHomeCards, currentLocation: currentLocation, lastViewedRoom: lastViewedRoom
     )
 }
 
@@ -425,10 +447,11 @@ private func announceDeckEndingIfNeeded(_ state: inout HomeState) {
     state.deckEndingToastFilter = state.selectedFilter
 }
 
-/// 순수 reduce. UseCase(fetchRooms·fetchPins·lastViewedRoom)는 Effect.run 안에서만 사용한다.
+/// 순수 reduce. UseCase(fetchRooms·fetchHomeCards·lastViewedRoom)는 Effect.run 안에서만 사용한다.
 public func homeReducer(
     fetchRooms: FetchRoomsUseCase,
-    fetchPins: FetchPinsUseCase,
+    fetchHomeCards: FetchHomeCardsUseCase,
+    currentLocation: CurrentLocationUseCase,
     lastViewedRoom: LastViewedRoomUseCase,
     homeGuide: HomeGuideUseCase,
     savePin: SavePinToRoomsUseCase,
@@ -466,6 +489,10 @@ public func homeReducer(
             state.myAvatarColor = color
             return .none
 
+        case .myCoordinateResolved(let coordinate):
+            state.myCoordinate = coordinate
+            return .none
+
         case .loaded(let rooms):
             // 홈은 개인방(personal, "내 장소")을 먼저, 그다음 공동방(shared)을 보여준다 — 데이터 순서와
             // 무관하게 항상 이 순서. 공동방 내부 순서는 서버가 준 순서를 그대로 유지(클라 정렬 없음).
@@ -484,7 +511,7 @@ public func homeReducer(
                         return
                     }
                     // 진입 정렬은 항상 꾹 Pick (정책: 홈 최초 진입 시 기본 정렬).
-                    let pins = try await fetchPins.execute(room: room, page: 0, filter: .recommended)
+                    let pins = try await fetchHomeCards.execute(room: room, filter: .recommended, origin: nil)
                     send(.initialDeckLoaded(pins: Array(pins.prefix(deckPageSize)), roomID: room.id))
                 } catch is CancellationError {
                     return
@@ -511,7 +538,7 @@ public func homeReducer(
             state.viewedFilters.remove(filter)   // 다시 고른 정렬은 처음부터 다시 본다
             return showDeck(
                 filter: filter, entering: .first, revertingTo: revert,
-                state: &state, fetchPins: fetchPins, lastViewedRoom: lastViewedRoom
+                state: &state, fetchHomeCards: fetchHomeCards, currentLocation: currentLocation, lastViewedRoom: lastViewedRoom
             )
 
         case .deckLoaded(let pins, let roomID, let filter, let entry):
@@ -525,7 +552,7 @@ public func homeReducer(
             // 빈 정렬은 보여줄 게 없으므로 확인한 것으로 치고 다음 갈 곳으로 넘어간다
             // (가려던 자리가 비었다고 빈 화면을 띄우면, 남은 정렬·방을 못 보고 막힌다).
             guard !pins.isEmpty else {
-                return advanceAfterDeck(state: &state, fetchPins: fetchPins, lastViewedRoom: lastViewedRoom)
+                return advanceAfterDeck(state: &state, fetchHomeCards: fetchHomeCards, currentLocation: currentLocation, lastViewedRoom: lastViewedRoom)
             }
             // 받아 온 덱이 이미 2장 이하면 넘길 새도 없이 다음 자리가 코앞이다 (Figma 002-2-3).
             if entry == .first { announceDeckEndingIfNeeded(&state) }
@@ -566,7 +593,7 @@ public func homeReducer(
             state.isLoading = false   // 첫 덱까지 도착 → 이제 카드 유무가 확정돼 로딩 종료
             // 첫 정렬이 비어 있으면 남은 정렬·방으로 넘어간다(빈 화면에 막히지 않게).
             guard !pins.isEmpty else {
-                return advanceAfterDeck(state: &state, fetchPins: fetchPins, lastViewedRoom: lastViewedRoom)
+                return advanceAfterDeck(state: &state, fetchHomeCards: fetchHomeCards, currentLocation: currentLocation, lastViewedRoom: lastViewedRoom)
             }
             announceDeckEndingIfNeeded(&state)   // 첫 덱부터 2장 이하일 수 있다
             // 정책: 홈 사용 가이드는 최초 진입 1회. 넘길 카드가 있을 때만 띄운다(빈 상태에선 안내가 무의미).
@@ -580,7 +607,7 @@ public func homeReducer(
                 state.currentCardIndex += 1
             }
             if state.isCurrentDeckExhausted {
-                return advanceAfterDeck(state: &state, fetchPins: fetchPins, lastViewedRoom: lastViewedRoom)
+                return advanceAfterDeck(state: &state, fetchHomeCards: fetchHomeCards, currentLocation: currentLocation, lastViewedRoom: lastViewedRoom)
             }
             // 정책: 남은 카드가 2장이 **되는 순간** 다음 자리를 예고한다 (Figma 002-2-3 ②).
             // `<= 2` 가 아니라 `== 2` 인 이유: 3초 뒤 사라진 툴팁이 2→1 한 장 더 넘길 때 다시 뜨지 않게 한다.
@@ -599,7 +626,7 @@ public func homeReducer(
             state.viewedFilters.remove(previous)   // 되돌아간 정렬은 다시 "보는 중"이 된다
             return showDeck(
                 filter: previous, entering: .last, revertingTo: revert,
-                state: &state, fetchPins: fetchPins, lastViewedRoom: lastViewedRoom
+                state: &state, fetchHomeCards: fetchHomeCards, currentLocation: currentLocation, lastViewedRoom: lastViewedRoom
             )
 
         case .tapCard(let pinID):
@@ -635,7 +662,7 @@ public func homeReducer(
             guard let index = state.rooms.firstIndex(where: { $0.id == roomID }) else { return .none }
             return moveToRoom(
                 index: index, revertingTo: DeckPosition(state),
-                state: &state, fetchPins: fetchPins, lastViewedRoom: lastViewedRoom
+                state: &state, fetchHomeCards: fetchHomeCards, currentLocation: currentLocation, lastViewedRoom: lastViewedRoom
             )
 
         case .dismissRoomToast(let roomID):

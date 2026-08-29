@@ -10,9 +10,8 @@ private struct StubFetchRooms: FetchRoomsUseCase {
     func execute() async throws -> [Room] { [] }
 }
 
-private struct StubFetchPins: FetchPinsUseCase {
-    func execute(rooms: [Room], filter: PinFilter) async throws -> [Pin] { [] }
-    func execute(room: Room, page: Int, filter: PinFilter) async throws -> [Pin] { [] }
+private struct StubFetchRoomPins: FetchRoomPinsUseCase {
+    func execute(room: Room) async throws -> [Pin] { [] }
 }
 
 
@@ -58,7 +57,7 @@ private struct StubCurrentLocation: CurrentLocationUseCase {
 
 private struct StubArchiveDeps: ArchiveDeps {
     var fetchRooms: FetchRoomsUseCase = StubFetchRooms()
-    var fetchPins: FetchPinsUseCase = StubFetchPins()
+    var fetchRoomPins: FetchRoomPinsUseCase = StubFetchRoomPins()
     var fetchPinDetail: FetchPinDetailUseCase = StubFetchPinDetail()
     var createRoom: CreateRoomUseCase = StubCreateRoom()
     var fetchShareTargets: FetchShareTargetsUseCase = StubShareTargets()

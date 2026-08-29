@@ -39,19 +39,26 @@ private struct StubFetchRooms: FetchRoomsUseCase {
 }
 
 /// 방·정렬과 무관하게 같은 덱을 돌려주는 스텁(로드 흐름 테스트용).
-private struct StubFetchPins: FetchPinsUseCase {
+private struct StubFetchPins: FetchHomeCardsUseCase {
     var all: [Pin] = []
-    func execute(rooms: [Room], filter: PinFilter) async throws -> [Pin] { all }
-    func execute(room: Room, page: Int, filter: PinFilter) async throws -> [Pin] { all }
+    func execute(room: Room, filter: PinFilter, origin: Coordinate?) async throws -> [Pin] { all }
+}
+
+/// 스텁이 돌려주는 좌표. 가까운순 흐름의 단언이 이 값을 그대로 쓴다.
+private let stubCoordinate = Coordinate(latitude: 37.5, longitude: 127.0)
+
+/// 좌표를 돌려주는 스텁 — 가까운순 덱은 좌표를 얻어야 조회로 넘어간다.
+private struct StubCurrentLocation: CurrentLocationUseCase {
+    var result: CurrentLocationResult = .coordinate(stubCoordinate)
+    func execute() async -> CurrentLocationResult { result }
 }
 
 /// (방 × 정렬)별 덱을 돌려주는 스텁 — 홈이 방 단위로 조회하므로 그 키로 찾는다.
 /// `failing` 에 담은 키는 조회가 실패한다(복구 경로 검증용).
-private struct StubRoomDecks: FetchPinsUseCase {
+private struct StubRoomDecks: FetchHomeCardsUseCase {
     var decks: [String: [Pin]] = [:]
     var failing: Set<String> = []
-    func execute(rooms: [Room], filter: PinFilter) async throws -> [Pin] { [] }
-    func execute(room: Room, page: Int, filter: PinFilter) async throws -> [Pin] {
+    func execute(room: Room, filter: PinFilter, origin: Coordinate?) async throws -> [Pin] {
         let key = deckKey(room.id, filter)
         if failing.contains(key) { throw DomainError.unknown }
         return decks[key] ?? []
@@ -105,10 +112,9 @@ private struct ThrowingSavePin: SavePinToRoomsUseCase {
 }
 
 /// 핀 조회가 항상 실패하는 스텁 — 실패 경로(로드 실패 라우팅 / 더 보기 무시)를 검증한다.
-private struct ThrowingFetchPins: FetchPinsUseCase {
+private struct ThrowingFetchPins: FetchHomeCardsUseCase {
     var error: DomainError = .unknown
-    func execute(rooms: [Room], filter: PinFilter) async throws -> [Pin] { throw error }
-    func execute(room: Room, page: Int, filter: PinFilter) async throws -> [Pin] { throw error }
+    func execute(room: Room, filter: PinFilter, origin: Coordinate?) async throws -> [Pin] { throw error }
 }
 
 /// 아바타 색을 고정으로 돌려주는 스텁 — 마스코트 색 흐름을 검증한다.
@@ -128,7 +134,8 @@ private struct ThrowingFetchProfile: FetchProfileUseCase {
 struct HomeReducerTests {
     private func makeStore(
         _ fetchRooms: FetchRoomsUseCase = StubFetchRooms(),
-        fetchPins: FetchPinsUseCase = StubFetchPins(),
+        fetchPins: FetchHomeCardsUseCase = StubFetchPins(),
+        currentLocation: CurrentLocationUseCase = StubCurrentLocation(),
         lastViewedRoom: LastViewedRoomUseCase = SpyLastViewedRoom(),
         homeGuide: HomeGuideUseCase = SpyHomeGuide(seen: true),   // 기본은 "이미 본" — 가이드 없는 흐름
         savePin: SavePinToRoomsUseCase = SpySavePin(),
@@ -139,7 +146,8 @@ struct HomeReducerTests {
             state,
             reduce: homeReducer(
                 fetchRooms: fetchRooms,
-                fetchPins: fetchPins,
+                fetchHomeCards: fetchPins,
+                currentLocation: currentLocation,
                 lastViewedRoom: lastViewedRoom,
                 homeGuide: homeGuide,
                 savePin: savePin,
@@ -532,6 +540,10 @@ struct HomeReducerTests {
             $0.viewedFilters = [.recommended, .latest]   // 빈 정렬도 "확인한 것"으로 치고 넘어간다
             $0.selectedFilter = .nearby
             $0.currentCardIndex = 0
+        }
+        // 가까운순은 서버가 좌표를 요구한다 — 덱 조회 전에 위치를 한 번 얻어 들고 간다.
+        await store.receive(.myCoordinateResolved(stubCoordinate)) {
+            $0.myCoordinate = stubCoordinate
         }
         await store.receive(.deckLoaded(pins: nearby, roomID: "1", filter: .nearby, entry: .first)) {
             $0.isDeckLoading = false

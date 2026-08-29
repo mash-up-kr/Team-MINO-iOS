@@ -7,7 +7,7 @@ import Testing
 
 private struct StubDeps: HomeDeps {
     var fetchRooms: FetchRoomsUseCase = StubFetchRooms()
-    var fetchPins: FetchPinsUseCase = StubFetchPins()
+    var fetchHomeCards: FetchHomeCardsUseCase = StubFetchHomeCards()
     var lastViewedRoom: LastViewedRoomUseCase = StubLastViewedRoom()
     var homeGuide: HomeGuideUseCase = StubHomeGuide()
     var savePin: SavePinToRoomsUseCase = StubSavePin()
@@ -48,9 +48,8 @@ private struct StubFetchRooms: FetchRoomsUseCase {
     func execute() async throws -> [Room] { [] }
 }
 
-private struct StubFetchPins: FetchPinsUseCase {
-    func execute(rooms: [Room], filter: PinFilter) async throws -> [Pin] { [] }
-    func execute(room: Room, page: Int, filter: PinFilter) async throws -> [Pin] { [] }
+private struct StubFetchHomeCards: FetchHomeCardsUseCase {
+    func execute(room: Room, filter: PinFilter, origin: Coordinate?) async throws -> [Pin] { [] }
 }
 
 private struct StubLastViewedRoom: LastViewedRoomUseCase {

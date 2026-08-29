@@ -73,7 +73,8 @@ public final class HomeCoordinator: Coordinator {
             HomeState(),
             reduce: homeReducer(
                 fetchRooms: deps.fetchRooms,
-                fetchPins: deps.fetchPins,
+                fetchHomeCards: deps.fetchHomeCards,
+                currentLocation: deps.currentLocation,
                 lastViewedRoom: deps.lastViewedRoom,
                 homeGuide: deps.homeGuide,
                 savePin: deps.savePin,
