@@ -125,7 +125,7 @@ struct PlaceDetailHeader: View {
     }
 
     private var closeButton: some View {
-        RoomDetailCircleIconButton(icon: .close, accessibilityLabel: "닫기", action: onClose)
+        MHCircleIconButton(icon: .close, accessibilityLabel: "닫기", action: onClose)
             .accessibilityIdentifier("PlaceDetail.close")
     }
 

@@ -2,6 +2,7 @@ import Core
 import Foundation
 import Testing
 import Domain
+import PlaceDetailUI
 import RoomCreationUI
 @testable import FeatureArchive
 
@@ -149,12 +150,11 @@ struct ArchiveCoordinatorTests {
         #expect(coordinator.selectedPin == nil)
     }
 
-    @Test("장소 상세의 공유도 같은 공유 시트로 넘어간다")
+    @Test("장소 상세의 공유도 같은 공유 시트로 넘어간다 — 도메인 핀을 표시 모델로 바꿔 싣는다")
     func sharePlaceDetail() {
         let coordinator = makeCoordinator()
-        let location = RoomDetailLocation(from: fixturePin)
-        coordinator.handle(PlaceDetailNav.share(location))
-        #expect(coordinator.sharingLocation == location)
+        coordinator.handle(PlaceDetailNav.share(fixturePin))
+        #expect(coordinator.sharingLocation == RoomDetailLocation(from: fixturePin))
     }
 
     @Test("shareLocation 은 공유할 장소를 껍데기에 넘긴다")

@@ -1,4 +1,5 @@
 import DesignSystem
+import PlaceDetailUI
 import RoomCreationUI
 import SwiftUI
 

@@ -107,7 +107,7 @@ struct RoomShareSheet: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            RoomDetailCircleIconButton(icon: .close, accessibilityLabel: "닫기", action: onClose)
+            MHCircleIconButton(icon: .close, accessibilityLabel: "닫기", action: onClose)
         }
         .padding(.horizontal, 20)
         .frame(height: 60)

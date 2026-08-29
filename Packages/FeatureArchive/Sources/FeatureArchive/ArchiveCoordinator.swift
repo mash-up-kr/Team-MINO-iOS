@@ -2,6 +2,7 @@ import Core
 import Domain
 import FlowCoordination
 import MVI
+import PlaceDetailUI
 import RoomCreationUI
 import SwiftUI
 
@@ -83,17 +84,9 @@ public final class ArchiveCoordinator: Coordinator {
     }
 
     func makePlaceDetailStore(pin: Pin) -> PlaceDetailStore {
-        Store(
-            PlaceDetailState(place: PlaceDetailPlace(from: pin)),
-            reduce: placeDetailReducer(
-                useCase: deps.fetchPinDetail,
-                fetchCurrentMember: deps.currentMember,
-                fetchSavedRooms: deps.fetchSavedRooms,
-                fetchComments: deps.fetchComments,
-                postComment: deps.postComment,
-                deleteComment: deps.deleteComment,
-                pin: pin
-            ),
+        PlaceDetailUI.makePlaceDetailStore(
+            pin: pin,
+            deps: deps,
             handle: { [weak self] in self?.handle($0) }
         )
     }
@@ -159,8 +152,9 @@ public final class ArchiveCoordinator: Coordinator {
         switch nav {
         case .close:
             selectedPin = nil
-        case .share(let location):
-            sharingLocation = location
+        case .share(let pin):
+            // 상세는 도메인 핀을 넘긴다 — 공유 시트가 쓰는 표시 모델로 바꾸는 건 이 flow 몫이다.
+            sharingLocation = RoomDetailLocation(from: pin)
         case .openSavedRooms(let presentation):
             savedRooms = presentation
         }

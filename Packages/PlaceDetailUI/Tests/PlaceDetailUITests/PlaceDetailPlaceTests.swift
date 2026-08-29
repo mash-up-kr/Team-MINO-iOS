@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 import Domain
-@testable import FeatureArchive
+@testable import PlaceDetailUI
 
 struct PlaceDetailPlaceTests {
     private let sharer = MemberProfile(id: MemberID("user-0002"), nickname: "지훈", avatarID: 2)
