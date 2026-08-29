@@ -42,7 +42,7 @@ struct PlaceDetailCommentDeleteTests {
         delete: StubDeletePinComment.Outcome = .success
     ) -> TestStore<PlaceDetailState, PlaceDetailAction, PlaceDetailNav> {
         TestStore(
-            PlaceDetailState(place: PlaceDetailPlace(from: deletePin), comments: comments),
+            PlaceDetailState(place: PlaceDetailPlace(from: deletePin, label: nil), comments: comments),
             reduce: placeDetailReducer(
                 useCase: QuietFetchPinDetail(),
                 fetchCurrentMember: CurrentMemberStub(outcome: currentMember),

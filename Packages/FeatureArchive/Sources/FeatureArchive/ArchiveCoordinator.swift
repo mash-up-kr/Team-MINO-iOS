@@ -86,6 +86,8 @@ public final class ArchiveCoordinator: Coordinator {
     func makePlaceDetailStore(pin: Pin) -> PlaceDetailStore {
         PlaceDetailUI.makePlaceDetailStore(
             pin: pin,
+            // 저장 탭 진입은 라벨을 달지 않는다 (Figma 002-1-1 ① — 홈 카드 진입 전용).
+            label: nil,
             deps: deps,
             handle: { [weak self] in self?.handle($0) }
         )

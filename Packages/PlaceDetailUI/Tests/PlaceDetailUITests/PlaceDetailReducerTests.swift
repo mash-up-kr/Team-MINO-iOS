@@ -50,7 +50,7 @@ struct PlaceDetailReducerTests {
         source: StubFetchPinDetail.Outcome = .source(fixtureSourceURL)
     ) -> TestStore<PlaceDetailState, PlaceDetailAction, PlaceDetailNav> {
         TestStore(
-            PlaceDetailState(place: PlaceDetailPlace(from: fixturePin), currentMember: fixtureAuthor),
+            PlaceDetailState(place: PlaceDetailPlace(from: fixturePin, label: nil), currentMember: fixtureAuthor),
             reduce: placeDetailReducer(
                 useCase: StubFetchPinDetail(outcome: source),
                 fetchCurrentMember: StubCurrentMember(profile: fixtureAuthor),

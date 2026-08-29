@@ -1,5 +1,7 @@
 import DesignSystem
+import Domain
 import FlowCoordination
+import PlaceDetailUI
 import RoomCreationUI
 import SwiftUI
 
@@ -35,6 +37,12 @@ public struct HomeTabView: View {
             savedToast
         }
         .animation(.easeInOut(duration: 0.2), value: store?.state.savedToastID)
+        // 장소 상세는 커버로 띄운다 (Figma 002-1-1 "상세 화면으로 이동") — 저장 탭처럼 지도 위
+        // 바텀시트로 올릴 근거가 홈엔 없다(뒤에 남겨 둘 지도가 없다). 커버는 탭바까지 덮으므로
+        // MainTabView 쪽에 숨김 처리를 따로 두지 않아도 된다.
+        .fullScreenCover(item: $coordinator.selectedPin) { pin in
+            HomePlaceDetailView(coordinator: coordinator, pin: pin)
+        }
     }
 
     /// 저장 완료 스낵바 (Figma `013-2`). 위 주석과 같은 이유로 NavigationStack **바깥**에 둔다 —
@@ -67,5 +75,27 @@ public struct HomeTabView: View {
             ProgressView()
                 .task { store = coordinator.makeHomeStore() }
         }
+    }
+}
+
+/// 커버 안의 장소 상세. Store 를 `.task` 에서 1회 만든다 — 커버 content 클로저는 body 재평가마다
+/// 다시 불리므로 여기서 바로 만들면 그때마다 Store 가 새로 나 조회가 반복된다.
+private struct HomePlaceDetailView: View {
+    let coordinator: HomeCoordinator
+    let pin: Pin
+
+    @State private var store: PlaceDetailStore?
+
+    var body: some View {
+        Group {
+            if let store {
+                PlaceDetailView(store: store, detent: .full)
+            } else {
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .task { store = coordinator.makePlaceDetailStore(pin: pin) }
+            }
+        }
+        .background(Color.mhBackgroundNormalNormal.ignoresSafeArea())
     }
 }

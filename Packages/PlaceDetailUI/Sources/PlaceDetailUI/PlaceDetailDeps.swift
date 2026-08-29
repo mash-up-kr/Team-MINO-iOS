@@ -27,14 +27,17 @@ public protocol PlaceDetailDeps {
 ///
 /// 리듀서를 직접 노출하지 않는 이유는 인자가 일곱 개라, 진입점마다 손으로 엮으면 한 곳에서만
 /// 유스케이스를 빠뜨려도 그 화면의 코멘트·저장된 방이 조용히 비기 때문이다.
+/// - Parameter label: 헤더 상단에 노출할 큐레이션 라벨. **홈 카드로 진입한 경우에만** 넘긴다 —
+///   다른 경로(저장 탭·지도·알림)는 `nil` 이다 (Figma 002-1-1 ①).
 @MainActor
 public func makePlaceDetailStore(
     pin: Pin,
+    label: PinCategory?,
     deps: PlaceDetailDeps,
     handle: @escaping @MainActor (PlaceDetailNav) -> Void
 ) -> PlaceDetailStore {
     PlaceDetailStore(
-        PlaceDetailState(place: PlaceDetailPlace(from: pin)),
+        PlaceDetailState(place: PlaceDetailPlace(from: pin, label: label)),
         reduce: placeDetailReducer(
             useCase: deps.fetchPinDetail,
             fetchCurrentMember: deps.currentMember,

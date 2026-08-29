@@ -35,7 +35,7 @@ struct PlaceDetailSavedRoomsTests {
         state: PlaceDetailState? = nil
     ) -> TestStore<PlaceDetailState, PlaceDetailAction, PlaceDetailNav> {
         TestStore(
-            state ?? PlaceDetailState(place: PlaceDetailPlace(from: savedPin)),
+            state ?? PlaceDetailState(place: PlaceDetailPlace(from: savedPin, label: nil)),
             reduce: placeDetailReducer(
                 useCase: QuietFetchPinDetail(),
                 fetchCurrentMember: QuietCurrentMember(),
@@ -49,7 +49,7 @@ struct PlaceDetailSavedRoomsTests {
     }
 
     private func loadedState(rooms: [Room]) -> PlaceDetailState {
-        var state = PlaceDetailState(place: PlaceDetailPlace(from: savedPin))
+        var state = PlaceDetailState(place: PlaceDetailPlace(from: savedPin, label: nil))
         state.savedRooms = rooms
         return state
     }
@@ -108,7 +108,7 @@ struct PlaceDetailSavedRoomsTests {
 
     @Test("L1 — 이미 조회 중이면 중복 요청하지 않는다")
     func load_ignoresWhileLoading() async {
-        var state = PlaceDetailState(place: PlaceDetailPlace(from: savedPin))
+        var state = PlaceDetailState(place: PlaceDetailPlace(from: savedPin, label: nil))
         state.isLoadingSavedRooms = true
         let store = makeStore(savedRooms: .rooms([roomB]), state: state)
 

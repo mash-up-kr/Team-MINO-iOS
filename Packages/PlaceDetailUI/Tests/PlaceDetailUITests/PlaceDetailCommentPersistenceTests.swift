@@ -43,7 +43,7 @@ struct PlaceDetailCommentPersistenceTests {
     ) -> TestStore<PlaceDetailState, PlaceDetailAction, PlaceDetailNav> {
         TestStore(
             state ?? PlaceDetailState(
-                place: PlaceDetailPlace(from: persistPin),
+                place: PlaceDetailPlace(from: persistPin, label: nil),
                 currentMember: me
             ),
             reduce: placeDetailReducer(
@@ -78,7 +78,7 @@ struct PlaceDetailCommentPersistenceTests {
 
     @Test("L2 — 조회에 실패해도 이미 그려 둔 목록을 지우지 않는다")
     func loadComments_failureKeepsExisting() async {
-        var state = PlaceDetailState(place: PlaceDetailPlace(from: persistPin), currentMember: me)
+        var state = PlaceDetailState(place: PlaceDetailPlace(from: persistPin, label: nil), currentMember: me)
         state.comments = storedComments
         let store = makeStore(comments: .failure(.unknown), state: state)
 
@@ -225,7 +225,7 @@ struct PlaceDetailCommentPersistenceTests {
 
     @Test("L1 — 신원을 모르면 등록이 잠기고, 눌려도 요청이 나가지 않는다")
     func submitComment_blockedWhenViewerUnknown() async {
-        let store = makeStore(state: PlaceDetailState(place: PlaceDetailPlace(from: persistPin)))
+        let store = makeStore(state: PlaceDetailState(place: PlaceDetailPlace(from: persistPin, label: nil)))
 
         #expect(!store.currentState.canSubmitComment)
         await store.send(.submitComment("좋았어요"))

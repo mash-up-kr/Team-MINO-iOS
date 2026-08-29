@@ -8,18 +8,23 @@ struct PlaceDetailPlace: Equatable {
     let photos: [URL]
     /// 이 장소를 저장한 사람. 서버가 주지 않으면 nil 이라 익명 아바타로 그린다.
     let sharer: MemberProfile?
-    /// 홈 카드와 같은 큐레이션 라벨. 헤더 뱃지가 이걸 그린다.
-    let category: PinCategory
+    /// 홈 카드가 달고 있던 큐레이션 라벨. **홈에서 들어왔을 때만** 값이 있다 (Figma 002-1-1 ①:
+    /// "저장 탭·지도·알림 등 홈 카드 이외의 경로로 진입한 경우에는 라벨을 노출하지 않는다").
+    /// nil 이면 헤더가 라벨 자리를 통째로 뺀다.
+    let label: PinCategory?
 }
 
 extension PlaceDetailPlace {
-    init(from pin: Pin) {
+    /// - Parameter label: 상단에 노출할 큐레이션 라벨. **홈 카드로 진입한 경우에만** 넘긴다 —
+    ///   핀 자신은 항상 라벨을 들고 있으므로(`pin.category`) 여기서 자동으로 채우면 저장 탭에서도
+    ///   라벨이 떠 002-1-1 ① 을 어긴다. 그래서 핀에서 꺼내지 않고 호출부가 정한다.
+    init(from pin: Pin, label: PinCategory?) {
         self.init(
             name: pin.place.name,
             address: pin.place.address,
             photos: pin.images,
             sharer: pin.createdBy,
-            category: pin.category
+            label: label
         )
     }
 }
@@ -54,7 +59,7 @@ extension PlaceDetailPlace {
             URL(string: "https://picsum.photos/seed/gguk-0-1/800/600")!,
         ],
         sharer: MemberProfile(id: MemberID("user-0003"), nickname: "서연", avatarID: 3),
-        category: .popularAmongFriends
+        label: .popularAmongFriends
     )
 }
 

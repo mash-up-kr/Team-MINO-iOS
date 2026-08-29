@@ -1,5 +1,6 @@
 import DesignSystem
 import Domain
+import ProfileSetupUI
 import SwiftUI
 
 /// 홈 카드 스와이프 덱. 최대 5장을 겹쳐 표시하고 좌우 스와이프로 넘긴다.
@@ -120,7 +121,8 @@ struct CardDeckView: View {
     private func cardView(pin: Pin) -> some View {
         let badge = badgeInfo(for: pin.category)
         return MHHomeCard(
-            avatar: nil,
+            // 저장자를 모르면 nil 로 둬 익명 자리표가 뜬다 — 아무 얼굴이나 넣으면 남의 얼굴이 된다.
+            avatar: pin.createdBy.map { AvatarArt.image(for: $0.avatarID) },
             badgeText: badge.text,
             badgeColor: badge.color,
             title: pin.place.name,
