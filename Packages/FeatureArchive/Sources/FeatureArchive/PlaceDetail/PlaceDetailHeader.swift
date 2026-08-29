@@ -1,4 +1,5 @@
 import DesignSystem
+import ProfileSetupUI
 import SwiftUI
 
 /// 헤더 상단 여백. **시트 단계마다 다르다** — 시안을 375×812 PNG 로 받아 픽셀로 실측한 값이다.
@@ -72,10 +73,10 @@ struct PlaceDetailHeader: View {
     /// ② 해당 장소를 공유한 사람. 시안에는 아바타만 있고 닉네임 자리가 없어, 이름은
     /// 접근성 라벨로만 읽힌다.
     ///
-    /// 얼굴은 ``ArchiveAvatarArt`` 가 프리셋 번호로 고른다 — 번호↔색 계약이 확정되면 그 파일만
-    /// 갈아끼우면 아카이브의 모든 프로필 자리가 함께 옮겨 간다.
+    /// 얼굴은 ``AvatarArt`` 가 프리셋 번호로 고른다 — 번호↔색 계약이 확정되면 그 한 곳만
+    /// 갈아끼우면 앱의 모든 프로필 자리가 함께 옮겨 간다.
     private var sharerAvatar: some View {
-        MHAvatar(place.sharer.map { ArchiveAvatarArt.image(for: $0.avatarID) }, size: 32)
+        MHAvatar(place.sharer.map { AvatarArt.image(for: $0.avatarID) }, size: 32)
             .accessibilityElement()
             .accessibilityLabel(place.sharer.map { "\($0.nickname) 님이 저장" } ?? "저장한 사람 정보 없음")
             .accessibilityIdentifier("PlaceDetail.sharer")

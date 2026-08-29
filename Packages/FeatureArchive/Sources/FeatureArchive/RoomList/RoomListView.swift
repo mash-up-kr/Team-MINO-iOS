@@ -1,6 +1,7 @@
 import DesignSystem
 import Domain
 import MVI
+import ProfileSetupUI
 import RoomCreationUI
 import SwiftUI
 
@@ -192,7 +193,7 @@ extension RoomListItem {
             memo: room.description,
             placeCount: room.pinCount,
             thumbnail: Self.thumbnail(for: room),
-            members: ArchiveAvatarArt.images(for: room.users.map(\.avatarID))
+            members: AvatarArt.images(for: room.users.map(\.avatarID))
         )
     }
 

@@ -1,4 +1,5 @@
 import DesignSystem
+import ProfileSetupUI
 import SwiftUI
 
 /// 리스트형 카드 — `MHLocationCard(layout: .compact)` 래핑. Figma `Card_Location A`.
@@ -13,7 +14,7 @@ struct LocationCompactCard: View {
             title: location.name,
             address: location.address,
             commentCount: location.commentCount,
-            members: ArchiveAvatarArt.images(for: location.saver),
+            members: AvatarArt.images(for: location.saver),
             layout: .compact,
             menuItems: menuItems,
             menuPlacement: menuPlacement,
