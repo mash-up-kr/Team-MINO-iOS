@@ -23,8 +23,11 @@ struct RoomDetailView: View {
             VStack(spacing: 0) {
                 RoomDetailHeader(
                     room: store.state.room,
+                    // 004-1 ② 2-1 은 여기서 `004-4-2_친구 초대 클릭`(참여자 목록 + 초대하기 · 링크
+                    // 복사하기 바텀시트)을 연다. 그 시트는 별도 스펙(3225:91793, 담당 유빈·윤지)이라
+                    // 이 PR 범위 밖이다 — 그 화면이 생기는 PR 에서 여기에 연결한다.
                     onAddMember: {},
-                    onMore: {},
+                    onMore: { store.send(.tapMore) },
                     onClose: { store.send(.tapClose) }
                 )
 
@@ -36,8 +39,30 @@ struct RoomDetailView: View {
                 locationList
             }
         }
+        .task(id: ObjectIdentifier(store)) {
+            // 방장 판정용 신원 조회. 장소 목록(`.load`)은 껍데기가 보내므로 여기선 이것만 챙긴다.
+            store.send(.loadCurrentMember)
+        }
         .onChange(of: detent) { _, _ in
             overlay = nil
+            // 단계가 바뀌면 케밥 메뉴가 열리는 방향도 바뀐다 — 열린 채로 자리만 튀지 않게 닫는다.
+            store.send(.dismissMoreMenu)
+        }
+        // 헤더 케밥은 시트 밖에서 그려져 이 뷰의 `overlay` 상호배제에 끼지 못한다 —
+        // 서로 열릴 때 상대를 닫아 "정렬 드롭다운 위에 케밥 메뉴" 같은 겹침을 막는다.
+        .onChange(of: overlay) { _, opened in
+            if opened != nil { store.send(.dismissMoreMenu) }
+        }
+        .onChange(of: store.state.isMoreMenuPresented) { _, opened in
+            if opened { overlay = nil }
+        }
+        .mhDialog(item: store.state.deletion) { deletion in
+            MHDialog(
+                title: "이 장소를 삭제할까요?",
+                message: "장소에 등록된 사진과 댓글이 모두 삭제되며, 다시 되돌릴 수 없어요.",
+                cancel: MHAction("취소", isEnabled: !deletion.isSubmitting) { store.send(.cancelDelete) },
+                confirm: MHAction("삭제", isEnabled: !deletion.isSubmitting) { store.send(.confirmDelete) }
+            )
         }
     }
 
@@ -69,10 +94,10 @@ struct RoomDetailView: View {
     private var categoryRow: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
-                ForEach(RoomDetailCategory.allCases) { item in
+                ForEach(store.state.categories, id: \.self) { item in
                     let isActive = item == store.state.category
                     MHChip(
-                        item.rawValue,
+                        item,
                         variant: isActive ? .solid : .outlined,
                         size: .large,
                         isActive: isActive
@@ -127,9 +152,8 @@ struct RoomDetailView: View {
         switch item {
         case .shareLocation:
             store.send(.tapShare(location))
-        // TODO: 시안이 확정되면 삭제·이동을 배선한다. 지금은 메뉴만 닫는다.
-        case .deleteLocation, .moveLocation:
-            break
+        case .deleteLocation:
+            store.send(.tapDeleteLocation(location.id))
         }
     }
 }

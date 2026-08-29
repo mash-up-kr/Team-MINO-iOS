@@ -119,6 +119,24 @@ struct AuthRefreshRetryTests {
         #expect(stub.recorded.last?.authorizationHeader == "Bearer new")
     }
 
+    // 온보딩 전 사용자는 앱을 켤 때마다 GET /me 로 이 401 을 받는다. 갱신해도 회원이 생기지
+    // 않으므로 재시도는 매 실행마다 낭비되는 왕복 1회일 뿐이다.
+    @Test("미등록 401 은 갱신하지 않고 그대로 던진다")
+    func doesNotRefreshForUnregisteredUser() async throws {
+        let provider = SpyTokenProvider(initial: "old", refreshed: "new")
+        let (sut, stub) = makeSUT(tokenProvider: provider)
+        stub.stub = URLProtocolStub.Stub(
+            statusCode: 401,
+            body: Data(#"{"errorCode":"USER_NOT_REGISTERED","message":"등록되지 않은 사용자입니다."}"#.utf8)
+        )
+
+        let error = await capture { try await sut.request(Endpoint<OkResponse>(path: "api/v1/users/me")) }
+
+        #expect(stub.recorded.count == 1)
+        #expect(provider.refreshCalls == 0)
+        #expect(error == .unauthorized(code: "USER_NOT_REGISTERED", message: "등록되지 않은 사용자입니다."))
+    }
+
     // 토큰 없이 나간 요청을 다시 보내면 바이트까지 같은 요청이 한 번 더 나갈 뿐이다.
     @Test("토큰이 없었으면 401 에도 재시도하지 않는다")
     func doesNotRetryWhenNoTokenWasAttached() async throws {

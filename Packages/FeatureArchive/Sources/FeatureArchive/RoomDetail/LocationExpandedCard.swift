@@ -1,4 +1,5 @@
 import DesignSystem
+import ProfileSetupUI
 import SwiftUI
 
 /// 카드형 카드 — `MHLocationCard(layout: .expanded)` 래핑. Figma `Card_Location B`.
@@ -14,7 +15,7 @@ struct LocationExpandedCard: View {
             title: location.name,
             address: location.address,
             commentCount: location.commentCount,
-            members: [nil],
+            members: AvatarPalette.images(of: location.saver),
             layout: .expanded,
             menuItems: menuItems,
             menuPlacement: menuPlacement,

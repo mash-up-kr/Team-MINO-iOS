@@ -1,6 +1,7 @@
 import DesignSystem
 import Domain
 import MVI
+import ProfileSetupUI
 import RoomCreationUI
 import SwiftUI
 
@@ -184,7 +185,7 @@ struct RoomListItem: Identifiable, Equatable {
 // MARK: - Room → RoomListItem 매핑
 
 extension RoomListItem {
-    /// 도메인 `Room` → 카드 표시 모델. 아바타 이미지는 아직 없어 개수만큼 `nil` 플레이스홀더로 채운다.
+    /// 도메인 `Room` → 카드 표시 모델.
     init(from room: Room) {
         self.init(
             id: room.id,
@@ -192,7 +193,7 @@ extension RoomListItem {
             memo: room.description,
             placeCount: room.pinCount,
             thumbnail: Self.thumbnail(for: room),
-            members: Array(repeating: nil, count: min(room.users.count, 5))
+            members: AvatarPalette.images(of: room.users.map(\.avatarColor))
         )
     }
 
@@ -201,9 +202,8 @@ extension RoomListItem {
         case .personal:
             return .myRoom
         case .shared:
-            // 백엔드 `room.color`(방 생성 시 고른 색)를 hue 로 팔레트 12색에 매핑.
-            // 색을 못 뽑으면(무채색·형식오류) my-room 썸네일로 폴백.
-            return MHRoomThumbnailColor(roomColorHex: room.color).map { .color($0) } ?? .myRoom
+            // 서버가 주는 색 이름을 팔레트 12색에 매핑. 모르는 이름이면 my-room 썸네일로 폴백.
+            return room.color.flatMap(RoomColorPalette.thumbnail(for:)).map { .color($0) } ?? .myRoom
         }
     }
 }

@@ -5,10 +5,38 @@ import Foundation
 public enum DomainError: Error, Equatable, Sendable {
     case memberNotFound
     case roomsFetchFailed
+    /// 방을 만들거나 고치지 못했다.
+    case roomSaveFailed
     case notificationsFetchFailed
+    /// 공유받은 링크를 방에 담지 못함. 방 저장(`roomSaveFailed`)과 갈라 둔다 —
+    /// 익스텐션은 이 실패만 스낵바로 보여주고 방 편집 화면은 이 오류를 받지 않는다.
+    case linkSaveFailed
     case unauthorized
+    /// 세션은 있지만 이 uid 로 **회원 등록이 되어 있지 않다**(서버 `USER_NOT_REGISTERED`).
+    ///
+    /// `unauthorized` 와 반드시 구분한다 — 이쪽은 인증이 깨진 게 아니라 **온보딩을 아직 안 마친**
+    /// 상태다. 앱 진입 분기가 이 값 하나로 온보딩과 재시도를 가른다.
+    case notRegistered
+    /// 이미 등록된 uid 로 다시 등록을 시도했다(서버 `USER_ALREADY_REGISTERED`).
+    ///
+    /// 익명 세션은 Keychain 에 남아 앱을 지웠다 깔아도 같은 uid 로 돌아온다 —
+    /// 재설치한 사용자가 온보딩을 다시 타면 여기에 닿는다.
+    case alreadyRegistered
     /// 세션을 확보하지 못했다. 인증 수단에 닿지 못한 경우(네트워크 단절 등)로,
     /// **서버가 거부한 `unauthorized` 와 구분한다** — 이쪽은 재시도가 의미 있다.
     case sessionUnavailable
+    /// 프로필을 읽지 못했다(조회 실패). 재시도가 의미 있다.
+    case profileFetchFailed
+    /// 프로필을 저장하지 못했다 — 등록·수정 공통.
+    case profileSaveFailed
+    /// 초대 코드를 얻지 못했다. 재시도가 의미 있다.
+    case inviteCodeFetchFailed
+    /// 빈 코멘트를 등록하려 했다 — 공백만 친 경우를 포함한다.
+    ///
+    /// 등록 버튼이 이미 잠기지만(화면), 유스케이스도 스스로 막는다. 뷰를 고치면 뚫리는 방어라
+    /// 도메인 경계에서 한 번 더 세우고, 그 거절을 오류로 드러낸다.
+    case commentBodyEmpty
+    /// 저장한 장소를 읽지 못했다 — 홈 카드 덱·방 상세 목록·장소 상세 공통. 재시도가 의미 있다.
+    case pinsFetchFailed
     case unknown
 }

@@ -1,5 +1,6 @@
 import DesignSystem
 import Domain
+import RoomCreationUI
 import SwiftUI
 
 /// 방 선택 바텀 시트 콘텐츠. Figma `002-4-1 방변경`(node 2809-139474) 실측에 맞춘다.
@@ -130,7 +131,7 @@ struct RoomListView: View {
     /// 방 커버 — 방 색이 팔레트에 있으면 그 색 썸네일, 없으면 my-room 썸네일.
     @ViewBuilder
     private func cover(for room: Room, isSelected: Bool) -> some View {
-        if let color = MHRoomThumbnailColor(roomColorHex: room.color) {
+        if let color = room.color.flatMap(RoomColorPalette.thumbnail(for:)) {
             MHRoomThumbnail(color: color, size: coverSize, isSelected: isSelected)
         } else {
             MHRoomThumbnail.myRoom(size: coverSize, isSelected: isSelected)

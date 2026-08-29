@@ -11,14 +11,32 @@ import SwiftUI
 ///     avatar: Image("me"), badgeText: "친구들이 많이 본 곳", badgeColor: .mhAccentForegroundLightBlue,
 ///     title: "레이어스튜디오 10", address: "서울 성동구 상원4길 10", images: [img1, img2]
 /// ) { openMore() }
+///
+/// MHHomeCard(
+///     avatar: Image("me"), badgeText: "친구들이 많이 본 곳", badgeColor: .mhAccentForegroundLightBlue,
+///     title: "레이어스튜디오 10", address: "서울 성동구 상원4길 10", imageURLs: pin.images
+/// ) { openMore() }
 /// ```
 public struct MHHomeCard: View {
+    // 로컬(Image)·원격(URL) 두 init 이 그릴 소스를 하나로 수렴시킨 표현. imageGrid 는 이것만 본다.
+    private enum ImageSource {
+        case local([Image])
+        case remote([URL])
+
+        var isEmpty: Bool {
+            switch self {
+            case .local(let images): return images.isEmpty
+            case .remote(let urls): return urls.isEmpty
+            }
+        }
+    }
+
     private let avatar: Image?
     private let badgeText: String
     private let badgeColor: Color
     private let title: String
     private let address: String
-    private let images: [Image]
+    private let imageSource: ImageSource
     private let menuItems: [MHMenuItem]
     private let onMore: (() -> Void)?
 
@@ -39,7 +57,29 @@ public struct MHHomeCard: View {
         self.badgeColor = badgeColor
         self.title = title
         self.address = address
-        self.images = images
+        self.imageSource = .local(images)
+        self.menuItems = menuItems
+        self.onMore = onMore
+    }
+
+    /// 원격 사진(`Pin.images` 등)을 `AsyncImage` 로 그리는 버전. 로딩 중·실패는 같은 자리표로 받는다
+    /// (자리가 비면 옆 사진이 밀리기 때문) — `PlaceDetailPhotoCarousel.photo(_:)` 와 같은 패턴.
+    public init(
+        avatar: Image?,
+        badgeText: String,
+        badgeColor: Color,
+        title: String,
+        address: String,
+        imageURLs: [URL],
+        menuItems: [MHMenuItem] = [],
+        onMore: (() -> Void)? = nil
+    ) {
+        self.avatar = avatar
+        self.badgeText = badgeText
+        self.badgeColor = badgeColor
+        self.title = title
+        self.address = address
+        self.imageSource = .remote(imageURLs)
         self.menuItems = menuItems
         self.onMore = onMore
     }
@@ -127,25 +167,44 @@ public struct MHHomeCard: View {
         }
     }
 
+    @ViewBuilder
     private var imageGrid: some View {
         HStack(spacing: 8) {
-            if images.isEmpty {
-                ForEach(0..<2, id: \.self) { _ in
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(Color.mhBackgroundNormalAlternative)
-                        .frame(maxWidth: .infinity)
-                        .aspectRatio(147.5 / 184, contentMode: .fit)
-                }
-            } else {
+            switch imageSource {
+            case .local(let images) where !images.isEmpty:
                 ForEach(Array(images.prefix(2).enumerated()), id: \.offset) { _, image in
-                    image
-                        .resizable().scaledToFill()
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 184)
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                    imageTile { image.resizable().scaledToFill() }
                 }
+            case .remote(let urls) where !urls.isEmpty:
+                ForEach(Array(urls.prefix(2).enumerated()), id: \.offset) { _, url in
+                    imageTile {
+                        AsyncImage(url: url) { phase in
+                            // 로딩 중·실패는 그리지 않는다 — 자리표는 타일 자신의 배경이라
+                            // 어느 단계에서도 자리가 비지 않는다.
+                            if case .success(let image) = phase {
+                                image.resizable().scaledToFill()
+                            }
+                        }
+                    }
+                }
+            default:
+                ForEach(0..<2, id: \.self) { _ in imageTile { EmptyView() } }
             }
         }
+    }
+
+    /// 사진 한 칸. **자리(비율)가 먼저 정해지고 사진은 그 안에 얹힌다.**
+    ///
+    /// 사진을 레이아웃에 직접 태우면(`Image` 를 그대로 HStack 자식으로) 원본 픽셀 크기가 카드 폭을
+    /// 밀어낸다. 홈 덱은 실측 컨테이너 폭으로 카드 폭을 정하므로(`CardDeckView.widthReader`) 그
+    /// 부풀어 오른 폭이 다시 읽혀 덱 전체가 화면 밖으로 나간다 — 시뮬레이터에서 재현했다.
+    /// 그래서 크기는 언제나 이 타일이 정하고, 사진은 `overlay` 로 얹은 뒤 넘치는 부분을 잘라낸다.
+    private func imageTile<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        RoundedRectangle(cornerRadius: 16)
+            .fill(Color.mhBackgroundNormalAlternative)
+            .aspectRatio(147.5 / 184, contentMode: .fit)
+            .overlay { content() }
+            .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 }
 
@@ -226,6 +285,22 @@ struct MHHomeCardMoreStyle: ButtonStyle {
         title: "레이어스튜디오 10",
         address: "서울 성동구 상원4길 10",
         images: []
+    ) { }
+    .frame(width: 335)
+    .padding()
+}
+
+#Preview("MHHomeCard - Remote") {
+    MHHomeCard(
+        avatar: nil,
+        badgeText: "친구들이 많이 본 곳",
+        badgeColor: .mhAccentForegroundLightBlue,
+        title: "레이어스튜디오 10",
+        address: "서울 성동구 상원4길 10",
+        imageURLs: [
+            URL(string: "https://picsum.photos/seed/gguk-0-0/800/600")!,
+            URL(string: "https://picsum.photos/seed/gguk-0-1/800/600")!,
+        ]
     ) { }
     .frame(width: 335)
     .padding()

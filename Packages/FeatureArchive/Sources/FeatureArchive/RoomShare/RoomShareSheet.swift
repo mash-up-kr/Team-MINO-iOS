@@ -1,26 +1,33 @@
 import DesignSystem
+import Domain
+import FlowCoordination
+import Foundation
+import MVI
+import RoomCreationUI
 import SwiftUI
 
 /// 장소를 다른 방에 공유하는 바텀시트. Figma `004-2-2_다른 방에 공유 클릭`(`1672:73592`).
 ///
 /// 시안이 딤(`Material/Dimmer`)을 동반한 모달이라 `MHBottomSheet`(딤 없는 비모달 3-detent)이 아니라
-/// SwiftUI 네이티브 `.sheet` + `presentationDetents` 위에 얹는다. 띄우는 쪽은 `ProfileTabView`.
+/// SwiftUI 네이티브 `.sheet` + `presentationDetents` 위에 얹는다. 띄우는 쪽은 ``ArchiveShellView``.
+///
+/// **부모** Coordinator 대신 `makeStore` 클로저를 받는다(`.claude/docs/mvi-coordinator-di.md` 5절) —
+/// 방 목록 로드·저장·저장 중 잠금이 Store 안에 있고, 시트 자신은 누가 띄웠는지 몰라도 된다.
+/// 반면 **자식** flow(``RoomShareCreateRoomCoordinator``)는 시트가 직접 안다 — 커버를 시트 안에
+/// 붙여야 시트를 살려 둔 채 덮을 수 있기 때문이다(`MemberHomeView` 가 `editChild` 를 아는 것과 같다).
 struct RoomShareSheet: View {
-    /// `presentationDetents(.height(_:))` 에 넘길 값.
-    ///
-    /// 시안 시트 높이 500 은 홈 인디케이터(34)까지 포함한 값인데, iOS 의 `.height` 는 하단 안전영역
-    /// **위쪽** 높이라 그만큼 뺀다(시뮬레이터 실측: 500 을 주면 화면상 534 가 나온다).
-    /// 홈 인디케이터가 없는 기기에서는 시트가 34pt 짧아지지만 리스트가 그만큼 줄 뿐이라 무해하다.
-    static let detentHeight: CGFloat = 500 - 34
-
     let location: RoomDetailLocation
-    let rooms: [RoomShareRoom]
+    let makeStore: @MainActor () -> RoomShareStore
+    /// 공동방 만들기 자식 flow. **시트 안에서** 커버로 띄운다 — 시트를 닫고 띄우면
+    /// 고르던 방 선택이 사라지고, 시트 바깥(껍데기)에 붙이면 시트가 위를 덮어 안 보인다.
+    /// 항목 자체가 자식 Coordinator 라 닫힐 때 SwiftUI 가 nil 을 되써 표시 상태와 자식이
+    /// 어긋나지 않는다(`.claude/docs/mvi-coordinator-di-extensions.md` "다중 sheet" 와 같은 이유).
+    @Binding var createRoomChild: RoomShareCreateRoomCoordinator?
     let onClose: () -> Void
-    let onSubmit: (Set<RoomShareRoom.ID>) -> Void
 
-    @State private var selection = RoomShareSelection()
-    /// dismiss 애니메이션 동안 버튼이 살아 있어, 빠른 이중 탭이 onSubmit 을 두 번 쏘는 걸 막는다.
-    @State private var isSubmitting = false
+    @State private var store: RoomShareStore?
+    /// 시트 단계. 진입은 peek 이다(기획 011-1 ①).
+    @State private var detent: PresentationDetent = .height(RoomShareSheetMetrics.peekDetentHeight)
 
     var body: some View {
         VStack(spacing: 0) {
@@ -28,21 +35,51 @@ struct RoomShareSheet: View {
             locationHeader
             newRoomRow
             dividerRow
-            roomList
-            // safeArea: false — 시트가 이미 홈 인디케이터 높이를 확보한다. 켜 두면 34pt 가 이중으로 잡혀
-            // 시트가 시안(500)보다 그만큼 커진다.
-            MHActionArea(main: .init("공유하기") { submit() }, safeArea: false)
-                .disabled(!selection.canSubmit || isSubmitting)
-                .accessibilityIdentifier("RoomShare.submitButton")
+            content
         }
         .background(.mhBackgroundElevatedNormal)
         .accessibilityIdentifier("RoomShare.sheet")
+        // 다른 presentation 설정과 달리 **여기** 붙는다(나머지는 띄우는 쪽 ``ArchiveShellView``) —
+        // full 높이가 방 개수로 갈리는데(676/708) 그 개수는 시트 안에서 만드는 `RoomShareStore` 만
+        // 안다. 껍데기에 두려면 껍데기가 Store 를 소유해야 하고, 그러면 "누가 띄웠는지 몰라도 되게"
+        // 하려고 `makeStore` 클로저를 받은 구조가 무너진다.
+        .presentationDetents(
+            [.height(RoomShareSheetMetrics.peekDetentHeight), .height(fullDetentHeight)],
+            selection: $detent
+        )
+        .onChange(of: fullDetentHeight) { old, new in
+            // 방을 만들고 돌아와 4→5 로 넘어가면 full 높이가 바뀐다. `PresentationDetent` 는 값으로
+            // 같고 다름을 가려 옛 높이를 든 selection 은 집합 밖이 되므로 새 값으로 옮겨 준다.
+            if detent == .height(old) { detent = .height(new) }
+        }
+        .fullScreenCover(item: $createRoomChild) { child in
+            // 저장 탭 헤더 "+" 와 같은 화면 — 건너뛰기 없음(showsSkip: false).
+            RoomFormView(makeStore: child.makeRoomFormStore, showsSkip: false)
+                // 결과는 reduce 로 한 줄 위임한다(목록을 다시 받을지 말지는 reduce 가 정한다).
+                // [weak store]: 자식 → finish 클로저 → 시트 → 부모 → 자식 순환을 끊는다.
+                .flowRoot(child) { [weak store] result in
+                    store?.send(.createRoomFinished(result))
+                }
+        }
     }
 
-    private func submit() {
-        guard !isSubmitting else { return }
-        isSubmitting = true
-        onSubmit(selection.ids)
+    /// 로딩 중에는 방 개수를 모른다 — 0 으로 보고 있다가 목록이 오면 한 번 자란다(`SaveLinkView`
+    /// 와 같은 처리). 진입 단계가 peek 이라 사용자가 끌어올리기 전에는 이 값이 눈에 띄지 않는다.
+    private var fullDetentHeight: CGFloat {
+        RoomShareSheetMetrics.fullDetentHeight(roomCount: store?.state.rooms.count ?? 0)
+    }
+
+    /// 방 목록·공유 버튼은 Store 가 생긴 뒤에 그린다. 그래버·헤더(닫기)는 바깥에 둬서
+    /// 생성 전에도 시트를 닫을 수 있다.
+    @ViewBuilder private var content: some View {
+        if let store {
+            RoomShareContentView(state: store.state, send: store.send)
+        } else {
+            // Store 는 여기서 1회 생성한다 — `makeStore` 가 @MainActor 라 View.init 에서는 못 부른다.
+            ProgressView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .task { store = makeStore() }
+        }
     }
 
     // 그래버 — h30(py12) 안에 38×4 바. Figma `1672:73594`.
@@ -56,7 +93,7 @@ struct RoomShareSheet: View {
     // 공유할 장소 — 썸네일 46 + 제목/메모 + 닫기. Figma `1672:73596`.
     private var locationHeader: some View {
         HStack(spacing: 14) {
-            RoomShareLocationThumbnail()
+            RoomShareLocationThumbnail(photo: location.thumbnail)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(location.name)
@@ -70,17 +107,19 @@ struct RoomShareSheet: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            RoomDetailCircleIconButton(icon: .close, accessibilityLabel: "닫기", action: onClose)
+            MHCircleIconButton(icon: .close, accessibilityLabel: "닫기", action: onClose)
         }
         .padding(.horizontal, 20)
         .frame(height: 60)
     }
 
-    // 새 방 만들기 — Figma `1672:73605`. 진입 화면(공동방 만들기)이 아직 없어 표시만 한다.
+    // 새 방 만들기 — Figma `1672:73605`. 눌러 공동방 만들기로 들어간다(기획 011-1 ③).
     private var newRoomRow: some View {
         HStack {
             Button {
-                // TODO: 공동방 만들기 화면이 생기면 여기서 진입한다.
+                // Store 가 없는 건 시트가 뜬 첫 프레임뿐이다(`content` 의 `.task` 가 바로 만든다) —
+                // 사람이 누를 수 있는 시점에는 이미 있다.
+                store?.send(.tapCreateRoom)
             } label: {
                 HStack(spacing: 4) {
                     Image(.plus)
@@ -109,19 +148,50 @@ struct RoomShareSheet: View {
             .padding(.horizontal, 20)
             .frame(height: 12)
     }
+}
 
-    private var roomList: some View {
-        ScrollView {
-            LazyVStack(spacing: 0) {
-                ForEach(rooms) { room in
-                    RoomShareRoomCard(room: room, isSelected: selection.contains(room.id)) {
-                        selection.toggle(room.id)
+// MARK: - 목록 + 공유 버튼
+
+/// Store 가 생긴 뒤의 본문. 진입 로드는 여기서 1회 보낸다(Store 생성과 분리).
+private struct RoomShareContentView: View {
+    let state: RoomShareState
+    let send: (RoomShareAction) -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            roomList
+            // safeArea: false — 시트가 이미 홈 인디케이터 높이를 확보한다. 켜 두면 34pt 가 이중으로 잡혀
+            // 시트가 시안(500)보다 그만큼 커진다.
+            MHActionArea(main: .init("공유하기") { send(.tapSubmit) }, safeArea: false)
+                .disabled(!state.canSubmit)
+                .accessibilityIdentifier("RoomShare.submitButton")
+        }
+        .task { send(.load) }
+    }
+
+    @ViewBuilder private var roomList: some View {
+        if state.isLoading {
+            ProgressView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .accessibilityIdentifier("RoomShare.roomList.loading")
+        } else {
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    ForEach(state.rooms) { room in
+                        RoomShareRoomCard(
+                            room: room,
+                            isSelected: state.checkedRoomIDs.contains(room.id),
+                            onToggle: { send(.toggleRoom(room.id)) }
+                        )
+                        // 이미 저장된 방은 체크된 채 비활성(기획 011-1 ④) —
+                        // `MHCheckbox` 가 `isEnabled` 를 읽어 흐려지고 행 탭도 함께 죽는다.
+                        .disabled(state.alreadySavedRoomIDs.contains(room.id))
                     }
                 }
+                .padding(.horizontal, 20)
             }
-            .padding(.horizontal, 20)
+            .accessibilityIdentifier("RoomShare.roomList")
         }
-        .accessibilityIdentifier("RoomShare.roomList")
     }
 }
 
@@ -185,30 +255,81 @@ private struct RoomShareCover: View {
     }
 }
 
-/// 공유할 장소의 썸네일 46pt. 사진 에셋이 없어 카드 썸네일과 같은 플레이스홀더로 그린다.
+/// 공유할 장소의 썸네일 46pt — 그 장소 사진 중 **첫 장**이다(기획 011-1 ②).
+///
+/// 사진이 없거나 로딩·실패 중에는 자리표로 떨어진다 — 셋을 같은 자리표로 받는 건
+/// ``PlaceDetailPhotoCarousel`` 과 같은 이유로, 자리가 비면 옆 텍스트가 밀리기 때문이다.
 private struct RoomShareLocationThumbnail: View {
+    let photo: URL?
+
+    private static let side: CGFloat = 46
+    private static let cornerRadius: CGFloat = 7.83
+
     var body: some View {
-        RoundedRectangle(cornerRadius: 7.83, style: .continuous)
-            .fill(.mhBackgroundNormalNormal)
-            .overlay {
-                RoundedRectangle(cornerRadius: 7.83, style: .continuous).fill(.mhFillAlternative)
+        Group {
+            if let photo {
+                AsyncImage(url: photo) { phase in
+                    if case .success(let image) = phase {
+                        image.resizable().scaledToFill()
+                    } else {
+                        placeholder
+                    }
+                }
+            } else {
+                placeholder
             }
+        }
+        .frame(width: Self.side, height: Self.side)
+        .clipShape(shape)
+    }
+
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous)
+    }
+
+    private var placeholder: some View {
+        Rectangle()
+            .fill(.mhFillAlternative)
             .overlay {
                 Image(.image)
                     .resizable()
                     .frame(width: 20, height: 20)
                     .foregroundStyle(.mhLineNormalNeutral)
             }
-            .frame(width: 46, height: 46)
     }
+}
+
+/// 프리뷰용 공유 대상 — 첫 방은 "이미 저장됨"이라 체크된 채 비활성으로 뜬다.
+private struct PreviewShareTargets: FetchShareTargetsUseCase {
+    func execute(pinID: PinID) async throws -> [ShareTarget] {
+        (0..<5).map { index in
+            ShareTarget(
+                room: Room(
+                    id: "room-\(index)", type: .shared, name: "내 방", description: "내가 꾹 저장한 장소",
+                    color: .orange, ownerId: "u1", createdAt: Date(timeIntervalSince1970: 0),
+                    pinCount: 0, memberCount: 1, users: []
+                ),
+                alreadySaved: index == 0
+            )
+        }
+    }
+}
+
+private struct PreviewSavePin: SavePinToRoomsUseCase {
+    func execute(pinID: PinID, roomIDs: Set<String>) async throws {}
 }
 
 #Preview("공유 시트") {
     RoomShareSheet(
         location: RoomDetailLocation.samples[0],
-        rooms: RoomShareRoom.samples,
-        onClose: {},
-        onSubmit: { _ in }
+        makeStore: {
+            RoomShareStore(
+                RoomShareState(pinID: PinID("pin-0")),
+                reduce: roomShareReducer(fetchTargets: PreviewShareTargets(), savePin: PreviewSavePin())
+            )
+        },
+        createRoomChild: .constant(nil),
+        onClose: {}
     )
-    .frame(height: RoomShareSheet.detentHeight)
+    .frame(height: RoomShareSheetMetrics.peekDetentHeight)
 }

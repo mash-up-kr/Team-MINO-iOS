@@ -1,6 +1,7 @@
-import Foundation
-import Testing
 import Domain
+import Foundation
+import Networking
+import Testing
 @testable import Data
 
 /// `RoomDTO.toDomain()` 경계 매핑 순수 로직 테스트.
@@ -12,17 +13,16 @@ struct RoomDTOTests {
         type: String = "personal",
         name: String = "내 장소",
         description: String? = nil,
-        color: String = "#FED3F7",
+        color: String = "pink",
         ownerId: String = "u1",
-        inviteCode: String = "CODE1",
-        createdAt: String = "2026-08-01T09:00:00Z",
-        pinCount: Int = 0,
-        memberCount: Int = 1,
+        createdAt: Date = Date(timeIntervalSince1970: 1_785_574_800),
+        pinCount: Int? = 0,
+        memberCount: Int? = 1,
         users: [RoomMemberDTO]? = nil
     ) -> RoomDTO {
         RoomDTO(
             id: id, type: type, name: name, description: description, color: color,
-            ownerId: ownerId, inviteCode: inviteCode, createdAt: createdAt,
+            ownerId: ownerId, createdAt: createdAt,
             pinCount: pinCount, memberCount: memberCount, users: users
         )
     }
@@ -37,9 +37,8 @@ struct RoomDTOTests {
         #expect(room.type == .personal)
         #expect(room.name == "내 장소")
         #expect(room.description == nil)
-        #expect(room.color == "#FED3F7")
+        #expect(room.color == .pink)
         #expect(room.ownerId == "u1")
-        #expect(room.inviteCode == "CODE1")
         #expect(room.pinCount == 0)
         #expect(room.memberCount == 1)
         #expect(room.users.isEmpty)
@@ -54,31 +53,32 @@ struct RoomDTOTests {
         #expect(room.type == .shared)
     }
 
-    @Test("파싱 불가한 날짜 문자열은 epoch(1970-01-01) 로 폴백한다")
-    func invalidDateFallsBackToEpoch() throws {
-        let dto = makeDTO(createdAt: "not-a-real-date")
+    // 서버가 팔레트에 없는 색 이름을 줘도 방 자체는 살아야 한다 — 화면이 기본 썸네일로 폴백한다.
+    @Test("팔레트에 없는 색 이름은 nil 로 떨어진다")
+    func unknownColorFallsBackToNil() throws {
+        let dto = makeDTO(color: "chartreuse")
 
         let room = dto.toDomain()
 
-        #expect(room.createdAt == Date(timeIntervalSince1970: 0))
+        #expect(room.color == nil)
     }
 
-    @Test("정상 ISO8601 날짜는 그대로 파싱된다")
-    func validDateParsesExactly() throws {
-        let dto = makeDTO(createdAt: "2026-08-01T09:00:00Z")
+    // 생성·수정 응답에는 pinCount·memberCount 가 없다. 없으면 0 이어야 화면이 "장소 0개" 로 그린다.
+    @Test("개수 필드가 빠진 응답은 0 으로 매핑한다")
+    func missingCountsBecomeZero() throws {
+        let dto = makeDTO(pinCount: nil, memberCount: nil)
 
         let room = dto.toDomain()
 
-        // 독립적으로 계산한 고정 기준시각과 비교 — 프로덕션 파서 로직을 재사용하지 않는다.
-        let expected = Date(timeIntervalSince1970: 1_785_574_800)
-        #expect(room.createdAt == expected)
+        #expect(room.pinCount == 0)
+        #expect(room.memberCount == 0)
     }
 
-    @Test("RoomMemberDTO 는 avatar.id 를 avatarID 로 평탄화해 매핑한다")
+    @Test("RoomMemberDTO 는 avatar.color 를 AvatarColor 로 평탄화해 매핑한다")
     func mapsRoomMemberFields() throws {
         let memberDTO = RoomMemberDTO(
-            userId: "u2", nickname: "지훈", avatar: .init(id: 7),
-            isOwner: false, joinedAt: "2026-08-03T13:00:00Z"
+            userId: "u2", nickname: "지훈", avatar: .init(color: "light_blue"),
+            isOwner: false, joinedAt: Date(timeIntervalSince1970: 0)
         )
         let dto = makeDTO(users: [memberDTO])
 
@@ -87,7 +87,40 @@ struct RoomDTOTests {
         #expect(room.users.count == 1)
         #expect(room.users[0].userId == "u2")
         #expect(room.users[0].nickname == "지훈")
-        #expect(room.users[0].avatarID == 7)
+        #expect(room.users[0].avatarColor == .lightBlue)
         #expect(room.users[0].isOwner == false)
+    }
+
+    // 아바타는 장식이라 없거나 모르는 색이어도 멤버를 통째로 버리지 않는다 — 얼굴만 기본으로 떨군다.
+    @Test("아바타가 없거나 팔레트에 없는 색이면 avatarColor 는 nil 이다", arguments: [
+        AvatarDTO?.none, AvatarDTO(color: nil), AvatarDTO(color: "chartreuse"),
+    ])
+    func unknownAvatarBecomesNil(_ avatar: AvatarDTO?) throws {
+        let memberDTO = RoomMemberDTO(
+            userId: "u3", nickname: "서연", avatar: avatar,
+            isOwner: false, joinedAt: Date(timeIntervalSince1970: 0)
+        )
+
+        let room = makeDTO(users: [memberDTO]).toDomain()
+
+        #expect(room.users[0].avatarColor == nil)
+    }
+
+    // 날짜 파싱은 이제 DTO 가 아니라 APIDecoder 의 몫이라, 디코딩 경로로 검증한다.
+    @Test("ISO8601 문자열은 소수점 유무와 무관하게 디코드된다", arguments: [
+        "2026-08-01T09:00:00Z",
+        "2026-08-01T09:00:00.000Z",
+    ])
+    func decodesISO8601(_ raw: String) throws {
+        let json = """
+        {
+          "id": "r1", "type": "shared", "name": "방", "description": null,
+          "color": "pink", "ownerId": "u1", "createdAt": "\(raw)"
+        }
+        """
+
+        let dto = try APIDecoder.make().decode(RoomDTO.self, from: Data(json.utf8))
+
+        #expect(dto.toDomain().createdAt == Date(timeIntervalSince1970: 1_785_574_800))
     }
 }

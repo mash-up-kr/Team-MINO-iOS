@@ -17,6 +17,7 @@ final class MHTopNavigationTests: XCTestCase {
         XCTAssertEqual(height(MHTopNavigation(title: "프로필 설정")), 44, accuracy: 1.0)
         XCTAssertEqual(height(MHTopNavigation(onBack: {}, onSkip: {})), 44, accuracy: 1.0)
         XCTAssertEqual(height(MHTopNavigation()), 44, accuracy: 1.0)
+        XCTAssertEqual(height(MHTopNavigation(onClose: {})), 44, accuracy: 1.0)
     }
 
     // 타이틀은 가운데 고정이고 버튼은 좌우 끝에 겹쳐 얹힌다 — 긴 타이틀이 버튼을 밀어내
@@ -48,6 +49,7 @@ final class MHTopNavigationTests: XCTestCase {
                 MHTopNavigation(title: "공동방 만들기", onBack: {}, onSkip: {})
                 MHTopNavigation(title: "프로필 설정")
                 MHTopNavigation(onBack: {}, onSkip: {})
+                MHTopNavigation(onClose: {})
             }
             .frame(width: 375)
         }

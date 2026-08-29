@@ -1,6 +1,7 @@
 import Domain
 import FlowCoordination
 import MVI
+import PlaceDetailUI
 import RoomCreationUI
 import SwiftUI
 
@@ -18,6 +19,10 @@ public final class HomeCoordinator: Coordinator {
     public var sheet: Never? = nil
     public var cover: Never? = nil
     public let finish = FlowFinish<Never>()
+
+    /// 열려 있는 장소 상세의 핀 (nil = 닫힘). 커버의 표시 항목이라 SwiftUI 가 닫힐 때 nil 을
+    /// 되쓴다 — "열렸나" 플래그를 따로 두면 그 플래그와 핀이 어긋날 짝이 생긴다.
+    public var selectedPin: Pin?
 
     /// 탭바 자체를 레이아웃에서 빼야 하는(공간까지 없애는) 전체화면 상태인가 — MainTabView 가 본다.
     /// 공동방 만들기(createRoom)가 push 되면 자체 상단바를 가진 전체 화면이라 탭바를 감춘다.
@@ -68,10 +73,12 @@ public final class HomeCoordinator: Coordinator {
             HomeState(),
             reduce: homeReducer(
                 fetchRooms: deps.fetchRooms,
-                fetchPins: deps.fetchPins,
+                fetchHomeCards: deps.fetchHomeCards,
+                currentLocation: deps.currentLocation,
                 lastViewedRoom: deps.lastViewedRoom,
                 homeGuide: deps.homeGuide,
-                savePin: deps.savePin
+                savePin: deps.savePin,
+                fetchProfile: deps.fetchProfile
             ),
             handle: { [weak self] in self?.handle($0) }
         )
@@ -79,9 +86,25 @@ public final class HomeCoordinator: Coordinator {
         return store
     }
 
-    /// 공동방 만들기 Store 팩토리. roomFormReducer 는 의존이 없어 그대로 조립한다(RoomCreationUI 는 UI 전용).
+    /// 장소 상세 Store 팩토리 (Figma 002-1-1).
+    ///
+    /// 홈 진입이므로 카드가 달고 있던 라벨을 그대로 넘긴다 — "홈 카드에서 진입한 경우에만 해당
+    /// 카드의 라벨을 장소 상세 상단에 동일하게 노출한다"(002-1-1 ①).
+    func makePlaceDetailStore(pin: Pin) -> PlaceDetailStore {
+        PlaceDetailUI.makePlaceDetailStore(
+            pin: pin,
+            label: pin.category,
+            deps: deps,
+            handle: { [weak self] in self?.handle($0) }
+        )
+    }
+
+    /// 공동방 만들기 Store 팩토리.
     func makeRoomFormStore() -> RoomFormStore {
-        Store(RoomFormState(), reduce: roomFormReducer(), handle: { [weak self] in self?.handle($0) })
+        RoomCreationUI.makeRoomFormStore(
+            .create(create: deps.createRoom),
+            handle: { [weak self] in self?.handle($0) }
+        )
     }
 
     // MARK: - Navigation Routing
@@ -90,13 +113,35 @@ public final class HomeCoordinator: Coordinator {
         switch nav {
         case .goToCreateRoom:
             push(.createRoom)
+        case .openPlaceDetail(let pin):
+            selectedPin = pin
+        }
+    }
+
+    func handle(_ nav: PlaceDetailNav) {
+        switch nav {
+        case .close:
+            selectedPin = nil
+
+        case .share(let pin):
+            // 홈에는 011-1 공유 시트가 없다. 같은 일을 하는 자리가 이미 있어(카드 케밥 "다른 방 저장")
+            // 그리로 잇는다. 그 시트는 덱 위에 뜨므로 상세를 먼저 닫는다 — 저장 탭처럼 상세 위에
+            // 겹쳐 띄우려면 커버 안에 시트를 하나 더 달아야 하는데, 그건 011-1 을 홈에 들이는
+            // 별도 작업이다.
+            selectedPin = nil
+            homeStore?.send(.tapSaveToOtherRoom(pin.id))
+
+        case .openSavedRooms, .focusMyLocation:
+            // 둘 다 시트 밖 **지도 위**에 그려지는 버튼('저장된 방' 005-1 ⑮ · 현위치)이 내는
+            // 전환이다. 홈에는 지도가 없어 버튼 자체를 띄우지 않으므로 여기 도달하지 않는다.
+            break
         }
     }
 
     func handle(_ nav: RoomFormNav) {
         switch nav {
         case .didSubmit, .didCancel, .didSkip:
-            // 생성/취소 후 홈으로 복귀. (실제 방 생성 로직은 후속 — 현재 RoomCreationUI 는 UI 전용)
+            // 저장은 폼이 이미 끝냈다 — 여기 오면 서버에 반영된 뒤다. 취소도 같은 자리로 돌아간다.
             pop()
         }
     }

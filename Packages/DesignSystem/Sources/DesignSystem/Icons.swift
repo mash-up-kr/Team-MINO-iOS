@@ -83,6 +83,7 @@ public enum MHIcon: String, CaseIterable, Sendable {
     case moreHorizontal
     case moreVertical
     case moreVerticalTight
+    case myLocation
     case pencil
     case pencilFill
     case person

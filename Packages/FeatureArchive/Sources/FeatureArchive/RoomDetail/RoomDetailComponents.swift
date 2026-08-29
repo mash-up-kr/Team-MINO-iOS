@@ -1,27 +1,6 @@
 import DesignSystem
 import SwiftUI
 
-/// Figma `Button/Icon/Outlined` — 40pt 정원 + 1px 테두리. `MHButton(icon:)` 은 정사각이라 대체 불가.
-struct RoomDetailCircleIconButton: View {
-    let icon: MHIcon
-    let accessibilityLabel: String
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Image(icon)
-                .resizable()
-                .frame(width: 20, height: 20)
-                .foregroundStyle(.mhLabelNormal)
-                .frame(width: 40, height: 40)
-                .overlay { Circle().strokeBorder(.mhLineNormalNeutral, lineWidth: 1) }
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(accessibilityLabel)
-    }
-}
-
 /// Figma `Button/Icon/Normal` — 테두리·배경 없이 아이콘만.
 struct RoomDetailPlainIconButton: View {
     let icon: MHIcon

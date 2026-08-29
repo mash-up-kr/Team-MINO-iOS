@@ -19,14 +19,18 @@ final class AppCoordinator {
     /// 온보딩 완료 보고를 여기로 밀어넣어야 해서 View 의 `@State` 에 둘 수 없다.
     let launch: AppLaunchStore
 
+    /// 자식 flow 를 만들 때마다 넘겨야 해서 보관한다 — 온보딩은 flow 1회당 새로 만든다.
+    private let deps: AppDependencies
+
     init(deps: AppDependencies) {
+        self.deps = deps
         self.home = HomeCoordinator(deps: deps)
         self.archive = ArchiveCoordinator(deps: deps)
         self.notification = NotificationCoordinator(deps: deps)
-        self.profile = ProfileCoordinator()
+        self.profile = ProfileCoordinator(deps: deps)
         self.launch = AppLaunchStore(
             AppLaunchState(),
-            reduce: appLaunchReducer(ensureSession: deps.ensureSession, onboarding: deps.onboarding)
+            reduce: appLaunchReducer(ensureSession: deps.ensureSession, fetchProfile: deps.fetchProfile)
         )
         // navigation 채널이 없는 flow 라(Nav == Never) observeNavigation 을 붙이지 않는다.
     }
@@ -36,7 +40,7 @@ final class AppCoordinator {
     /// (`OnboardingCoordinator` 타입 주석). 인스턴스는 화면(`OnboardingHost`)이 소유하고,
     /// `.main` 으로 넘어가면 그 화면과 함께 버려진다.
     func makeOnboarding() -> OnboardingCoordinator {
-        let child = OnboardingCoordinator()
+        let child = OnboardingCoordinator(deps: deps)
         child.finish.bind { [weak self] result in
             switch result {
             // 초대 착지는 딥링크 배선이 붙을 때 처리한다 — 지금은 방을 열 화면이 없다.

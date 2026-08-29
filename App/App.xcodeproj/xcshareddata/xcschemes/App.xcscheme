@@ -52,10 +52,50 @@
             skipped = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
+               BlueprintIdentifier = "ProfileSetupUITests"
+               BuildableName = "ProfileSetupUITests"
+               BlueprintName = "ProfileSetupUITests"
+               ReferencedContainer = "container:../Packages/ProfileSetupUI">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "FeatureOnboardingTests"
+               BuildableName = "FeatureOnboardingTests"
+               BlueprintName = "FeatureOnboardingTests"
+               ReferencedContainer = "container:../Packages/FeatureOnboarding">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
                BlueprintIdentifier = "FeatureHomeTests"
                BuildableName = "FeatureHomeTests"
                BlueprintName = "FeatureHomeTests"
                ReferencedContainer = "container:../Packages/FeatureHome">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "FeatureArchiveTests"
+               BuildableName = "FeatureArchiveTests"
+               BlueprintName = "FeatureArchiveTests"
+               ReferencedContainer = "container:../Packages/FeatureArchive">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "PlaceDetailUITests"
+               BuildableName = "PlaceDetailUITests"
+               BlueprintName = "PlaceDetailUITests"
+               ReferencedContainer = "container:../Packages/PlaceDetailUI">
             </BuildableReference>
          </TestableReference>
          <TestableReference
@@ -76,6 +116,16 @@
                BuildableName = "ShareExtensionUITests"
                BlueprintName = "ShareExtensionUITests"
                ReferencedContainer = "container:../Packages/ShareExtensionUI">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "SavePostUITests"
+               BuildableName = "SavePostUITests"
+               BlueprintName = "SavePostUITests"
+               ReferencedContainer = "container:../Packages/SavePostUI">
             </BuildableReference>
          </TestableReference>
          <TestableReference

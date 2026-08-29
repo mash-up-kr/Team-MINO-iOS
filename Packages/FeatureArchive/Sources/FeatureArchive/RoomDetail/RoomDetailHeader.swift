@@ -1,4 +1,6 @@
 import DesignSystem
+import Domain
+import ProfileSetupUI
 import SwiftUI
 
 /// 시트 최상단 — 멤버 pill·더보기·닫기 줄과 `Header_Room`(제목/메모/장소 수).
@@ -23,11 +25,14 @@ struct RoomDetailHeader: View {
 
     private var actionRow: some View {
         HStack(spacing: 0) {
-            MHAvatarStack(Array(repeating: Image?.none, count: room.memberCount), onAdd: onAddMember)
+            MHAvatarStack(AvatarPalette.images(of: room.memberAvatarColors), onAdd: onAddMember)
             Spacer(minLength: 8)
             HStack(spacing: 8) {
-                RoomDetailCircleIconButton(icon: .moreVertical, accessibilityLabel: "더보기", action: onMore)
-                RoomDetailCircleIconButton(icon: .close, accessibilityLabel: "닫기", action: onClose)
+                MHCircleIconButton(icon: .moreVertical, accessibilityLabel: "더보기", action: onMore)
+                    .accessibilityIdentifier("RoomDetail.more")
+                    // 드롭다운은 시트 밖(껍데기)이 그린다 — 이 버튼 위치를 기준점으로 올려 보낸다.
+                    .roomDetailMoreMenuAnchor()
+                MHCircleIconButton(icon: .close, accessibilityLabel: "닫기", action: onClose)
                     .accessibilityIdentifier("RoomDetail.close")
             }
         }

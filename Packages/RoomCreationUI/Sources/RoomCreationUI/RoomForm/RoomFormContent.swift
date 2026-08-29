@@ -1,5 +1,6 @@
-import SwiftUI
 import DesignSystem
+import Domain
+import SwiftUI
 
 // MARK: - 모드별 문구
 
@@ -81,6 +82,28 @@ struct RoomFormContent: View {
         // 그리드에 접근 자체가 안 되므로(이슈 #93) 스크롤·여백 탭 두 탈출로를 함께 건다.
         .mhFormKeyboardDismissal()
         .mhDialog(item: state.dialog) { confirmDialog($0) }
+        .overlay(alignment: .bottom) { saveErrorSnackbar }
+    }
+
+    // MARK: 저장 실패 안내
+    //
+    // 저장 실패는 화면을 넘기지 않고 여기서만 알린다 — 입력이 그대로 남아 다시 누르면 재시도가 된다.
+
+    @ViewBuilder private var saveErrorSnackbar: some View {
+        if let saveError = state.saveError {
+            MHSnackbar(title: Self.saveErrorMessage(saveError))
+                .padding(.horizontal, 20)
+                .padding(.bottom, 100)
+                .allowsHitTesting(false)   // 장식 — 뒤의 색상 그리드 탭을 가리지 않는다
+                .transition(.opacity)
+                .accessibilityIdentifier("RoomForm.saveError")
+                .task(id: saveError) {
+                    // 취소를 삼키면 안 된다. try? 로 받으면 새 안내가 이 task 를 취소했을 때
+                    // sleep 이 즉시 반환하고, 이어지는 dismiss 가 **방금 뜬 안내**를 지운다.
+                    do { try await Task.sleep(for: .seconds(3)) } catch { return }
+                    send(.dismissSaveError)
+                }
+        }
     }
 
     // MARK: 확인 다이얼로그
@@ -182,6 +205,18 @@ struct RoomFormContent: View {
         )
     }
 
+    /// 저장 실패를 사용자 문구로 옮긴다.
+    ///
+    /// `DomainError` 의 확장으로 두지 않는다 — 공용 타입의 public 표면에 **화면 전용 문구**가
+    /// 영구히 붙고, 화면마다 각자 붙이면 같은 문구가 여러 벌로 갈라진다.
+    /// 서버 원문 message 도 쓰지 않는다(반부패 계층이 이미 버렸다).
+    private static func saveErrorMessage(_ error: DomainError) -> String {
+        switch error {
+        case .unauthorized, .sessionUnavailable: SaveErrorText.sessionExpired
+        default: SaveErrorText.saveFailed
+        }
+    }
+
     /// 읽기는 state, 쓰기는 액션으로 — `@Binding` 두 개를 따로 받지 않아도 된다.
     private func binding(
         _ keyPath: KeyPath<RoomFormState, String>,
@@ -233,6 +268,15 @@ struct RoomFormContent: View {
     PreviewHost(roomName: "", roomDescription: "", selectedColorIndex: nil, showsBack: false)
 }
 
+#Preview("저장 실패") {
+    PreviewHost(
+        roomName: "민호야 잘하자",
+        roomDescription: "팀 회식 장소 모음",
+        selectedColorIndex: 2,
+        saveError: .roomSaveFailed
+    )
+}
+
 #Preview("편집 모드") {
     PreviewHost(
         mode: .edit,
@@ -248,7 +292,7 @@ private struct PreviewHost: View {
     @State private var state: RoomFormState
     private let showsSkip: Bool
     private let showsBack: Bool
-    private let reduce = roomFormReducer()
+    private let reduce = roomFormReducer(.create(create: PreviewCreateRoomUseCase()))
 
     init(
         mode: RoomFormMode = .create,
@@ -256,6 +300,7 @@ private struct PreviewHost: View {
         roomDescription: String,
         selectedColorIndex: Int?,
         dialog: RoomFormDialog? = nil,
+        saveError: DomainError? = nil,
         showsSkip: Bool = true,
         showsBack: Bool = true
     ) {
@@ -266,6 +311,7 @@ private struct PreviewHost: View {
             selectedColorIndex: selectedColorIndex
         )
         state.dialog = dialog
+        state.saveError = saveError
         self._state = State(initialValue: state)
         self.showsSkip = showsSkip
         self.showsBack = showsBack
@@ -279,5 +325,12 @@ private struct PreviewHost: View {
             showsSkip: showsSkip,
             showsBack: showsBack
         )
+    }
+}
+
+/// 프리뷰는 `Effect` 를 버리므로 이 UseCase 는 호출되지 않는다 — reducer 시그니처만 채운다.
+private struct PreviewCreateRoomUseCase: CreateRoomUseCase {
+    func execute(name: String, description: String?, color: RoomColor) async throws -> Room {
+        throw CancellationError()
     }
 }
