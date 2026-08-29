@@ -35,6 +35,11 @@ public struct PlaceDetailState: Equatable {
     var menuCommentID: PinCommentID?
     /// ⑭ 코멘트 삭제 확인 다이얼로그. nil 이면 닫혀 있다.
     var commentDeletion: PlaceDetailCommentDeletion?
+    /// 현위치 버튼이 내 위치를 기다리는 중. 연타로 위치 요청(과 시스템 팝업)을 겹쳐 내보내지 않는다.
+    ///
+    /// 좌표는 담지 않는다 — 이 화면이 쓸 일이 없고(카메라는 지도가 든다), 들고 있으면 두 번째
+    /// 탭이 낡은 좌표로 돌아가 버린다. 누를 때마다 새로 묻는 게 "현위치" 의 뜻에 맞다.
+    var isLocating = false
 }
 
 extension PlaceDetailState {
@@ -71,6 +76,8 @@ public enum PlaceDetailAction: Equatable {
     case savedRoomsLoaded([Room])
     case savedRoomsLoadFailed(DomainError)
     case tapSavedRooms
+    case tapMyLocation
+    case myLocationResolved(CurrentLocationResult)
     case submitComment(String)
     case commentPosted(PinComment)
     case commentPostFailed(DomainError)
@@ -93,6 +100,11 @@ public enum PlaceDetailNav: Equatable, Sendable {
     /// 저장된 방 시트(014)로. 목록을 함께 실어 보낸다 — 시트가 다시 받아오면 버튼을 켠 목록과
     /// 갈라진다.
     case openSavedRooms(SavedRoomsPresentation)
+    /// 지도를 내 위치로 옮긴다(005-1 현위치 버튼).
+    ///
+    /// 지도는 이 시트가 아니라 껍데기(``ArchiveShellView``)의 것이라 reduce 가 직접 손댈 수 없다.
+    /// 화면 밖으로 나가는 지시는 전부 Nav 로 흘려 Coordinator 가 받는다 — push/present 와 같은 길이다.
+    case focusMyLocation(Coordinate)
 }
 
 public typealias PlaceDetailStore = Store<PlaceDetailState, PlaceDetailAction, PlaceDetailNav>
@@ -104,6 +116,8 @@ func placeDetailReducer(
     fetchComments: FetchPinCommentsUseCase,
     postComment: PostPinCommentUseCase,
     deleteComment: DeletePinCommentUseCase,
+    /// 005-1 현위치 버튼이 쓰는 내 위치. 그 버튼은 지도 위에 있으므로 지도를 가진 진입점만 그린다.
+    currentLocation: CurrentLocationUseCase,
     pin: Pin
 ) -> (inout PlaceDetailState, PlaceDetailAction) -> Effect<PlaceDetailAction, PlaceDetailNav> {
     { state, action in
@@ -223,6 +237,34 @@ func placeDetailReducer(
             return .navigate(
                 .openSavedRooms(SavedRoomsPresentation(id: pin.id.value, rooms: state.savedRooms))
             )
+
+        case .tapMyLocation:
+            // 연타로 위치 요청(과 시스템 팝업)을 두 번 내보내지 않는다 — 거리순 정렬(004-1 ⑥)의
+            // `roomDetailReducer` 가 `isLocating` 으로 하는 것과 같은 가드다.
+            guard !state.isLocating else { return .none }
+            state.isLocating = true
+            return .run { send in
+                let result = await currentLocation.execute()
+                // 화면을 떠나 취소된 것 — 실패가 아니라 결과가 필요 없어진 것이다.
+                // (유스케이스가 throw 하지 않아 `catch is CancellationError` 대신 여기서 거른다)
+                guard !Task.isCancelled else { return }
+                send(.myLocationResolved(result))
+            }
+
+        case .myLocationResolved(let result):
+            state.isLocating = false
+            guard case .coordinate(let coordinate) = result else {
+                // 좌표를 못 얻었다(권한 거부 · 측위 실패). **아무것도 하지 않는다** — 지도가
+                // 그대로인 것이 곧 "못 옮겼다" 는 표시다.
+                //
+                // 시안 005-1 에는 이 실패를 알리는 화면(토스트·안내·설정 앱 유도)이 없다. 없는
+                // UI 를 지어내지 않는 쪽으로 거리순 정렬(004-1 ⑥, `roomDetailReducer` 의
+                // `.locationResolved`)이 이미 판단했고 그 결과와 일관성을 지킨다.
+                // `CurrentLocationResult` 가 사유(`permissionDenied` / `unavailable`)를 구분해
+                // 오므로, 안내 화면이 정해지면 여기서 갈라 쓰면 된다.
+                return .none
+            }
+            return .navigate(.focusMyLocation(coordinate))
 
         // 낙관적 갱신(먼저 붙이고 실패하면 되돌리기)을 쓰지 않는다. 이유 셋:
         //  · 코멘트 id 는 삭제·메뉴의 손잡이인데, 낙관적으로 붙이려면 임시 id 를 만들어 응답이 온 뒤

@@ -117,4 +117,62 @@ struct ArchiveMapLayerTests {
             padding: ArchiveMap.fitPadding
         ))
     }
+
+    // MARK: - 현위치 (005-1)
+
+    @Test("현위치가 서 있으면 핀 맞춤 대신 그 자리를 비춘다 — 방금 사용자가 낸 요청이다")
+    func myLocationBeatsPinFit() {
+        let pins = [pin("a", lat: 37.5, lng: 127.0), pin("b", lat: 37.6, lng: 127.1)]
+        let me = Coordinate(latitude: 37.5443, longitude: 127.0557)
+
+        #expect(ArchiveMap.camera(for: pins, focusing: me) == .position(
+            MapCameraPosition(
+                coordinate: MapCoordinate(latitude: 37.5443, longitude: 127.0557),
+                zoom: ArchiveMap.myLocationZoom
+            )
+        ))
+    }
+
+    @Test("핀이 없어도 현위치로 간다 — 기본 카메라(강남)에 머물지 않는다")
+    func myLocationWithoutPins() {
+        let me = Coordinate(latitude: 37.5443, longitude: 127.0557)
+        #expect(ArchiveMap.camera(for: [], focusing: me) != .position(ArchiveMap.defaultCamera))
+    }
+
+    @Test("현위치가 없으면 지금까지와 같다 — 핀에 맞춘다")
+    func withoutMyLocationFallsBackToFit() {
+        let pins = [pin("a", lat: 37.5, lng: 127.0)]
+        #expect(ArchiveMap.camera(for: pins, focusing: nil) == ArchiveMap.camera(for: pins))
+    }
+}
+
+@Suite("ArchiveMapButtonMetrics — 지도 위 부유 버튼 줄의 자리(005-1 `2792:142415`)")
+struct ArchiveMapButtonMetricsTests {
+    /// 시안 프레임 폭.
+    private let designWidth: CGFloat = 375
+
+    @Test("현위치 버튼은 시안 자리에 선다 — x 315..355")
+    func myLocationHorizontalPlacement() {
+        let right = designWidth - ArchiveMapButtonMetrics.trailing
+        #expect(right == 355)
+        #expect(right - ArchiveMapButtonMetrics.myLocationSize == 315)
+    }
+
+    @Test("'저장된 방' 은 현위치 왼쪽으로 물러난다 — 오른쪽 끝 307(시안), 화면 끝에서 68")
+    func savedRoomsHorizontalPlacement() {
+        let right = designWidth
+            - ArchiveMapButtonMetrics.trailing
+            - ArchiveMapButtonMetrics.myLocationSize
+            - ArchiveMapButtonMetrics.spacing
+
+        #expect(right == 307)
+        #expect(designWidth - right == 68)
+    }
+
+    @Test("버튼 줄은 시트 윗끝에서 18 띄운다 — 시안 시트 441, '저장된 방' 아래끝 423")
+    func bottomGapFromSheetTop() {
+        let designSheetTop: CGFloat = 441
+        let designSavedRoomsBottom: CGFloat = 423
+        #expect(ArchiveMapButtonMetrics.bottomGap == designSheetTop - designSavedRoomsBottom)
+    }
 }
