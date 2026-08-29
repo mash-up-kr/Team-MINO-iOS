@@ -3,7 +3,7 @@ import Testing
 @testable import Domain
 
 private let commentPin = PinID("pin-7")
-private let commentAuthor = MemberProfile(id: MemberID("user-0001"), nickname: "나", avatarID: 1)
+private let commentAuthor = MemberProfile(id: MemberID("user-0001"), nickname: "나", avatarColor: .red)
 
 /// 저장소가 받은 인자를 기록하고 정해진 값으로 즉답한다.
 private actor StubPinPinCommentRepository: PinCommentRepository {
@@ -143,7 +143,7 @@ struct PinCommentOwnershipTests {
     func rejectsSameNickname() {
         let impostor = PinComment(
             id: PinCommentID("c2"), pinID: commentPin,
-            author: MemberProfile(id: MemberID("user-0009"), nickname: "나", avatarID: 9),
+            author: MemberProfile(id: MemberID("user-0009"), nickname: "나", avatarColor: .blue),
             body: "동명이인 코멘트", createdAt: Date(timeIntervalSince1970: 0)
         )
 

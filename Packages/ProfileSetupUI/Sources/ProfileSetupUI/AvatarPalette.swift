@@ -72,6 +72,12 @@ public enum AvatarPalette {
         colors.prefix(displayLimit).map(image(of:))
     }
 
+    /// 프로필 하나를 그룹 API(`[Image?]`)에 실을 때. 없으면 빈 배열이라 자리 자체가 사라진다 —
+    /// 익명 회색 원을 대신 띄우면 "이름 모를 누군가"로 읽혀 없는 정보를 있는 것처럼 보이게 한다.
+    public static func images(of profile: MemberProfile?) -> [Image?] {
+        profile.map { [image(of: $0.avatarColor)] } ?? []
+    }
+
     /// 도메인 색으로 홈 우상단 마스코트를 얻는다 (Figma `character/Home_Avatar`).
     ///
     /// ``character(of:)`` 와 달리 색을 모르면 **1번이 아니라 소품 없는 기본 마스코트**로 떨어진다 —

@@ -204,7 +204,11 @@ extension RoomDetailLocation {
             address: "서울 성동구 상원4길 10",
             commentCount: 1000,
             photos: (0..<5).compactMap { URL(string: "https://picsum.photos/seed/mino-\(index)-\($0)/400/400") },
-            saver: MemberProfile(id: MemberID("user-000\(index % 4 + 1)"), nickname: "저장자\(index)", avatarID: index % 4 + 1)
+            saver: MemberProfile(
+                id: MemberID("user-000\(index % 4 + 1)"),
+                nickname: "저장자\(index)",
+                avatarColor: AvatarColor.allCases[index % AvatarColor.allCases.count]
+            )
         )
     }
 }

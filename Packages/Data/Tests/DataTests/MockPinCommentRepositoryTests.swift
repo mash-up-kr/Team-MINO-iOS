@@ -8,7 +8,7 @@ import Domain
 /// 화면 리듀서 테스트로는 그 회귀가 잡히지 않는다.
 @Suite("MockPinCommentRepository 지속")
 struct MockPinCommentRepositoryTests {
-    private static let me = MemberProfile(id: MemberID("user-0001"), nickname: "나", avatarID: 1)
+    private static let me = MemberProfile(id: MemberID("user-0001"), nickname: "나", avatarColor: .red)
     private static let pinID = PinID("pin-1")
 
     /// 코멘트 개수만 정해 주는 핀 상세 스텁 — 목이 씨앗을 몇 개 깔지는 이 값으로 정해진다.

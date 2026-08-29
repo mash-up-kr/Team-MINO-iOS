@@ -75,10 +75,10 @@ struct PlaceDetailHeader: View {
     /// ② 해당 장소를 공유한 사람. 시안에는 아바타만 있고 닉네임 자리가 없어, 이름은
     /// 접근성 라벨로만 읽힌다.
     ///
-    /// 얼굴은 ``AvatarArt`` 가 프리셋 번호로 고른다 — 번호↔색 계약이 확정되면 그 한 곳만
-    /// 갈아끼우면 앱의 모든 프로필 자리가 함께 옮겨 간다.
+    /// 얼굴은 `AvatarPalette` 이 아바타 색으로 고른다 — 앱의 모든 프로필 자리가 같은 표를 거쳐
+    /// 같은 사람을 같은 얼굴로 그린다.
     private var sharerAvatar: some View {
-        MHAvatar(place.sharer.map { AvatarArt.image(for: $0.avatarID) }, size: 32)
+        MHAvatar(place.sharer.map { AvatarPalette.image(of: $0.avatarColor) }, size: 32)
             .accessibilityElement()
             .accessibilityLabel(place.sharer.map { "\($0.nickname) 님이 저장" } ?? "저장한 사람 정보 없음")
             .accessibilityIdentifier("PlaceDetail.sharer")

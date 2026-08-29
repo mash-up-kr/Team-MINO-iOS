@@ -51,7 +51,7 @@ private struct StubCurrentLocation: CurrentLocationUseCase {
 
 private let fixtureMyCoordinate = Coordinate(latitude: 37.5443, longitude: 127.0557)
 
-private let fixtureAuthor = MemberProfile(id: MemberID("user-0001"), nickname: "나", avatarID: 1)
+private let fixtureAuthor = MemberProfile(id: MemberID("user-0001"), nickname: "나", avatarColor: .red)
 
 @MainActor
 struct PlaceDetailReducerTests {

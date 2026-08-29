@@ -4,7 +4,7 @@ import Domain
 @testable import PlaceDetailUI
 
 struct PlaceDetailPlaceTests {
-    private let sharer = MemberProfile(id: MemberID("user-0002"), nickname: "지훈", avatarID: 2)
+    private let sharer = MemberProfile(id: MemberID("user-0002"), nickname: "지훈", avatarColor: .redOrange)
 
     private func pin(images: [URL] = [], createdBy: MemberProfile? = nil) -> Pin {
         PinFixture.pin(
