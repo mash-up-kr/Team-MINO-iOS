@@ -42,6 +42,9 @@ public struct HomeState: Equatable {
     /// 뷰의 자동 dismiss 타이머가 매번 새로 시작된다 — 연속 저장에서 앞 타이머가 뒤 토스트를 지우지 않게
     /// dismiss action 이 이 id 를 실어 보낸다([[changedRoomToastID]] 와 같은 방어).
     public var savedToastID: Int?
+    /// 내 프로필 아바타 색 — 홈 우상단 마스코트가 이 색의 소품을 단다 (Figma `character/Home_Avatar`).
+    /// 아직 못 읽었거나 색을 고른 적 없는 계정이면 nil 이라 소품 없는 기본 마스코트가 뜬다.
+    public var myAvatarColor: AvatarColor?
 
     public init(
         rooms: [Room] = [],
@@ -59,7 +62,8 @@ public struct HomeState: Equatable {
         deckEndingToastFilter: PinFilter? = nil,
         isGuidePresented: Bool = false,
         savePost: SavePostState? = nil,
-        savedToastID: Int? = nil
+        savedToastID: Int? = nil,
+        myAvatarColor: AvatarColor? = nil
     ) {
         self.rooms = rooms
         self.isLoading = isLoading
@@ -77,6 +81,7 @@ public struct HomeState: Equatable {
         self.isGuidePresented = isGuidePresented
         self.savePost = savePost
         self.savedToastID = savedToastID
+        self.myAvatarColor = myAvatarColor
     }
 
     /// 현재 기준의 카드 덱. 쓰기는 현재 기준의 덱만 갈아끼운다(다른 기준 캐시는 그대로).
@@ -192,6 +197,10 @@ public struct SavePostState: Equatable {
 
 public enum HomeAction: Equatable {
     case load
+    /// 홈 마스코트가 쓸 내 아바타 색을 읽는다. `load` 와 나눠 둔 이유는 둘이 서로를 기다릴 이유가
+    /// 없어서다 — 마스코트는 장식이라 방·덱 조회가 늦거나 실패해도 제 색으로 떠야 한다.
+    case loadMyAvatar
+    case myAvatarLoaded(AvatarColor?)
     case loaded([Room])
     case loadFailed(DomainError)
     case selectFilter(PinFilter)
@@ -422,7 +431,8 @@ public func homeReducer(
     fetchPins: FetchPinsUseCase,
     lastViewedRoom: LastViewedRoomUseCase,
     homeGuide: HomeGuideUseCase,
-    savePin: SavePinToRoomsUseCase
+    savePin: SavePinToRoomsUseCase,
+    fetchProfile: FetchProfileUseCase
 ) -> (inout HomeState, HomeAction) -> Effect<HomeAction, HomeNav> {
     { state, action in
         switch action {
@@ -439,6 +449,22 @@ public func homeReducer(
                     send(.loadFailed(.unknown))
                 }
             }
+
+        case .loadMyAvatar:
+            return .run { send in
+                do {
+                    send(.myAvatarLoaded(try await fetchProfile.execute().avatarColor))
+                } catch is CancellationError {
+                    return
+                } catch {
+                    // 마스코트는 장식이라 조회 실패로 화면을 막지 않는다 — 소품 없는 기본 마스코트로 둔다.
+                    send(.myAvatarLoaded(nil))
+                }
+            }
+
+        case .myAvatarLoaded(let color):
+            state.myAvatarColor = color
+            return .none
 
         case .loaded(let rooms):
             // 홈은 개인방(personal, "내 장소")을 먼저, 그다음 공동방(shared)을 보여준다 — 데이터 순서와

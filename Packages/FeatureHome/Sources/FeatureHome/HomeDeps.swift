@@ -12,4 +12,6 @@ public protocol HomeDeps: PlaceDetailDeps {
     var homeGuide: HomeGuideUseCase { get }
     var savePin: SavePinToRoomsUseCase { get }
     var createRoom: CreateRoomUseCase { get }
+    /// 홈 우상단 마스코트의 소품을 정하는 내 아바타 색 (Figma `character/Home_Avatar`).
+    var fetchProfile: FetchProfileUseCase { get }
 }

@@ -49,4 +49,34 @@ struct AvatarPaletteTests {
         #expect(AvatarPalette.color(at: 99) == .red)
         #expect(AvatarPalette.character(at: 99) == .character01)
     }
+
+    // MARK: - 홈 마스코트
+
+    @Test("색 12종이 마스코트 12종과 하나씩 짝지어진다 — 기본(plain)은 색이 아니다")
+    func mascotsArePairedOneToOne() {
+        let mascots = Set(AvatarPalette.entries.map(\.mascot))
+        #expect(mascots.count == 12)
+        #expect(!mascots.contains(.plain))
+        #expect(mascots.union([.plain]) == Set(MHHomeMascot.allCases))
+    }
+
+    @Test("색으로 고른 마스코트는 그리드 표와 같다")
+    func mascotMatchesTable() {
+        for entry in AvatarPalette.entries {
+            #expect(AvatarPalette.homeMascot(of: entry.color) == entry.mascot)
+        }
+    }
+
+    // 얼굴(character)과 달리 마스코트는 시안이 "안 고름" 그림을 따로 준다.
+    @Test("아바타 색이 없으면 소품 없는 기본 마스코트다")
+    func absentColorFallsBackToPlain() {
+        #expect(AvatarPalette.homeMascot(of: nil) == .plain)
+        #expect(AvatarPalette.character(of: nil) == .character01)   // 얼굴 쪽 폴백은 그대로
+    }
+
+    @Test("한 줄에 늘어놓는 얼굴은 displayLimit 개까지")
+    func imagesAreCapped() {
+        let colors: [AvatarColor?] = Array(repeating: .red, count: AvatarPalette.displayLimit + 3)
+        #expect(AvatarPalette.images(of: colors).count == AvatarPalette.displayLimit)
+    }
 }

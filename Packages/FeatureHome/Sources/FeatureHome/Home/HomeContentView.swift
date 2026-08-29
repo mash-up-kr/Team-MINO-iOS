@@ -1,5 +1,6 @@
 import DesignSystem
 import Domain
+import ProfileSetupUI
 import SavePostUI
 import SwiftUI
 
@@ -35,6 +36,9 @@ struct HomeContentView: View {
         // (콘텐츠 크기 카드가 못 만드는 화면 전체 바깥탭 스크림을 화면 레벨에서 정확한 z-order 로 그린다).
         .mhHomeCardMenuHost()
         .task { store.send(.load) }
+        // 마스코트 색은 방·덱 조회와 따로 받는다(HomeAction.loadMyAvatar 주석). 탭을 오갈 때마다
+        // 이 뷰가 새로 만들어지므로, 마이페이지에서 아바타를 바꾸고 돌아오면 여기서 다시 읽힌다.
+        .task { store.send(.loadMyAvatar) }
         .task(id: store.state.changedRoomToastID) {
             // 방 변경 툴팁은 5초 뒤 사라진다(정책). 새 툴팁이 뜨면 방 id 가 바뀌어 타이머가 재시작된다.
             // dismiss 는 이 타이머가 세운 방 id 를 실어 보낸다 — 5초 경계에서 방을 바꾸면
@@ -356,7 +360,7 @@ struct HomeContentView: View {
     }
 
     private var mascotCharacter: some View {
-        HomeMascotView()
+        HomeMascotView(mascot: AvatarPalette.homeMascot(of: store.state.myAvatarColor))
             .contentShape(Rectangle())
             .onTapGesture { store.send(.tapRoomBadge) }   // 정책: 방 캐릭터 탭 → 방 선택 바텀 시트 토글(열려 있으면 닫는다)
             .accessibilityIdentifier("Home.mascot")
@@ -428,7 +432,12 @@ private extension PinFilter {
 ///
 /// 좌우 반전은 시안의 그룹 변환이다 — 익스포트되는 건 반전 전 원본이라 여기서 뒤집어야 시안과 같다.
 /// (시안에서 그룹은 x 249…375 인데 자식 좌표가 367·375 로 잡히는 게 그 반전의 흔적)
+///
+/// 소품은 내 프로필 아바타 색을 따른다(`MHHomeMascot`). 13종이 **몸통을 공유**하므로 눈 구멍을
+/// 메우는 오버레이는 색과 무관하게 한 장(`homeMascotEyes`)으로 족하다.
 struct HomeMascotView: View {
+    let mascot: MHHomeMascot
+
     var body: some View {
         ZStack {
             // 마스코트 눈은 채워진 흰 도형이 아니라 **뚫린 구멍**이라, 뒤에 있는 것이 그대로 비친다.
@@ -440,7 +449,7 @@ struct HomeMascotView: View {
                 .frame(width: 126, height: 164)
                 .foregroundStyle(Color.mhBackgroundNormalAlternative)
 
-            Image(dsImage: "homeMascot")
+            Image(mascot)
                 .resizable()
                 .frame(width: 126, height: 164)
         }
@@ -466,7 +475,8 @@ struct HomeMascotView: View {
                 fetchPins: PreviewFetchPins(),
                 lastViewedRoom: PreviewLastViewedRoom(),
                 homeGuide: PreviewHomeGuide(),
-                savePin: PreviewSavePin()
+                savePin: PreviewSavePin(),
+                fetchProfile: PreviewFetchProfile()
             )
         )
     )
@@ -481,7 +491,8 @@ struct HomeMascotView: View {
                 fetchPins: PreviewFetchPins(),
                 lastViewedRoom: PreviewLastViewedRoom(),
                 homeGuide: PreviewHomeGuide(),
-                savePin: PreviewSavePin()
+                savePin: PreviewSavePin(),
+                fetchProfile: PreviewFetchProfile()
             )
         )
     )
@@ -502,6 +513,13 @@ private struct PreviewLastViewedRoom: LastViewedRoomUseCase {
 private struct PreviewHomeGuide: HomeGuideUseCase {
     func hasSeen() async -> Bool { true }
     func markSeen() async {}
+}
+
+/// 프리뷰 전용 — 아바타 색을 고른 적 없는 계정(기본 마스코트).
+private struct PreviewFetchProfile: FetchProfileUseCase {
+    func execute() async throws -> Profile {
+        Profile(id: "preview", nickname: "꾹이", avatarColor: nil, createdAt: nil)
+    }
 }
 
 /// 프리뷰 전용 — 저장은 아무것도 하지 않는다.

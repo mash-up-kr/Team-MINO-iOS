@@ -2,7 +2,7 @@ import DesignSystem
 import Domain
 import SwiftUI
 
-/// 아바타 **프리셋 번호**(`MemberProfile.avatarID`·`RoomMember.avatarID`)를 캐릭터 그림으로 잇는다.
+/// 아바타 **프리셋 번호**(`MemberProfile.avatarID`)를 캐릭터 그림으로 잇는다.
 ///
 /// 프로필이 그려지는 자리는 화면을 가리지 않고 모두 이 한 곳을 거친다 — 홈 카드 작성자, 방 카드,
 /// 방 상세 헤더, 장소 카드 저장자, 장소 상세 공유자, 코멘트 작성자. 자리마다 따로 매핑하면 같은
@@ -13,11 +13,13 @@ import SwiftUI
 /// 화면과 다른 얼굴로 그려진다.
 ///
 /// > **번호는 임시 계약이다.** 서버가 아바타를 실제로 주고받는 형식은 색 문자열(`avatar.color`)이고,
-/// > 번호(`avatar.id`)는 `GET /api/v1/rooms/{roomId}/cards` 한 곳에서만 나온다. 방·핀 응답이 색을
-/// > 싣기 시작하면 호출부를 ``AvatarPalette/character(of:)`` 로 갈아끼우고 이 타입은 지운다.
+/// > 번호(`avatar.id`)는 `GET /api/v1/rooms/{roomId}/cards` 한 곳에서만 나온다. 방 응답(`/rooms`)은
+/// > 이미 색으로 넘어가 ``AvatarPalette/images(of:)`` 를 쓴다 — 핀 응답(`/pins`)까지 실 API 로
+/// > 바뀌면 남은 호출부(홈 카드 저장자·코멘트 작성자·장소 상세 공유자)도 옮기고 이 타입은 지운다.
 public enum AvatarArt {
-    /// 한 줄에 얼굴을 몇 개까지 늘어놓는가. 넘치는 인원은 그리지 않는다(시안에 "+N" 배지가 없다).
-    public static let displayLimit = 5
+    /// 한 줄에 얼굴을 몇 개까지 늘어놓는가. 색 계약 쪽(``AvatarPalette/displayLimit``)과 같은 값이어야
+    /// 번호로 그리는 자리와 색으로 그리는 자리가 화면마다 다른 인원수를 보이지 않는다.
+    public static let displayLimit = AvatarPalette.displayLimit
 
     public static func character(for avatarID: Int) -> MHCharacter {
         // avatarID 는 1 부터다. 팔레트를 벗어난 번호(서버가 우리보다 앞서 나간 경우)는 되감아 쓴다 —

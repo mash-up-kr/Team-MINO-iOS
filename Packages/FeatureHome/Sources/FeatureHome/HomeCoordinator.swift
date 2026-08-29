@@ -76,7 +76,8 @@ public final class HomeCoordinator: Coordinator {
                 fetchPins: deps.fetchPins,
                 lastViewedRoom: deps.lastViewedRoom,
                 homeGuide: deps.homeGuide,
-                savePin: deps.savePin
+                savePin: deps.savePin,
+                fetchProfile: deps.fetchProfile
             ),
             handle: { [weak self] in self?.handle($0) }
         )
