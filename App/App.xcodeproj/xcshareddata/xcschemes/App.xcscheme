@@ -92,6 +92,16 @@
             skipped = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
+               BlueprintIdentifier = "PlaceDetailUITests"
+               BuildableName = "PlaceDetailUITests"
+               BlueprintName = "PlaceDetailUITests"
+               ReferencedContainer = "container:../Packages/PlaceDetailUI">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
                BlueprintIdentifier = "FeatureNotificationTests"
                BuildableName = "FeatureNotificationTests"
                BlueprintName = "FeatureNotificationTests"

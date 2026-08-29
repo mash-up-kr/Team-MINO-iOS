@@ -2,7 +2,7 @@ import Foundation
 import Testing
 import Domain
 import MVITestSupport
-@testable import FeatureArchive
+@testable import PlaceDetailUI
 
 private let fixtureNow = Date(timeIntervalSince1970: 1_700_000_000)
 
@@ -115,11 +115,11 @@ struct PlaceDetailReducerTests {
         store.finish()
     }
 
-    @Test("L1 — tapShare 는 이 장소를 실어 navigate 한다")
+    @Test("L1 — tapShare 는 이 장소를 도메인 핀 그대로 실어 navigate 한다")
     func tapShare() async {
         let store = makeStore()
         await store.send(.tapShare)
-        store.receiveNavigation(.share(RoomDetailLocation(from: fixturePin)))
+        store.receiveNavigation(.share(fixturePin))
         store.finish()
     }
 }

@@ -3,9 +3,16 @@ import Domain
 import MVI
 import SwiftUI
 
-struct PlaceDetailView: View {
-    let store: PlaceDetailStore
-    let detent: MHBottomSheetDetent
+public struct PlaceDetailView: View {
+    private let store: PlaceDetailStore
+    /// 상단 여백이 시트 단계마다 다르다 — ``PlaceDetailHeaderMetrics`` 참조. 바텀시트 밖에서
+    /// 띄우는 진입점은 `.full` 을 넘긴다.
+    private let detent: MHBottomSheetDetent
+
+    public init(store: PlaceDetailStore, detent: MHBottomSheetDetent) {
+        self.store = store
+        self.detent = detent
+    }
 
     @State private var draft = ""
     @State private var isScrolledPastHeader = false
@@ -18,7 +25,7 @@ struct PlaceDetailView: View {
     private var place: PlaceDetailPlace { store.state.place }
     private var isHeaderCollapsed: Bool { detent == .full && isScrolledPastHeader }
 
-    var body: some View {
+    public var body: some View {
         VStack(spacing: 0) {
             header
             content

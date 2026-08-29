@@ -2,7 +2,7 @@ import Foundation
 import Testing
 import Domain
 import MVITestSupport
-@testable import FeatureArchive
+@testable import PlaceDetailUI
 
 private let persistPin = PinFixture.pin(
     id: PinID("p1"),

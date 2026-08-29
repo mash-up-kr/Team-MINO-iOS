@@ -2,7 +2,7 @@ import Domain
 import Foundation
 import MVI
 
-struct PlaceDetailState: Equatable {
+public struct PlaceDetailState: Equatable {
     var place: PlaceDetailPlace
     /// 이 장소에 달린 코멘트. 화면이 지어내는 값이 아니라 **저장소에서 받아 온 것**이라
     /// 화면을 나갔다 들어와도 같은 목록이 온다(#165).
@@ -52,10 +52,12 @@ extension PlaceDetailState {
 
     /// '저장된 방' 버튼(005-1 ⑮)을 누를 수 있는가 — "중복 저장된 장소 클릭 시에만 활성화된다".
     /// 목록이 비면 이 장소는 지금 보는 방에만 있다는 뜻이라 보여 줄 방이 없다.
-    var canOpenSavedRooms: Bool { !savedRooms.isEmpty }
+    ///
+    /// 이 버튼은 시트 **밖**(지도 위)에 있어 화면을 띄운 쪽이 그린다 — 그래서 공개한다.
+    public var canOpenSavedRooms: Bool { !savedRooms.isEmpty }
 }
 
-enum PlaceDetailAction: Equatable {
+public enum PlaceDetailAction: Equatable {
     case load
     case sourceLoaded(URL?)
     case sourceLoadFailed(DomainError)
@@ -83,15 +85,17 @@ enum PlaceDetailAction: Equatable {
     case tapShare
 }
 
-enum PlaceDetailNav: Equatable, Sendable {
+public enum PlaceDetailNav: Equatable, Sendable {
     case close
-    case share(RoomDetailLocation)
+    /// 다른 방에 공유. 표시 모델이 아니라 도메인 핀을 싣는다 — 공유 시트를 어떤 모양으로
+    /// 그릴지는 이 화면을 띄운 쪽(Feature)이 정한다.
+    case share(Pin)
     /// 저장된 방 시트(014)로. 목록을 함께 실어 보낸다 — 시트가 다시 받아오면 버튼을 켠 목록과
     /// 갈라진다.
     case openSavedRooms(SavedRoomsPresentation)
 }
 
-typealias PlaceDetailStore = Store<PlaceDetailState, PlaceDetailAction, PlaceDetailNav>
+public typealias PlaceDetailStore = Store<PlaceDetailState, PlaceDetailAction, PlaceDetailNav>
 
 func placeDetailReducer(
     useCase: FetchPinDetailUseCase,
@@ -331,7 +335,7 @@ func placeDetailReducer(
             return .navigate(.close)
 
         case .tapShare:
-            return .navigate(.share(RoomDetailLocation(from: pin)))
+            return .navigate(.share(pin))
         }
     }
 }

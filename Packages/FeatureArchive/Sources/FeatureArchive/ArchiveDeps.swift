@@ -1,5 +1,6 @@
 import Core
 import Domain
+import PlaceDetailUI
 
 /// ArchiveCoordinator 가 요구하는 좁은 의존성 묶음.
 ///
@@ -7,29 +8,17 @@ import Domain
 /// Coordinator 는 자신의 deps 프로토콜만 알면 되므로 결합이 최소화된다.
 /// reduce 는 Repository 가 아니라 **UseCase** 만 받는다(Clean Architecture 규칙).
 ///
-/// 공유 시트에서 여는 공동방 만들기 자식 flow 의 의존(``RoomShareCreateRoomDeps``)을 확장한다 —
+/// 자식 flow·공용 화면의 좁은 의존(``RoomShareCreateRoomDeps``·``PlaceDetailDeps``)을 확장한다 —
 /// 자식은 그 좁은 창만 보고, 조립부(App)는 지금처럼 `ArchiveDeps` 하나만 준수하면 된다.
-public protocol ArchiveDeps: RoomShareCreateRoomDeps {
+public protocol ArchiveDeps: RoomShareCreateRoomDeps, PlaceDetailDeps {
     var fetchRooms: FetchRoomsUseCase { get }
     var fetchPins: FetchPinsUseCase { get }
-    /// 장소 상세의 "원문보기" 가 쓰는 핀 단독 조회 — 목록(`fetchPins`)에는 출처 링크가 실리지 않는다.
-    var fetchPinDetail: FetchPinDetailUseCase { get }
     /// 다른 방에 공유 시트가 그릴 방 목록 — 각 방에 이 장소가 이미 있는지까지 함께.
     var fetchShareTargets: FetchShareTargetsUseCase { get }
-    /// 이 장소가 중복 저장된 방들 — '저장된 방' 버튼(005-1 ⑮)의 활성 조건이자 014 시트의 목록이다.
-    var fetchSavedRooms: FetchSavedRoomsUseCase { get }
     /// 다른 방에 공유 — 고른 방들에 이 장소를 담는다.
     var savePin: SavePinToRoomsUseCase { get }
     /// 장소 카드 케밥의 "장소 삭제"(004-1 ⑧) — 확인 다이얼로그를 거친 뒤 이 방에서 지운다.
     var deletePin: DeletePinUseCase { get }
-    /// 지금 앱을 쓰는 사람 — 장소 상세가 "이 코멘트가 내 것인가"(삭제 케밥을 붙일지)를 이걸로 가른다.
-    var currentMember: CurrentMemberUseCase { get }
-    /// 장소 상세의 "친구들의 코멘트" 목록 — 화면 상태가 아니라 저장소에서 받아 온다(#165).
-    var fetchComments: FetchPinCommentsUseCase { get }
-    /// 코멘트 등록. 작성자·식별자는 서버가 정하므로 결과를 받아 목록에 붙인다.
-    var postComment: PostPinCommentUseCase { get }
-    /// 코멘트 삭제(005-1 ⑭) — 확인 다이얼로그를 거친 뒤 지운다.
-    var deleteComment: DeletePinCommentUseCase { get }
     /// 방 상세 거리순 정렬(004-1 ⑥) 의 기준점 — "내 기준 3km" 를 재려면 내 위치가 있어야 한다.
     var currentLocation: CurrentLocationUseCase { get }
     /// 공동방 생성 유도 시트를 "나중에 만들래요" 로 미뤄 둔 상태(2주). 서버가 모르는 기기 로컬

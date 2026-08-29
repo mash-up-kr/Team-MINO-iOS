@@ -8,9 +8,14 @@ import Domain
 ///
 /// 표시 모델(``RoomListItem``)이 아니라 도메인 `Room` 을 담는다 — Nav 로 흐르는 값이라
 /// `Sendable` 이어야 하는데 표시 모델은 `Image` 를 물고 있어 그 조건을 못 맞춘다.
-struct SavedRoomsPresentation: Identifiable, Equatable, Sendable {
+public struct SavedRoomsPresentation: Identifiable, Equatable, Sendable {
     /// 이 목록이 어느 장소의 것인지(핀 id).
-    let id: String
+    public let id: String
     /// 장소가 중복 저장된 방들. 비어 있는 채로 만들지 않는다 — 진입 자체가 막힌다(reduce 가 가드).
-    let rooms: [Room]
+    public let rooms: [Room]
+
+    public init(id: String, rooms: [Room]) {
+        self.id = id
+        self.rooms = rooms
+    }
 }
