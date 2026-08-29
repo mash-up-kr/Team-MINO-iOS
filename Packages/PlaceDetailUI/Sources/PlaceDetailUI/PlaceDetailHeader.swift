@@ -1,4 +1,5 @@
 import DesignSystem
+import Domain
 import ProfileSetupUI
 import SwiftUI
 
@@ -60,7 +61,8 @@ struct PlaceDetailHeader: View {
         HStack(spacing: 0) {
             HStack(spacing: 6) {
                 sharerAvatar
-                categoryBadge
+                // ③ 라벨은 홈 카드로 들어왔을 때만 뜬다 (002-1-1 ①).
+                if let label = place.label { labelBadge(label) }
             }
             Spacer(minLength: 8)
             closeButton
@@ -82,9 +84,10 @@ struct PlaceDetailHeader: View {
             .accessibilityIdentifier("PlaceDetail.sharer")
     }
 
-    /// ③ 장소분류. 홈 카드가 다는 큐레이션 라벨을 같은 문구·색으로 따라간다.
-    private var categoryBadge: some View {
-        let badge = PlaceDetailCategoryBadge.of(place.category)
+    /// ③ 홈 카드가 달고 있던 라벨을 **같은 문구·색으로** 따라간다 (002-1-1 ①) — 같은 장소가
+    /// 홈과 상세에서 다르게 읽히지 않게 표는 한 곳(``PlaceDetailCategoryBadge``)에서 온다.
+    private func labelBadge(_ label: PinCategory) -> some View {
+        let badge = PlaceDetailCategoryBadge.of(label)
         return MHContentBadge(badge.text, size: .medium, color: badge.color)
             .accessibilityIdentifier("PlaceDetail.category")
     }
