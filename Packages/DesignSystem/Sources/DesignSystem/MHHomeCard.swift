@@ -167,51 +167,44 @@ public struct MHHomeCard: View {
         }
     }
 
+    @ViewBuilder
     private var imageGrid: some View {
         HStack(spacing: 8) {
-            if imageSource.isEmpty {
-                ForEach(0..<2, id: \.self) { _ in
-                    imagePlaceholder
+            switch imageSource {
+            case .local(let images) where !images.isEmpty:
+                ForEach(Array(images.prefix(2).enumerated()), id: \.offset) { _, image in
+                    imageTile { image.resizable().scaledToFill() }
                 }
-            } else {
-                switch imageSource {
-                case .local(let images):
-                    ForEach(Array(images.prefix(2).enumerated()), id: \.offset) { _, image in
-                        image
-                            .resizable().scaledToFill()
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 184)
-                            .clipShape(RoundedRectangle(cornerRadius: 16))
-                    }
-                case .remote(let urls):
-                    ForEach(Array(urls.prefix(2).enumerated()), id: \.offset) { _, url in
-                        remoteImage(url)
+            case .remote(let urls) where !urls.isEmpty:
+                ForEach(Array(urls.prefix(2).enumerated()), id: \.offset) { _, url in
+                    imageTile {
+                        AsyncImage(url: url) { phase in
+                            // 로딩 중·실패는 그리지 않는다 — 자리표는 타일 자신의 배경이라
+                            // 어느 단계에서도 자리가 비지 않는다.
+                            if case .success(let image) = phase {
+                                image.resizable().scaledToFill()
+                            }
+                        }
                     }
                 }
+            default:
+                ForEach(0..<2, id: \.self) { _ in imageTile { EmptyView() } }
             }
         }
     }
 
-    // 프레임·클립을 phase 분기 밖에서 통일 적용(PlaceDetailPhotoCarousel.photo(_:) 와 같은 패턴) —
-    // 로딩 중과 실패가 같은 자리표(높이 184)를 가져야 로드 완료 시 크기가 튀지 않는다.
-    private func remoteImage(_ url: URL) -> some View {
-        AsyncImage(url: url) { phase in
-            if case .success(let image) = phase {
-                image.resizable().scaledToFill()
-            } else {
-                Color.mhBackgroundNormalAlternative
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: 184)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-    }
-
-    private var imagePlaceholder: some View {
+    /// 사진 한 칸. **자리(비율)가 먼저 정해지고 사진은 그 안에 얹힌다.**
+    ///
+    /// 사진을 레이아웃에 직접 태우면(`Image` 를 그대로 HStack 자식으로) 원본 픽셀 크기가 카드 폭을
+    /// 밀어낸다. 홈 덱은 실측 컨테이너 폭으로 카드 폭을 정하므로(`CardDeckView.widthReader`) 그
+    /// 부풀어 오른 폭이 다시 읽혀 덱 전체가 화면 밖으로 나간다 — 시뮬레이터에서 재현했다.
+    /// 그래서 크기는 언제나 이 타일이 정하고, 사진은 `overlay` 로 얹은 뒤 넘치는 부분을 잘라낸다.
+    private func imageTile<Content: View>(@ViewBuilder content: () -> Content) -> some View {
         RoundedRectangle(cornerRadius: 16)
             .fill(Color.mhBackgroundNormalAlternative)
-            .frame(maxWidth: .infinity)
             .aspectRatio(147.5 / 184, contentMode: .fit)
+            .overlay { content() }
+            .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 }
 
