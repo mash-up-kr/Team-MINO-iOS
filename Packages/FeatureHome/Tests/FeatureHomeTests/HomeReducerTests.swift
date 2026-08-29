@@ -111,6 +111,19 @@ private struct ThrowingFetchPins: FetchPinsUseCase {
     func execute(room: Room, page: Int, filter: PinFilter) async throws -> [Pin] { throw error }
 }
 
+/// 아바타 색을 고정으로 돌려주는 스텁 — 마스코트 색 흐름을 검증한다.
+private struct StubFetchProfile: FetchProfileUseCase {
+    var color: AvatarColor? = .cyan
+    func execute() async throws -> Profile {
+        Profile(id: "me", nickname: "나", avatarColor: color, createdAt: nil)
+    }
+}
+
+/// 프로필 조회가 항상 실패하는 스텁 — 마스코트가 기본으로 떨어지는 경로를 검증한다.
+private struct ThrowingFetchProfile: FetchProfileUseCase {
+    func execute() async throws -> Profile { throw DomainError.unknown }
+}
+
 @MainActor
 struct HomeReducerTests {
     private func makeStore(
@@ -119,6 +132,7 @@ struct HomeReducerTests {
         lastViewedRoom: LastViewedRoomUseCase = SpyLastViewedRoom(),
         homeGuide: HomeGuideUseCase = SpyHomeGuide(seen: true),   // 기본은 "이미 본" — 가이드 없는 흐름
         savePin: SavePinToRoomsUseCase = SpySavePin(),
+        fetchProfile: FetchProfileUseCase = StubFetchProfile(),
         state: HomeState = HomeState()
     ) -> TestStore<HomeState, HomeAction, HomeNav> {
         TestStore(
@@ -128,9 +142,29 @@ struct HomeReducerTests {
                 fetchPins: fetchPins,
                 lastViewedRoom: lastViewedRoom,
                 homeGuide: homeGuide,
-                savePin: savePin
+                savePin: savePin,
+                fetchProfile: fetchProfile
             )
         )
+    }
+
+    // MARK: - 마스코트 아바타 색
+
+    @Test("L2 — loadMyAvatar 는 프로필 색을 상태에 싣는다")
+    func loadMyAvatar_success() async {
+        let store = makeStore(fetchProfile: StubFetchProfile(color: .violet))
+        await store.send(.loadMyAvatar)
+        await store.receive(.myAvatarLoaded(.violet)) { $0.myAvatarColor = .violet }
+        store.finish()
+    }
+
+    @Test("L2 — 프로필 조회가 실패해도 화면을 막지 않고 색만 비운다")
+    func loadMyAvatar_failure() async {
+        let store = makeStore(fetchProfile: ThrowingFetchProfile(), state: HomeState(myAvatarColor: .red))
+        await store.send(.loadMyAvatar)
+        await store.receive(.myAvatarLoaded(nil)) { $0.myAvatarColor = nil }
+        #expect(store.currentState.errorMessage == nil)
+        store.finish()
     }
 
     // MARK: - Load

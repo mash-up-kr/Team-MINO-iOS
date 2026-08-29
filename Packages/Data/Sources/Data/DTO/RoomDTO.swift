@@ -18,16 +18,15 @@ struct RoomDTO: Decodable {
     let users: [RoomMemberDTO]?
 }
 
+/// `?showUsers=true` 로 조회했을 때만 실리는 방 멤버.
 struct RoomMemberDTO: Decodable {
     let userId: String
     let nickname: String
-    let avatar: AvatarDTO
+    /// 스펙상 nullable — 아바타를 아직 안 고른 계정이 있다. 타입은 프로필 응답과 같은
+    /// ``AvatarDTO``(`{ "color": … }`) 를 재사용한다.
+    let avatar: AvatarDTO?
     let isOwner: Bool
     let joinedAt: Date
-
-    struct AvatarDTO: Decodable {
-        let id: Int
-    }
 }
 
 /// 방 생성(`POST`)·수정(`PATCH`) 요청 본문.
@@ -71,7 +70,9 @@ extension RoomMemberDTO {
         RoomMember(
             userId: userId,
             nickname: nickname,
-            avatarID: avatar.id,
+            // 모르는 색은 "아바타 없음" 으로 떨군다 — 방 목록 전체의 디코딩을 깨뜨리는 것보다 낫다
+            // (`ProfileDTO.toDomain()` 과 같은 판단).
+            avatarColor: avatar?.color.flatMap(AvatarColor.init(rawValue:)),
             isOwner: isOwner,
             joinedAt: joinedAt
         )

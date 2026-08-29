@@ -67,12 +67,15 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
         // 실 API 연결 절차는 Packages/Networking/Docs/AddingAPI.md 참조.
         self.fetchMember = StubFetchMemberUseCase()
 
-        // 목 저장소는 인스턴스를 공유한다 — 방/핀/저장 상태가 서로를 참조하므로 따로 만들면
+        // 방 목록: 실 API(`GET /api/v1/rooms?showUsers=true`). 멤버 얼굴을 그리는 화면이 있어
+        // showUsers 를 켠 채로 받는다(RoomAPI.list 주석).
+        let rooms = RoomRepositoryImpl(client: httpClient)
+
+        // 목 저장소는 인스턴스를 공유한다 — 핀/저장 상태가 서로를 참조하므로 따로 만들면
         // "이미 저장된 방" 같은 관계적 사실이 저장소마다 달라진다.
-        let rooms = MockRoomRepository()
+        // 핀 목은 넘겨받은 방으로 핀을 만들므로 실 API 가 준 방 id 와 어긋나지 않는다.
         let pins = MockPinRepository()
 
-        // 방 목록: 실 API 미연결 → Mock Repository(하드코딩 JSON) 사용. 추후 RoomRepositoryImpl 로 교체.
         self.fetchRooms = DefaultFetchRoomsUseCase(repository: rooms)
 
         // 홈 카드 핀: 실 API 미연결 → Mock Repository(하드코딩 장소 풀) 사용. 추후 PinRepositoryImpl 로 교체.
