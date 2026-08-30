@@ -39,8 +39,8 @@ public final class HomeCoordinator: Coordinator {
         homeStore?.state.isRoomListPresented ?? false
     }
 
-    /// 게시물 저장 시트가 떠 있는가 — 이 시트도 시스템 스크림을 끄고 딤을 직접 깔아서,
-    /// 방 리스트와 같은 이유로 MainTabView 가 탭바를 딤 뒤로 페이드시킬 때 본다.
+    /// `다른 방 저장` 의 「홈 방 시트」가 떠 있는가 — 이 시트도 시스템 스크림을 끄고 딤을 직접 깔아서,
+    /// 방 변경과 같은 이유로 MainTabView 가 탭바를 딤 뒤로 페이드시킬 때 본다.
     ///
     /// iOS 26 은 부분 높이 시트를 화면에서 띄워(인셋) 그리기 때문에 시트 아래·옆으로 탭바가 드러난다
     /// — iOS 18 처럼 시트가 바닥까지 덮는다고 보고 이 페이드를 생략하면 그 자리만 딤이 빠진다.
@@ -78,7 +78,8 @@ public final class HomeCoordinator: Coordinator {
                 lastViewedRoom: deps.lastViewedRoom,
                 homeGuide: deps.homeGuide,
                 savePin: deps.savePin,
-                fetchProfile: deps.fetchProfile
+                fetchProfile: deps.fetchProfile,
+                recordPinAccess: deps.recordPinAccess
             ),
             handle: { [weak self] in self?.handle($0) }
         )
@@ -125,9 +126,8 @@ public final class HomeCoordinator: Coordinator {
 
         case .share(let pin):
             // 홈에는 011-1 공유 시트가 없다. 같은 일을 하는 자리가 이미 있어(카드 케밥 "다른 방 저장")
-            // 그리로 잇는다. 그 시트는 덱 위에 뜨므로 상세를 먼저 닫는다 — 저장 탭처럼 상세 위에
-            // 겹쳐 띄우려면 커버 안에 시트를 하나 더 달아야 하는데, 그건 011-1 을 홈에 들이는
-            // 별도 작업이다.
+            // 그리로 잇는다. 그 시트는 덱 위에 뜨므로 상세를 먼저 닫는다 — 상세 위에 겹쳐 띄우려면
+            // 상세 시트 안에 시트를 하나 더 달아야 하는데, 그건 011-1 을 홈에 들이는 별도 작업이다.
             selectedPin = nil
             homeStore?.send(.tapSaveToOtherRoom(pin.id))
 

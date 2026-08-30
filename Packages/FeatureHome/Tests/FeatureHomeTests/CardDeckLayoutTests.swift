@@ -8,6 +8,29 @@ import Testing
 struct CardDeckLayoutTests {
     private typealias Layout = CardDeckLayout
 
+    // MARK: - recognizesSwipe (스와이프 인식 영역, FR-003)
+
+    @Test("우측 영역에서 시작한 드래그는 인식한다")
+    func recognizes_rightArea() {
+        #expect(Layout.recognizesSwipe(startX: 300, containerWidth: 375))
+    }
+
+    @Test("좌측 영역에서 시작한 드래그는 카드 전환·복구에 반영하지 않는다 (TS-003)")
+    func ignores_leftArea() {
+        #expect(!Layout.recognizesSwipe(startX: 40, containerWidth: 375))
+    }
+
+    @Test("경계(폭의 절반)는 우측 영역에 포함한다")
+    func recognizes_atBoundary() {
+        #expect(Layout.recognizesSwipe(startX: 187.5, containerWidth: 375))
+        #expect(!Layout.recognizesSwipe(startX: 187.49, containerWidth: 375))
+    }
+
+    @Test("폭을 아직 못 재면(첫 레이아웃 패스) 인식하지 않는다 — 0 나눗셈·오판정 방지")
+    func ignores_beforeMeasured() {
+        #expect(!Layout.recognizesSwipe(startX: 100, containerWidth: 0))
+    }
+
     // MARK: - swipeOutcome (onEnded 분기)
 
     @Test("우측으로 충분히 던지면(예측 > 임계) 다음 카드로 forward")
@@ -49,17 +72,12 @@ struct CardDeckLayoutTests {
 
     @Test("덱 안에서는 좌드래그를 받는다")
     func allowsBackwardDrag_insideDeck() {
-        #expect(Layout.allowsBackwardDrag(currentIndex: 2, canReturnToPreviousDeck: false))
+        #expect(Layout.allowsBackwardDrag(currentIndex: 2))
     }
 
-    @Test("첫 카드여도 돌아갈 이전 덱이 있으면 좌드래그를 받는다 (이전 기준의 마지막 카드로)")
-    func allowsBackwardDrag_atFirstCardWithPreviousDeck() {
-        #expect(Layout.allowsBackwardDrag(currentIndex: 0, canReturnToPreviousDeck: true))
-    }
-
-    @Test("첫 기준의 첫 카드에서는 좌드래그를 받지 않는다 (더 돌아갈 곳 없음)")
-    func allowsBackwardDrag_atFirstCardWithoutPreviousDeck() {
-        #expect(Layout.allowsBackwardDrag(currentIndex: 0, canReturnToPreviousDeck: false) == false)
+    @Test("첫 카드에서는 좌드래그를 받지 않는다 — 되돌리기가 덱 경계를 넘지 않는다 (EC-001·EC-003)")
+    func allowsBackwardDrag_atFirstCard() {
+        #expect(Layout.allowsBackwardDrag(currentIndex: 0) == false)
     }
 
     // MARK: - visibleRange (렌더 슬라이스)

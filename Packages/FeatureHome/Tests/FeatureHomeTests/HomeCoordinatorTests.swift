@@ -13,6 +13,7 @@ private struct StubDeps: HomeDeps {
     var savePin: SavePinToRoomsUseCase = StubSavePin()
     var createRoom: CreateRoomUseCase = StubCreateRoom()
     var fetchProfile: FetchProfileUseCase = StubFetchProfile()
+    var recordPinAccess: RecordPinAccessUseCase = StubRecordPinAccess()
     // 장소 상세(PlaceDetailDeps) 몫 — 라우팅 테스트는 Store 를 만들지 않아 호출되지 않는다.
     var fetchPinDetail: FetchPinDetailUseCase = StubUnused()
     var currentMember: CurrentMemberUseCase = StubUnused()
@@ -42,6 +43,11 @@ private struct StubUnused: FetchPinDetailUseCase, CurrentMemberUseCase, FetchSav
 /// 기본 그림으로 떨어질 뿐이라 라우팅 단언에 영향이 없다.
 private struct StubFetchProfile: FetchProfileUseCase {
     func execute() async throws -> Profile { throw DomainError.unknown }
+}
+
+/// 「경과일 초기화 확인」. 라우팅만 보는 스위트라 아무것도 하지 않는다.
+private struct StubRecordPinAccess: RecordPinAccessUseCase {
+    func execute(pinID: PinID) async throws {}
 }
 
 private struct StubFetchRooms: FetchRoomsUseCase {

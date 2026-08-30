@@ -14,6 +14,9 @@ import SwiftUI
 public struct HomeTabView: View {
     private let coordinator: HomeCoordinator
     @State private var store: HomeStore?
+    /// 장소 상세 시트의 단계. 정책상 진입은 항상 half(= `.medium`)다 —
+    /// 002-1 ③ "카드 클릭 시 005-1 half(Default)로 이동".
+    @State private var placeDetailDetent: MHBottomSheetDetent = .medium
 
     public init(coordinator: HomeCoordinator) {
         self.coordinator = coordinator
@@ -34,14 +37,42 @@ public struct HomeTabView: View {
                         }
                     }
             }
+            placeDetailSheet
             savedToast
         }
         .animation(.easeInOut(duration: 0.2), value: store?.state.savedToastID)
-        // 장소 상세는 커버로 띄운다 (Figma 002-1-1 "상세 화면으로 이동") — 저장 탭처럼 지도 위
-        // 바텀시트로 올릴 근거가 홈엔 없다(뒤에 남겨 둘 지도가 없다). 커버는 탭바까지 덮으므로
-        // MainTabView 쪽에 숨김 처리를 따로 두지 않아도 된다.
-        .fullScreenCover(item: $coordinator.selectedPin) { pin in
-            HomePlaceDetailView(coordinator: coordinator, pin: pin)
+        .animation(.spring(duration: 0.35), value: coordinator.selectedPin?.id)
+    }
+
+    /// 카드 탭으로 열리는 장소 상세 — **홈 위에 얹히는 half 바텀시트**다
+    /// (002-1 ③ "카드 클릭 시 005-1 half(Default)로 이동", 카드덱 spec §3.2 `[SCR-006] 장소 상세 Half`).
+    ///
+    /// 저장 탭(``ArchiveShellView``)과 같은 ``MHBottomSheet`` · 같은 half 노출 높이(005-1 ⑫ 335)를 쓴다 —
+    /// ``PlaceDetailHeader`` 의 상단 여백이 "시트 그래버가 30pt 를 채운다"는 전제로 잡혀 있어, 시스템
+    /// 시트로 띄우면 half 에서 헤더가 시트 윗끝에 붙는다.
+    ///
+    /// 시트를 닫아도 홈은 그대로 살아 있다(같은 뷰 트리에 겹쳐 그릴 뿐이라 `HomeContentView` 가
+    /// 사라지지 않는다) → 조회를 다시 하지 않고 보던 카드·커서가 유지된다. 홈이 다시 조회하는 건
+    /// 탭을 오갈 때뿐이다(`MainTabView` 가 탭마다 화면을 새로 만든다).
+    ///
+    /// 딤은 두지 않는다 — half 는 뒤의 덱을 보여 주는 단계이고, 005-1 도 뒤 화면을 가리지 않는다.
+    @ViewBuilder
+    private var placeDetailSheet: some View {
+        if let pin = coordinator.selectedPin {
+            MHBottomSheet(
+                detent: $placeDetailDetent,
+                // 005-1 ⑫ 의 half 노출 높이 335. 탭바가 시트를 아래에서 덮으므로 그만큼 더 그려
+                // 335 가 탭바 **위로** 온전히 보이게 한다(저장 탭의 `tabBarCoverage` 와 같은 보정).
+                mediumPeek: 335,
+                bottomCoverage: MHTabBar.height,
+                detents: [.medium, .full]   // 장소 상세는 low 를 쓰지 않는다(저장 탭과 동일)
+            ) {
+                HomePlaceDetailView(coordinator: coordinator, pin: pin, detent: placeDetailDetent)
+            }
+            .transition(.move(edge: .bottom))
+            // 다음에 열 때는 다시 half 로 시작한다(진입 단계는 정책이 half 로 고정).
+            .onDisappear { placeDetailDetent = .medium }
+            .accessibilityIdentifier("Home.placeDetail.sheet")
         }
     }
 
@@ -78,24 +109,27 @@ public struct HomeTabView: View {
     }
 }
 
-/// 커버 안의 장소 상세. Store 를 `.task` 에서 1회 만든다 — 커버 content 클로저는 body 재평가마다
+/// 시트 안의 장소 상세. Store 를 `.task` 에서 1회 만든다 — 시트 content 클로저는 body 재평가마다
 /// 다시 불리므로 여기서 바로 만들면 그때마다 Store 가 새로 나 조회가 반복된다.
 private struct HomePlaceDetailView: View {
     let coordinator: HomeCoordinator
     let pin: Pin
+    /// 시트 단계 — 헤더 상단 여백이 단계마다 다르다(``PlaceDetailHeaderMetrics``).
+    let detent: MHBottomSheetDetent
 
     @State private var store: PlaceDetailStore?
 
     var body: some View {
         Group {
             if let store {
-                PlaceDetailView(store: store, detent: .full)
+                PlaceDetailView(store: store, detent: detent)
             } else {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .task { store = coordinator.makePlaceDetailStore(pin: pin) }
+                    // 핀이 바뀌면 그 핀의 Store 로 갈아끼운다 — 시트가 살아 있는 채로 다른 카드를
+                    // 열 일은 없지만, 열려 있는 동안 pin 만 바뀌면 옛 장소가 남는다.
+                    .task(id: pin.id) { store = coordinator.makePlaceDetailStore(pin: pin) }
             }
         }
-        .background(Color.mhBackgroundNormalNormal.ignoresSafeArea())
     }
 }

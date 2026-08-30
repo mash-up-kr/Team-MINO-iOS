@@ -8,9 +8,9 @@ public struct HomeState: Equatable {
     public var errorMessage: String?
     /// 현재 조회 기준(필터 칩). 덱을 다 넘기면 이 방의 **미확인 정렬**로 자동 전환된다.
     public var selectedFilter: PinFilter
-    /// **현재 방**의 기준별 덱(캐시). 칩을 오가도 재조회 없이 이어 본다 —
-    /// 소진 시 다음 칩, 첫 카드에서 뒤로 가면 직전 칩의 마지막 카드로 이어지는 정책 때문에
-    /// 앞뒤로 오가는 일이 잦아 매번 다시 받으면 화면이 비었다 채워진다. 방이 바뀌면 비운다.
+    /// **현재 방**의 기준별 덱(캐시). 칩을 오가도 재조회 없이 이어 본다 — 칩으로 건너뛴 덱도
+    /// 방이 바뀌기 전에 마저 볼 수 있어야 하므로(SC-002) 보던 위치를 그대로 들고 있는다.
+    /// 방이 바뀌면 비운다.
     public var decks: [PinFilter: [Pin]]
     /// 방 우선 순회의 커서 — `rooms` 배열 인덱스. 이 방의 세 정렬을 다 보면 다음 방으로 +1 된다.
     public var currentRoomIndex: Int
@@ -26,7 +26,7 @@ public struct HomeState: Equatable {
     public var currentCardIndex: Int
     /// 방 선택 바텀 시트 표시 여부 (뱃지·캐릭터 탭으로 열림).
     public var isRoomListPresented: Bool
-    /// 방 변경 직후 뜨는 툴팁이 가리키는 방의 id (nil = 숨김). 5초 후 자동으로 nil 이 된다.
+    /// 방 변경 직후 뜨는 툴팁이 가리키는 방의 id (nil = 숨김). 3초 후 자동으로 nil 이 된다(FR-016).
     /// 표시 문구(방 이름)는 뷰가 이 id 로 rooms 에서 파생한다 — 이름이 같은 방도 안정적으로 식별하려 id 로 든다.
     public var changedRoomToastID: String?
     /// "곧 …으로 이동해요!" 예고 툴팁이 붙은 기준 (nil = 숨김). 현재 기준 덱의 남은 카드가 2장 이하가 되면
@@ -147,57 +147,30 @@ public struct HomeState: Equatable {
     /// 그쪽으로 자동 전환한다 — 그래서 화면 판정([[hasViewedAllPlaces]])과 분리해 둔다.
     var isCurrentDeckExhausted: Bool { !pins.isEmpty && currentCardIndex >= pins.count }
 
-    /// 이 방에서 직전에 보던 정렬 — 첫 카드에서 뒤로 넘겼을 때 돌아갈 곳.
-    /// 앞으로 나아간 경로([[filterOrder]] 위에서 이미 확인한 정렬들)를 그대로 되짚는다.
-    /// 방 경계는 거슬러 올라가지 않는다(정책에 없는 이동이라 방 안에서만 왕복한다).
-    public var previousShownFilter: PinFilter? {
-        filterOrder.prefix { $0 != selectedFilter }.last { viewedFilters.contains($0) }
-    }
-
-    /// 첫 카드에서 뒤로 넘겨 직전 정렬로 돌아갈 수 있는지.
-    public var canReturnToPreviousFilter: Bool { previousShownFilter != nil }
-
-    /// 뒤로 돌아갔을 때 맨 앞에 올 카드 — 직전 정렬 덱의 마지막 카드. 그 덱을 아직 받아 두지 않았으면 nil
-    /// (전환은 그대로 일어나고, 덱을 받는 동안 복귀 애니메이션에 얹을 카드만 없다).
-    public var previousDeckLastPin: Pin? {
-        guard let previous = previousShownFilter else { return nil }
-        return decks[previous]?.last
-    }
-
     /// 현재 정렬 덱에서 (현재 카드 포함) 아직 넘기지 않은 카드 수. 덱 끝 예고 툴팁([[deckEndingToastFilter]])
     /// 판단에 쓴다. 덱을 다 넘겨 인덱스가 덱 밖으로 나가면([[isCurrentDeckExhausted]]) 0 이다.
     public var remainingInCurrentDeck: Int { max(0, pins.count - currentCardIndex) }
 }
 
-/// 게시물 저장 시트(Figma 013-1-3) 상태. 시트가 홈 화면 안에서 열고 닫히므로 별도 Store 없이
-/// 홈 상태의 한 조각으로 든다 — 저장 완료 토스트가 시트가 닫힌 **뒤** 홈 위에 뜨기 때문에
-/// 두 상태가 같은 reduce 안에 있어야 이어진다.
+/// `다른 방 저장` 으로 열리는 「홈 방 시트」의 상태 (nil = 닫힘).
+///
+/// 시트가 홈 화면 안에서 열고 닫히므로 별도 Store 없이 홈 상태의 한 조각으로 든다 —
+/// 저장 완료 토스트가 시트가 닫힌 **뒤** 홈 위에 뜨기 때문에 두 상태가 같은 reduce 안에 있어야 이어진다.
+///
+/// 고른 방을 모아 두는 자리가 없는 것은 시트가 **누르는 즉시 확정**이기 때문이다
+/// (FR-018 — 체크박스도 확정 버튼도 두지 않는다).
 public struct SavePostState: Equatable {
     /// 저장하려는 장소(카드).
     public var pinID: PinID
-    /// 이 장소가 이미 들어 있는 방. 체크된 채 비활성이고 `selectedRoomIDs` 와 섞지 않는다 —
-    /// 섞으면 "이미 저장된 방만 있는" 상태에서 저장 버튼이 켜진다.
-    public var alreadySavedRoomIDs: Set<String>
-    /// 사용자가 이번에 새로 고른 방.
-    public var selectedRoomIDs: Set<String>
+    /// 이 장소가 이미 들어 있는 방 — 그리드에서 체크된 채 눌리지 않는다(중복 저장은 서버도 409 로 막는다).
+    public var savedRoomID: String?
     public var isSaving: Bool
 
-    public init(
-        pinID: PinID,
-        alreadySavedRoomIDs: Set<String> = [],
-        selectedRoomIDs: Set<String> = [],
-        isSaving: Bool = false
-    ) {
+    public init(pinID: PinID, savedRoomID: String? = nil, isSaving: Bool = false) {
         self.pinID = pinID
-        self.alreadySavedRoomIDs = alreadySavedRoomIDs
-        self.selectedRoomIDs = selectedRoomIDs
+        self.savedRoomID = savedRoomID
         self.isSaving = isSaving
     }
-
-    public var canSubmit: Bool { !selectedRoomIDs.isEmpty && !isSaving }
-
-    /// 체크로 보이는 방 — 이미 저장된 방도 체크 상태다(Figma 013-1-2).
-    public var checkedRoomIDs: Set<String> { alreadySavedRoomIDs.union(selectedRoomIDs) }
 }
 
 public enum HomeAction: Equatable {
@@ -215,14 +188,18 @@ public enum HomeAction: Equatable {
     case initialDeckLoaded(pins: [Pin], roomID: String)
     /// 한 (방 × 정렬) 덱이 도착했다. `roomID`·`filter` 는 이 응답이 **어느 자리의 것인지** —
     /// 칩·방을 연속으로 옮겨 응답이 엇갈려 도착해도 지나간 자리의 덱이 화면을 끌고 가지 않게 한다.
-    /// `entry` 는 그 덱의 어느 끝에서 시작할지(앞으로 왔으면 첫 카드, 뒤로 돌아왔으면 마지막 카드).
-    case deckLoaded(pins: [Pin], roomID: String, filter: PinFilter, entry: DeckEntry)
+    /// 덱은 언제나 **첫 카드**부터 시작한다(되돌리기가 덱 경계를 넘지 않으므로 뒤에서 들어올 일이 없다).
+    case deckLoaded(pins: [Pin], roomID: String, filter: PinFilter)
     /// 덱 조회 실패 — 가려던 자리를 버리고 조회 직전 자리로 되돌린다.
     case deckLoadFailed(roomID: String, filter: PinFilter, revertTo: DeckPosition)
     case tapCreateRoom
     case swipeForward
     case swipeBackward
     case tapCard(PinID)
+    /// 카드 탭이 실제로 상세를 여는 순간. `tapCard` 와 나눠 둔 이유는 그 자리에서 「경과일 초기화 확인」도
+    /// 함께 보내야 하는데, 한 Effect 는 화면 전환과 네트워크 중 하나만 낼 수 있어서다 —
+    /// 전환을 먼저 내보내고 기록은 그 뒤에 붙인다(기록 응답을 기다리면 탭이 네트워크만큼 늦어진다).
+    case openPlaceDetail(Pin)
     /// 홈 사용 가이드를 아직 안 봤는지 묻는다(최초 진입 1회 정책). `load` 와 나눠 둔 이유는
     /// 마스코트([[loadMyAvatar]])와 같다 — 가이드가 그리는 카드 덱은 모형이라(``HomeGuideMockDeck``)
     /// 방·덱 조회 결과를 기다릴 이유가 없고, 조회가 늦거나 실패해도 안내는 떠야 한다.
@@ -237,8 +214,8 @@ public enum HomeAction: Equatable {
     case dismissRoomList
     /// 바텀 시트에서 방 선택 → 해당 방으로 즉시 전환
     case selectRoom(String)
-    /// 방 변경 툴팁 숨기기 (선택 5초 후 자동 발생). 연관값은 이 타이머가 세운 방의 id —
-    /// 5초가 도는 사이 다른 방으로 바꾸면 이전 타이머가 새 방 툴팁을 지우지 않도록 방어한다.
+    /// 방 변경 툴팁 숨기기 (노출 3초 후 자동 발생). 연관값은 이 타이머가 세운 방의 id —
+    /// 3초가 도는 사이 다른 방으로 바꾸면 이전 타이머가 새 방 툴팁을 지우지 않도록 방어한다.
     case dismissRoomToast(String)
     /// 덱 끝 예고 툴팁 숨기기 (노출 3초 후 자동 발생). 연관값은 이 타이머가 띄운 툴팁의 기준 —
     /// 3초가 도는 사이 기준이 바뀌면 이전 타이머가 새 툴팁을 지우지 않도록 방어한다.
@@ -247,8 +224,8 @@ public enum HomeAction: Equatable {
     case tapSaveToOtherRoom(PinID)
     /// 게시물 저장 시트 닫기 (스와이프 dismiss 포함)
     case dismissSavePost
-    case toggleSavePostRoom(String)
-    case tapSavePost
+    /// 「홈 방 시트」에서 방을 고름 → 그 방에 바로 저장한다(누르는 즉시 확정, FR-018).
+    case savePostToRoom(String)
     /// 저장 작업이 끝남 → 시트를 닫고 완료 토스트를 띄운다.
     case savePostFinished
     /// 저장 실패 — 시트를 저장 전 상태로 되돌린다.
@@ -325,19 +302,6 @@ public struct DeckPosition: Equatable, Sendable {
     }
 }
 
-/// 새 기준의 덱에 어느 끝으로 들어가는지 — 앞으로 넘어가면 첫 카드, 뒤로 돌아가면 마지막 카드.
-public enum DeckEntry: Equatable, Sendable {
-    case first
-    case last
-
-    func index(in pins: [Pin]) -> Int {
-        switch self {
-        case .first: 0
-        case .last: max(0, pins.count - 1)
-        }
-    }
-}
-
 /// 한 정렬 덱의 최대 카드 수 — 정책: 각 정렬은 최대 10장, 모자라면 보유한 만큼만.
 private let deckPageSize = 10
 
@@ -346,7 +310,6 @@ private let deckPageSize = 10
 /// 조회 직전 자리로 복구한다 — 성공했을 때만 되돌리면 isDeckLoading 이 꺼지지 않아 스피너에 멈춘다.
 private func showDeck(
     filter: PinFilter,
-    entering entry: DeckEntry,
     revertingTo revert: DeckPosition,
     persistingRoom persist: Bool = false,
     state: inout HomeState,
@@ -360,8 +323,8 @@ private func showDeck(
     // 옮기는 순간 지난 자리의 예고 툴팁은 할 말을 잃는다("곧 최신순으로" 를 최신순에서 띄우고 있게 된다).
     state.deckEndingToastFilter = nil
     if let cached = state.decks[filter], !cached.isEmpty {
-        state.currentCardIndex = entry.index(in: cached)
-        if entry == .first { announceDeckEndingIfNeeded(&state) }
+        state.currentCardIndex = 0
+        announceDeckEndingIfNeeded(&state)
         return .none
     }
     guard let room = state.currentRoom else { return .none }
@@ -376,14 +339,17 @@ private func showDeck(
             var origin = known
             if filter == .nearby, origin == nil {
                 guard case .coordinate(let resolved) = await currentLocation.execute() else {
-                    send(.deckLoadFailed(roomID: room.id, filter: filter, revertTo: revert))
+                    // 정책(EC-009): 권한을 거부하면 가까운순을 **소진된 것으로 처리**하고 같은 방의 남은
+                    // 덱으로 넘어간다 — 조회 실패로 되돌리면 사용자가 거부한 그 자리에 갇힌다.
+                    // 빈 덱은 `deckLoaded` 가 이미 "확인한 것으로 치고 다음 자리로" 보내 준다.
+                    send(.deckLoaded(pins: [], roomID: room.id, filter: filter))
                     return
                 }
                 origin = resolved
                 send(.myCoordinateResolved(resolved))   // 한 번 얻으면 이후 가까운순은 다시 묻지 않는다
             }
             let pins = try await fetchHomeCards.execute(room: room, filter: filter, origin: origin)
-            send(.deckLoaded(pins: Array(pins.prefix(deckPageSize)), roomID: room.id, filter: filter, entry: entry))
+            send(.deckLoaded(pins: Array(pins.prefix(deckPageSize)), roomID: room.id, filter: filter))
         } catch is CancellationError {
             return   // 취소는 결과가 없는 것이지 실패가 아니다
         } catch {
@@ -411,7 +377,7 @@ private func moveToRoom(
     state.currentCardIndex = 0
     state.changedRoomToastID = state.rooms[index].id
     return showDeck(
-        filter: .recommended, entering: .first, revertingTo: revert, persistingRoom: true,
+        filter: .recommended, revertingTo: revert, persistingRoom: true,
         state: &state, fetchHomeCards: fetchHomeCards, currentLocation: currentLocation, lastViewedRoom: lastViewedRoom
     )
 }
@@ -429,7 +395,7 @@ private func advanceAfterDeck(
     state.viewedFilters.insert(state.selectedFilter)
     if let next = state.nextUnviewedFilter {
         return showDeck(
-            filter: next, entering: .first, revertingTo: revert,
+            filter: next, revertingTo: revert,
             state: &state, fetchHomeCards: fetchHomeCards, currentLocation: currentLocation, lastViewedRoom: lastViewedRoom
         )
     }
@@ -459,7 +425,8 @@ public func homeReducer(
     lastViewedRoom: LastViewedRoomUseCase,
     homeGuide: HomeGuideUseCase,
     savePin: SavePinToRoomsUseCase,
-    fetchProfile: FetchProfileUseCase
+    fetchProfile: FetchProfileUseCase,
+    recordPinAccess: RecordPinAccessUseCase
 ) -> (inout HomeState, HomeAction) -> Effect<HomeAction, HomeNav> {
     { state, action in
         switch action {
@@ -541,25 +508,25 @@ public func homeReducer(
             state.filterAnchor = filter
             state.viewedFilters.remove(filter)   // 다시 고른 정렬은 처음부터 다시 본다
             return showDeck(
-                filter: filter, entering: .first, revertingTo: revert,
+                filter: filter, revertingTo: revert,
                 state: &state, fetchHomeCards: fetchHomeCards, currentLocation: currentLocation, lastViewedRoom: lastViewedRoom
             )
 
-        case .deckLoaded(let pins, let roomID, let filter, let entry):
+        case .deckLoaded(let pins, let roomID, let filter):
             // 지나간 방의 응답은 캐시에도 담지 않는다 — 덱 캐시는 지금 방의 것이다.
             guard roomID == state.currentRoom?.id else { return .none }
             state.decks[filter] = pins.isEmpty ? nil : pins
             // 화면을 움직이는 건 지금 보고 있는 정렬의 응답일 때만. 아니면 남의 덱이 잠깐 앉았다 사라진다.
             guard filter == state.selectedFilter else { return .none }
             state.isDeckLoading = false
-            state.currentCardIndex = entry.index(in: pins)
+            state.currentCardIndex = 0
             // 빈 정렬은 보여줄 게 없으므로 확인한 것으로 치고 다음 갈 곳으로 넘어간다
             // (가려던 자리가 비었다고 빈 화면을 띄우면, 남은 정렬·방을 못 보고 막힌다).
             guard !pins.isEmpty else {
                 return advanceAfterDeck(state: &state, fetchHomeCards: fetchHomeCards, currentLocation: currentLocation, lastViewedRoom: lastViewedRoom)
             }
-            // 받아 온 덱이 이미 2장 이하면 넘길 새도 없이 다음 자리가 코앞이다 (Figma 002-2-3).
-            if entry == .first { announceDeckEndingIfNeeded(&state) }
+            // 받아 온 덱이 이미 2장 이하면 넘길 새도 없이 다음 자리가 코앞이다 (EC-012).
+            announceDeckEndingIfNeeded(&state)
             return .none
 
         case .deckLoadFailed(let roomID, let filter, let revert):
@@ -616,24 +583,25 @@ public func homeReducer(
             return .none
 
         case .swipeBackward:
-            if state.currentCardIndex > 0 {
-                state.currentCardIndex -= 1
-                return .none
-            }
-            // 첫 카드에서 뒤로 넘기면 이 방에서 직전에 보던 정렬의 **마지막 카드**로 돌아간다.
-            // 앞으로 자동 전환된 경로를 그대로 되짚는 이동이라, 방 경계는 넘지 않는다.
-            guard let previous = state.previousShownFilter else { return .none }
-            let revert = DeckPosition(state)
-            state.viewedFilters.remove(previous)   // 되돌아간 정렬은 다시 "보는 중"이 된다
-            return showDeck(
-                filter: previous, entering: .last, revertingTo: revert,
-                state: &state, fetchHomeCards: fetchHomeCards, currentLocation: currentLocation, lastViewedRoom: lastViewedRoom
-            )
+            // 되돌리기는 **현재 덱 안에서 1단계**뿐이다 — 덱이 바뀌면 되돌리기 이력이 초기화되므로
+            // 첫 카드에서 더 뒤로 가면 이전 덱이 아니라 아무 일도 일어나지 않는다(EC-001·EC-003).
+            guard state.currentCardIndex > 0 else { return .none }
+            state.currentCardIndex -= 1
+            return .none
 
         case .tapCard(let pinID):
             // 카드가 넘긴 건 id 뿐이라 지금 덱에서 핀을 되찾는다. 못 찾으면 아무 데도 가지 않는다 —
             // 덱이 갈리는 순간(방·기준 전환)에 들어온 탭이라 열어야 할 장소가 이미 없다.
             guard let pin = state.pins.first(where: { $0.id == pinID }) else { return .none }
+            // 정책(FR-007·FR-023): 카드 탭은 상세로 이동하면서 「경과일 초기화 확인」①을 서버에 보낸다.
+            // 덱의 진행 상태(잔여 카드·되돌리기 이력)는 그대로다 — 「카드 열람 확인」②은 넘길 때만 생긴다.
+            return .run { send in
+                send(.openPlaceDetail(pin))
+                // 집계용 로그라 실패해도 사용자에게 알릴 것이 없고, 다시 열면 또 기록된다(append-only).
+                try? await recordPinAccess.execute(pinID: pinID)
+            }
+
+        case .openPlaceDetail(let pin):
             return .navigate(.openPlaceDetail(pin))
 
         case .checkGuide:
@@ -665,16 +633,19 @@ public func homeReducer(
 
         case .selectRoom(let roomID):
             // 정책: 방 클릭 시 해당 방으로 바로 적용 + 시트 닫기 + 변경 툴팁(moveToRoom 이 함께 세운다).
-            // 툴팁의 5초 표시 시간은 뷰(페이드 애니메이션과 함께)가 관리하고, 여기서는 상태만 세운다.
+            // 툴팁의 3초 표시 시간은 뷰(페이드 애니메이션과 함께)가 관리하고, 여기서는 상태만 세운다.
             state.isRoomListPresented = false
             guard let index = state.rooms.firstIndex(where: { $0.id == roomID }) else { return .none }
+            // 정책(EC-014): 지금 보고 있는 방을 다시 고르면 시트만 닫고 덱을 다시 구성하지 않는다 —
+            // 재구성하면 넘겨 둔 진행 상태가 통째로 날아간다.
+            guard index != state.currentRoomIndex else { return .none }
             return moveToRoom(
                 index: index, revertingTo: DeckPosition(state),
                 state: &state, fetchHomeCards: fetchHomeCards, currentLocation: currentLocation, lastViewedRoom: lastViewedRoom
             )
 
         case .dismissRoomToast(let roomID):
-            // 이 타이머가 세운 그 방 툴팁일 때만(id 일치) 숨긴다. 5초가 도는 사이 방을 바꾸면
+            // 이 타이머가 세운 그 방 툴팁일 때만(id 일치) 숨긴다. 3초가 도는 사이 방을 바꾸면
             // 이전 타이머의 dismiss 가 뒤늦게 도착해 새 방 툴팁을 지우는 걸 막는다.
             // id 로 비교하므로 이름이 같은 방들끼리도 정확히 구분된다.
             if state.changedRoomToastID == roomID {
@@ -691,14 +662,13 @@ public func homeReducer(
             return .none
 
         case .tapSaveToOtherRoom(let pinID):
-            // 카드가 지금 속한 방에는 이 장소가 이미 들어 있다 — 체크된 채 비활성으로 뜬다
-            // (Figma 002-1 「다른 방 저장 클릭 후 중복 저장 시」).
+            // 정책(FR-005): 메뉴를 닫고 「홈 방 시트」를 연다. 덱의 진행 상태는 건드리지 않는다.
+            // 카드가 지금 속한 방에는 이 장소가 이미 들어 있어 그 칸만 체크·비활성으로 뜬다.
             // TODO(백엔드 연동): 한 장소가 여러 방에 담길 수 있어 실제 목록은 서버가 준다.
             //   지금은 카드가 속한 방 하나만 알 수 있어 그것만 표시한다.
-            let savedRoomID = state.pins.first { $0.id == pinID }?.roomID
             state.savePost = SavePostState(
                 pinID: pinID,
-                alreadySavedRoomIDs: savedRoomID.map { [$0] } ?? []
+                savedRoomID: state.pins.first { $0.id == pinID }?.roomID
             )
             return .none
 
@@ -708,28 +678,16 @@ public func homeReducer(
             state.savePost = nil
             return .none
 
-        case .toggleSavePostRoom(let roomID):
+        case .savePostToRoom(let roomID):
             guard var sheet = state.savePost, !sheet.isSaving else { return .none }
-            // 이미 저장된 방은 끌 수 없다 — 뷰가 체크박스를 비활성으로 그리지만, 뷰를 고치면 뚫린다.
-            guard !sheet.alreadySavedRoomIDs.contains(roomID) else { return .none }
-            if sheet.selectedRoomIDs.contains(roomID) {
-                sheet.selectedRoomIDs.remove(roomID)
-            } else {
-                sheet.selectedRoomIDs.insert(roomID)
-            }
-            state.savePost = sheet
-            return .none
-
-        case .tapSavePost:
-            // 뷰의 비활성 처리는 UI 레이어 방어라 뷰가 바뀌면 뚫린다 — 조건은 여기서도 지킨다.
-            guard var sheet = state.savePost, sheet.canSubmit else { return .none }
+            // 이미 담긴 방은 고를 수 없다 — 뷰가 그 칸을 눌리지 않게 그리지만, 뷰를 고치면 뚫린다.
+            guard roomID != sheet.savedRoomID else { return .none }
             sheet.isSaving = true
             state.savePost = sheet
             let pinID = sheet.pinID
-            let roomIDs = sheet.selectedRoomIDs
             return .run { send in
                 do {
-                    try await savePin.execute(pinID: pinID, roomIDs: roomIDs)
+                    try await savePin.execute(pinID: pinID, roomIDs: [roomID])
                     send(.savePostFinished)
                 } catch {
                     send(.savePostFailed)

@@ -16,4 +16,6 @@ public protocol HomeDeps: PlaceDetailDeps {
     var createRoom: CreateRoomUseCase { get }
     /// 홈 우상단 마스코트의 소품을 정하는 내 아바타 색 (Figma `character/Home_Avatar`).
     var fetchProfile: FetchProfileUseCase { get }
+    /// 카드를 눌러 상세를 열 때 보내는 「경과일 초기화 확인」 (FR-007).
+    var recordPinAccess: RecordPinAccessUseCase { get }
 }

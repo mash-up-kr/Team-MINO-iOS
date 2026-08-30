@@ -25,6 +25,20 @@ enum CardDeckLayout {
     /// 좌드래그 복귀 진행도가 이 값을 넘으면 이전 카드로 확정한다.
     static let backwardProgressThreshold: CGFloat = 0.3
 
+    /// 스와이프를 인식하는 영역의 시작점(컨테이너 폭 대비 비율).
+    ///
+    /// 정책(카드덱 FR-003): **화면 우측 영역**에서 시작한 드래그만 카드 전환·복구에 반영하고,
+    /// 좌측 영역에서 시작한 드래그는 무시한다. 시안·정책이 "우측 영역"의 경계를 pt 로 못 박지 않아
+    /// 화면을 반으로 가르는 값을 쓴다 — 값이 확정되면 여기만 고치면 된다.
+    static let swipeAreaStartFraction: CGFloat = 0.5
+
+    /// 이 드래그를 카드 전환·복구에 반영할지. 판정 기준은 **손가락이 닿은 지점**(startLocation)이라,
+    /// 우측에서 시작해 좌측까지 끌고 가는 되돌리기 드래그는 끝까지 인식된다.
+    static func recognizesSwipe(startX: CGFloat, containerWidth: CGFloat) -> Bool {
+        guard containerWidth > 0 else { return false }
+        return startX >= containerWidth * swipeAreaStartFraction
+    }
+
     /// 드래그가 끝났을 때(onEnded) 덱이 취할 동작.
     enum SwipeOutcome: Equatable {
         case forward    // 다음 카드로 넘김
@@ -32,10 +46,10 @@ enum CardDeckLayout {
         case snapBack   // 제자리(넘길 카드 없거나 약하게 밀었을 때)
     }
 
-    /// 좌드래그(뒤로)를 받을지. 덱 안이면 이전 카드로, 첫 카드여도 돌아갈 이전 덱이 있으면 그쪽으로 간다 —
-    /// 첫 카드에서 무조건 막으면 "이전 기준의 마지막 카드로 복귀"가 제스처 단계에서 잘려 도달할 수 없다.
-    static func allowsBackwardDrag(currentIndex: Int, canReturnToPreviousDeck: Bool) -> Bool {
-        currentIndex > 0 || canReturnToPreviousDeck
+    /// 좌드래그(뒤로)를 받을지. 되돌리기는 **현재 덱 안에서 1단계**뿐이라 첫 카드에서는 받지 않는다
+    /// (EC-001·EC-003 — 덱이 바뀌면 되돌리기 이력이 초기화된다).
+    static func allowsBackwardDrag(currentIndex: Int) -> Bool {
+        currentIndex > 0
     }
 
     /// onEnded 분기의 순수 결정. 애니메이션 실행은 뷰가, "무엇을 할지"는 여기가 정한다.

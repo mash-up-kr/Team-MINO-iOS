@@ -1,20 +1,17 @@
 import DesignSystem
 import Domain
 import ProfileSetupUI
-import SavePostUI
 import SwiftUI
 
 /// 홈 셸 콘텐츠. 방 뱃지 헤더 + 타이틀 + 필터바 + (카드 덱 자리 | 빈상태 A).
 struct HomeContentView: View {
     let store: HomeStore
 
-    // 플로팅 "더 보기" 버튼은 여기(NavigationStack 안)가 아니라 HomeTabView 의 스택에 둔다 —
-    // NavigationStack 이 상위 safeAreaInset(탭바)을 콘텐츠에 전파하지 않아, 안에 두면 탭바에 가린다.
     var body: some View {
         ZStack(alignment: .topTrailing) {
             guideBackgroundWash  // 홈 가이드 딤 — 콘텐츠 아래(배경색 위)
             mainContent
-            roomListDim          // 방 리스트 열릴 때 — 마스코트 아래(홈 콘텐츠만 덮는다)
+            roomSheetDim         // 「홈 방 시트」가 열릴 때 — 마스코트 아래(홈 콘텐츠만 덮는다)
             // 가이드 중에는 방 정체성을 무조건 세운다 — 안내가 뱃지·토끼를 화살표로 가리키므로
             // (「방 뱃지와 토끼를 클릭하면」) 그 둘이 없으면 화살표가 빈자리를 가리킨다.
             if store.state.showsRoomIdentity || store.state.isGuidePresented {
@@ -24,7 +21,6 @@ struct HomeContentView: View {
             }
             roomChangeTooltip
             deckEndingTooltip
-            savePostDim          // 게시물 저장 시트 딤 — 마스코트 위(시안은 화면 전체가 딤)
         }
         .animation(.easeInOut(duration: 0.2), value: store.state.isGuidePresented)   // 루트의 가이드 페이드와 같은 속도
         .animation(.easeInOut(duration: 0.5), value: store.state.changedRoomToastID)
@@ -45,11 +41,11 @@ struct HomeContentView: View {
         // 이 뷰가 새로 만들어지므로, 마이페이지에서 아바타를 바꾸고 돌아오면 여기서 다시 읽힌다.
         .task { store.send(.loadMyAvatar) }
         .task(id: store.state.changedRoomToastID) {
-            // 방 변경 툴팁은 5초 뒤 사라진다(정책). 새 툴팁이 뜨면 방 id 가 바뀌어 타이머가 재시작된다.
-            // dismiss 는 이 타이머가 세운 방 id 를 실어 보낸다 — 5초 경계에서 방을 바꾸면
+            // 방 변경 툴팁은 3초 뒤 사라진다(FR-016). 새 툴팁이 뜨면 방 id 가 바뀌어 타이머가 재시작된다.
+            // dismiss 는 이 타이머가 세운 방 id 를 실어 보낸다 — 3초 경계에서 방을 바꾸면
             // 이전 타이머의 dismiss 가 새 방 툴팁을 지우지 않도록 reducer 가 id 로 방어한다.
             guard let roomID = store.state.changedRoomToastID else { return }
-            try? await Task.sleep(for: .seconds(5))
+            try? await Task.sleep(for: .seconds(3))
             store.send(.dismissRoomToast(roomID))
         }
         .task(id: store.state.deckEndingToastFilter) {
@@ -78,56 +74,24 @@ struct HomeContentView: View {
         }
     }
 
-    /// 게시물 저장 시트의 딤. Figma `Material/Dimmer`(#171719 52%).
+    /// `다른 방 저장` 이 여는 시트 — 방 변경과 **같은 「홈 방 시트」**다(FR-005·FR-018).
     ///
-    /// 시스템 스크림은 색·투명도를 바꾸는 공개 API 가 없고 실측이 검정 12% 라 시안(52%)과 크게 달라,
-    /// `presentationBackgroundInteraction` 으로 끄고 여기서 직접 깐다(방 리스트 시트와 같은 방식).
-    /// 탭바 자리는 이 딤이 닿지 않으므로(딤이 탭바보다 아래 레이어) `MainTabView` 가 탭바를
-    /// 페이드시켜 뒤의 딤이 비치게 한다 — iOS 26 은 시트를 띄워 그려 시트 아래로 탭바가 드러난다.
-    ///
-    /// 뷰 트리에 **항상** 두고 opacity 만 0↔1 로 애니메이션한다 — 조건부 삽입/제거는 사라지는 순간
-    /// z-order 가 흔들려 콘텐츠가 딤 위로 번쩍인다(roomListDim 과 같은 이유).
-    private var savePostDim: some View {
-        let presented = store.state.savePost != nil
-        return Color.mhMaterialDimmer
-            .ignoresSafeArea()
-            .opacity(presented ? 1 : 0)
-            .contentShape(Rectangle())
-            .onTapGesture { store.send(.dismissSavePost) }   // 시스템 스크림의 바깥탭 닫기를 대신한다
-            .allowsHitTesting(presented)
-            .accessibilityIdentifier("Home.savePost.dim")
-    }
-
-    /// 게시물 저장 바텀시트. Figma `013-1-3`(node 2862:177988) — 마크업은 홈과 익스텐션이 함께 쓰는
-    /// ``SavePostSheet`` 가 그리고, 여기서는 시트 컨테이너(높이·그래버 숨김)만 맡는다.
+    /// 외부 공유 수신의 체크박스형 「방 선택 시트」(013-1-3)가 아니다: 홈 탭은 그 시트를 쓰지 않고,
+    /// 400dp 3열 그리드에서 **방을 누르는 것이 곧 확정**이다. 그래서 방 변경과 같은 ``RoomListView`` 를
+    /// 그대로 쓰고, 체크·비활성으로 표시할 칸만 "이 장소가 이미 담긴 방" 으로 바꿔 넘긴다.
     @ViewBuilder
     private var savePostSheet: some View {
         if let savePost = store.state.savePost {
-            let rooms = store.state.rooms.map(SavePostRoom.init(_:))
-            SavePostSheet(
-                rooms: rooms,
-                checkedRoomIDs: savePost.checkedRoomIDs,
-                disabledRoomIDs: savePost.alreadySavedRoomIDs,
-                canSubmit: savePost.canSubmit,
-                identifierPrefix: "Home.savePost",
-                onToggleRoom: { store.send(.toggleSavePostRoom($0)) },
-                onSave: { store.send(.tapSavePost) }
+            RoomListView(
+                rooms: store.state.rooms,
+                currentRoomID: savePost.savedRoomID,
+                onSelectRoom: { store.send(.savePostToRoom($0)) },
+                onCreateRoom: { store.send(.tapCreateRoom) }
             )
-            // safeAreaBottom 0 — 시스템 시트가 하단 인셋을 이미 넣어 준다. detent 높이도 같은 이유로
-            // 홈 인디케이터를 뺀 값이다(`.height` 는 안전영역 **위쪽** 높이).
-            .presentationDetents([.height(detentHeight(roomCount: rooms.count))])
-            .presentationDragIndicator(.hidden)   // 그래버는 시안대로 시트 안에서 직접 그린다
-            .presentationCornerRadius(20)         // 시안 radius 20 (시스템 기본 10 과 다름)
-            .presentationBackground(.mhBackgroundElevatedNormal)
-            // 시스템 스크림 제거 — 딤은 시안 색으로 프리젠터가 직접 그린다(savePostDim).
-            .presentationBackgroundInteraction(.enabled(upThrough: .height(detentHeight(roomCount: rooms.count))))
+            .presentationDetents([.height(400)])
+            .presentationDragIndicator(.hidden)   // 그래버는 RoomListView 가 직접 그린다
+            .presentationBackgroundInteraction(.enabled(upThrough: .height(400)))   // 시스템 스크림 제거
         }
-    }
-
-    /// 홈은 단계 없이 `full` 하나다 — peek/full 드래그는 013-1 ① 의 **외부 공유** 시트 규칙이고
-    /// 홈 진입에는 대응 시안이 없다. 시스템 시트가 하단 인셋을 넣어 주므로 safeAreaBottom 은 0.
-    private func detentHeight(roomCount: Int) -> CGFloat {
-        SavePostSheetMetrics.height(.full, roomCount: roomCount, safeAreaBottom: 0)
     }
 
     /// 게시물 저장 시트 표시 바인딩 — 스와이프 dismiss 도 reducer 로 흘려보낸다.
@@ -152,23 +116,28 @@ struct HomeContentView: View {
             .accessibilityIdentifier("Home.guide.dim")
     }
 
-    /// 방 리스트가 열릴 때 홈 콘텐츠 위에 까는 딤(Figma `rgba(0,0,0,0.7)`).
+    /// 「홈 방 시트」가 열릴 때 홈 콘텐츠 위에 까는 딤(Figma 002-4-1 `rgba(0,0,0,0.7)`).
     /// 마스코트 아래 레이어라 마스코트는 딤에 안 덮인다. 탭하면 시트를 닫는다.
+    ///
+    /// 방 변경과 `다른 방 저장` 이 **같은 시트**라(FR-005·FR-018) 딤도 하나로 둔다 — 둘 중 무엇이
+    /// 열려 있든 같은 화면이 같은 두께로 가려져야 한다.
     ///
     /// 뷰 트리에 **항상** 두고 opacity 만 0↔1 로 애니메이션한다(조건부 삽입/제거 아님). 이유:
     /// `if` + `.transition` 으로 넣다 빼면 사라지는 순간 딤의 z-order 가 흔들려, 페이드아웃 중
     /// 카드덱·필터칩이 딤 위로 잠깐 번쩍 보였다. 항상 존재하면 z-order 가 고정된다.
-    private var roomListDim: some View {
-        let presented = store.state.isRoomListPresented
+    private var roomSheetDim: some View {
+        let presented = store.state.isRoomListPresented || store.state.savePost != nil
         return Color.black.opacity(0.7)
             .ignoresSafeArea()
             .opacity(presented ? 1 : 0)
             .contentShape(Rectangle())
-            .onTapGesture { store.send(.dismissRoomList) }
+            .onTapGesture {
+                store.send(store.state.savePost != nil ? .dismissSavePost : .dismissRoomList)
+            }
             // 탭 제스처까지 포함해 통째로 게이트 — 가장 바깥에 둬야 닫혀 있을 때 딤이
             // 카드덱 스와이프를 가로채지 않는다(안쪽에 두면 바깥 contentShape·tap 이 터치를 삼킴).
             .allowsHitTesting(presented)
-            .accessibilityIdentifier("Home.roomListDim")
+            .accessibilityIdentifier("Home.roomSheetDim")
     }
 
     /// 방 선택 시트 표시 바인딩 — 스와이프 dismiss 도 reducer 로 흘려보낸다.
@@ -219,8 +188,6 @@ struct HomeContentView: View {
             CardDeckView(
                 pins: store.state.pins,
                 currentIndex: store.state.currentCardIndex,
-                canReturnToPreviousDeck: store.state.canReturnToPreviousFilter,
-                previousDeckLastCard: store.state.previousDeckLastPin,
                 onSwipeForward: { store.send(.swipeForward) },
                 onSwipeBackward: { store.send(.swipeBackward) },
                 onTapCard: { store.send(.tapCard($0)) },
@@ -240,8 +207,6 @@ struct HomeContentView: View {
         CardDeckView(
             pins: HomeGuideMockDeck.pins,
             currentIndex: 0,
-            canReturnToPreviousDeck: false,
-            previousDeckLastCard: nil,
             onSwipeForward: {},
             onSwipeBackward: {},
             onTapCard: { _ in },
@@ -348,8 +313,8 @@ struct HomeContentView: View {
 
     // MARK: - 소진 본문 (모든 방의 장소를 다 봤을 때)
 
-    /// Figma 002-3 「모든 카드를 다 봤을 때」 — 일러스트 + 카피만. CTA("장소 더 보기")는 카드 덱일 때와 같은
-    /// 자리(탭바 위 플로팅)라 HomeTabView 가 그린다. 헤더·필터는 mainContent 가 공통으로 그린다.
+    /// Figma 002-3 「모든 카드를 다 봤을 때」 — 일러스트 + 카피만. 덱을 다시 채우는 CTA("장소 더 보기")는
+    /// PRD 6.0.0 에서 스펙아웃돼 이 화면에 버튼이 없다. 헤더·필터는 mainContent 가 공통으로 그린다.
     private var allViewedBody: some View {
         VStack(spacing: 20) {   // Figma: 일러스트 하단(572) → 카피 상단(592) = base lg 20
             Image(dsImage: "homeAllViewedIllustration")
@@ -418,6 +383,8 @@ struct HomeContentView: View {
                 .padding(.top, 32)
                 .padding(.trailing, 132)
                 .transition(.opacity)
+                // UX-003: 툴팁은 떠 있는 동안 조작을 막지 않는다 — 아래의 방 뱃지·마스코트가 계속 눌린다.
+                .allowsHitTesting(false)
                 .accessibilityIdentifier("Home.roomChangeToast")
         }
     }
@@ -441,6 +408,7 @@ struct HomeContentView: View {
                 .padding(.top, 32)
                 .padding(.trailing, 132)
                 .transition(.opacity)
+                .allowsHitTesting(false)   // UX-003 — 위 방 변경 툴팁과 같은 이유
                 .accessibilityIdentifier("Home.deckEndingToast")
         }
     }
@@ -513,7 +481,8 @@ struct HomeMascotView: View {
                 lastViewedRoom: PreviewLastViewedRoom(),
                 homeGuide: PreviewHomeGuide(),
                 savePin: PreviewSavePin(),
-                fetchProfile: PreviewFetchProfile()
+                fetchProfile: PreviewFetchProfile(),
+                recordPinAccess: PreviewRecordPinAccess()
             )
         )
     )
@@ -530,7 +499,8 @@ struct HomeMascotView: View {
                 lastViewedRoom: PreviewLastViewedRoom(),
                 homeGuide: PreviewHomeGuide(),
                 savePin: PreviewSavePin(),
-                fetchProfile: PreviewFetchProfile()
+                fetchProfile: PreviewFetchProfile(),
+                recordPinAccess: PreviewRecordPinAccess()
             )
         )
     )
@@ -558,6 +528,11 @@ private struct PreviewFetchProfile: FetchProfileUseCase {
     func execute() async throws -> Profile {
         Profile(id: "preview", nickname: "꾹이", avatarColor: nil, createdAt: nil)
     }
+}
+
+/// 프리뷰 전용 — 접근 기록을 보내지 않는다.
+private struct PreviewRecordPinAccess: RecordPinAccessUseCase {
+    func execute(pinID: PinID) async throws {}
 }
 
 /// 프리뷰 전용 — 저장은 아무것도 하지 않는다.

@@ -7,11 +7,6 @@ import SwiftUI
 struct CardDeckView: View {
     let pins: [Pin]
     let currentIndex: Int
-    /// 첫 카드에서 뒤로 넘겼을 때 이전 덱(기준)으로 돌아갈 수 있는지. false 면 첫 카드가 덱의 끝이다.
-    let canReturnToPreviousDeck: Bool
-    /// 그때 돌아올 카드 — 이전 덱의 마지막 카드. 아직 그 덱을 받아 두지 않았으면 nil 이고,
-    /// 전환은 그대로 일어나되 복귀 애니메이션에 얹을 카드만 없다.
-    let previousDeckLastCard: Pin?
     let onSwipeForward: () -> Void
     let onSwipeBackward: () -> Void
     let onTapCard: (PinID) -> Void
@@ -92,8 +87,14 @@ struct CardDeckView: View {
             }
         }
         .frame(maxWidth: .infinity)
+        // 스와이프 인식 영역(FR-003)은 **화면 기준**이라 카드가 아니라 덱 컨테이너를 기준자로 삼는다 —
+        // 카드 로컬 좌표로 재면 드래그로 카드가 움직이는 만큼 기준선도 함께 밀린다.
+        .coordinateSpace(.named(Self.deckSpace))
         .background(widthReader)   // 컨테이너 실측 폭 주입(UIScreen.main 대체)
     }
+
+    /// 스와이프 시작 지점을 재는 좌표계 이름.
+    private static let deckSpace = "HomeCardDeck"
 
     /// 컨테이너 폭을 측정해 `containerWidth` 에 넣는 투명 리더. 레이아웃엔 영향 없다.
     private var widthReader: some View {
@@ -112,9 +113,10 @@ struct CardDeckView: View {
         return Array(pins[CardDeckLayout.visibleRange(currentIndex: currentIndex, pinCount: pins.count)].reversed())
     }
 
-    /// 좌스와이프 때 우상단에서 돌아오는 카드. 덱 안이면 바로 앞 카드, 첫 카드면 이전 덱의 마지막 카드다.
+    /// 좌스와이프 때 우상단에서 돌아오는 카드 — 덱 안의 바로 앞 카드.
+    /// 첫 카드에는 없다: 되돌리기는 덱 경계를 넘지 않는다(EC-003).
     private var previousPin: Pin? {
-        currentIndex > 0 ? pins[currentIndex - 1] : previousDeckLastCard
+        currentIndex > 0 ? pins[currentIndex - 1] : nil
     }
 
     // MARK: - 개별 카드
@@ -134,6 +136,10 @@ struct CardDeckView: View {
     }
 
     /// 카드 더보기(⋮) 메뉴 — Figma `Menu/Menu`.
+    ///
+    /// **항목은 `다른 방 저장` 하나뿐이다**(FR-005). 함께 있던 `장소 가리기` 는 기능 자체를
+    /// 제공하지 않기로 확정돼 사라졌다(FR-006 결번, spec §3.2) — 마음에 들지 않는 카드는
+    /// 좌→우로 넘기면 그 덱에서 빠진다.
     private func moreMenuItems(for pin: Pin) -> [MHMenuItem] {
         [
             MHMenuItem("다른 방 저장") { onSaveToOtherRoom(pin.id) },
@@ -155,23 +161,24 @@ struct CardDeckView: View {
     // MARK: - 스와이프 제스처
 
     private var swipeGesture: some Gesture {
-        DragGesture(minimumDistance: Anim.dragMinimum)
+        DragGesture(minimumDistance: Anim.dragMinimum, coordinateSpace: .named(Self.deckSpace))
             .onChanged { value in
+                // 정책(FR-003): 화면 좌측 영역에서 시작한 드래그는 카드 전환·복구에 반영하지 않는다.
+                // 여기서 걸러지면 dragOffset·returnProgress 가 0 그대로라 onEnded 도 되돌릴 게 없다.
+                guard recognizesSwipe(value) else { return }
                 let dx = value.translation.width
                 if dx >= 0 {
                     // 우측 드래그 — 현재 카드 따라감
                     dragOffset = dx
                     returnProgress = 0
-                } else if CardDeckLayout.allowsBackwardDrag(
-                    currentIndex: currentIndex,
-                    canReturnToPreviousDeck: canReturnToPreviousDeck
-                ) {
+                } else if CardDeckLayout.allowsBackwardDrag(currentIndex: currentIndex) {
                     // 좌측 드래그 — 현재 카드 고정, 이전 카드 등장
                     dragOffset = 0
                     returnProgress = min(1, abs(dx) / Anim.backwardDragRange)
                 }
             }
             .onEnded { value in
+                guard recognizesSwipe(value) else { return }
                 // "무엇을 할지" 판정은 순수 함수(CardDeckLayout)로 분리하고, 여기선 그 결과에 애니메이션만 건다.
                 switch CardDeckLayout.swipeOutcome(
                     predicted: value.predictedEndTranslation.width,
@@ -191,6 +198,10 @@ struct CardDeckView: View {
                     }
                 }
             }
+    }
+
+    private func recognizesSwipe(_ value: DragGesture.Value) -> Bool {
+        CardDeckLayout.recognizesSwipe(startX: value.startLocation.x, containerWidth: containerWidth)
     }
 
     // MARK: - 우스와이프 (다음 카드)

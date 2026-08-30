@@ -38,6 +38,7 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
     /// 앱 진입 분기(`LaunchDeps`)가 등록 여부를 묻는 데 쓴다 — 프로필이 있으면 온보딩을 마친 것이다.
     /// 마이페이지 프로필 설정(`.edit`)도 진입하면서 이걸로 현재 값을 채운다.
     let fetchProfile: FetchProfileUseCase
+    let recordPinAccess: RecordPinAccessUseCase
     let updateProfile: UpdateProfileUseCase
     let notificationSetting: NotificationSettingUseCase
     let locationSetting: LocationSettingUseCase
@@ -82,6 +83,8 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
         self.fetchHomeCards = DefaultFetchHomeCardsUseCase(repository: pins)
         self.fetchRoomPins = DefaultFetchRoomPinsUseCase(repository: pins)
         self.fetchPinDetail = DefaultFetchPinDetailUseCase(repository: pins)
+        // 「경과일 초기화 확인」(홈 spec FR-007) — 상세를 연 사실을 서버에 남긴다.
+        self.recordPinAccess = DefaultRecordPinAccessUseCase(repository: pins)
         // 삭제만 스텁이다 — 서버에 삭제 엔드포인트가 없다(`StubPinDeletionRepository` 주석).
         self.deletePin = DefaultDeletePinUseCase(repository: StubPinDeletionRepository())
 
