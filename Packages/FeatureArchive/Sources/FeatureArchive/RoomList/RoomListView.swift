@@ -8,6 +8,8 @@ import SwiftUI
 struct RoomListView: View {
     let store: RoomListStore
     let isFull: Bool
+    /// 시트 아래를 덮는 탭바 높이 — 카드 목록이 그만큼 더 스크롤돼야 마지막 카드가 가리지 않는다.
+    let bottomInset: CGFloat
     let onCollapse: () -> Void
 
     var body: some View {
@@ -15,6 +17,7 @@ struct RoomListView: View {
             rooms: store.state.rooms.map(RoomListItem.init(from:)),
             showEmptyState: !store.state.hasSharedRoom,
             isFull: isFull,
+            bottomInset: bottomInset,
             filterSelection: filterBinding,
             onClose: onCollapse,
             onSelectRoom: selectRoom,
@@ -44,6 +47,10 @@ struct RoomListContentView: View {
     let rooms: [RoomListItem]
     let showEmptyState: Bool
     let isFull: Bool
+    /// 스크롤 콘텐츠 아래에 더 둘 여백. 시트를 덮는 탭바 높이가 들어온다 — `MHBottomSheet` 은
+    /// 탭바가 없는 것처럼 safe area 바닥까지 자리를 잡아, 이 보정이 없으면 **마지막 카드가
+    /// 탭바에 가린다**(``MHTabBar/height`` 주석이 경고하는 그 함정).
+    var bottomInset: CGFloat = 0
     @Binding var filterSelection: Int
     var onClose: (() -> Void)?
     var onSelectRoom: ((RoomListItem.ID) -> Void)?
@@ -171,6 +178,7 @@ struct RoomListContentView: View {
                 }
             }
             .padding(.horizontal, 20)
+            .padding(.bottom, bottomInset)
         }
         .accessibilityIdentifier("RoomList.cardList")
     }

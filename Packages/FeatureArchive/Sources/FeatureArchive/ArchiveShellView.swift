@@ -292,6 +292,7 @@ struct ArchiveShellView: View {
                 RoomListView(
                     store: roomList,
                     isFull: detent == .full,
+                    bottomInset: tabBarCoverage,
                     onCollapse: { withAnimation(.spring(duration: 0.3)) { detent = .medium } }
                 )
             }
