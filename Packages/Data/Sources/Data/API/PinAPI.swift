@@ -32,6 +32,14 @@ enum PinAPI {
         Endpoint(path: "\(base)/\(pinID)")
     }
 
+    /// 장소를 **열어 봤다**고 기록한다 (`POST /api/v1/pins/{pinId}/accesses`).
+    ///
+    /// append-only 로그라 같은 장소를 여러 번 보내도 된다. 서버는 이 기록을 홈 카드 덱의
+    /// 묵힘 계산(꾹 Pick 경과일 초기화)과 클릭수 집계(`친구들이 많이 본 곳` 라벨)에 쓴다.
+    static func recordAccess(pinID: String) -> Endpoint<OkResponse> {
+        Endpoint(path: "\(base)/\(pinID)/accesses", method: .post)
+    }
+
     /// 인스타그램 링크에서 장소를 추출해 **여러 방에** 핀을 추가한다.
     ///
     /// **202 Accepted 에 본문이 없다** — 서버가 추출을 비동기로 하므로 돌려줄 핀이 아직 없다.

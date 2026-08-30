@@ -6,7 +6,7 @@ import Networking
 ///
 /// 목록과 상세를 **한 타입이 겸한다** — 상세가 목록에 없는 값을 지어내지 않게 같은 매핑 규칙을
 /// 공유하려는 것이다(목 시절 `MockPinRepository` 가 한 판단을 그대로 잇는다).
-public struct PinRepositoryImpl: PinRepository, PinDetailRepository {
+public struct PinRepositoryImpl: PinRepository, PinDetailRepository, PinAccessRepository {
     private let client: HTTPClient
 
     public init(client: HTTPClient) {
@@ -33,6 +33,14 @@ public struct PinRepositoryImpl: PinRepository, PinDetailRepository {
     public func pinDetail(id: PinID) async throws -> PinDetail {
         do {
             return try await client.request(PinAPI.detail(pinID: id.value)).toDomain()
+        } catch let error as NetworkError {
+            throw Self.mapToDomain(error)
+        }
+    }
+
+    public func recordAccess(pinID: PinID) async throws {
+        do {
+            _ = try await client.request(PinAPI.recordAccess(pinID: pinID.value))
         } catch let error as NetworkError {
             throw Self.mapToDomain(error)
         }
