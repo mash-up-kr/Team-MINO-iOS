@@ -52,6 +52,14 @@ public final class ArchiveCoordinator: Coordinator {
 
     /// 탭바 자체를 레이아웃에서 빼야 하는 전체화면 상태인가 — MainTabView 가 본다.
     /// 방 상세 시트, 그리고 자체 상단바를 가진 push 화면(공동방 만들기)이 여기 해당한다.
+    ///
+    /// **방 리스트 시트가 `Full` 로 올라간 상태는 여기 넣지 않는다 — 탭바를 유지한다.**
+    /// PRD [SYS-005] Flow B 는 "3단 바텀시트가 `Full` 로 승격된 상태에서는 감춘다" 라고 적혀 있지만,
+    /// 시안은 반대로 그려져 있다(`003-1-3 full`·`003-2-3 full` 두 프레임 모두 `Bottom Navigation`
+    /// 인스턴스를 y=711/714 에 두고 있다). **시안을 따르기로 확정했다**(담당자 결정 2026-08-30).
+    ///
+    /// 문서와 어긋나는 쪽이라 여기 적어 둔다 — PRD 만 보고 "버그" 로 판단해 되돌리지 않도록.
+    /// 방 상세(`[SCR-005]` "몰입감을 위해 바텀 네비게이션 비노출")는 이와 별개로 계속 감춘다.
     public var isFullBleedContentPresented: Bool {
         isRoomDetailPresented || !path.isEmpty
     }
