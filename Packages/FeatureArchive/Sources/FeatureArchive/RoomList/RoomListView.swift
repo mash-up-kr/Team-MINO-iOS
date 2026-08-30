@@ -245,11 +245,30 @@ extension RoomListItem {
             memo: room.description,
             placeCount: room.pinCount,
             thumbnail: Self.thumbnail(for: room),
-            members: AvatarPalette.images(of: room.users.map(\.avatarColor))
+            members: AvatarPalette.images(of: Self.memberAvatarColors(of: room))
         )
     }
 
+    /// 카드에 그릴 멤버 아바타 색 — 003-2 ⑤ "최대 5개 이상 표시하지 않는다 / 정렬(오른쪽 부터)
+    /// 기준은 가장 최근에 위치를 저장한 사람 기준으로 우에서 좌로".
+    ///
+    /// 정렬 기준은 **서버가 이미 맞춰서 준다** — `GET /api/v1/rooms?showUsers=true` 스펙이
+    /// "최근에 장소를 저장한 멤버가 먼저, 핀 없는 멤버는 가입순으로 뒤" 다. 여기서 할 일은 그 순서를
+    /// 화면 방향에 맞추는 것뿐이다: ``MHAvatarGroup`` 은 배열 앞을 왼쪽에 놓으므로, 뒤집어야 최신이
+    /// 오른쪽 끝에 선다.
+    ///
+    /// **자르기가 먼저, 뒤집기가 나중이다.** 순서를 바꾸면 최신 5명이 아니라 가장 오래된 5명이 남는다
+    /// (``AvatarPalette/images(of:)`` 도 앞에서 자르므로 뒤집은 뒤 맡기면 그렇게 된다).
+    static func memberAvatarColors(of room: Room) -> [AvatarColor?] {
+        room.users.prefix(AvatarPalette.displayLimit).reversed().map(\.avatarColor)
+    }
+
     private static func thumbnail(for room: Room) -> MHRoomThumbnailKind {
+        // 003-2 ④ — 장소가 있으면 그 사진들이 콜라주로. 방 종류보다 우선한다(개인방도 사진이 쌓인다).
+        if !room.placeThumbnails.isEmpty {
+            return .fullRemote(room.placeThumbnails)
+        }
+        // 003-2 ③ — 장소 0개면 생성 시 고른 컬러칩+캐릭터 조합을 그대로 유지한다.
         switch room.type {
         case .personal:
             return .myRoom
