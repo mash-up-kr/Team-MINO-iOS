@@ -77,6 +77,14 @@ struct RoomFormContent: View {
                 .disabled(!state.isSubmitEnabled)
             }
         }
+        // 키보드가 올라와도 화면(스크롤뷰)이 줄어들지 않게 한다.
+        //
+        // 줄어들면 입력 필드가 "키보드에 덮인" 게 아니라 "컨테이너가 작아져 밀려난" 상태가 되는데,
+        // SwiftUI 의 자동 스크롤은 **덮였을 때만** 발동해서 필드가 액션바 뒤로 사라진 채 방치된다
+        // (방 설명이 그랬다). 높이를 유지하면 키보드가 필드를 실제로 덮으므로 내장 회피가 정상 동작한다.
+        //
+        // 대가로 입력 중에는 액션바가 키보드 뒤로 숨는다 — 필드가 가려지는 것보다 낫다고 보고 택했다.
+        .ignoresSafeArea(.keyboard, edges: .bottom)
         .background(Color.mhBackgroundNormalNormal)
         // 방 설명(MHTextArea)은 리턴키가 개행이라 리턴키로 못 닫는다. 키보드가 하단을 가리면 방 색상
         // 그리드에 접근 자체가 안 되므로(이슈 #93) 스크롤·여백 탭 두 탈출로를 함께 건다.
