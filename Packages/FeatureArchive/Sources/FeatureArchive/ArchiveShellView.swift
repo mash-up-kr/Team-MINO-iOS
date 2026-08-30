@@ -68,12 +68,24 @@ struct ArchiveShellView: View {
         .roomDetailMoreMenu(store: detailStore, detent: detent)
         .animation(.easeInOut(duration: 0.2), value: toastMessage)
         .onChange(of: detent) { _, _ in sortMenuOpen = false }
+        // **가드는 "생성"에만 걸고 "로드"에는 걸지 않는다.** 이 `.task` 는 껍데기가 다시 보일 때마다
+        // 도는데(공동방 만들기에서 pop · 탭 복귀), `guard roomListStore == nil else { return }` 로
+        // 통째로 막으면 방 목록이 **처음 한 번만** 조회된다 — 방을 만들고 돌아와도 목록에 없고,
+        // 탭을 나갔다 와야(뷰가 새로 만들어져 store 가 nil 이 됨) 그제야 보인다.
         .task {
-            guard roomListStore == nil else { return }
-            let store = coordinator.makeRoomListStore()
-            roomListStore = store
-            store.send(.load)
+            let store: RoomListStore
+            if let roomListStore {
+                store = roomListStore
+            } else {
+                store = coordinator.makeRoomListStore()   // store 는 1회만 (@State 로 유지)
+                roomListStore = store
+            }
+            store.send(.load)                             // 조회는 다시 보일 때마다
         }
+        // 껍데기가 **사라지지 않는** 사이에 방이 늘어난 경우(공유 시트 위 커버에서 방 생성).
+        // 위 `.task` 는 시트가 떠도 돌지 않으므로 그 경로는 이 신호로만 갱신된다.
+        // 방을 만든 직후라 공동방이 반드시 있어 이 재조회가 유도 시트를 띄우지는 않는다.
+        .onChange(of: coordinator.roomsRevision) { _, _ in roomListStore?.send(.load) }
         .task(id: coordinator.selectedRoom?.id) { syncDetailStore() }
         .task(id: coordinator.selectedPin?.id.value) { syncPlaceStore() }
         .sheet(item: $coordinator.sharingLocation, onDismiss: showShareToast) { location in
@@ -81,7 +93,8 @@ struct ArchiveShellView: View {
                 location: location,
                 makeStore: { coordinator.makeRoomShareStore(location: location) },
                 createRoomChild: $coordinator.shareCreateRoomChild,
-                onClose: { coordinator.sharingLocation = nil }
+                onClose: { coordinator.sharingLocation = nil },
+                onRoomCreated: coordinator.roomsDidChange
             )
             // `.presentationDetents` 는 시트가 직접 단다 — full 높이가 방 개수로 갈리는데
             // 그 개수는 시트 안의 `RoomShareStore` 만 안다(``RoomShareSheet`` 주석).
@@ -251,10 +264,6 @@ struct ArchiveShellView: View {
                 )
             }
         }
-        // 방 개수가 바뀌면 half 높이도 바뀐다(003-2 ①②). 목록이 오기 전 카드 1장 높이로 떴다가
-        // 응답이 오는 순간 두세 장 높이로 **뛰므로**, 그 변화만 스프링으로 잇는다.
-        // 값을 방 개수로 잡아 시트 단계 전환·드래그에는 걸리지 않게 한다(그쪽은 `MHBottomSheet` 몫).
-        .animation(.spring(duration: 0.3), value: roomList.state.rooms.count)
         .accessibilityIdentifier(sheetIdentifier)
     }
 
@@ -294,18 +303,13 @@ struct ArchiveShellView: View {
     /// `MHBottomSheet` 은 여기 준 값에 `bottomCoverage`(탭바) 만 더해 그린다. 홈 인디케이터는
     /// 시트의 레이아웃 상자 밖이라 더하지 않는다(`MHBottomSheet` 의 `fraction` 주석).
     ///
-    /// - 방 리스트 88 · 256/360/380 (003-1 ②③ · 003-2 ①②) — 시안이 "바텀네비게이션 높이 제외"
-    ///   라고 못박아 기준이 같다. half 는 **드러낼 카드 수로 갈리므로** 방 개수를 넘겨 받는다.
-    ///   숫자를 여기 적지 않고 ``RoomListContentView/Metric`` 에서 가져온다: 조각의 합이라
-    ///   헤더·칩을 고치면 여기도 따라가야 한다.
+    /// - 방 리스트 88·256 (004-1 ②③) — 시안이 "바텀네비게이션 높이 제외" 라고 못박아 기준이 같다.
     /// - 장소 상세 335 (005-1 ⑫) — 시안의 369 는 **화면 끝까지** 잰 값이다(375×812 프레임에서 실측
     ///   367pt). 그 화면은 탭바가 없어 하단 safe-area 가 홈 인디케이터 34pt 뿐이므로 369 − 34 다.
     /// - 방 상세 156·405 — 시안에 숫자가 없어 그대로 둔다. 확정되면 그때 맞춘다.
     private var peek: (low: CGFloat?, medium: CGFloat) {
         if placeStore != nil { return (nil, 335) }
-        guard detailStore == nil else { return (156, 405) }
-        let roomCount = roomListStore?.state.rooms.count ?? 0
-        return (RoomListContentView.Metric.peek, RoomListContentView.Metric.half(roomCount: roomCount))
+        return detailStore == nil ? (88, 256) : (156, 405)
     }
 
     private static let roomListCategories = ["전체", "카페", "음식점"]

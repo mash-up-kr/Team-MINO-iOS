@@ -71,6 +71,14 @@ public final class ArchiveCoordinator: Coordinator {
     /// 않는다 — 두면 플래그와 목록이 어긋날 짝이 생긴다.
     var savedRooms: SavedRoomsPresentation?
 
+    /// 방 목록이 바뀐 횟수. 껍데기가 이 값의 변화를 보고 방 리스트를 다시 받는다(``ArchiveShellView``).
+    ///
+    /// 껍데기가 사라졌다 돌아오는 전환(공동방 만들기 push→pop · 탭 복귀)은 `.task` 가 이미 재조회하므로
+    /// 여기서 세지 않는다 — 세면 한 번의 복귀에 조회가 두 번 나가고, 두 번째 `.loaded` 가
+    /// ``RoomListState/skipsNextCreatePrompt`` 를 이미 쓴 뒤라 취소하고 나온 사용자에게 유도 시트가 뜬다.
+    /// **시트가 떠 있어 껍데기가 살아 있는 동안 방이 늘어난 경우**(공유 시트 위 커버에서 방 생성)만 센다.
+    private(set) var roomsRevision = 0
+
     /// 공유 저장이 **성공했을 때만** 서는 1회성 신호. 시트가 닫힌 뒤 껍데기가 소비해 완료 토스트를
     /// 띄운다. X 로 닫거나 저장에 실패하면 서지 않는다 — 그 자리에 완료 토스트가 뜨면 거짓말이 된다.
     /// 관찰 대상이 아니다(소비 시점이 `onDismiss`, 즉 뷰 갱신 중이라 관찰되면 재갱신을 부른다).
@@ -215,6 +223,10 @@ public final class ArchiveCoordinator: Coordinator {
         }
     }
 
+    /// 방 목록이 바뀌었다고 알린다. 지금 부르는 곳은 공유 시트 위 커버의 방 생성뿐이다.
+    func roomsDidChange() {
+        roomsRevision += 1
+    }
     /// 공유 완료 신호를 읽고 지운다. 두 번째 호출은 `false` — 같은 저장으로 토스트가 두 번 뜨지 않는다.
     func consumeSavedShare() -> Bool {
         defer { savedShare = false }
