@@ -15,7 +15,9 @@ struct HomeContentView: View {
             guideBackgroundWash  // 홈 가이드 딤 — 콘텐츠 아래(배경색 위)
             mainContent
             roomListDim          // 방 리스트 열릴 때 — 마스코트 아래(홈 콘텐츠만 덮는다)
-            if store.state.showsRoomIdentity {
+            // 가이드 중에는 방 정체성을 무조건 세운다 — 안내가 뱃지·토끼를 화살표로 가리키므로
+            // (「방 뱃지와 토끼를 클릭하면」) 그 둘이 없으면 화살표가 빈자리를 가리킨다.
+            if store.state.showsRoomIdentity || store.state.isGuidePresented {
                 // 시안에서 바와 캐릭터는 한 그룹(Group 283)이라 함께 넣고, 캐릭터를 바 위에 얹는다.
                 mascotBar        // 딤 위 — 밝게 유지. 개인방만 있고 비었을 때만 숨김 (Figma 002-6-1)
                 mascotCharacter
@@ -36,6 +38,9 @@ struct HomeContentView: View {
         // (콘텐츠 크기 카드가 못 만드는 화면 전체 바깥탭 스크림을 화면 레벨에서 정확한 z-order 로 그린다).
         .mhHomeCardMenuHost()
         .task { store.send(.load) }
+        // 가이드도 방·덱 조회와 따로 묻는다(HomeAction.checkGuide 주석) — 안내가 가리키는 덱은
+        // 모형이라 조회 결과를 기다릴 이유가 없다. 재진입해도 "1회" 는 markSeen 이 지킨다.
+        .task { store.send(.checkGuide) }
         // 마스코트 색은 방·덱 조회와 따로 받는다(HomeAction.loadMyAvatar 주석). 탭을 오갈 때마다
         // 이 뷰가 새로 만들어지므로, 마이페이지에서 아바타를 바꾸고 돌아오면 여기서 다시 읽힌다.
         .task { store.send(.loadMyAvatar) }
@@ -191,25 +196,25 @@ struct HomeContentView: View {
 
     /// 정책: 로딩이 끝나고 현재 정렬 기준으로 표시할 카드가 0장이면(방·공동방 유무 무관) 빈 상태를 띄운다.
     ///
-    /// 가이드가 떠 있을 때: 카드 덱은 **맨 앞 카드만** 딤 위에 남기고(스포트라이트), 카드가 없는
-    /// 상태(로딩·빈 상태·소진)는 가리킬 대상이 없으므로 본문 통째로 딤 뒤로 물러난다.
+    /// 가이드가 떠 있을 때는 실제 덱 대신 **모형 덱**(``HomeGuideMockDeck``)을 그린다 — 맨 앞 카드만
+    /// 딤 위에 남는 스포트라이트 구조는 그대로다.
     @ViewBuilder
     private var contentBody: some View {
+        if store.state.isGuidePresented {
+            guideMockDeck
+            Spacer()
         // 기준을 바꿔 덱을 받는 중이면(캐시 없을 때만) 로딩으로 둔다 — 그 사이 빈 상태·소진 화면이
         // 한 프레임 끼어들면 화면이 깜빡인다. 받아 둔 기준으로 되돌아갈 땐 즉시 전환이라 여기 안 걸린다.
-        if store.state.isLoading || (store.state.isDeckLoading && store.state.pins.isEmpty) {
+        } else if store.state.isLoading || (store.state.isDeckLoading && store.state.pins.isEmpty) {
             Spacer()
             ProgressView()
                 .frame(maxWidth: .infinity)
-                .homeGuideDimmed(store.state.isGuidePresented)
                 .accessibilityIdentifier("Home.state.loading")
             Spacer()
         } else if store.state.showsEmptyState {
             emptyStateBody
-                .homeGuideDimmed(store.state.isGuidePresented)
         } else if store.state.hasViewedAllPlaces {
             allViewedBody
-                .homeGuideDimmed(store.state.isGuidePresented)
         } else {
             CardDeckView(
                 pins: store.state.pins,
@@ -219,8 +224,7 @@ struct HomeContentView: View {
                 onSwipeForward: { store.send(.swipeForward) },
                 onSwipeBackward: { store.send(.swipeBackward) },
                 onTapCard: { store.send(.tapCard($0)) },
-                onSaveToOtherRoom: { store.send(.tapSaveToOtherRoom($0)) },
-                isGuidePresented: store.state.isGuidePresented
+                onSaveToOtherRoom: { store.send(.tapSaveToOtherRoom($0)) }
             )
             .padding(.top, 112)   // 앞 카드 고정 위치. 풀 덱일 때 뒤 카드 최상단이 필터 32pt 아래(112−80)에 오도록
             .accessibilityIdentifier("Home.cardDeck")
@@ -228,12 +232,32 @@ struct HomeContentView: View {
         }
     }
 
+    /// 가이드가 가리키는 모형 덱. 실제 덱과 같은 뷰를 같은 자리에 놓아 안내가 끝나면
+    /// 그 자리에 진짜 카드가 들어서게 한다(모형을 따로 그리면 치수가 갈라져 닫는 순간 덱이 튄다).
+    /// 스와이프·탭 콜백은 비워 둔다 — 가이드 오버레이가 터치를 통째로 막아(``HomeGuideOverlay``)
+    /// 여기까지 제스처가 닿지 않고, 모형을 넘겨서 갈 곳도 없다.
+    private var guideMockDeck: some View {
+        CardDeckView(
+            pins: HomeGuideMockDeck.pins,
+            currentIndex: 0,
+            canReturnToPreviousDeck: false,
+            previousDeckLastCard: nil,
+            onSwipeForward: {},
+            onSwipeBackward: {},
+            onTapCard: { _ in },
+            onSaveToOtherRoom: { _ in },
+            isGuidePresented: true
+        )
+        .padding(.top, 112)   // 실제 덱과 같은 자리
+        .accessibilityIdentifier("Home.guide.mockDeck")
+    }
+
     // MARK: - 헤더 (방 뱃지 or 로고 + 타이틀)
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if store.state.showsRoomIdentity, let room = store.state.currentRoom {
-                MHContentBadge(room.homeDisplayName, size: .medium)   // 공동방 "…방" / 개인방 "내 장소"
+            if let roomBadgeTitle {
+                MHContentBadge(roomBadgeTitle, size: .medium)   // 공동방 "…방" / 개인방 "내 장소"
                     .contentShape(Rectangle())
                     .onTapGesture { store.send(.tapRoomBadge) }   // 정책: 뱃지 탭 → 방 선택 바텀 시트
                     .accessibilityIdentifier("Home.roomBadge")
@@ -255,6 +279,18 @@ struct HomeContentView: View {
                 .homeGuideDimmed(store.state.isGuidePresented)
                 .accessibilityIdentifier("Home.title")
         }
+    }
+
+    /// 방 뱃지 표기. nil 이면 뱃지 자리에 로고(GGUK)가 선다.
+    ///
+    /// 가이드 중에는 방을 아직 못 읽었어도 표기를 만든다 — 안내가 뱃지를 화살표로 가리키기 때문이다
+    /// (「방 뱃지와 토끼를 클릭하면」). 방이 있으면 그 방의 진짜 이름을 쓰고, 없을 때만 모형 표기로
+    /// 떨어진다(``HomeGuideMockDeck/roomBadgeTitle``) — 내 방 이름 자리에 가짜 이름을 앉히지 않는다.
+    private var roomBadgeTitle: String? {
+        if let room = store.state.currentRoom, store.state.showsRoomIdentity || store.state.isGuidePresented {
+            return room.homeDisplayName
+        }
+        return store.state.isGuidePresented ? HomeGuideMockDeck.roomBadgeTitle : nil
     }
 
     // MARK: - 필터바
