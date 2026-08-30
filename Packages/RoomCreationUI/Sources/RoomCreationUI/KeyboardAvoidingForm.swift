@@ -1,5 +1,6 @@
 import DesignSystem
 import SwiftUI
+import UIKit
 
 /// 입력 폼 화면의 스크롤·키보드·고정 바 배치를 한 곳에 모은 껍데기.
 ///
@@ -20,8 +21,12 @@ struct KeyboardAvoidingForm<Content: View, TopBar: View, BottomBar: View>: View 
     /// 하단 바의 높이. 오버레이라 스크롤뷰가 모르므로 콘텐츠 아래 여백으로 직접 비켜 준다.
     @State private var bottomBarHeight: CGFloat = 0
 
-    /// 키보드가 올라와 스크롤뷰 인셋이 갱신되기를 기다리는 시간.
-    private static var insetSettleDelay: Duration { .milliseconds(300) }
+    /// 키보드 애니메이션이 끝나 스크롤뷰 인셋이 안정되기까지 기다릴 시간.
+    ///
+    /// 시스템이 알려주는 **실제** 애니메이션 시간을 쓴다. 상수로 박으면 기기·iOS 버전마다 다른 길이를
+    /// 추측하는 셈이라, 느린 기기에서 인셋이 아직 안 잡힌 채 스크롤해 목적지가 어긋난다.
+    /// 첫 포커스처럼 알림을 아직 못 받은 때를 위해 표준값으로 시작한다.
+    @State private var insetSettleDelay: TimeInterval = 0.3
 
     init(
         @ViewBuilder content: () -> Content,
@@ -47,6 +52,15 @@ struct KeyboardAvoidingForm<Content: View, TopBar: View, BottomBar: View>: View 
             .overlay { pinnedBottomBar }
             .onPreferenceChange(MHFocusedFieldKey.self) { focused in
                 Task { @MainActor in focusedField = focused }
+            }
+            // 읽었으면 여기서 소비한다. 그냥 두면 이 폼 바깥까지 올라가, 한 화면에 폼이 둘 이상일 때
+            // 서로의 포커스가 섞인다(`reduce` 가 먼저 만난 값을 쥔다).
+            .transformPreference(MHFocusedFieldKey.self) { $0 = nil }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { note in
+                guard let duration = note.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? TimeInterval,
+                      duration > 0
+                else { return }
+                insetSettleDelay = duration
             }
             .task(id: focusedField) { await revealFocusedField(with: proxy) }
         }
@@ -84,7 +98,7 @@ struct KeyboardAvoidingForm<Content: View, TopBar: View, BottomBar: View>: View 
     private func revealFocusedField(with proxy: ScrollViewProxy) async {
         guard let focusedField else { return }
         // 취소(포커스 이동·화면 이탈)는 스크롤할 이유가 사라진 것이므로 그냥 빠져나간다.
-        do { try await Task.sleep(for: Self.insetSettleDelay) } catch { return }
+        do { try await Task.sleep(for: .seconds(insetSettleDelay)) } catch { return }
         withAnimation { proxy.scrollTo(focusedField, anchor: .center) }
     }
 }
