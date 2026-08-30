@@ -74,6 +74,28 @@ struct AvatarPaletteTests {
         #expect(AvatarPalette.character(of: nil) == .character01)   // 얼굴 쪽 폴백은 그대로
     }
 
+    // 아바타 슬롯이 쓰는 그림은 새 아트(`character/Avatar Profile`)다.
+    @Test("색으로 고른 아바타 프로필은 그리드 표와 같다")
+    func profileMatchesTable() {
+        for entry in AvatarPalette.entries {
+            #expect(AvatarPalette.profile(of: entry.color) == entry.profile)
+        }
+    }
+
+    @Test("12색이 서로 다른 아바타 프로필로 짝지어진다")
+    func profilesAreDistinct() {
+        let profiles = Set(AvatarPalette.entries.map(\.profile))
+        #expect(profiles.count == AvatarPalette.entries.count)
+        // 13종 중 `plain` 만 그리드 밖에 남는다 — "아직 안 고름" 자리.
+        #expect(profiles.union([.plain]) == Set(MHAvatarProfile.allCases))
+    }
+
+    // 마스코트와 같은 처리다. 남의 계정을 빨간 캐릭터로 그리면 그 사람이 빨강을 고른 것처럼 보인다.
+    @Test("아바타 색이 없으면 소품 없는 검은 프로필이다")
+    func absentColorFallsBackToPlainProfile() {
+        #expect(AvatarPalette.profile(of: nil) == .plain)
+    }
+
     @Test("한 줄에 늘어놓는 얼굴은 displayLimit 개까지")
     func imagesAreCapped() {
         let colors: [AvatarColor?] = Array(repeating: .red, count: AvatarPalette.displayLimit + 3)
