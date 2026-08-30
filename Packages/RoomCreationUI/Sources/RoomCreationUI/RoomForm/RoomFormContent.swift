@@ -47,42 +47,48 @@ struct RoomFormContent: View {
         static let thumbnailSize: CGFloat = 80
     }
 
+    // 접근성 식별자이자 스크롤 목적지 id — 포커스 통지가 이 문자열로 올라오므로 둘이 같아야 한다.
+    private static let nameFieldID = "RoomForm.nameField"
+    private static let descriptionFieldID = "RoomForm.descriptionField"
+
     private let namePlaceholder = "방 이름을 입력해 주세요."
     private let descriptionPlaceholder = "어떤 장소들을 모으는 방인가요?"
 
     var body: some View {
-        VStack(spacing: 0) {
+        KeyboardAvoidingForm {
+            VStack(spacing: 30) {
+                previewCard
+                nameField.id(Self.nameFieldID)
+                descriptionField.id(Self.descriptionFieldID)
+                colorPicker
+            }
+            .padding(20)
+        } topBar: {
             MHTopNavigation(
                 title: state.mode.title,
                 onBack: showsBack ? { send(.tapBack) } : nil,
                 onSkip: showsSkip ? { send(.tapSkip) } : nil
             )
-            ScrollView {
-                VStack(spacing: 30) {
-                    previewCard
-                    nameField
-                    descriptionField
-                    colorPicker
-                }
-                .padding(20)
-            }
-            // 액션 영역을 VStack 자식으로 두면 키보드가 올라올 때 MHActionArea 의 하단 안전영역 측정에
-            // 키보드 높이가 섞여 스크롤뷰가 찌그러진다. safeAreaInset 으로 붙여 키보드 회피를 맡긴다.
-            .safeAreaInset(edge: .bottom) {
-                MHActionArea(
-                    main: MHAction(state.mode.submitTitle) { send(.tapSubmit) },
-                    sticky: true,
-                    safeArea: false
-                )
-                .disabled(!state.isSubmitEnabled)
-            }
+        } bottomBar: {
+            actionArea
         }
-        .background(Color.mhBackgroundNormalNormal)
         // 방 설명(MHTextArea)은 리턴키가 개행이라 리턴키로 못 닫는다. 키보드가 하단을 가리면 방 색상
         // 그리드에 접근 자체가 안 되므로(이슈 #93) 스크롤·여백 탭 두 탈출로를 함께 건다.
         .mhFormKeyboardDismissal()
         .mhDialog(item: state.dialog) { confirmDialog($0) }
         .overlay(alignment: .bottom) { saveErrorSnackbar }
+    }
+
+    // MARK: 하단 액션 영역
+
+    private var actionArea: some View {
+        MHActionArea(
+            main: MHAction(state.mode.submitTitle) { send(.tapSubmit) },
+            sticky: true,
+            // 바닥에 고정된 오버레이라 SwiftUI 가 홈 인디케이터를 대신 띄워 주지 않는다.
+            safeArea: true
+        )
+        .disabled(!state.isSubmitEnabled)
     }
 
     // MARK: 저장 실패 안내
@@ -175,7 +181,7 @@ struct RoomFormContent: View {
             // 오류 문구를 따로 두지 않는다 — 디자인(001-1-3)은 같은 안내문을 빨갛게 물들인다.
             description: "한글·영문·숫자만 입력 가능해요. (공백 포함 \(RoomFormLimit.name)자 이내)",
             status: state.isNameValid ? .normal : .negative,
-            identifier: "RoomForm.nameField"
+            identifier: Self.nameFieldID
         )
     }
 
@@ -185,7 +191,7 @@ struct RoomFormContent: View {
             text: binding(\.roomDescription, RoomFormAction.roomDescriptionChanged),
             heading: "방 설명",
             status: state.isDescriptionValid ? .normal : .negative,
-            identifier: "RoomForm.descriptionField",
+            identifier: Self.descriptionFieldID,
             bottomLeading: {
                 MHCharacterCounter(count: state.roomDescription.count, limit: RoomFormLimit.description)
             }
