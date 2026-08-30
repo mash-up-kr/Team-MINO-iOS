@@ -299,6 +299,33 @@ struct ArchiveCoordinatorTests {
             #expect(coordinator.roomsRevision == before)
         }
     }
+
+    // spec FR-007 — 만든 방 id 를 세워 두고, 껍데기가 방 리스트에 넘겨 상세로 잇는다.
+    @Test("FR-007 — didSubmit 은 만든 방 id 를 남기고, 한 번만 소비된다")
+    func didSubmit_recordsCreatedRoomID() {
+        let coordinator = makeCoordinator()
+        coordinator.handle(RoomListNav.goToCreateRoom)
+
+        coordinator.handle(RoomFormNav.didSubmit(roomId: "room-9"))
+
+        #expect(coordinator.path.isEmpty)   // 리스트로 pop 한 뒤 상세로 이어진다
+        #expect(coordinator.consumeCreatedRoomID() == "room-9")
+        #expect(coordinator.consumeCreatedRoomID() == nil)   // 같은 생성으로 두 번 열리지 않는다
+    }
+
+    // 취소·건너뛰기는 방을 만들지 않았으니 이어 갈 상세도 없다.
+    @Test("FR-007 — 취소·건너뛰기는 방 id 를 남기지 않는다")
+    func cancelDoesNotRecordCreatedRoomID() {
+        for nav: RoomFormNav in [.didCancel, .didSkip] {
+            let coordinator = makeCoordinator()
+            coordinator.handle(RoomListNav.goToCreateRoom)
+
+            coordinator.handle(nav)
+
+            #expect(coordinator.consumeCreatedRoomID() == nil)
+        }
+    }
+
     @Test("goToCreateRoom 은 방 만들기 화면을 push 하고 탭바를 감춘다")
     func handleGoToCreateRoom_pushes() {
         let coordinator = ArchiveCoordinator(deps: StubArchiveDeps())

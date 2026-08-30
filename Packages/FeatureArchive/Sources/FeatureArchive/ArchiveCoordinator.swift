@@ -93,7 +93,11 @@ public final class ArchiveCoordinator: Coordinator {
     public func makeRoomListStore() -> RoomListStore {
         Store(
             RoomListState(),
-            reduce: roomListReducer(useCase: deps.fetchRooms, promptSnooze: deps.roomCreationPromptSnooze),
+            reduce: roomListReducer(
+                useCase: deps.fetchRooms,
+                promptSnooze: deps.roomCreationPromptSnooze,
+                currentLocation: deps.currentLocation
+            ),
             handle: { [weak self] in self?.handle($0) }
         )
     }
@@ -150,15 +154,28 @@ public final class ArchiveCoordinator: Coordinator {
             showRoom(room)
         case .goToCreateRoom:
             push(.createRoom)
+        case .focusMyLocation(let coordinate):
+            focusMap(on: coordinate)
         }
     }
 
     func handle(_ nav: RoomFormNav) {
         switch nav {
-        case .didSubmit, .didCancel, .didSkip:
+        // spec FR-007 — 만들었으면 방 리스트를 스쳐 그 방 상세로 간다. 여기서는 id 만 세워 두고,
+        // 실제 전환은 방 리스트가 재조회로 그 방을 받은 뒤에 낸다(``RoomListAction/openCreatedRoom``).
+        case .didSubmit(let roomId):
+            createdRoomID = roomId
+            pop()
+        case .didCancel, .didSkip:
             // 저장은 폼이 이미 끝냈다 — 여기 오면 서버에 반영된 뒤다. 취소도 같은 자리로 돌아간다.
             pop()
         }
+    }
+
+    /// 방금 만든 방 id 를 읽고 지운다. 두 번째 호출은 `nil` — 같은 생성으로 상세가 두 번 열리지 않는다.
+    func consumeCreatedRoomID() -> String? {
+        defer { createdRoomID = nil }
+        return createdRoomID
     }
 
     func handle(_ nav: RoomDetailNav) {
@@ -189,9 +206,15 @@ public final class ArchiveCoordinator: Coordinator {
         case .openSavedRooms(let presentation):
             savedRooms = presentation
         case .focusMyLocation(let coordinate):
-            mapFocusCount += 1
-            mapFocus = ArchiveMapFocus(coordinate: coordinate, ordinal: mapFocusCount)
+            focusMap(on: coordinate)
         }
+    }
+
+    /// 현위치 버튼(003-1 ⑦ · 005-1)이 낸 카메라 요청을 세운다. 방 리스트와 장소 상세가 같은 자리를
+    /// 쓰므로 한 곳에 둔다 — 두 벌로 두면 한쪽만 고쳐도 컴파일이 통과한다.
+    private func focusMap(on coordinate: Coordinate) {
+        mapFocusCount += 1
+        mapFocus = ArchiveMapFocus(coordinate: coordinate, ordinal: mapFocusCount)
     }
 
     /// 보고 있는 방을 바꾼다. 지도 카메라 요청(``mapFocus``)은 방과 수명을 같이한다 —
@@ -227,6 +250,13 @@ public final class ArchiveCoordinator: Coordinator {
     func roomsDidChange() {
         roomsRevision += 1
     }
+
+    /// 방금 만든 방 id — 껍데기가 방 리스트에 넘겨 그 방 상세로 잇는다(spec FR-007).
+    ///
+    /// 방 전체가 아니라 id 만 드는 이유는 만들기 화면이 id 만 돌려주기 때문이다
+    /// (``RoomFormNav/didSubmit(roomId:)``). 상세는 멤버·장소 수까지 필요해 재조회 응답에서 찾는다.
+    private(set) var createdRoomID: String?
+
     /// 공유 완료 신호를 읽고 지운다. 두 번째 호출은 `false` — 같은 저장으로 토스트가 두 번 뜨지 않는다.
     func consumeSavedShare() -> Bool {
         defer { savedShare = false }

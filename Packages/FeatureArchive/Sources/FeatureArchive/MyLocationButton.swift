@@ -53,7 +53,8 @@ struct MyLocationButton: View {
         .buttonStyle(.plain)   // 기본 스타일의 강조색 틴트를 끈다 — 아이콘 색은 Label/Normal 이다
         .mapFloatingSurface(cornerRadius: ArchiveMapButtonMetrics.myLocationSize / 2)
         .accessibilityLabel("현위치")
-        .accessibilityIdentifier("PlaceDetail.myLocation")
+        // 방 리스트(003-1 ⑦)와 장소 상세(005-1)가 같은 버튼을 쓴다 — 화면 이름을 붙이지 않는다.
+        .accessibilityIdentifier("Archive.myLocation")
     }
 }
 
