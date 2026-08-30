@@ -52,6 +52,51 @@ struct RoomListContentView: View {
 
     private static let filterItems = ["전체", "최근 저장 순", "코멘트 순"]
 
+    /// 시안 `003-1`·`003-2` 실측. **시트가 드러내는 높이(003-1 ②③ · 003-2 ①②)의 단일 출처**다 —
+    /// `ArchiveShellView` 가 `MHBottomSheet` 에 넘기는 peek 값이 여기서 나온다.
+    ///
+    /// half 숫자가 왜 그 값인지가 여기서 드러난다. 시안은 합계만 적어 두었는데, 세 값이 모두
+    /// 조각의 합으로 딱 떨어진다 — **그래버 30 + 헤더 70 + 칩 52 = 152** 를 공통으로 깔고
+    /// 카드(104)를 몇 장 드러내느냐로만 갈린다(256 / 360 / 380).
+    ///
+    /// 그래서 숫자를 손으로 적지 않고 조각의 합으로 둔다 — 헤더나 칩 높이를 고치면 세 값이 함께
+    /// 따라가고, 어긋나면 `RoomListMetricTests` 가 잡는다.
+    enum Metric {
+        /// Figma `2661:157261` Frame 303.
+        static let headerHeight: CGFloat = 70
+        /// 타이틀·아이콘 버튼 아래 남는 여백(둘 다 y=52 에서 끝난다).
+        static let headerBottomPadding: CGFloat = 18
+        /// Figma `2661:157267` Frame 305 — 칩 32 + 아래 여백 20.
+        static let filterHeight: CGFloat = 52
+        /// 방 카드 한 장. Figma `2661:157271` Card_Room 335×104 (``MHRoomCard`` 렌더 높이와 같다).
+        static let roomCardHeight: CGFloat = 104
+        /// ``MHBottomSheet`` 이 시트 맨 위에 그리는 그래버 영역. 그 컴포넌트의 private 값을
+        /// 받아 적은 것이라 저쪽이 바뀌면 여기도 함께 고쳐야 한다.
+        static let grabberHeight: CGFloat = 30
+
+        /// 카드 목록 위에 늘 깔리는 부분(그래버 + 헤더 + 칩) = 152.
+        static let chromeHeight: CGFloat = grabberHeight + headerHeight + filterHeight
+        /// 003-2 ② — 카드가 3장 이상일 때 세 번째 카드가 드러나는 높이(380 − 360).
+        /// "스크롤 어포던스를 위해 3번째 카드는 짤리게 보여진다".
+        static let thirdCardPeek: CGFloat = 20
+
+        /// 003-1 ② peek — "88px(고정값) 높이를 유지한다 … 헤더만 표시한다".
+        /// 그래버 30 + 헤더 70 = 100 중 아래 12 가 잘리는 값이라 조각의 합이 아니라 시안 값 그대로다.
+        static let peek: CGFloat = 88
+
+        /// half — 드러낼 카드 수로 갈린다(003-1 ③ · 003-2 ①②).
+        ///
+        /// 시안은 "개인방/공동방" 으로 나눠 적었지만 높이를 정하는 건 **카드 몇 장이 보이느냐** 뿐이라
+        /// 방 종류가 아니라 개수로 받는다 — 개인방이 없는 계정이 생겨도 같은 규칙이 선다.
+        ///
+        /// - Parameter roomCount: 목록에 그릴 방 카드 수. 0(로드 전)은 1장과 같이 다룬다.
+        static func half(roomCount: Int) -> CGFloat {
+            let fullyShown = min(max(roomCount, 1), 2)
+            let peeking = roomCount >= 3 ? thirdCardPeek : 0
+            return chromeHeight + roomCardHeight * CGFloat(fullyShown) + peeking
+        }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             header
@@ -60,9 +105,14 @@ struct RoomListContentView: View {
         }
     }
 
-    // Figma: h60, px20. full 상태에서 "×" 닫기 버튼 추가(gap 8, Figma node 2661:156812).
+    // Figma `003-1-3` Frame 303(`2661:157261`): h70, px20. 타이틀(h32)과 아이콘 버튼(40×40)이
+    // 둘 다 y=52 에서 끝나 **아래로 정렬**되고 그 아래 18 이 남는다(타이틀 y20 / 버튼 y12).
+    // 그래서 가운데 정렬이 아니라 bottom 정렬 + padding 18 로 짠다.
+    //
+    // peek 에서 아래가 잘려도 콘텐츠는 y 12..52 라 타이틀·버튼이 온전히 보인다(``Metric/peek``).
+    // full 상태에서 "×" 닫기 버튼 추가(gap 8, Figma `2661:157266`).
     private var header: some View {
-        HStack(spacing: 0) {
+        HStack(alignment: .bottom, spacing: 0) {
             Text("방 리스트")
                 .mhTypography(.title3Bold)
                 .foregroundStyle(.mhLabelStrong)
@@ -80,10 +130,12 @@ struct RoomListContentView: View {
             }
         }
         .padding(.horizontal, 20)
-        .frame(height: 60)
+        .padding(.bottom, Metric.headerBottomPadding)
+        .frame(height: Metric.headerHeight, alignment: .bottom)
     }
 
-    // Figma Frame 304: h50, 좌우 padding 20, Category y=9 h32(size .medium).
+    // Figma `003-1-3` Frame 305(`2661:157267`): h52, 좌우 padding 20, Category y=0 h32(size .medium)
+    // — 칩이 블록 **위쪽**에 붙고 아래로 20 이 남는다.
     //
     // 개별 칩(전체/최근 저장 순/코멘트 순)은 `MHCategory`/`MHChip` 내부 Button 이라 화면단에서
     // identifier 를 부여할 수 없다(DS 컴포넌트가 접두사·식별자 훅을 노출하지 않음) — AXe 는 칩의
@@ -92,7 +144,7 @@ struct RoomListContentView: View {
     // `accessibilityValue` 로 노출해 자동화가 선택 상태를 검증할 수 있게 한다.
     private var filter: some View {
         MHCategory(Self.filterItems, selection: $filterSelection, variant: .normal, size: .medium, horizontalPadding: true)
-            .frame(height: 50)
+            .frame(height: Metric.filterHeight, alignment: .top)
             .accessibilityIdentifier("RoomList.filter")
             .accessibilityValue(Self.filterItems[filterSelection])
     }
@@ -123,9 +175,9 @@ struct RoomListContentView: View {
         .accessibilityIdentifier("RoomList.cardList")
     }
 
-    // Figma node 2236:45731 — 공동방이 없을 때 카드 아래에 보이는 빈 상태.
-    // Figma 에선 flex-1 + justify-center 로 남은 영역 중앙 정렬. 위아래 Spacer 로 남은
-    // 영역을 채워 수직 중앙을 잡되, minHeight 만 고정해 문구가 길어지면 잘리지 않고 늘어난다.
+    // 공동방이 없을 때 카드 바로 아래에 오는 빈 상태 — '공동방 생성' 고스트 Card
+    // (003-1 ⑥ "개인방만 존재 시에만 노출된다", Figma `003-1-3` Frame 239 `2661:157272`).
+    // 위아래 Spacer 로 수직 중앙을 잡되 minHeight 만 고정해 문구가 길어지면 늘어난다.
     private var emptyStateView: some View {
         VStack(spacing: 0) {
             Spacer(minLength: 24)
@@ -141,7 +193,7 @@ struct RoomListContentView: View {
             Spacer(minLength: 24)
         }
         .frame(maxWidth: .infinity)
-        .frame(minHeight: 444)   // Figma 빈 상태 영역 높이(스크롤 영역 548 − 카드 ~104), 내용이 길면 확장
+        .frame(minHeight: 423)   // Frame 239 높이. 내용 317 + 위아래 여백 53
         .accessibilityIdentifier("RoomList.emptyState")
     }
 }

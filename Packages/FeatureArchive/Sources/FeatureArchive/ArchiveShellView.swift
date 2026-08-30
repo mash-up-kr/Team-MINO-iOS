@@ -251,6 +251,10 @@ struct ArchiveShellView: View {
                 )
             }
         }
+        // 방 개수가 바뀌면 half 높이도 바뀐다(003-2 ①②). 목록이 오기 전 카드 1장 높이로 떴다가
+        // 응답이 오는 순간 두세 장 높이로 **뛰므로**, 그 변화만 스프링으로 잇는다.
+        // 값을 방 개수로 잡아 시트 단계 전환·드래그에는 걸리지 않게 한다(그쪽은 `MHBottomSheet` 몫).
+        .animation(.spring(duration: 0.3), value: roomList.state.rooms.count)
         .accessibilityIdentifier(sheetIdentifier)
     }
 
@@ -290,13 +294,18 @@ struct ArchiveShellView: View {
     /// `MHBottomSheet` 은 여기 준 값에 `bottomCoverage`(탭바) 만 더해 그린다. 홈 인디케이터는
     /// 시트의 레이아웃 상자 밖이라 더하지 않는다(`MHBottomSheet` 의 `fraction` 주석).
     ///
-    /// - 방 리스트 88·256 (004-1 ②③) — 시안이 "바텀네비게이션 높이 제외" 라고 못박아 기준이 같다.
+    /// - 방 리스트 88 · 256/360/380 (003-1 ②③ · 003-2 ①②) — 시안이 "바텀네비게이션 높이 제외"
+    ///   라고 못박아 기준이 같다. half 는 **드러낼 카드 수로 갈리므로** 방 개수를 넘겨 받는다.
+    ///   숫자를 여기 적지 않고 ``RoomListContentView/Metric`` 에서 가져온다: 조각의 합이라
+    ///   헤더·칩을 고치면 여기도 따라가야 한다.
     /// - 장소 상세 335 (005-1 ⑫) — 시안의 369 는 **화면 끝까지** 잰 값이다(375×812 프레임에서 실측
     ///   367pt). 그 화면은 탭바가 없어 하단 safe-area 가 홈 인디케이터 34pt 뿐이므로 369 − 34 다.
     /// - 방 상세 156·405 — 시안에 숫자가 없어 그대로 둔다. 확정되면 그때 맞춘다.
     private var peek: (low: CGFloat?, medium: CGFloat) {
         if placeStore != nil { return (nil, 335) }
-        return detailStore == nil ? (88, 256) : (156, 405)
+        guard detailStore == nil else { return (156, 405) }
+        let roomCount = roomListStore?.state.rooms.count ?? 0
+        return (RoomListContentView.Metric.peek, RoomListContentView.Metric.half(roomCount: roomCount))
     }
 
     private static let roomListCategories = ["전체", "카페", "음식점"]
