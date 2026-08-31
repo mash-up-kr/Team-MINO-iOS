@@ -22,7 +22,7 @@ public struct DefaultFetchSavedRoomsUseCase: FetchSavedRoomsUseCase {
         self.repository = repository
     }
 
-    /// 공유 후보 조회(``ShareTargetRepository/shareTargets(pinID:)``)를 그대로 재사용한다 —
+    /// 공유 후보 조회(``ShareTargetRepository/shareTargets(placeID:)``)를 그대로 재사용한다 —
     /// "방 목록 + 그 방에 이 장소가 있는지" 가 이미 한 조회로 오므로 저장된 방만 따로 물을
     /// API 가 필요 없다. 고르는 규칙(이미 저장됨 ∧ 원래 방 아님)만 여기서 정한다.
     public func execute(pin: Pin) async throws -> [Room] {

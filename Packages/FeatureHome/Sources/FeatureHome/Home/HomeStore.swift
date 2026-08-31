@@ -371,17 +371,19 @@ public struct DeckPosition: Equatable, Sendable {
 /// 한 정렬 덱의 최대 카드 수 — 정책: 각 정렬은 최대 10장, 모자라면 보유한 만큼만.
 private let deckPageSize = 10
 
-/// 지금 방의 `filter` 덱으로 옮긴다. 받아 둔 덱이 있으면 재조회 없이 즉시 전환하고,
-/// 없으면 그 방의 첫 페이지를 받아 `deckLoaded` 로 되돌린다. 실패도 `deckLoadFailed` 로 되돌려
-/// 조회 직전 자리로 복구한다 — 성공했을 때만 되돌리면 isDeckLoading 이 꺼지지 않아 스피너에 멈춘다.
+/// 지금 방의 `filter` 덱으로 옮긴다 — **정렬 칩을 직접 누른 경로 전용**이다.
+/// 받아 둔 덱이 있으면 재조회 없이 즉시 전환하고, 없으면 그 방의 첫 페이지를 받아 `deckLoaded`
+/// 로 되돌린다. 실패도 `deckLoadFailed` 로 되돌려 조회 직전 자리로 복구한다 — 성공했을 때만
+/// 되돌리면 isDeckLoading 이 꺼지지 않아 스피너에 멈춘다.
+///
+/// 방은 바뀌지 않으므로 「마지막으로 보던 방」을 다시 기록하지 않는다. 그 기록은 방이 실제로
+/// 바뀌는 자리(`probeLoaded` 의 착지)가 맡는다.
 private func showDeck(
     filter: PinFilter,
     revertingTo revert: DeckPosition,
-    persistingRoom persist: Bool = false,
     state: inout HomeState,
     fetchHomeCards: FetchHomeCardsUseCase,
-    currentLocation: CurrentLocationUseCase,
-    lastViewedRoom: LastViewedRoomUseCase
+    currentLocation: CurrentLocationUseCase
 ) -> Effect<HomeAction, HomeNav> {
     // revert 는 여기서 만들지 않고 호출부가 넘긴다 — 방 전환은 showDeck 을 부르기 **전에** 커서·캐시를
     // 새 방 기준으로 바꿔 두므로, 여기서 캡처하면 "옛 자리"가 아니라 이미 바뀐 자리를 담게 된다.
@@ -395,8 +397,6 @@ private func showDeck(
     let known = state.myCoordinate
     return .run { send in
         do {
-            // 정책 3: 재실행 시 마지막으로 보던 방부터 이어 본다 — 방을 옮길 때 함께 기록한다.
-            if persist { await lastViewedRoom.save(roomID: room.id) }
             // 가까운순은 좌표 없이 요청하면 서버가 거절한다. 위치가 필요해진 순간(이 기준을 고른
             // 순간)에만 묻는다 — 홈 진입에서 미리 물으면 요청 맥락이 사라진다.
             var origin = known
@@ -570,7 +570,7 @@ public func homeReducer(
             state.probe = nil
             return showDeck(
                 filter: filter, revertingTo: revert,
-                state: &state, fetchHomeCards: fetchHomeCards, currentLocation: currentLocation, lastViewedRoom: lastViewedRoom
+                state: &state, fetchHomeCards: fetchHomeCards, currentLocation: currentLocation
             )
 
         case .deckLoaded(let pins, let roomID, let filter):
