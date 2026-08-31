@@ -52,9 +52,6 @@ public struct HomeState: Equatable {
     /// 가까운순 조회의 기준점(내 위치). 그 기준을 처음 고른 순간에 한 번 얻어 들고 있는다 —
     /// 서버가 `sort=nearby` 에 좌표를 요구하고, 매번 다시 측위하면 칩을 오갈 때마다 몇 초씩 걸린다.
     public var myCoordinate: Coordinate?
-    /// 내 프로필 아바타 색 — 홈 우상단 마스코트가 이 색의 소품을 단다 (Figma `character/Home_Avatar`).
-    /// 아직 못 읽었거나 색을 고른 적 없는 계정이면 nil 이라 소품 없는 기본 마스코트가 뜬다.
-    public var myAvatarColor: AvatarColor?
     /// 지금 방을 **사용자가 직접 골랐는가**(홈 방 시트). 아직 그 방의 카드를 한 장도 못 본 상태다.
     ///
     /// 이 동안에는 그 방이 비어 있어도 자동으로 다음 방에 넘기지 않는다 — 지목한 방을 놔두고
@@ -98,7 +95,6 @@ public struct HomeState: Equatable {
         savedToastID: Int? = nil,
         savedToastKind: SavedToastKind = .saved,
         myCoordinate: Coordinate? = nil,
-        myAvatarColor: AvatarColor? = nil,
         isRoomUserChosen: Bool = false,
         isInitialRoom: Bool = false
     ) {
@@ -120,7 +116,6 @@ public struct HomeState: Equatable {
         self.savedToastID = savedToastID
         self.savedToastKind = savedToastKind
         self.myCoordinate = myCoordinate
-        self.myAvatarColor = myAvatarColor
         self.isRoomUserChosen = isRoomUserChosen
         self.isInitialRoom = isInitialRoom
     }
@@ -220,10 +215,6 @@ public struct SavePostState: Equatable {
 
 public enum HomeAction: Equatable {
     case load
-    /// 홈 마스코트가 쓸 내 아바타 색을 읽는다. `load` 와 나눠 둔 이유는 둘이 서로를 기다릴 이유가
-    /// 없어서다 — 마스코트는 장식이라 방·덱 조회가 늦거나 실패해도 제 색으로 떠야 한다.
-    case loadMyAvatar
-    case myAvatarLoaded(AvatarColor?)
     /// 가까운순 덱을 여는 길에 얻은 내 위치. 다음 가까운순 조회가 다시 측위하지 않게 들고 있는다.
     case myCoordinateResolved(Coordinate)
     case loaded([Room])
@@ -245,9 +236,9 @@ public enum HomeAction: Equatable {
     /// 함께 보내야 하는데, 한 Effect 는 화면 전환과 네트워크 중 하나만 낼 수 있어서다 —
     /// 전환을 먼저 내보내고 기록은 그 뒤에 붙인다(기록 응답을 기다리면 탭이 네트워크만큼 늦어진다).
     case openPlaceDetail(Pin)
-    /// 홈 사용 가이드를 아직 안 봤는지 묻는다(최초 진입 1회 정책). `load` 와 나눠 둔 이유는
-    /// 마스코트([[loadMyAvatar]])와 같다 — 가이드가 그리는 카드 덱은 모형이라(``HomeGuideMockDeck``)
-    /// 방·덱 조회 결과를 기다릴 이유가 없고, 조회가 늦거나 실패해도 안내는 떠야 한다.
+    /// 홈 사용 가이드를 아직 안 봤는지 묻는다(최초 진입 1회 정책). `load` 와 나눠 두는 이유는
+    /// 가이드가 그리는 카드 덱이 모형이라(``HomeGuideMockDeck``) 방·덱 조회 결과를 기다릴
+    /// 이유가 없고, 조회가 늦거나 실패해도 안내는 떠야 하기 때문이다.
     case checkGuide
     /// 홈 사용 가이드를 띄운다 — 아직 안 보여준 최초 진입일 때만 도착하는 응답 action.
     case showGuide
@@ -500,7 +491,6 @@ public func homeReducer(
     lastViewedRoom: LastViewedRoomUseCase,
     homeGuide: HomeGuideUseCase,
     savePin: SavePinToRoomsUseCase,
-    fetchProfile: FetchProfileUseCase,
     recordPinAccess: RecordPinAccessUseCase
 ) -> (inout HomeState, HomeAction) -> Effect<HomeAction, HomeNav> {
     { state, action in
@@ -518,22 +508,6 @@ public func homeReducer(
                     send(.loadFailed(.unknown))
                 }
             }
-
-        case .loadMyAvatar:
-            return .run { send in
-                do {
-                    send(.myAvatarLoaded(try await fetchProfile.execute().avatarColor))
-                } catch is CancellationError {
-                    return
-                } catch {
-                    // 마스코트는 장식이라 조회 실패로 화면을 막지 않는다 — 소품 없는 기본 마스코트로 둔다.
-                    send(.myAvatarLoaded(nil))
-                }
-            }
-
-        case .myAvatarLoaded(let color):
-            state.myAvatarColor = color
-            return .none
 
         case .myCoordinateResolved(let coordinate):
             state.myCoordinate = coordinate

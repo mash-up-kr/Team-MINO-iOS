@@ -36,9 +36,6 @@ struct HomeContentView: View {
         // 가이드도 방·덱 조회와 따로 묻는다(HomeAction.checkGuide 주석) — 안내가 가리키는 덱은
         // 모형이라 조회 결과를 기다릴 이유가 없다. 재진입해도 "1회" 는 markSeen 이 지킨다.
         .task { store.send(.checkGuide) }
-        // 마스코트 색은 방·덱 조회와 따로 받는다(HomeAction.loadMyAvatar 주석). 탭을 오갈 때마다
-        // 이 뷰가 새로 만들어지므로, 마이페이지에서 아바타를 바꾸고 돌아오면 여기서 다시 읽힌다.
-        .task { store.send(.loadMyAvatar) }
         .task(id: store.state.changedRoomToastID) {
             // 방 변경 툴팁은 3초 뒤 사라진다(FR-016). 새 툴팁이 뜨면 방 id 가 바뀌어 타이머가 재시작된다.
             // dismiss 는 이 타이머가 세운 방 id 를 실어 보낸다 — 3초 경계에서 방을 바꾸면
@@ -478,7 +475,6 @@ struct HomeMascotView: View {
                 lastViewedRoom: PreviewLastViewedRoom(),
                 homeGuide: PreviewHomeGuide(),
                 savePin: PreviewSavePin(),
-                fetchProfile: PreviewFetchProfile(),
                 recordPinAccess: PreviewRecordPinAccess()
             )
         )
@@ -496,7 +492,6 @@ struct HomeMascotView: View {
                 lastViewedRoom: PreviewLastViewedRoom(),
                 homeGuide: PreviewHomeGuide(),
                 savePin: PreviewSavePin(),
-                fetchProfile: PreviewFetchProfile(),
                 recordPinAccess: PreviewRecordPinAccess()
             )
         )
@@ -518,13 +513,6 @@ private struct PreviewLastViewedRoom: LastViewedRoomUseCase {
 private struct PreviewHomeGuide: HomeGuideUseCase {
     func hasSeen() async -> Bool { true }
     func markSeen() async {}
-}
-
-/// 프리뷰 전용 — 아바타 색을 고른 적 없는 계정(기본 마스코트).
-private struct PreviewFetchProfile: FetchProfileUseCase {
-    func execute() async throws -> Profile {
-        Profile(id: "preview", nickname: "꾹이", avatarColor: nil, createdAt: nil)
-    }
 }
 
 /// 프리뷰 전용 — 접근 기록을 보내지 않는다.
