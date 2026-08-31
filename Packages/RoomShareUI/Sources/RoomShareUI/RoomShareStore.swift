@@ -107,7 +107,7 @@ public func roomShareReducer(
         case .loaded(let targets):
             state.isLoading = false
             state.rooms = targets.map { RoomShareRoom(from: $0.room) }
-            state.alreadySavedRoomIDs = Set(targets.filter(\.alreadySaved).map(\.room.id))
+            state.alreadySavedRoomIDs = targets.alreadySavedRoomIDs
             return .none
 
         case .loadFailed(let error):
