@@ -31,7 +31,9 @@ struct FirebaseAuthRepository: AuthRepository {
                 }
                 group.addTask {
                     try await Task.sleep(for: Self.signInTimeout)
-                    throw DomainError.sessionUnavailable
+                    // 15초를 기다려도 응답이 없으면 연결 문제로 본다 — 스플래시가 이걸로
+                    // "연결을 확인해주세요"를 띄운다.
+                    throw DomainError.networkUnavailable
                 }
                 defer { group.cancelAll() }
                 // 먼저 끝난 쪽이 결과다. 루프를 빠져나오려면 그룹이 비어야 하는데
@@ -45,11 +47,16 @@ struct FirebaseAuthRepository: AuthRepository {
         // 상위(`AppLaunchStore`)의 취소 분기가 죽고, 화면을 벗어났을 뿐인데 재시도 화면이 뜬다.
         } catch is CancellationError {
             throw CancellationError()
+        } catch let error as DomainError {
+            throw error                       // 위 타임아웃 갈래를 그대로 통과시킨다
         } catch {
             Self.logFailure(error)
             // 최초 실행에 네트워크가 없으면 여기로 온다. 재시도가 의미 있는 실패라
             // `unauthorized`(서버가 거부) 와 구분해서 올린다.
-            throw DomainError.sessionUnavailable
+            // 연결 문제(Firebase `networkError`)만 갈라낸다 — 익명 로그인 비활성 같은 설정 오류를
+            // "연결을 확인해주세요"로 안내하면 사용자가 고칠 수 없는 것을 고치려 든다.
+            let isNetwork = (error as NSError).code == AuthErrorCode.networkError.rawValue
+            throw isNetwork ? DomainError.networkUnavailable : DomainError.sessionUnavailable
         }
     }
 

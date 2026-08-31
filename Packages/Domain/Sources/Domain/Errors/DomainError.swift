@@ -22,9 +22,15 @@ public enum DomainError: Error, Equatable, Sendable {
     /// 익명 세션은 Keychain 에 남아 앱을 지웠다 깔아도 같은 uid 로 돌아온다 —
     /// 재설치한 사용자가 온보딩을 다시 타면 여기에 닿는다.
     case alreadyRegistered
-    /// 세션을 확보하지 못했다. 인증 수단에 닿지 못한 경우(네트워크 단절 등)로,
+    /// 세션을 확보하지 못했다. 인증 수단에 닿지 못한 경우로,
     /// **서버가 거부한 `unauthorized` 와 구분한다** — 이쪽은 재시도가 의미 있다.
     case sessionUnavailable
+    /// 기기가 네트워크에 닿지 못했다(연결 없음·호스트 못 찾음·응답 시간 초과).
+    ///
+    /// **서버까지 갔다가 실패한 경우와 구분한다** — 스플래시가 이 값 하나로 "네트워크 연결을
+    /// 확인해주세요"와 "일시적인 오류가 발생했어요"를 가른다. 아직 이 둘을 갈라 보여주는 화면이
+    /// 스플래시뿐이라 번역도 그 경로(`ProfileRepositoryImpl`·`FirebaseAuthRepository`)에만 있다.
+    case networkUnavailable
     /// 프로필을 읽지 못했다(조회 실패). 재시도가 의미 있다.
     case profileFetchFailed
     /// 프로필을 저장하지 못했다 — 등록·수정 공통.

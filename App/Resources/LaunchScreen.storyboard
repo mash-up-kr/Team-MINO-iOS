@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  스플래시. Figma `스플래시`(node 2661:166788, 375×812 기준).
+  스플래시. Figma `스플래시`(node 2314:134659, 375×812 기준).
 
   코드가 아니라 스토리보드인 이유: 런치스크린은 앱 코드가 뜨기 전에 시스템이 그리는 화면이라
   어떤 Swift 도 실행되지 않는다. `UILaunchScreen` 딕셔너리(이미지 1장)는 기기 비율이 다르면
@@ -8,7 +8,7 @@
 
   위치는 전부 화면 크기에 대한 비율(multiplier)이다 — 시안의 375×812 좌표를 그대로 박으면
   다른 기기에서 어긋난다. 배율은 각 constraint 주석에 원본 좌표를 남겼다.
-  캡션 "친구랑 같이 가고싶은 곳은, 꾹!" 은 텍스트가 아니라 로고와 한 장으로 구운 이미지다 —
+  캡션 "가고 싶던 곳이 다시 떠오르게, 꾹" 은 텍스트가 아니라 로고와 한 장으로 구운 이미지다 —
   런치스크린에서는 커스텀 폰트(SUITE)가 로드되지 않아 시스템 폰트로 폴백되기 때문.
   배경은 시맨틱 컬러가 아니라 고정 흰색이다(런치스크린은 에셋 카탈로그 색만 쓸 수 있고,
   워드마크가 검정으로 구워져 있어 다크 모드에서 뒤집히면 안 보인다).
@@ -28,34 +28,30 @@
                         <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
-                            <imageView opaque="NO" clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFill" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="splashCloud" translatesAutoresizingMaskIntoConstraints="NO" id="cLd-00-001">
-                                <rect key="frame" x="0.0" y="511" width="393" height="341"/>
+                            <imageView opaque="NO" userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="splashWordmark" translatesAutoresizingMaskIntoConstraints="NO" id="wRd-00-003">
+                                <rect key="frame" x="0.0" y="185" width="393" height="127"/>
                             </imageView>
                             <imageView opaque="NO" userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="splashCharacters" translatesAutoresizingMaskIntoConstraints="NO" id="cHr-00-002">
-                                <rect key="frame" x="27" y="140" width="339" height="370"/>
-                            </imageView>
-                            <imageView opaque="NO" userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="splashWordmark" translatesAutoresizingMaskIntoConstraints="NO" id="wRd-00-003">
-                                <rect key="frame" x="0.0" y="628" width="393" height="127"/>
+                                <rect key="frame" x="0.0" y="474" width="393" height="377"/>
+                                <constraints>
+                                    <!-- 에셋 자체 비율 375:360. 폭을 화면에 맞추고 높이를 여기서 끌어낸다 -->
+                                    <constraint firstAttribute="height" secondItem="cHr-00-002" secondAttribute="width" multiplier="0.96" id="cst-00-013"/>
+                                </constraints>
                             </imageView>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="6Tk-OE-BBY"/>
                         <color key="backgroundColor" red="1" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                         <constraints>
-                            <!-- 구름: 화면 폭을 채우고 바닥에 붙는다. 높이 325/812 (시안 y=487~812, 홈 인디케이터 아래까지) -->
-                            <constraint firstItem="cLd-00-001" firstAttribute="leading" secondItem="Ze5-6b-2t3" secondAttribute="leading" id="cst-00-001"/>
-                            <constraint firstItem="Ze5-6b-2t3" firstAttribute="trailing" secondItem="cLd-00-001" secondAttribute="trailing" id="cst-00-002"/>
-                            <constraint firstItem="Ze5-6b-2t3" firstAttribute="bottom" secondItem="cLd-00-001" secondAttribute="bottom" id="cst-00-003"/>
-                            <constraint firstItem="cLd-00-001" firstAttribute="height" secondItem="Ze5-6b-2t3" secondAttribute="height" multiplier="0.400246" id="cst-00-004"/>
-                            <!-- 캐릭터: 시안 x=26 y=134 323×353 → 폭 323/375, 높이 353/812, 세로 중심 310.5/406 -->
-                            <constraint firstItem="cHr-00-002" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="cst-00-005"/>
-                            <constraint firstItem="cHr-00-002" firstAttribute="centerY" secondItem="Ze5-6b-2t3" secondAttribute="centerY" multiplier="0.764778" id="cst-00-006"/>
-                            <constraint firstItem="cHr-00-002" firstAttribute="width" secondItem="Ze5-6b-2t3" secondAttribute="width" multiplier="0.861333" id="cst-00-007"/>
-                            <constraint firstItem="cHr-00-002" firstAttribute="height" secondItem="Ze5-6b-2t3" secondAttribute="height" multiplier="0.434729" id="cst-00-008"/>
-                            <!-- 로고+캡션: 시안 y=599 375×121.33 → 높이 121.33/812, 세로 중심 659.66/406 -->
+                            <!-- 로고+캡션: 시안 y=176 375×121.33 → 높이 121.33/812, 세로 중심 236.67/406 -->
                             <constraint firstItem="wRd-00-003" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="cst-00-009"/>
-                            <constraint firstItem="wRd-00-003" firstAttribute="centerY" secondItem="Ze5-6b-2t3" secondAttribute="centerY" multiplier="1.62479" id="cst-00-010"/>
+                            <constraint firstItem="wRd-00-003" firstAttribute="centerY" secondItem="Ze5-6b-2t3" secondAttribute="centerY" multiplier="0.582919" id="cst-00-010"/>
                             <constraint firstItem="wRd-00-003" firstAttribute="width" secondItem="Ze5-6b-2t3" secondAttribute="width" id="cst-00-011"/>
-                            <constraint firstItem="wRd-00-003" firstAttribute="height" secondItem="Ze5-6b-2t3" secondAttribute="height" multiplier="0.14942" id="cst-00-012"/>
+                            <constraint firstItem="wRd-00-003" firstAttribute="height" secondItem="Ze5-6b-2t3" secondAttribute="height" multiplier="0.149421" id="cst-00-012"/>
+                            <!-- 캐릭터: 시안에서 화면 밖까지 뻗는 그림을 375×812 로 잘라 구운 에셋이다(시안 y=452~812).
+                                 높이가 아니라 폭에 맞춰야 좌우에 흰 여백이 생기지 않는다. 세로 중심 632/406 -->
+                            <constraint firstItem="cHr-00-002" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="cst-00-005"/>
+                            <constraint firstItem="cHr-00-002" firstAttribute="centerY" secondItem="Ze5-6b-2t3" secondAttribute="centerY" multiplier="1.5567" id="cst-00-006"/>
+                            <constraint firstItem="cHr-00-002" firstAttribute="width" secondItem="Ze5-6b-2t3" secondAttribute="width" id="cst-00-007"/>
                         </constraints>
                     </view>
                 </viewController>
@@ -65,8 +61,7 @@
         </scene>
     </scenes>
     <resources>
-        <image name="splashCharacters" width="323" height="353"/>
-        <image name="splashCloud" width="375" height="325"/>
+        <image name="splashCharacters" width="375" height="360"/>
         <image name="splashWordmark" width="375" height="121"/>
     </resources>
 </document>

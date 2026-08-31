@@ -42,6 +42,10 @@ public struct ProfileRepositoryImpl: ProfileRepository {
     /// `.notFound` 로도 `.unexpectedErrorFormat(404, _)` 로도 오기 때문이다.
     private static func mapToDomain(_ error: NetworkError, fallback: DomainError) -> Error {
         if case .cancelled = error { return CancellationError() }   // 취소는 실패가 아니다
+        // 스플래시가 "연결을 확인해주세요"와 "일시적인 오류"를 가르는 유일한 단서다.
+        // `.unknown` 은 넘기지 않는다 — TLS 실패까지 섞여 있어(NetworkError.transport 주석)
+        // 연결 문제라고 단정할 수 없다. 그런 건 일시적 오류로 흡수한다.
+        if case .transport(let reason) = error, reason != .unknown { return DomainError.networkUnavailable }
 
         switch error.statusCode {
         case 401: return error.unauthorizedReason
