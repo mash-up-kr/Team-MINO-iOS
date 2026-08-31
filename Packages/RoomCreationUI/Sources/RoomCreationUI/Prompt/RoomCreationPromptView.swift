@@ -38,14 +38,17 @@ public struct RoomCreationPromptView: View {
             RoomCreationPromptMessage()
                 .padding(20)
 
-            // safeArea: false — 시트가 이미 홈 인디케이터 높이를 확보한다(detentHeight 주석 참조).
+            // safeArea: true — detent 높이가 홈 인디케이터를 포함하므로 액션 영역이 그 자리를
+            // 자기 하단 여백으로 가져가야 시안의 Action Area 154 와 높이가 맞는다.
             MHActionArea(
                 main: MHAction("공동방 만들기", action: onCreate),
                 sub: MHAction("나중에 만들래요", action: onLater),
-                safeArea: false
+                safeArea: true
             )
         }
-        .frame(maxWidth: .infinity)
+        // 남는 높이까지 채워야 배경이 시트 끝까지 칠해진다 — 콘텐츠만큼만 차지하면 아래쪽에
+        // 시트의 반투명 바탕이 드러나 뒤의 탭바가 비친다.
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(.mhBackgroundElevatedNormal)
         .accessibilityIdentifier("RoomCreationPrompt.sheet")
     }
