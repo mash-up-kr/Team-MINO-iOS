@@ -244,6 +244,10 @@ public enum HomeAction: Equatable {
     case savePostFailed
     /// 저장 완료 토스트 숨기기 (노출 2초 후 자동 발생). 연관값은 이 타이머가 띄운 토스트의 id.
     case dismissSavedToast(Int)
+    /// 「다른 방에 공유」 시트(011-1)에서 저장이 끝났다. 시트를 닫는 일은 Coordinator 가 하고
+    /// (시트 표시는 Coordinator 가 쥔다), 여기서는 완료 토스트만 세운다 — 저장 경로가 달라도
+    /// 사용자에게는 같은 "저장 완료" 라 013-2 토스트를 그대로 쓴다.
+    case sharedToOtherRooms
 }
 
 public enum HomeNav: Equatable, Sendable {
@@ -730,6 +734,10 @@ public func homeReducer(
             // TODO: 저장 실패 UI 미정(백엔드 미연동) — 실패 스낵바·재시도 정책 확정 후 붙인다.
             //   지금은 시트를 저장 전 상태로 되돌려 다시 시도할 수 있게만 한다.
             state.savePost?.isSaving = false
+            return .none
+
+        case .sharedToOtherRooms:
+            state.savedToastID = (state.savedToastID ?? 0) + 1
             return .none
 
         case .dismissSavedToast(let id):

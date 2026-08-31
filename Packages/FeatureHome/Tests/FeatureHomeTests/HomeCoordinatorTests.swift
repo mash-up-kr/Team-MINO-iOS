@@ -2,6 +2,7 @@ import Domain
 import Foundation
 import PlaceDetailUI
 import RoomCreationUI
+import RoomShareUI
 import Testing
 @testable import FeatureHome
 
@@ -14,6 +15,7 @@ private struct StubDeps: HomeDeps {
     var createRoom: CreateRoomUseCase = StubCreateRoom()
     var fetchProfile: FetchProfileUseCase = StubFetchProfile()
     var recordPinAccess: RecordPinAccessUseCase = StubRecordPinAccess()
+    var fetchShareTargets: FetchShareTargetsUseCase = StubUnused()
     // 장소 상세(PlaceDetailDeps) 몫 — 라우팅 테스트는 Store 를 만들지 않아 호출되지 않는다.
     var fetchPinDetail: FetchPinDetailUseCase = StubUnused()
     var currentMember: CurrentMemberUseCase = StubUnused()
@@ -28,7 +30,8 @@ private struct StubDeps: HomeDeps {
 /// 조용한 기본값을 주면 나중에 실제로 부르는 경로가 생겨도 테스트가 통과해 버린다.
 private struct StubUnused: FetchPinDetailUseCase, CurrentMemberUseCase, FetchSavedRoomsUseCase,
                            FetchPinCommentsUseCase, PostPinCommentUseCase, DeletePinCommentUseCase,
-                           CurrentLocationUseCase {
+                           CurrentLocationUseCase, FetchShareTargetsUseCase {
+    func execute(pinID: PinID) async throws -> [ShareTarget] { throw DomainError.unknown }
     func execute(pinID: PinID) async throws -> PinDetail { throw DomainError.unknown }
     func execute() async throws -> MemberProfile { throw DomainError.unknown }
     func execute(pin: Pin) async throws -> [Room] { throw DomainError.unknown }
@@ -93,14 +96,14 @@ struct HomeCoordinatorTests {
     @Test("goToCreateRoom 은 방 만들기 화면을 push 한다")
     func handleGoToCreateRoom_pushes() {
         let coordinator = HomeCoordinator(deps: StubDeps())
-        coordinator.handle(.goToCreateRoom)
+        coordinator.handle(HomeNav.goToCreateRoom)
         #expect(coordinator.path == [.createRoom])
     }
 
     @Test("방 만들기에서 didSubmit 은 홈으로 pop 한다")
     func handleRoomFormNav_popsHome() {
         let coordinator = HomeCoordinator(deps: StubDeps())
-        coordinator.handle(.goToCreateRoom)
+        coordinator.handle(HomeNav.goToCreateRoom)
         coordinator.handle(RoomFormNav.didSubmit(roomId: "room-1"))
         #expect(coordinator.path.isEmpty)
     }
@@ -144,6 +147,49 @@ struct HomeCoordinatorTests {
 
         #expect(coordinator.selectedPin == nil)
         #expect(!coordinator.isFullBleedContentPresented)
+    }
+
+    // MARK: - 다른 방에 공유 (011-1)
+
+    @Test("L2 — '다른 방에 공유'는 장소 상세를 닫지 않고 그 위에 공유 시트를 얹는다")
+    func share_keepsPlaceDetailOpen() {
+        let coordinator = HomeCoordinator(deps: StubDeps())
+        let target = pin("a")
+        coordinator.handle(.openPlaceDetail(target))
+
+        coordinator.handle(PlaceDetailNav.share(target))
+
+        #expect(coordinator.sharingPin == target)
+        // 상세가 살아 있어야 시트가 지도·상세 위에 얹힌다 — 닫으면 어디서 눌렀는지 사라진다.
+        #expect(coordinator.selectedPin == target)
+        #expect(coordinator.placeDetailStore != nil)
+    }
+
+    @Test("L1 — 공유 저장이 끝나면 시트만 닫는다 (상세는 그대로)")
+    func shareDidSave_closesOnlyTheSheet() {
+        let coordinator = HomeCoordinator(deps: StubDeps())
+        let target = pin("a")
+        coordinator.handle(.openPlaceDetail(target))
+        coordinator.handle(PlaceDetailNav.share(target))
+
+        coordinator.handle(RoomShareNav.didSave)
+
+        #expect(coordinator.sharingPin == nil)
+        #expect(coordinator.selectedPin == target)
+    }
+
+    @Test("L1 — 공유 시트에서 방 만들기로 가면 시트를 닫지 않고 그 위를 덮는다 (011-1 ③)")
+    func shareGoToCreateRoom_keepsSheet() {
+        let coordinator = HomeCoordinator(deps: StubDeps())
+        let target = pin("a")
+        coordinator.handle(.openPlaceDetail(target))
+        coordinator.handle(PlaceDetailNav.share(target))
+
+        coordinator.handle(RoomShareNav.goToCreateRoom)
+
+        #expect(coordinator.shareCreateRoomChild != nil)
+        // 닫으면 고르던 방 선택이 사라진다 — 시트는 그대로 남아야 한다.
+        #expect(coordinator.sharingPin == target)
     }
 
     @Test("현위치 요청은 그 좌표를 세운다")

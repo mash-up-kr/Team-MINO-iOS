@@ -3,6 +3,7 @@ import FlowCoordination
 import MVI
 import PlaceDetailUI
 import RoomCreationUI
+import RoomShareUI
 import SwiftUI
 
 /// 홈 탭 flow. 방 생성 등 하위 화면이 추가되면 Route 를 확장한다.
@@ -56,6 +57,18 @@ public final class HomeCoordinator: Coordinator {
     /// 현위치 버튼도 같은 Store 로 액션을 보내야 해서 화면이 아니라 여기서 든다.
     public private(set) var placeDetailStore: PlaceDetailStore?
 
+    /// 「다른 방에 공유」 시트(011-1)로 공유하려는 장소 (nil = 닫힘).
+    ///
+    /// 장소 상세를 **닫지 않는다** — 시트가 상세·지도 위에 얹혀야 사용자가 어디서 공유를 눌렀는지
+    /// 유지된다(저장 탭이 같은 방식이다). 항목 자체가 시트의 표시 항목이라 닫히면 SwiftUI 가
+    /// nil 을 되쓴다.
+    public var sharingPin: Pin?
+
+    /// 공유 시트 **위에** 커버로 띄운 공동방 만들기 자식 flow (기획 011-1 ③).
+    /// 부모가 strong 으로 들고, 닫히면 SwiftUI 가 nil 을 되쓴다.
+    var shareCreateRoomChild: HomeShareCreateRoomCoordinator?
+
+    /// 지금 방을 **사용자가 직접 골랐는가**
     /// 지도가 장소 중심(``PlaceMapCameraMode/centered(_:)``) 대신 비출 자리. 현위치 버튼이 세운다.
     private(set) var mapFocus: HomeMapFocus?
 
@@ -142,6 +155,26 @@ public final class HomeCoordinator: Coordinator {
         )
     }
 
+    /// 「다른 방에 공유」 시트 Store 팩토리 (011-1).
+    func makeRoomShareStore(pin: Pin) -> RoomShareStore {
+        Store(
+            RoomShareState(pinID: pin.id),
+            reduce: roomShareReducer(fetchTargets: deps.fetchShareTargets, savePin: deps.savePin),
+            handle: { [weak self] in self?.handle($0) }
+        )
+    }
+
+    func handle(_ nav: RoomShareNav) {
+        switch nav {
+        case .didSave:
+            sharingPin = nil
+            homeStore?.send(.sharedToOtherRooms)   // 013-2 저장 완료 토스트
+        case .goToCreateRoom:
+            // 시트를 닫지 않는다 — 자식이 시트 위를 덮고, 끝나면 시트가 그 자리에 그대로 있다.
+            shareCreateRoomChild = HomeShareCreateRoomCoordinator(deps: deps)
+        }
+    }
+
     /// 공동방 만들기 Store 팩토리.
     func makeRoomFormStore() -> RoomFormStore {
         RoomCreationUI.makeRoomFormStore(
@@ -167,11 +200,8 @@ public final class HomeCoordinator: Coordinator {
             selectedPin = nil
 
         case .share(let pin):
-            // 홈에는 011-1 공유 시트가 없다. 같은 일을 하는 자리가 이미 있어(카드 케밥 "다른 방 저장")
-            // 그리로 잇는다. 그 시트는 덱 위에 뜨므로 상세를 먼저 닫는다 — 상세 위에 겹쳐 띄우려면
-            // 상세 시트 안에 시트를 하나 더 달아야 하는데, 그건 011-1 을 홈에 들이는 별도 작업이다.
-            selectedPin = nil
-            homeStore?.send(.tapSaveToOtherRoom(pin.id))
+            // 상세를 **닫지 않는다** — 011-1 시트가 지도·상세 위에 얹힌다(저장 탭과 같은 모양).
+            sharingPin = pin
 
         case .focusMyLocation(let coordinate):
             mapFocusCount += 1

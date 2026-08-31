@@ -4,6 +4,7 @@ import FlowCoordination
 import PlaceDetailUI
 import PlaceMapUI
 import RoomCreationUI
+import RoomShareUI
 import SwiftUI
 
 /// 홈 탭 진입 View. NavigationStack 을 Coordinator 에 바인딩한다.
@@ -45,6 +46,26 @@ public struct HomeTabView: View {
         }
         .animation(.easeInOut(duration: 0.2), value: store?.state.savedToastID)
         .animation(.spring(duration: 0.35), value: coordinator.selectedPin?.id)
+        // 011-1 「다른 방에 공유」. 지도·장소 상세를 **살려 둔 채** 그 위에 얹는다 —
+        // 상세를 닫고 띄우면 사용자가 어디서 눌렀는지 사라진다(저장 탭과 같은 모양).
+        .sheet(item: $coordinator.sharingPin) { pin in
+            RoomShareSheet(
+                location: RoomSharePlace(
+                    name: pin.place.name, address: pin.place.address, thumbnail: pin.images.first
+                ),
+                makeStore: { coordinator.makeRoomShareStore(pin: pin) },
+                createRoomItem: $coordinator.shareCreateRoomChild,
+                onClose: { coordinator.sharingPin = nil }
+            ) { child, onFinished in
+                // 방 리스트 시트에서 여는 것과 같은 화면 — 건너뛰기 없음(showsSkip: false).
+                // flow 소유는 이 Feature 몫이라 화면·finish 배선을 여기서 준다(시트는 결과만 받는다).
+                RoomFormView(makeStore: child.makeRoomFormStore, showsSkip: false)
+                    .flowRoot(child, onFinish: onFinished)
+            }
+            .presentationCornerRadius(20)
+            .presentationDragIndicator(.hidden)
+            .presentationBackground(.mhBackgroundElevatedNormal)
+        }
     }
 
     /// 장소 상세 뒤에 깔리는 지도 (005-1 과 같은 그림). 카드 덱은 이 **아래에 그대로 살아 있어**
