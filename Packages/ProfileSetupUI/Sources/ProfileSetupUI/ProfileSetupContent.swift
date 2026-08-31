@@ -1,12 +1,12 @@
 import SwiftUI
 import DesignSystem
 
-// MARK: - 캐릭터 스와치
+// MARK: - 아바타 스와치
 
-/// 캐릭터 선택 12종. 순서는 `AvatarPalette` = 피그마 4열×3행 그리드(좌→우, 상→하)다.
+/// 아바타 선택 12종. 순서는 `AvatarPalette` = 피그마 4열×3행 그리드(좌→우, 상→하)다.
 /// `MHAvatarProfile.allCases` 를 직접 쓰지 않는다 — 그 순서가 곧 저장되는 색이라 두 순서가 어긋나면
-/// 고른 캐릭터와 저장된 색이 달라진다(`allCases` 에는 저장할 수 없는 `plain` 도 섞여 있다).
-private let characterSwatches: [MHSelectionGridItem] = AvatarPalette.profiles.map { .image(Image($0)) }
+/// 고른 아바타와 저장된 색이 달라진다(`allCases` 에는 저장할 수 없는 `plain` 도 섞여 있다).
+private let profileSwatches: [MHSelectionGridItem] = AvatarPalette.profiles.map { .image(Image($0)) }
 
 // [Convention] .claude/docs/mvi-coordinator-di.md — Store·Coordinator 를 모르는 순수 마크업.
 // Figma `010-1/2/3. 프로필 설정` (node 2314:95662 기본 / 2314:95709 입력 완료 / 2314:95754 입력 오류)
@@ -102,7 +102,7 @@ struct ProfileSetupContent: View {
     // 캐릭터 아트가 옅은 원 배경까지 포함한 이미지라 테두리를 0 으로 둔다 —
     // 링을 얹으면 시안(010-1 Container 120×120, 테두리 없음)보다 원이 한 겹 더 생겨 보인다.
     private var previewAvatar: some View {
-        MHAvatar(Image(previewCharacter), size: 120, borderWidth: 0)
+        MHAvatar(Image(previewProfile), size: 120, borderWidth: 0)
             .accessibilityIdentifier("ProfileSetup.previewAvatar")
     }
 
@@ -112,16 +112,16 @@ struct ProfileSetupContent: View {
     //
     // 폴백 규칙은 `AvatarPalette` 가 안다 — 여기서 다시 구현하면 화면에 보이는 그림과
     // 저장되는 색(`avatarColorToSave`)이 서로 다른 규칙으로 떨어질 수 있다.
-    private var previewCharacter: MHAvatarProfile {
+    private var previewProfile: MHAvatarProfile {
         AvatarPalette.profile(at: selectedCharacterIndex)
     }
 
-    // MARK: - 캐릭터 선택 그리드
+    // MARK: - 아바타 선택 그리드
 
     private var characterPicker: some View {
         MHSelectionGrid(
             title: "프로필 이미지 선택",
-            items: characterSwatches,
+            items: profileSwatches,
             selectedIndex: selectedCharacterIndex,
             shape: .circle,
             identifierPrefix: "ProfileSetup.character",
