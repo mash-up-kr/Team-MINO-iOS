@@ -24,6 +24,10 @@ struct RoomShareSheet: View {
     /// 어긋나지 않는다(`.claude/docs/mvi-coordinator-di-extensions.md` "다중 sheet" 와 같은 이유).
     @Binding var createRoomChild: RoomShareCreateRoomCoordinator?
     let onClose: () -> Void
+    /// 커버에서 방이 **실제로 만들어졌을 때** 1회. 시트 밖(방 리스트)도 낡기 때문에 알려야 한다 —
+    /// 시트가 떠 있는 동안 껍데기는 사라지지 않아 `.task` 재조회가 걸리지 않는다(``ArchiveShellView``).
+    /// 취소로 돌아온 경우에는 부르지 않는다.
+    var onRoomCreated: () -> Void = {}
 
     @State private var store: RoomShareStore?
     /// 시트 단계. 진입은 peek 이다(기획 011-1 ①).
@@ -59,6 +63,8 @@ struct RoomShareSheet: View {
                 // [weak store]: 자식 → finish 클로저 → 시트 → 부모 → 자식 순환을 끊는다.
                 .flowRoot(child) { [weak store] result in
                     store?.send(.createRoomFinished(result))
+                    // 한 결과에 소비자가 둘이라 여기서 갈라 준다 — reduce 는 effect 를 하나만 낸다.
+                    if result == .created { onRoomCreated() }
                 }
         }
     }

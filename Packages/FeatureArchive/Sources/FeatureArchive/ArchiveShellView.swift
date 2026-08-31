@@ -34,8 +34,8 @@ struct ArchiveShellView: View {
                 onSelectPin: { detailStore?.send(.tapLocation($0)) }
             )
 
-            if let placeStore {
-                mapButtons(place: placeStore)
+            if let roomListStore {
+                mapButtons(roomList: roomListStore)
                     // 루트에는 이미 공유 시트가 붙어 있어(같은 뷰에 `.sheet` 를 둘 달면 하나만 뜬다)
                     // 저장된 방 시트는 버튼 쪽에 붙인다.
                     .sheet(item: $coordinator.savedRooms, content: savedRoomsSheet)
@@ -68,11 +68,28 @@ struct ArchiveShellView: View {
         .roomDetailMoreMenu(store: detailStore, detent: detent)
         .animation(.easeInOut(duration: 0.2), value: toastMessage)
         .onChange(of: detent) { _, _ in sortMenuOpen = false }
+        // **가드는 "생성"에만 걸고 "로드"에는 걸지 않는다.** 이 `.task` 는 껍데기가 다시 보일 때마다
+        // 도는데(공동방 만들기에서 pop · 탭 복귀), `guard roomListStore == nil else { return }` 로
+        // 통째로 막으면 방 목록이 **처음 한 번만** 조회된다 — 방을 만들고 돌아와도 목록에 없고,
+        // 탭을 나갔다 와야(뷰가 새로 만들어져 store 가 nil 이 됨) 그제야 보인다.
         .task {
-            guard roomListStore == nil else { return }
-            let store = coordinator.makeRoomListStore()
-            roomListStore = store
-            store.send(.load)
+            let store: RoomListStore
+            if let roomListStore {
+                store = roomListStore
+            } else {
+                store = coordinator.makeRoomListStore()   // store 는 1회만 (@State 로 유지)
+                roomListStore = store
+            }
+            store.send(.load)                             // 조회는 다시 보일 때마다
+        }
+        // 껍데기가 **사라지지 않는** 사이에 방이 늘어난 경우(공유 시트 위 커버에서 방 생성).
+        // 위 `.task` 는 시트가 떠도 돌지 않으므로 그 경로는 이 신호로만 갱신된다.
+        // 방을 만든 직후라 공동방이 반드시 있어 이 재조회가 유도 시트를 띄우지는 않는다.
+        .onChange(of: coordinator.roomsRevision) { _, _ in roomListStore?.send(.load) }
+        // FR-007 — 방을 만들고 돌아왔다. 위 `.task` 가 낸 재조회가 끝나는 대로 그 방 상세로 이어진다.
+        .onChange(of: coordinator.createdRoomID) { _, id in
+            guard id != nil, let roomID = coordinator.consumeCreatedRoomID() else { return }
+            roomListStore?.send(.openCreatedRoom(roomID))
         }
         .task(id: coordinator.selectedRoom?.id) { syncDetailStore() }
         .task(id: coordinator.selectedPin?.id.value) { syncPlaceStore() }
@@ -81,7 +98,8 @@ struct ArchiveShellView: View {
                 location: location,
                 makeStore: { coordinator.makeRoomShareStore(location: location) },
                 createRoomChild: $coordinator.shareCreateRoomChild,
-                onClose: { coordinator.sharingLocation = nil }
+                onClose: { coordinator.sharingLocation = nil },
+                onRoomCreated: coordinator.roomsDidChange
             )
             // `.presentationDetents` 는 시트가 직접 단다 — full 높이가 방 개수로 갈리는데
             // 그 개수는 시트 안의 `RoomShareStore` 만 안다(``RoomShareSheet`` 주석).
@@ -91,31 +109,51 @@ struct ArchiveShellView: View {
         }
     }
 
-    /// 지도 위 부유 버튼 줄(005-1) — '저장된 방'(⑮) + 현위치.
+    /// 지도 위 부유 버튼 줄 — '저장된 방'(005-1 ⑮) + 현위치(003-1 ⑦ · 005-1).
     ///
-    /// 둘 다 **장소 상세를 보는 동안에만** 뜬다. 현위치도 지도 전역 컨트롤이 아니라 이 화면의
-    /// 것이다 — 방 상세(004-1-2 half `1604:97399`·peek `1604:97350`)와 방 리스트 시안에는
-    /// 이 버튼이 없다(직접 확인). 없는 화면에 지어 붙이지 않는다.
-    ///
-    /// '저장된 방' 은 그 장소가 다른 방에도 저장돼 있을 때만 눌린다("중복 저장된 장소 클릭
-    /// 시에만 활성화된다"). 현위치는 늘 눌린다 — 권한·측위 결과로 갈리는 것은 누른 **뒤**의
-    /// 일이라 미리 잠글 근거가 없다.
+    /// **두 버튼의 노출 조건이 다르다.**
+    /// - '저장된 방' 은 장소 상세를 보는 동안에만 뜬다. 그 장소가 다른 방에도 저장돼 있을 때만
+    ///   눌린다("중복 저장된 장소 클릭 시에만 활성화된다").
+    /// - 현위치는 **방 리스트에서도** 뜬다 — 003-1 ⑦ 이 이 버튼을 방 리스트의 항목으로 못박고
+    ///   있고, 시안 `003-1-1 peek`·`003-1-2 half` 에도 그려져 있다. 방 상세(004-1-2 half
+    ///   `1604:97399`·peek `1604:97350`)에만 없어 그때는 숨긴다. 늘 눌린다 — 권한·측위 결과로
+    ///   갈리는 것은 누른 **뒤**의 일이라 미리 잠글 근거가 없다.
     ///
     /// 시트보다 **먼저** 그려 시트가 올라오면 그 뒤로 가려지게 둔다 — full 단계에서 따로 숨기지
     /// 않아도 된다. 시트를 손으로 끌어 올리는 동안 버튼이 따라 움직이지 않는 건 필터바와 같은 한계다.
     ///
     /// 자리 값의 근거는 ``ArchiveMapButtonMetrics``.
-    private func mapButtons(place: PlaceDetailStore) -> some View {
-        VStack(spacing: 0) {
-            Spacer(minLength: 0)
-            HStack(spacing: ArchiveMapButtonMetrics.spacing) {
+    @ViewBuilder
+    private func mapButtons(roomList: RoomListStore) -> some View {
+        // 방 상세(장소 상세를 열지 않은 상태)에는 시안에 버튼이 없다 — 줄 자체를 그리지 않는다.
+        if placeStore != nil || detailStore == nil {
+            VStack(spacing: 0) {
                 Spacer(minLength: 0)
-                SavedRoomsButton { place.send(.tapSavedRooms) }
-                    .disabled(!place.state.canOpenSavedRooms)
-                MyLocationButton { place.send(.tapMyLocation) }
+                HStack(spacing: ArchiveMapButtonMetrics.spacing) {
+                    Spacer(minLength: 0)
+                    if let placeStore {
+                        SavedRoomsButton { placeStore.send(.tapSavedRooms) }
+                            .disabled(!placeStore.state.canOpenSavedRooms)
+                    }
+                    MyLocationButton {
+                        if let placeStore { placeStore.send(.tapMyLocation) } else { roomList.send(.tapMyLocation) }
+                    }
+                }
+                .padding(.trailing, ArchiveMapButtonMetrics.trailing)
+                // 시트 윗끝에서 18 — 드러난 높이가 단계마다 다르므로 지금 단계의 것을 쓴다
+                // (peek·half 둘 다 버튼이 보인다). 탭바가 시트를 덮는 만큼은 `mapBottomInset` 과
+                // 같은 이유로 함께 되돌려 준다.
+                .padding(.bottom, visiblePeek + tabBarCoverage + ArchiveMapButtonMetrics.bottomGap)
             }
-            .padding(.trailing, ArchiveMapButtonMetrics.trailing)
-            .padding(.bottom, peek.medium + ArchiveMapButtonMetrics.bottomGap)
+        }
+    }
+
+    /// 지금 단계에서 시트가 드러낸 높이(탭바 위로 보이는 pt). full 은 지도를 다 덮어 0 이다.
+    private var visiblePeek: CGFloat {
+        switch detent {
+        case .low: peek.low ?? peek.medium
+        case .medium: peek.medium
+        case .full: 0
         }
     }
 
@@ -212,18 +250,25 @@ struct ArchiveShellView: View {
         VStack(spacing: 0) {
             if let detailStore {
                 MHFilterBar(
-                    sortOptions: RoomDetailSort.allCases.map(\.rawValue),
-                    selectedSort: sortBinding(detailStore),
+                    sortOptions: Self.sortOptions,
+                    selectedSort: sortIndexBinding(
+                        get: { detailStore.state.sort },
+                        set: { detailStore.send(.selectSort($0)) }
+                    ),
                     categories: detailStore.state.categories,
                     selectedCategory: categoryBinding(detailStore),
                     sortMenuPresented: $sortMenuOpen
                 )
             } else {
+                // 003-1 ① — 드롭다운은 방 상세(004-1 ⑥)와 **같은 5가지**이고 기본은 "전체" 다.
                 MHFilterBar(
-                    sortOptions: roomOptions(roomList),
-                    selectedSort: binding(roomList, \.roomFilter, RoomListAction.selectRoomFilter),
+                    sortOptions: Self.sortOptions,
+                    selectedSort: sortIndexBinding(
+                        get: { roomList.state.roomSort },
+                        set: { roomList.send(.selectRoomSort($0)) }
+                    ),
                     categories: Self.roomListCategories,
-                    selectedCategory: binding(roomList, \.categoryFilter, RoomListAction.selectCategory),
+                    selectedCategory: roomCategoryBinding(roomList),
                     sortMenuPresented: $sortMenuOpen
                 )
             }
@@ -247,10 +292,15 @@ struct ArchiveShellView: View {
                 RoomListView(
                     store: roomList,
                     isFull: detent == .full,
+                    bottomInset: tabBarCoverage,
                     onCollapse: { withAnimation(.spring(duration: 0.3)) { detent = .medium } }
                 )
             }
         }
+        // 방 개수가 바뀌면 half 높이도 바뀐다(003-2 ①②). 목록이 오기 전 카드 1장 높이로 떴다가
+        // 응답이 오는 순간 두세 장 높이로 **뛰므로**, 그 변화만 스프링으로 잇는다.
+        // 값을 방 개수로 잡아 시트 단계 전환·드래그에는 걸리지 않게 한다(그쪽은 `MHBottomSheet` 몫).
+        .animation(.spring(duration: 0.3), value: roomList.state.rooms.count)
         .accessibilityIdentifier(sheetIdentifier)
     }
 
@@ -265,11 +315,7 @@ struct ArchiveShellView: View {
     /// 함께 얹어야 로고가 시트 상단에 맞는다.
     /// full 은 지도가 전부 가려져 로고를 밀어올릴 여백이 없으므로 0.
     private var mapBottomInset: CGFloat {
-        switch detent {
-        case .low: (peek.low ?? peek.medium) + tabBarCoverage
-        case .medium: peek.medium + tabBarCoverage
-        case .full: 0
-        }
+        detent == .full ? 0 : visiblePeek + tabBarCoverage
     }
 
     /// 시트를 아래에서 덮는 탭바의 높이.
@@ -290,36 +336,49 @@ struct ArchiveShellView: View {
     /// `MHBottomSheet` 은 여기 준 값에 `bottomCoverage`(탭바) 만 더해 그린다. 홈 인디케이터는
     /// 시트의 레이아웃 상자 밖이라 더하지 않는다(`MHBottomSheet` 의 `fraction` 주석).
     ///
-    /// - 방 리스트 88·256 (004-1 ②③) — 시안이 "바텀네비게이션 높이 제외" 라고 못박아 기준이 같다.
+    /// - 방 리스트 88 · 256/360/380 (003-1 ②③ · 003-2 ①②) — 시안이 "바텀네비게이션 높이 제외"
+    ///   라고 못박아 기준이 같다. half 는 **드러낼 카드 수로 갈리므로** 방 개수를 넘겨 받는다.
+    ///   숫자를 여기 적지 않고 ``RoomListContentView/Metric`` 에서 가져온다: 조각의 합이라
+    ///   헤더·칩을 고치면 여기도 따라가야 한다.
     /// - 장소 상세 335 (005-1 ⑫) — 시안의 369 는 **화면 끝까지** 잰 값이다(375×812 프레임에서 실측
     ///   367pt). 그 화면은 탭바가 없어 하단 safe-area 가 홈 인디케이터 34pt 뿐이므로 369 − 34 다.
     /// - 방 상세 156·405 — 시안에 숫자가 없어 그대로 둔다. 확정되면 그때 맞춘다.
     private var peek: (low: CGFloat?, medium: CGFloat) {
         if placeStore != nil { return (nil, 335) }
-        return detailStore == nil ? (88, 256) : (156, 405)
+        guard detailStore == nil else { return (156, 405) }
+        let roomCount = roomListStore?.state.rooms.count ?? 0
+        return (RoomListContentView.Metric.peek, RoomListContentView.Metric.half(roomCount: roomCount))
     }
+
+    /// 003-1 ① · 004-1 ⑥ — 두 화면이 같은 5가지를 같은 순서로 그린다.
+    private static let sortOptions = RoomDetailSort.allCases.map(\.rawValue)
 
     private static let roomListCategories = ["전체", "카페", "음식점"]
 
-    private func roomOptions(_ store: RoomListStore) -> [String] {
-        ["전체"] + store.state.rooms.map(\.name)
-    }
-
-    private func binding(
-        _ store: RoomListStore,
-        _ keyPath: KeyPath<RoomListState, Int>,
-        _ action: @escaping (Int) -> RoomListAction
-    ) -> Binding<Int> {
+    private func roomCategoryBinding(_ store: RoomListStore) -> Binding<Int> {
         Binding(
-            get: { store.state[keyPath: keyPath] },
-            set: { store.send(action($0)) }
+            get: { store.state.categoryFilter },
+            set: { store.send(.selectCategory($0)) }
         )
     }
 
-    private func sortBinding(_ store: RoomDetailStore) -> Binding<Int> {
+    /// 인덱스 ↔ ``RoomDetailSort`` 변환. `MHFilterBar` 가 인덱스로만 말하기 때문에 필요하다.
+    ///
+    /// 방 리스트(003-1 ①)와 방 상세(004-1 ⑥)가 **같은 5가지를 같은 순서로** 그리므로 변환 규칙도
+    /// 하나다 — 무엇을 읽고 어느 액션으로 보낼지만 화면마다 다르다.
+    ///
+    /// 범위 밖 인덱스는 무시한다. `MHFilterBar` 가 같은 배열을 그려 정상 경로에서는 오지 않지만,
+    /// 옆의 `categoryBinding` 이 같은 이유로 이미 막고 있어 규칙을 맞춘다.
+    private func sortIndexBinding(
+        get: @escaping () -> RoomDetailSort,
+        set: @escaping (RoomDetailSort) -> Void
+    ) -> Binding<Int> {
         Binding(
-            get: { RoomDetailSort.allCases.firstIndex(of: store.state.sort) ?? 0 },
-            set: { store.send(.selectSort(RoomDetailSort.allCases[$0])) }
+            get: { RoomDetailSort.allCases.firstIndex(of: get()) ?? 0 },
+            set: { index in
+                guard RoomDetailSort.allCases.indices.contains(index) else { return }
+                set(RoomDetailSort.allCases[index])
+            }
         )
     }
 

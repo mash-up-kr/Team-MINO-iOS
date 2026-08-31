@@ -223,6 +223,10 @@ public enum HomeAction: Equatable {
     case swipeForward
     case swipeBackward
     case tapCard(PinID)
+    /// 홈 사용 가이드를 아직 안 봤는지 묻는다(최초 진입 1회 정책). `load` 와 나눠 둔 이유는
+    /// 마스코트([[loadMyAvatar]])와 같다 — 가이드가 그리는 카드 덱은 모형이라(``HomeGuideMockDeck``)
+    /// 방·덱 조회 결과를 기다릴 이유가 없고, 조회가 늦거나 실패해도 안내는 떠야 한다.
+    case checkGuide
     /// 홈 사용 가이드를 띄운다 — 아직 안 보여준 최초 진입일 때만 도착하는 응답 action.
     case showGuide
     /// 가이드 X 버튼 탭 → 닫기
@@ -596,10 +600,7 @@ public func homeReducer(
                 return advanceAfterDeck(state: &state, fetchHomeCards: fetchHomeCards, currentLocation: currentLocation, lastViewedRoom: lastViewedRoom)
             }
             announceDeckEndingIfNeeded(&state)   // 첫 덱부터 2장 이하일 수 있다
-            // 정책: 홈 사용 가이드는 최초 진입 1회. 넘길 카드가 있을 때만 띄운다(빈 상태에선 안내가 무의미).
-            return .run { send in
-                if await homeGuide.hasSeen() == false { send(.showGuide) }
-            }
+            return .none
 
         case .swipeForward:
             // 마지막 카드에서 한 번 더 넘기면 인덱스가 덱 밖(pins.count)으로 나간다.
@@ -634,6 +635,13 @@ public func homeReducer(
             // 덱이 갈리는 순간(방·기준 전환)에 들어온 탭이라 열어야 할 장소가 이미 없다.
             guard let pin = state.pins.first(where: { $0.id == pinID }) else { return .none }
             return .navigate(.openPlaceDetail(pin))
+
+        case .checkGuide:
+            // 정책: 홈 사용 가이드는 최초 진입 1회. 카드 유무는 보지 않는다 — 가이드가 가리키는 덱은
+            // 모형이라(``HomeGuideMockDeck``) 저장한 장소가 하나도 없는 계정에서도 안내가 성립한다.
+            return .run { send in
+                if await homeGuide.hasSeen() == false { send(.showGuide) }
+            }
 
         case .showGuide:
             state.isGuidePresented = true

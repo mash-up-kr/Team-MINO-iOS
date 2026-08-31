@@ -18,6 +18,11 @@ private let fixtureRooms: [Room] = [
     ),
 ]
 
+private struct StubCurrentLocation: CurrentLocationUseCase {
+    var result: CurrentLocationResult = .coordinate(Coordinate(latitude: 37.4966, longitude: 127.0530))
+    func execute() async -> CurrentLocationResult { result }
+}
+
 private struct StubFetchRooms: FetchRoomsUseCase {
     var result: Result<[Room], DomainError> = .success(fixtureRooms)
     func execute() async throws -> [Room] {
@@ -43,9 +48,17 @@ struct RoomListReducerTests {
     private func makeStore(
         _ useCase: FetchRoomsUseCase = StubFetchRooms(),
         state: RoomListState = RoomListState(),
-        snooze: SnoozeSwitch? = nil
+        snooze: SnoozeSwitch? = nil,
+        location: CurrentLocationUseCase = StubCurrentLocation()
     ) -> TestStore<RoomListState, RoomListAction, RoomListNav> {
-        TestStore(state, reduce: roomListReducer(useCase: useCase, promptSnooze: snooze ?? makeSnooze()))
+        TestStore(
+            state,
+            reduce: roomListReducer(
+                useCase: useCase,
+                promptSnooze: snooze ?? makeSnooze(),
+                currentLocation: location
+            )
+        )
     }
 
     @Test("L2 — load 하면 rooms 를 반영한다. 공동방이 있으면 유도 시트는 뜨지 않는다")
@@ -210,28 +223,126 @@ struct RoomListReducerTests {
         store.finish()
     }
 
-    @Test("L1 — selectRoomFilter 는 roomFilter 만 갱신한다")
-    func selectRoomFilter() async {
+    @Test("L1 — selectRoomSort 는 roomSort 만 갱신한다")
+    func selectRoomSort() async {
         let store = makeStore(state: RoomListState(rooms: fixtureRooms, filter: 2))
-        await store.send(.selectRoomFilter(1)) { $0.roomFilter = 1 }
+        await store.send(.selectRoomSort(.latest)) { $0.roomSort = .latest }
         store.finish()
     }
 
-    @Test("L1 — loaded 로 방이 줄면 roomFilter 를 새 상한으로 클램프한다")
-    func loaded_shrink_clampsRoomFilter() async {
-        let store = makeStore(state: RoomListState(rooms: fixtureRooms, roomFilter: 2))
-        // 유도 시트는 이 테스트의 관심사가 아니라 스누즈로 꺼 둔다 — 클램프만 본다.
+    // 003-1 ① — "5가지로 필터링하여 볼 수 있다 / '전체'로 기본 선택되어있다".
+    // 방 개수에 따라 늘고 주는 목록이 아니다(방 상세 004-1 ⑥ 과 같은 고정 5가지).
+    @Test("003-1 ① — 드롭다운 기본값은 '전체' 이고 항목은 5가지다")
+    func roomSort_defaultIsAll() {
+        #expect(RoomListState().roomSort == .all)
+        #expect(RoomDetailSort.allCases.count == 5)
+    }
+
+    @Test("L1 — loaded 는 방이 줄어도 드롭다운 선택을 건드리지 않는다")
+    func loaded_shrink_keepsRoomSort() async {
+        let store = makeStore(state: RoomListState(rooms: fixtureRooms, roomSort: .comment))
+        // 유도 시트는 이 테스트의 관심사가 아니라 스누즈로 꺼 둔다.
         await store.send(.loaded([fixtureRooms[0]], isPromptSnoozed: true)) {
             $0.rooms = [fixtureRooms[0]]
-            $0.roomFilter = 1   // 옵션이 ["전체", 방1] 두 개로 줄어 상한이 1
+        }
+        #expect(store.currentState.roomSort == .comment)
+        store.finish()
+    }
+
+    // spec FR-004 — "개인방(`내 장소`)이 최상단에 고정된 방 카드 목록".
+    // 서버가 개인방을 어디에 두든 목록 맨 위여야 한다.
+    @Test("FR-004 — loaded 는 개인방을 목록 맨 위로 올린다")
+    func loaded_pinsPersonalRoomToTop() async {
+        let sharedFirst = [fixtureRooms[1], fixtureRooms[0]]   // 서버가 공동방을 먼저 준 경우
+        let store = makeStore()
+
+        await store.send(.loaded(sharedFirst, isPromptSnoozed: true)) {
+            $0.rooms = [fixtureRooms[0], fixtureRooms[1]]
         }
         store.finish()
     }
 
-    @Test("L1 — selectRoomFilter 는 옵션 범위를 넘는 인덱스를 클램프한다")
-    func selectRoomFilter_outOfRange_clamps() async {
+    // 개인방끼리·공동방끼리의 서버 순서는 건드리지 않는다(안정 분할).
+    @Test("FR-004 — 공동방 사이의 서버 순서는 그대로 둔다")
+    func personalFirst_isStable() {
+        let a = fixtureRooms[1]
+        let b = Room(
+            id: "r3", type: .shared, name: "두 번째 공동방", description: nil, color: .blue,
+            ownerId: "u1", createdAt: Date(timeIntervalSince1970: 0),
+            pinCount: 0, memberCount: 1, users: []
+        )
+
+        #expect(personalFirst([a, b, fixtureRooms[0]]).map(\.id) == ["r1", "r2", "r3"])
+    }
+
+    // spec FR-007 — "생성 완료 시 [SCR-005] 방 상세로 직행".
+    // 만들기 화면은 id 만 주고 상세는 방 전체를 필요로 해서, 재조회 응답에서 찾아 연다.
+    @Test("FR-007 — 만든 방이 재조회로 도착하면 그 방 상세로 넘어간다")
+    func openCreatedRoom_waitsForReload() async {
+        let store = makeStore()
+
+        await store.send(.openCreatedRoom("r2")) { $0.pendingOpenRoomID = "r2" }
+        await store.send(.loaded(fixtureRooms, isPromptSnoozed: true)) {
+            $0.rooms = fixtureRooms
+            $0.pendingOpenRoomID = nil
+        }
+        store.receiveNavigation(.openRoomDetail(fixtureRooms[1]))
+        store.finish()
+    }
+
+    // 공유 시트 경로처럼 목록이 이미 살아 있으면 기다릴 것이 없다.
+    @Test("FR-007 — 이미 목록에 있는 방이면 곧바로 연다")
+    func openCreatedRoom_opensImmediatelyIfLoaded() async {
         let store = makeStore(state: RoomListState(rooms: fixtureRooms))
-        await store.send(.selectRoomFilter(5)) { $0.roomFilter = 2 }   // 옵션 3개 → 상한 2
+
+        await store.send(.openCreatedRoom("r2"))
+        store.receiveNavigation(.openRoomDetail(fixtureRooms[1]))
+        store.finish()
+    }
+
+    // 방을 만든 직후라 유도 시트가 뜰 이유가 없다 — 상세로 넘어가는 길에 시트가 겹치면 안 된다.
+    @Test("FR-007 — 상세로 넘어가는 응답은 유도 시트를 띄우지 않는다")
+    func openCreatedRoom_doesNotShowCreatePrompt() async {
+        var state = RoomListState()
+        state.pendingOpenRoomID = "r1"
+        let store = makeStore(state: state)
+
+        // 개인방만 있는 응답 = 평소라면 유도 시트가 뜨는 조건이다.
+        await store.send(.loaded([fixtureRooms[0]], isPromptSnoozed: false)) {
+            $0.rooms = [fixtureRooms[0]]
+            $0.pendingOpenRoomID = nil
+        }
+        store.receiveNavigation(.openRoomDetail(fixtureRooms[0]))
+        #expect(!store.currentState.isCreatePromptPresented)
+        store.finish()
+    }
+
+    // 003-1 ⑦ — 현위치 버튼.
+    @Test("L2 — tapMyLocation 은 좌표를 얻으면 지도 카메라를 옮긴다")
+    func tapMyLocation_focusesMap() async {
+        let coordinate = Coordinate(latitude: 37.4966, longitude: 127.0530)
+        let store = makeStore(location: StubCurrentLocation(result: .coordinate(coordinate)))
+        await store.send(.tapMyLocation) { $0.isLocating = true }
+        await store.receive(.myLocationResolved(.coordinate(coordinate))) { $0.isLocating = false }
+        store.receiveNavigation(.focusMyLocation(coordinate))
+        store.finish()
+    }
+
+    // 시안에 실패를 알리는 UI 가 없다 — 지도는 기본 카메라(강남)에 머문다.
+    @Test("L2 — 권한이 없으면 아무 데도 옮기지 않는다")
+    func tapMyLocation_permissionDenied_doesNothing() async {
+        let store = makeStore(location: StubCurrentLocation(result: .permissionDenied))
+        await store.send(.tapMyLocation) { $0.isLocating = true }
+        await store.receive(.myLocationResolved(.permissionDenied)) { $0.isLocating = false }
+        store.finish()
+    }
+
+    @Test("L1 — 요청이 진행 중이면 연타를 무시한다(권한 팝업 이중 노출 방지)")
+    func tapMyLocation_whileLocating_ignored() async {
+        var state = RoomListState()
+        state.isLocating = true
+        let store = makeStore(state: state)
+        await store.send(.tapMyLocation)
         store.finish()
     }
 

@@ -97,6 +97,7 @@ public struct MHTextArea<Leading: View, Trailing: View>: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
+        .mhReportFieldFocus(identifier, isFocused: isFocused)
     }
 
     // MARK: Heading

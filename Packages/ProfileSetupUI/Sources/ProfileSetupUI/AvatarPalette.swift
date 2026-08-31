@@ -2,11 +2,12 @@ import DesignSystem
 import Domain
 import SwiftUI
 
-/// 인덱스 ↔ 도메인 색 ↔ 캐릭터 그림 ↔ 홈 마스코트를 잇는 **단일 이음매**.
+/// 인덱스 ↔ 도메인 색 ↔ 그림 세 종류를 잇는 **단일 이음매**.
 ///
-/// 네 어휘가 각자 다른 이유로 존재한다 — 화면은 그리드 자리(인덱스)로 고르고, 서버는 색 이름만
-/// 알며(`avatar.color`), 프로필 그림은 `MHCharacter`, 홈 우상단 마스코트는 `MHHomeMascot` 다.
-/// 넷을 잇는 표를 여기 한 곳에만 두어 어긋난 매핑이 여러 곳에 생기지 않게 한다.
+/// 어휘가 각자 다른 이유로 존재한다 — 화면은 그리드 자리(인덱스)로 고르고, 서버는 색 이름만
+/// 알며(`avatar.color`), 그림은 자리마다 다르다: 프로필·아바타 슬롯은 `MHAvatarProfile`,
+/// 홈 우상단 마스코트는 `MHHomeMascot`, 마이페이지 큰 프로필은 아직 이전 세대 `MHCharacter` 다.
+/// 이들을 잇는 표를 여기 한 곳에만 두어 어긋난 매핑이 여러 곳에 생기지 않게 한다.
 /// (`RoomColorPalette` 와 같은 역할)
 ///
 /// > ⚠️ **순서가 곧 계약이다.** 선언 순서가 Figma 그리드(좌→우, 상→하)이자 저장되는 색이므로,
@@ -15,40 +16,42 @@ import SwiftUI
 public enum AvatarPalette {
     /// 그리드 한 자리가 잇는 네 어휘.
     ///
-    /// 아바타·마스코트는 Figma 가 **색 이름으로** 배리언트를 나눠 둔 별개 아트라
-    /// (`character/Avatar Profile`·`character/Home_Avatar`), 캐릭터 그림에서 유도하지 않고
-    /// 색에 직접 붙인다.
+    /// 마스코트·아바타 프로필은 Figma 가 **색 이름으로** 배리언트를 나눠 둔 별개 아트라
+    /// (`character/Home_Avatar`·`character/Avatar Profile`), 캐릭터 그림에서 유도하지 않고
+    /// 색에 직접 붙인다. 이름이 같아도 `rawValue` 로 잇지 않고 여기서 명시적으로 짝짓는다 —
+    /// 이름으로 이으면 한쪽 enum 이 바뀌어도 컴파일이 통과하고 런타임에 그림만 조용히 사라진다.
     ///
-    /// > `character` 는 **이전 세대 아트**다. 프로필 설정 화면만 새 `avatar` 로 옮겼고,
-    /// > 댓글·아바타 그룹 등 나머지 자리는 아직 `character` 를 그린다.
+    /// 튜플이 아니라 구조체인 이유는 열이 넷이라서다 — 3-멤버부터 SwiftLint `large_tuple` 이
+    /// 경고하고 4-멤버는 에러다.
     struct Entry {
         let character: MHCharacter
-        let avatar: MHAvatarProfile
         let color: AvatarColor
         let mascot: MHHomeMascot
+        let profile: MHAvatarProfile
     }
 
     /// 그리드 순서대로의 표.
     static let entries: [Entry] = [
-        Entry(character: .character01, avatar: .red, color: .red, mascot: .red),
-        Entry(character: .character02, avatar: .redOrange, color: .redOrange, mascot: .redOrange),
-        Entry(character: .character03, avatar: .orange, color: .orange, mascot: .orange),
-        Entry(character: .character04, avatar: .green, color: .green, mascot: .green),
-        Entry(character: .character05, avatar: .purple, color: .purple, mascot: .purple),
-        Entry(character: .character06, avatar: .lime, color: .lime, mascot: .lime),
-        Entry(character: .character07, avatar: .cyan, color: .cyan, mascot: .cyan),
-        Entry(character: .character08, avatar: .pink, color: .pink, mascot: .pink),
-        Entry(character: .character09, avatar: .blue, color: .blue, mascot: .blue),
-        Entry(character: .character10, avatar: .brown, color: .brown, mascot: .brown),
-        Entry(character: .character11, avatar: .lightBlue, color: .lightBlue, mascot: .lightBlue),
-        Entry(character: .character12, avatar: .violet, color: .violet, mascot: .violet)
+        Entry(character: .character01, color: .red, mascot: .red, profile: .red),
+        Entry(character: .character02, color: .redOrange, mascot: .redOrange, profile: .redOrange),
+        Entry(character: .character03, color: .orange, mascot: .orange, profile: .orange),
+        Entry(character: .character04, color: .green, mascot: .green, profile: .green),
+        Entry(character: .character05, color: .purple, mascot: .purple, profile: .purple),
+        Entry(character: .character06, color: .lime, mascot: .lime, profile: .lime),
+        Entry(character: .character07, color: .cyan, mascot: .cyan, profile: .cyan),
+        Entry(character: .character08, color: .pink, mascot: .pink, profile: .pink),
+        Entry(character: .character09, color: .blue, mascot: .blue, profile: .blue),
+        Entry(character: .character10, color: .brown, mascot: .brown, profile: .brown),
+        Entry(character: .character11, color: .lightBlue, mascot: .lightBlue, profile: .lightBlue),
+        Entry(character: .character12, color: .violet, mascot: .violet, profile: .violet)
     ]
 
     /// 범위 밖 인덱스가 떨어지는 자리. **무선택의 값이 아니다** — 무선택은 `AvatarColor.gray` 이고
-    /// 그림은 소품 없는 기본 아바타다(``avatar(at:)``).
+    /// 그림은 소품 없는 기본 아바타다(``profile(at:)``).
     static let `default` = entries[0]
 
-    static var avatars: [MHAvatarProfile] { entries.map(\.avatar) }
+    /// 선택 그리드에 늘어놓을 그림.
+    static var profiles: [MHAvatarProfile] { entries.map(\.profile) }
 
     static func color(at index: Int) -> AvatarColor {
         entries.indices.contains(index) ? entries[index].color : `default`.color
@@ -60,9 +63,9 @@ public enum AvatarPalette {
 
     /// 그리드 자리 → 아바타 그림. 아직 안 골랐거나(`nil`) 범위 밖이면 소품 없는 기본 아바타다 —
     /// 시안 `010-1`(2314:95662)이 무선택 미리보기에 `black` 배리언트를 그린다.
-    /// (``homeMascot(of:)`` 가 색을 모를 때 `.plain` 으로 떨어지는 것과 같은 근거)
-    static func avatar(at index: Int?) -> MHAvatarProfile {
-        index.flatMap { entries.indices.contains($0) ? entries[$0].avatar : nil } ?? .plain
+    /// (``homeMascot(of:)``·``profile(of:)`` 가 색을 모를 때 `.plain` 으로 떨어지는 것과 같은 근거)
+    static func profile(at index: Int?) -> MHAvatarProfile {
+        index.flatMap { entries.indices.contains($0) ? entries[$0].profile : nil } ?? .plain
     }
 
     /// 서버가 준 색이 그리드 몇 번째인가. 그리드에 칸이 없는 색(`gray`)이거나 모르는 색이면
@@ -71,18 +74,31 @@ public enum AvatarPalette {
         entries.firstIndex { $0.color == color }
     }
 
-    /// 도메인 색으로 캐릭터 그림을 얻는다 — **프로필을 그리기만 하는 화면**(마이페이지 요약)이 쓴다.
+    /// 도메인 색으로 캐릭터 그림을 얻는다 — **이전 세대 아트가 남은 자리**(마이페이지 큰 프로필)가 쓴다.
     ///
     /// 색을 모르거나(서버 팔레트가 우리보다 앞서 나간 경우) 아직 아바타가 없는 계정, `gray` 면
-    /// 1번으로 떨어진다. ``MHCharacter`` 는 **이전 세대 아트**라 "안 고름" 그림이 없어서다 —
-    /// 새 아트(``avatar(at:)``)로 옮긴 화면은 그 자리에 `plain` 을 그린다.
+    /// 1번으로 떨어진다. ``MHCharacter`` 에는 "안 고름" 그림이 없어서다 —
+    /// 새 아트로 옮긴 자리는 그 자리에 `plain` 을 그린다(``profile(of:)``).
     public static func character(of color: AvatarColor?) -> MHCharacter {
         color.flatMap(index(of:)).map(character(at:)) ?? `default`.character
     }
 
+    /// 도메인 색으로 **아바타 프로필 아트**(`character/Avatar Profile`)를 얻는다.
+    ///
+    /// 색을 아직 고르지 않았거나 우리가 모르는 색이면 ``MHAvatarProfile/plain`` — 소품 없는 검은
+    /// 얼굴로, 시안이 "아바타 색을 아직 고르지 않은 계정 자리" 로 마련해 둔 배리언트다.
+    /// (얼굴 쪽 `character(of:)` 는 1번으로 떨어지지만, 그건 **내가 고르는** 그리드의 폴백이라 다르다 —
+    /// 남의 계정을 빨간 캐릭터로 그리면 그 사람이 빨강을 고른 것처럼 보인다.)
+    static func profile(of color: AvatarColor?) -> MHAvatarProfile {
+        color.flatMap(index(of:)).map { entries[$0].profile } ?? .plain
+    }
+
     /// 도메인 색으로 얼굴 그림을 얻는다 — 아바타 그룹·스택처럼 `Image` 를 바로 받는 자리가 쓴다.
+    ///
+    /// 아바타 슬롯(``MHAvatar``·``MHAvatarGroup``·``MHAvatarStack``·``MHComment``)과 프로필
+    /// 선택 그리드는 모두 새 아트를 쓴다. 마이페이지 큰 프로필만 아직 이전 세대(``MHCharacter``)다.
     public static func image(of color: AvatarColor?) -> Image {
-        Image(character(of: color))
+        Image(profile(of: color))
     }
 
     /// 한 줄에 얼굴을 몇 개까지 늘어놓는가. 넘치는 인원은 그리지 않는다(시안에 "+N" 배지가 없다).

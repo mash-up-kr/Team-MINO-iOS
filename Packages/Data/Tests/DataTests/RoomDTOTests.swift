@@ -18,13 +18,47 @@ struct RoomDTOTests {
         createdAt: Date = Date(timeIntervalSince1970: 1_785_574_800),
         pinCount: Int? = 0,
         memberCount: Int? = 1,
-        users: [RoomMemberDTO]? = nil
+        users: [RoomMemberDTO]? = nil,
+        thumbnailList: [String]? = nil
     ) -> RoomDTO {
         RoomDTO(
             id: id, type: type, name: name, description: description, color: color,
             ownerId: ownerId, createdAt: createdAt,
-            pinCount: pinCount, memberCount: memberCount, users: users
+            pinCount: pinCount, memberCount: memberCount, users: users,
+            thumbnailList: thumbnailList
         )
+    }
+
+    // 003-2 ④ — "해당 방에 포함되어있는 장소들의 이미지가 콜라주 형식으로 … 1개, 2개, 3개, 4개(최대)".
+    @Test("thumbnailList 의 사진 URL 이 순서 그대로 실린다")
+    func mapsPlaceThumbnails() throws {
+        let dto = makeDTO(thumbnailList: [
+            "https://cdn.example.com/a.jpg",
+            "https://cdn.example.com/b.jpg",
+        ])
+
+        let room = dto.toDomain()
+
+        #expect(room.placeThumbnails.map(\.absoluteString) == [
+            "https://cdn.example.com/a.jpg",
+            "https://cdn.example.com/b.jpg",
+        ])
+    }
+
+    // 003-2 ③ — 장소가 0개면 서버가 같은 배열에 방 색상 키를 실어 보낸다. 사진으로 오인하면
+    // 카드에 깨진 타일이 뜨므로 걸러야 한다(`URL(string: "orange")` 는 스킴 없이 성공한다).
+    @Test("장소가 없어 색상 키만 온 경우는 사진 0장으로 떨어진다")
+    func colorKeyIsNotAPhoto() throws {
+        let dto = makeDTO(thumbnailList: ["orange"])
+
+        let room = dto.toDomain()
+
+        #expect(room.placeThumbnails.isEmpty)
+    }
+
+    @Test("thumbnailList 자체가 없는 응답은 사진 0장이다")
+    func missingThumbnailListBecomesEmpty() throws {
+        #expect(makeDTO(thumbnailList: nil).toDomain().placeThumbnails.isEmpty)
     }
 
     @Test("필드를 그대로 옮기고, users 가 nil 이면 빈 배열로 매핑한다")

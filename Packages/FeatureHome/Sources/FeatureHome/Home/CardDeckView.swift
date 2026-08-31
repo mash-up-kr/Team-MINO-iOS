@@ -17,8 +17,9 @@ struct CardDeckView: View {
     let onTapCard: (PinID) -> Void
     /// 카드 더보기 메뉴 "다른 방 저장" 탭 — 게시물 저장 바텀시트로 이어진다.
     let onSaveToOtherRoom: (PinID) -> Void
-    /// 홈 가이드가 떠 있는지. 가이드는 **맨 앞 카드만** 딤 위에 남기고(손 그래픽이 그 위에 얹힌다)
-    /// 뒷장은 딤 뒤로 물러나게 한다 — 시안에서도 겹쳐 보이던 뒷장 테두리가 딤에 묻힌다.
+    /// 이 덱이 홈 가이드의 **모형 덱**인지(``HomeGuideMockDeck``). 가이드는 맨 앞 카드만 딤 위에
+    /// 남기고(손 그래픽이 그 위에 얹힌다) 뒷장은 딤 뒤로 물러나게 한다 — 시안에서도 겹쳐 보이던
+    /// 뒷장 테두리가 딤에 묻힌다. 실제 덱은 가이드 중에 화면에 없으므로 언제나 기본값이다.
     var isGuidePresented: Bool = false
 
     @State private var dragOffset: CGFloat = 0

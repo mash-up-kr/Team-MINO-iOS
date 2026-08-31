@@ -8,7 +8,7 @@
 /// (`RoomColorPaletteTests`).
 ///
 /// 값은 Figma `Atomic` 팔레트 토큰명을 옮긴 것이라
-/// 임의로 줄이지 않는다 — 디자인·에셋(`roomThumbnail_*`)·서버가 한 어휘를 쓰게 하려는 것이다.
+/// 임의로 줄이지 않는다 — 디자인·에셋(`roomCover*`)·서버가 한 어휘를 쓰게 하려는 것이다.
 ///
 /// > 색을 고르지 않은 방은 ``gray`` 로 저장된다. 피커에 칸이 없는 13번째 값이라
 /// > `RoomColorPalette.entries` 에 들어가지 않고, 썸네일도 없다(기본 my-room 으로 그린다).

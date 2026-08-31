@@ -8,7 +8,7 @@ import SwiftUI
 /// > 같은 일러스트를 두 패키지가 쓰기 시작하면 여기로 올린다 — `emptyRoom` 은 저장 탭 빈 상태와
 /// > 공동방 생성 유도 시트가 함께 쓴다.
 public enum MHIllustration: String, CaseIterable, Sendable {
-    /// 공동방이 하나도 없을 때 쓰는 캐릭터 일러스트.
+    /// 공동방이 하나도 없을 때 쓰는 캐릭터 일러스트(160×160). 문 뒤의 토끼 셋.
     case emptyRoom = "emptyRoomIllustration"
     /// 봉투 뒤에서 내다보는 캐릭터. Figma `009-1 친구 초대`.
     case inviteFriends = "inviteFriendsIllustration"

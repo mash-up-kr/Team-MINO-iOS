@@ -105,19 +105,23 @@ extension RoomDetailRoom {
     }
 }
 
-/// 툴바 좌측 드롭다운의 정렬 기준.
+/// 지도 위 필터 드롭다운의 정렬 기준.
+///
+/// **방 상세(004-1 ⑥)와 방 리스트(003-1 ①)가 같은 5가지를 쓴다** — 003-1 ① 이 "필터 drop down :
+/// 5가지로 필터링하여 볼 수 있다 / '전체'로 기본 선택되어있다" 로 못박아 두 화면의 항목이 같다.
+/// 그래서 이름은 `RoomDetail*` 이지만 방 상세 전용 타입이 아니다(두 화면이 한 개념을 공유한다).
 ///
 /// **선언 순서가 곧 드롭다운 노출 순서다** — ``RoomDetailSortMenu`` 와 peek 의 `MHFilterBar` 가
 /// `allCases` 를 그대로 그린다. 순서는 시안 `004-1-3_방 상세 full_리스트형` 의 열린 드롭다운과 맞췄다.
-/// 첫 항목이 기본 선택은 아니다 — 기본은 `.all` 이다(004-1 ① "'전체'로 기본 선택되어있다").
-enum RoomDetailSort: String, CaseIterable, Identifiable {
+/// 첫 항목이 기본 선택은 아니다 — 기본은 `.all` 이다(003-1 ① · 004-1 ① "'전체'로 기본 선택되어있다").
+public enum RoomDetailSort: String, CaseIterable, Identifiable {
     case pick = "꾹 Pick"
     case all = "전체"
     case latest = "최신순"
     case distance = "거리순"
     case comment = "코멘트순"
 
-    var id: String { rawValue }
+    public var id: String { rawValue }
 }
 
 /// 툴바 우측 토글의 목록 표시 방식.

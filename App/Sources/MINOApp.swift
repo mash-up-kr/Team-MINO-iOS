@@ -26,11 +26,11 @@ struct RootView: View {
     let coordinator: AppCoordinator
 
     var body: some View {
-        switch coordinator.launch.state.phase {
+        let launch = coordinator.launch.state
+        switch launch.phase {
+        // 실패도 이 구간이다 — 스낵바를 얹은 채 자동 재시도가 돈다(시안 012-2/3/4).
         case .idle, .loading:
-            LaunchSplashView()
-        case .retry:
-            LaunchSplashView(onRetry: { coordinator.launch.send(.tapRetry) })
+            LaunchSplashView(isSlow: launch.isSlow, notice: launch.notice)
         case .onboarding:
             OnboardingHost(coordinator: coordinator)
         case .main:

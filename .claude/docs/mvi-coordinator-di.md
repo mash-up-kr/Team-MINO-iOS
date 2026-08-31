@@ -351,6 +351,7 @@ XxxHomeView(coordinator: appCoordinator.xxx)
 ### 체크리스트
 
 - [ ] `make<화면>Store` 는 **`Store(_:reduce:handle:)`** 로 만든다 — 구독이 생성에 묶여 누락이 불가능하다(맨손 `init(_:reduce:)` 는 `observeNavigation` 을 빠뜨리면 navigation 이 조용히 안 됨)
+- [ ] **store 생성 가드가 진입 로드까지 막지 않는지** 확인한다 — `.task` 는 화면이 다시 보일 때마다(자식 화면에서 pop) 도는데, `guard store == nil else { return }` 로 통째로 막으면 조회가 **최초 1회**만 나가 돌아왔을 때 방금 만든 데이터가 안 보인다(저장 탭 방 리스트에서 실제 발생). 가드는 생성에만 걸고 `send(.load)` 는 밖에 둔다
 - [ ] reduce는 Repository가 아니라 **UseCase**를 받는다 (Repository 직접 주입하면 비즈니스 로직이 Feature로 샘)
 - [ ] deps 프로토콜은 **자기 의존만** (번들 통째 주입은 `Feature→App` 역의존을 만들고, 다른 피쳐 UseCase까지 보임)
 - [ ] View는 **생성자 주입**(@Environment·전역 컨테이너 금지 — 주입 누락을 런타임 크래시가 아니라 컴파일 에러로 차단)

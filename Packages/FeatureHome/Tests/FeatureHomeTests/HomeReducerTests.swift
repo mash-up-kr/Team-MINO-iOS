@@ -311,14 +311,11 @@ struct HomeReducerTests {
 
     // MARK: - 홈 사용 가이드 (정책 1)
 
-    @Test("L2 — 최초 진입(가이드 미표기 + 카드 있음)이면 가이드를 띄우고 그 시점에 1회 표기를 기록한다")
+    @Test("L2 — 최초 진입(가이드 미표기)이면 가이드를 띄우고 그 시점에 1회 표기를 기록한다")
     func guide_showsOnceOnFirstEntry() async {
         let guide = SpyHomeGuide(seen: false)
         let store = makeStore(homeGuide: guide, state: HomeState(rooms: fixtureRooms, isLoading: true))
-        await store.send(.initialDeckLoaded(pins: fixturePins, roomID: "1")) {
-            $0.pins = fixturePins
-            $0.isLoading = false
-        }
+        await store.send(.checkGuide)
         await store.receive(.showGuide) { $0.isGuidePresented = true }
         #expect(await guide.markedSeen == 1)
         store.finish()
@@ -327,22 +324,27 @@ struct HomeReducerTests {
     @Test("L2 — 이미 본 가이드는 다시 띄우지 않는다")
     func guide_doesNotShowWhenSeen() async {
         let store = makeStore(homeGuide: SpyHomeGuide(seen: true), state: HomeState(rooms: fixtureRooms, isLoading: true))
+        await store.send(.checkGuide)
+        store.finish()   // showGuide 미수신 — 잔여 effect 없음
+    }
+
+    @Test("L2 — 카드가 0장이어도 가이드를 띄운다 (가이드가 가리키는 덱은 모형이라 실 데이터와 무관)")
+    func guide_showsWithoutCards() async {
+        let store = makeStore(homeGuide: SpyHomeGuide(seen: false), state: HomeState())
+        await store.send(.checkGuide)
+        await store.receive(.showGuide) { $0.isGuidePresented = true }
+        store.finish()
+    }
+
+    @Test("L2 — 덱 도착은 더 이상 가이드를 띄우지 않는다 (조회와 분리)")
+    func guide_notTiedToDeckLoad() async {
+        let store = makeStore(homeGuide: SpyHomeGuide(seen: false), state: HomeState(rooms: fixtureRooms, isLoading: true))
         await store.send(.initialDeckLoaded(pins: fixturePins, roomID: "1")) {
             $0.pins = fixturePins
             $0.isLoading = false
         }
-        store.finish()   // showGuide 미수신 — 잔여 effect 없음
-    }
-
-    @Test("L2 — 카드가 0장이면(빈 상태) 스와이프 가이드를 띄우지 않는다")
-    func guide_doesNotShowWithoutCards() async {
-        // 첫 정렬이 비면 남은 정렬을 찾아 나서므로(빈 정렬 스킵) 로딩이 이어진다 — 가이드는 뜨지 않는다.
-        let store = makeStore(homeGuide: SpyHomeGuide(seen: false),
-                              state: HomeState(rooms: fixtureRooms, isLoading: true))
-        store.exhaustive = false
-        await store.send(.initialDeckLoaded(pins: [], roomID: "1")) { $0.isLoading = false }
         #expect(!store.currentState.isGuidePresented)
-        store.finish()
+        store.finish()   // showGuide 미수신 — 잔여 effect 없음
     }
 
     @Test("L1 — dismissGuide 는 가이드를 닫는다 (X 버튼)")
