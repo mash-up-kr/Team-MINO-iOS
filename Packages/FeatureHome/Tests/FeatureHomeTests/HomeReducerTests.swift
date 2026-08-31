@@ -500,7 +500,7 @@ struct HomeReducerTests {
         )
         store.exhaustive = false
         await store.send(.swipeForward)   // 마지막 장을 넘겨 꾹 Pick 소진
-        await store.receive(.deckLoaded(pins: latest, roomID: "1", filter: .latest))
+        await store.receive(.probeLoaded(pins: latest, roomIndex: 0, filter: .latest))
 
         #expect(store.currentState.selectedFilter == .latest)
         #expect(store.currentState.pins == latest)
@@ -519,14 +519,14 @@ struct HomeReducerTests {
         )
         store.exhaustive = false
         await store.send(.initialDeckLoaded(pins: [], roomID: "1"))
-        await store.receive(.deckLoaded(pins: [], roomID: "1", filter: .latest))
+        await store.receive(.probeLoaded(pins: [], roomIndex: 0, filter: .latest))
         // 가까운순은 서버가 좌표를 요구한다 — 덱 조회 전에 위치를 한 번 얻어 들고 간다.
         await store.receive(.myCoordinateResolved(stubCoordinate))
-        await store.receive(.deckLoaded(pins: nearby, roomID: "1", filter: .nearby))
+        await store.receive(.probeLoaded(pins: nearby, roomIndex: 0, filter: .nearby))
 
         #expect(store.currentState.selectedFilter == .nearby)
         #expect(store.currentState.pins == nearby)
-        #expect(store.currentState.arrival == .settled)   // 자리를 찾았으니 굳는다
+        #expect(store.currentState.probe == nil)   // 자리를 찾았으니 순회가 끝난다
         store.finish()
     }
 
@@ -542,7 +542,6 @@ struct HomeReducerTests {
             $0.filterAnchor = .latest
             $0.selectedFilter = .latest
             $0.isDeckLoading = true
-            $0.arrival = .settled
         }
         await store.receive(.deckLoaded(pins: capped, roomID: "1", filter: .latest)) {
             $0.isDeckLoading = false
@@ -624,10 +623,11 @@ struct HomeReducerTests {
             $0.currentCardIndex = 0
             $0.changedRoomToastID = "2"
             $0.isDeckLoading = true
-            $0.arrival = .advancing
+            $0.probe = DeckProbe(roomIndex: 1, filter: .recommended, viewedFilters: [], crossesRooms: false)
         }
         await store.receive(.deckLoadFailed(roomID: "2", filter: .recommended, revertTo: revert)) {
             $0.isDeckLoading = false
+            $0.probe = nil
             $0.currentRoomIndex = 0
             $0.selectedFilter = .nearby
             $0.filterAnchor = .nearby
@@ -635,7 +635,6 @@ struct HomeReducerTests {
             $0.decks = revert.decks
             $0.currentCardIndex = 0
             $0.changedRoomToastID = nil   // 옮긴 적 없으니 "…방이에요" 안내도 거둔다
-            $0.arrival = .settled
         }
         #expect(store.currentState.currentRoom?.id == "1")
         #expect(store.currentState.pins.count == 1)          // 옛 방 덱이 살아 있다
@@ -688,12 +687,12 @@ struct HomeReducerTests {
             $0.decks = [:]
             $0.changedRoomToastID = "2"
             $0.isDeckLoading = true
-            $0.arrival = .advancing   // 방을 여는 중 — 데이터 있는 정렬을 찾는다
+            $0.probe = DeckProbe(roomIndex: 1, filter: .recommended, viewedFilters: [], crossesRooms: false)
         }
-        await store.receive(.deckLoaded(pins: room2, roomID: "2", filter: .recommended)) {
+        await store.receive(.probeLoaded(pins: room2, roomIndex: 1, filter: .recommended)) {
             $0.isDeckLoading = false
             $0.decks[.recommended] = room2
-            $0.arrival = .settled   // 보여줄 자리가 정해졌다
+            $0.probe = nil
         }
         #expect(await spy.saved == ["2"])
         store.finish()
@@ -738,7 +737,7 @@ struct HomeReducerTests {
         await store.receive(.deckLoaded(pins: latest, roomID: "1", filter: .latest))
 
         #expect(store.currentState.pins == latest)
-        #expect(store.currentState.arrival == .settled)
+        #expect(store.currentState.probe == nil)
         store.finish()
     }
 
@@ -762,8 +761,8 @@ struct HomeReducerTests {
         store.exhaustive = false
         await store.send(.initialDeckLoaded(pins: [], roomID: "1"))
         // 그 방의 남은 정렬은 훑는다 — 꾹 Pick 은 방에 장소가 있어도 비어 올 수 있어서다.
-        await store.receive(.deckLoaded(pins: [], roomID: "1", filter: .latest))
-        await store.receive(.deckLoaded(pins: [], roomID: "1", filter: .nearby))
+        await store.receive(.probeLoaded(pins: [], roomIndex: 0, filter: .latest))
+        await store.receive(.probeLoaded(pins: [], roomIndex: 0, filter: .nearby))
 
         #expect(store.currentState.currentRoom?.id == "1")   // 시작 방 그대로
         #expect(store.currentState.hasViewedAllPlaces)       // 쓸 방은 있으니 완료 화면
@@ -796,9 +795,9 @@ struct HomeReducerTests {
         store.exhaustive = false
         await store.send(.selectRoom("2"))
         // 그 방의 세 정렬을 훑어보고, 다 비면 거기서 멈춘다 — 3번 방으로 넘어가지 않는다.
-        await store.receive(.deckLoaded(pins: [], roomID: "2", filter: .recommended))
-        await store.receive(.deckLoaded(pins: [], roomID: "2", filter: .latest))
-        await store.receive(.deckLoaded(pins: [], roomID: "2", filter: .nearby))
+        await store.receive(.probeLoaded(pins: [], roomIndex: 1, filter: .recommended))
+        await store.receive(.probeLoaded(pins: [], roomIndex: 1, filter: .latest))
+        await store.receive(.probeLoaded(pins: [], roomIndex: 1, filter: .nearby))
 
         #expect(store.currentState.currentRoomIndex == 1)          // 고른 방 그대로
         #expect(store.currentState.currentRoom?.id == "2")
@@ -819,14 +818,14 @@ struct HomeReducerTests {
         )
         store.exhaustive = false
         await store.send(.selectRoom("2"))
-        await store.receive(.deckLoaded(pins: [], roomID: "2", filter: .recommended))
-        await store.receive(.deckLoaded(pins: latest, roomID: "2", filter: .latest))
+        await store.receive(.probeLoaded(pins: [], roomIndex: 1, filter: .recommended))
+        await store.receive(.probeLoaded(pins: latest, roomIndex: 1, filter: .latest))
 
         // 꾹 Pick 이 비었으니 최신순으로 — 방을 여는 순간에만 하는 탐색이다.
         #expect(store.currentState.currentRoom?.id == "2")
         #expect(store.currentState.selectedFilter == .latest)
         #expect(store.currentState.pins == latest)
-        #expect(store.currentState.arrival == .settled)
+        #expect(store.currentState.probe == nil)
         store.finish()
     }
 
@@ -843,13 +842,16 @@ struct HomeReducerTests {
         )
         store.exhaustive = false
         await store.send(.selectRoom("2"))
-        await store.receive(.deckLoaded(pins: [], roomID: "2", filter: .recommended))
+        // 방 진입 탐색이 최신순을 찾아 앉힌다(칩이 훑는 과정은 화면에 보이지 않는다).
+        await store.receive(.probeLoaded(pins: [], roomIndex: 1, filter: .recommended))
+        await store.receive(.probeLoaded(pins: latest, roomIndex: 1, filter: .latest))
 
-        // 자동 순회는 막았어도 수동 경로는 그대로다 — 칩을 누르면 카드를 볼 수 있다.
-        await store.send(.selectFilter(.latest))
-        await store.receive(.deckLoaded(pins: latest, roomID: "2", filter: .latest))
-        #expect(store.currentState.selectedFilter == .latest)
-        #expect(store.currentState.pins == latest)
+        // 사용자가 꾹 Pick 을 다시 누르면 그 칩으로 간다 — 비어도 끌려가지 않는다.
+        await store.send(.selectFilter(.recommended))
+        await store.receive(.deckLoaded(pins: [], roomID: "2", filter: .recommended))
+        #expect(store.currentState.selectedFilter == .recommended)   // 누른 칩 그대로
+        #expect(store.currentState.pins.isEmpty)
+        #expect(store.currentState.probe == nil)                     // 탐색으로 넘어가지 않는다
         #expect(!store.currentState.showsEmptyState)
         store.finish()
     }
@@ -889,11 +891,11 @@ struct HomeReducerTests {
         )
         store.exhaustive = false
         await store.send(.initialDeckLoaded(pins: [], roomID: "1"))
-        await store.receive(.deckLoaded(pins: [], roomID: "1", filter: .latest))
-        await store.receive(.deckLoaded(pins: [], roomID: "1", filter: .nearby))
+        await store.receive(.probeLoaded(pins: [], roomIndex: 0, filter: .latest))
+        await store.receive(.probeLoaded(pins: [], roomIndex: 0, filter: .nearby))
 
         #expect(store.currentState.errorMessage == nil)   // 권한 거부는 오류가 아니다
-        #expect(store.currentState.arrival == .settled)
+        #expect(store.currentState.probe == nil)
         #expect(store.currentState.hasViewedAllPlaces)
         store.finish()
     }

@@ -47,9 +47,9 @@ public struct HomeState: Equatable {
     /// 가까운순 조회의 기준점(내 위치). 그 기준을 처음 고른 순간에 한 번 얻어 들고 있는다 —
     /// 서버가 `sort=nearby` 에 좌표를 요구하고, 매번 다시 측위하면 칩을 오갈 때마다 몇 초씩 걸린다.
     public var myCoordinate: Coordinate?
-    /// 지금 자리에 **어떻게 왔는가**. 자동 순회를 어디까지 허용할지가 여기서 갈린다.
-    /// 그 방의 카드를 한 장이라도 보면 ``DeckArrival/swipe`` 로 풀린다.
-    var arrival: DeckArrival
+    /// 데이터가 있는 자리를 찾는 중인 임시 커서 (nil = 순회 중 아님).
+    /// 찾는 동안 화면은 직전 자리 그대로다 — ``DeckProbe`` 참조.
+    var probe: DeckProbe?
 
     public init(
         rooms: [Room] = [],
@@ -69,7 +69,7 @@ public struct HomeState: Equatable {
         savedToastID: Int? = nil,
         savedToastKind: SavedToastKind = .saved,
         myCoordinate: Coordinate? = nil,
-        arrival: DeckArrival = .settled
+        probe: DeckProbe? = nil
     ) {
         self.rooms = rooms
         self.isLoading = isLoading
@@ -88,7 +88,7 @@ public struct HomeState: Equatable {
         self.savedToastID = savedToastID
         self.savedToastKind = savedToastKind
         self.myCoordinate = myCoordinate
-        self.arrival = arrival
+        self.probe = probe
     }
 
     /// 현재 기준의 카드 덱. 쓰기는 현재 기준의 덱만 갈아끼운다(다른 기준 캐시는 그대로).
@@ -107,10 +107,10 @@ public struct HomeState: Equatable {
 
     /// 지금 내놓을 카드가 없다 — 덱이 비었거나 끝까지 넘겼다.
     ///
-    /// 다음 정렬을 찾는 중(``DeckArrival/advancing``)에는 아직 판정하지 않는다. "없다" 가
-    /// 확정이 아니고, 그때 화면을 갈아끼우면 한 프레임 깜빡인다.
+    /// 자리를 찾는 중(``probe`` 가 있을 때)에는 아직 판정하지 않는다. "없다" 가 확정이 아니고,
+    /// 그때 화면을 갈아끼우면 한 프레임 깜빡인다.
     var hasNoCardToShow: Bool {
-        !isLoading && !isDeckLoading && arrival == .settled && (pins.isEmpty || isCurrentDeckExhausted)
+        !isLoading && !isDeckLoading && probe == nil && (pins.isEmpty || isCurrentDeckExhausted)
     }
 
     /// 홈 상단 방 정체성(방 칩·마스코트)을 노출할지. **어느 기준으로든 받아 둔 장소가 있거나 공동방이 하나라도
@@ -162,22 +162,24 @@ public struct HomeState: Equatable {
     public var remainingInCurrentDeck: Int { max(0, pins.count - currentCardIndex) }
 }
 
-/// 지금 **그 방 안에서 다음 정렬을 찾는 중**인가.
+/// 데이터가 있는 자리를 찾는 **임시 커서**. 화면에는 반영하지 않는다.
 ///
-/// 정렬 순회는 방 **안에서만** 일어난다 — 꾹 Pick → 최신순 → 가까운순. 세 덱을 다 보면
-/// 완료 화면에 서고, **다음 방으로는 넘어가지 않는다**(방은 사용자가 방 시트에서 고른다).
+/// 빈 정렬·빈 방을 지나갈 때 방 뱃지와 정렬 칩이 자리마다 바뀌면, 사용자는 화면이 저 혼자
+/// 움직인다고 읽는다 — 실기에서 이게 문제로 잡혔다. 그래서 순회하는 동안에는 커서만 옮기고
+/// 화면은 **직전 자리 + 로딩** 그대로 두었다가, 카드가 있는 자리를 찾은 순간 한 번에 커밋한다.
 ///
-/// 찾기가 시작되는 자리는 둘이다:
-/// - 방을 열 때(앱 실행·방 변경) — 진입 정렬이 비면 데이터가 있는 정렬을 찾는다
-/// - 덱을 다 넘겼을 때 — 그 방의 남은 정렬로 이어 본다
-///
-/// 반대로 **정렬 칩을 직접 누른** 자리는 ``settled`` 다. 누른 칩이 비어도 데이터가 있는
-/// 칩으로 끌고 가지 않는다 — 무엇을 볼지 방금 사용자가 정했기 때문이다.
-public enum DeckArrival: Equatable, Sendable {
-    /// 그 방의 다음 정렬을 찾는 중.
-    case advancing
-    /// 보여줄 자리가 정해졌다 — 자동으로 움직이지 않는다.
-    case settled
+/// 지나간 방의 「…방이에요」 툴팁도 뜨지 않는다 — 들르지 않은 방이기 때문이다.
+public struct DeckProbe: Equatable, Sendable {
+    var roomIndex: Int
+    var filter: PinFilter
+    /// 이 순회에서 확인을 끝낸 정렬(지금 커서의 방 기준).
+    var viewedFilters: Set<PinFilter>
+    /// 그 방의 정렬을 다 봤을 때 **다음 방으로 넘어가는가**.
+    ///
+    /// 스와이프로 소진해 온 길이면 넘어간다(마지막 방의 마지막 카드까지 이어 본다).
+    /// 방을 여는 길(앱 실행·방 시트 선택)이면 넘어가지 않는다 — 사용자가 지목한 방을 두고
+    /// 다른 방에 가 있으면 자기가 어디 있는지 알 수 없다.
+    var crossesRooms: Bool
 }
 
 /// 완료 토스트를 띄운 경로. 문구가 경로마다 다르게 정해져 있어(각 스펙) 상태는 경로만 들고
@@ -239,6 +241,10 @@ public enum HomeAction: Equatable {
     /// 칩·방을 연속으로 옮겨 응답이 엇갈려 도착해도 지나간 자리의 덱이 화면을 끌고 가지 않게 한다.
     /// 덱은 언제나 **첫 카드**부터 시작한다(되돌리기가 덱 경계를 넘지 않으므로 뒤에서 들어올 일이 없다).
     case deckLoaded(pins: [Pin], roomID: String, filter: PinFilter)
+    /// 순회 커서가 확인한 자리의 결과. 비면 다음 자리로, 카드가 있으면 그 자리를 화면에 커밋한다.
+    /// `deckLoaded` 와 나눠 둔 이유는 **화면에 반영할 시점이 다르기** 때문이다 —
+    /// 이쪽은 찾을 때까지 화면을 건드리지 않는다(``DeckProbe``).
+    case probeLoaded(pins: [Pin], roomIndex: Int, filter: PinFilter)
     /// 덱 조회 실패 — 가려던 자리를 버리고 조회 직전 자리로 되돌린다.
     case deckLoadFailed(roomID: String, filter: PinFilter, revertTo: DeckPosition)
     case tapCreateRoom
@@ -325,7 +331,7 @@ public struct DeckPosition: Equatable, Sendable {
     public var viewedFilters: Set<PinFilter>
     public var filterAnchor: PinFilter
     public var changedRoomToastID: String?
-    var arrival: DeckArrival
+    var probe: DeckProbe?
 
     public init(
         roomIndex: Int,
@@ -335,7 +341,7 @@ public struct DeckPosition: Equatable, Sendable {
         viewedFilters: Set<PinFilter> = [],
         filterAnchor: PinFilter = .recommended,
         changedRoomToastID: String? = nil,
-        arrival: DeckArrival = .settled
+        probe: DeckProbe? = nil
     ) {
         self.roomIndex = roomIndex
         self.filter = filter
@@ -344,7 +350,7 @@ public struct DeckPosition: Equatable, Sendable {
         self.viewedFilters = viewedFilters
         self.filterAnchor = filterAnchor
         self.changedRoomToastID = changedRoomToastID
-        self.arrival = arrival
+        self.probe = probe
     }
 
     /// 지금 자리를 그대로 담는다 — 조회를 시작하며 상태를 건드리기 **전에** 캡처해야 한다.
@@ -357,7 +363,7 @@ public struct DeckPosition: Equatable, Sendable {
             viewedFilters: state.viewedFilters,
             filterAnchor: state.filterAnchor,
             changedRoomToastID: state.changedRoomToastID,
-            arrival: state.arrival
+            probe: state.probe
         )
     }
 }
@@ -382,7 +388,6 @@ private func showDeck(
     state.selectedFilter = filter
     if let cached = state.decks[filter], !cached.isEmpty {
         state.currentCardIndex = 0
-        state.arrival = .settled
         return .none
     }
     guard let room = state.currentRoom else { return .none }
@@ -417,55 +422,66 @@ private func showDeck(
 }
 
 /// 방을 옮긴다 — 정렬 상태(확인 기록·우선순위·덱 캐시)를 새 방 기준으로 초기화하고 첫 정렬 덱을 연다.
-/// 정책: 방 진입 시 우선순위는 꾹 Pick → 최신순 → 가까운순이라 anchor 를 기본으로 되돌린다.
-/// 전환 안내로 방 변경 툴팁도 함께 세운다(자동·수동 전환 모두 같은 안내).
-private func moveToRoom(
-    index: Int,
+/// 커서 자리에서 **다음으로 확인할 자리**를 고른다 (nil = 더 갈 곳이 없다).
+///
+/// 같은 방의 남은 정렬을 먼저 훑고, 그 방을 다 봤으면 다음 방의 꾹 Pick 으로 넘어간다
+/// (``DeckProbe/crossesRooms`` 일 때만). **새 방은 언제나 꾹 Pick 부터** 시작한다.
+private func nextProbeTarget(after probe: DeckProbe, in state: HomeState) -> DeckProbe? {
+    // 지금 보고 있는 방에서는 사용자가 고른 정렬이 앞에 오고(filterOrder), 넘어간 방은 기본 순서다.
+    let order = probe.roomIndex == state.currentRoomIndex ? state.filterOrder : PinFilter.allCases
+    if let next = order.first(where: { !probe.viewedFilters.contains($0) }) {
+        var target = probe
+        target.filter = next
+        return target
+    }
+    guard probe.crossesRooms else { return nil }
+    let nextRoom = probe.roomIndex + 1
+    guard state.rooms.indices.contains(nextRoom) else { return nil }
+    return DeckProbe(roomIndex: nextRoom, filter: .recommended, viewedFilters: [], crossesRooms: true)
+}
+
+/// 커서 자리의 덱을 받아 본다. **화면 상태는 건드리지 않는다** — 커서와 로딩만 세운다.
+private func fetchProbe(
+    _ probe: DeckProbe,
     revertingTo revert: DeckPosition,
     state: inout HomeState,
     fetchHomeCards: FetchHomeCardsUseCase,
-    currentLocation: CurrentLocationUseCase,
-    lastViewedRoom: LastViewedRoomUseCase
+    currentLocation: CurrentLocationUseCase
 ) -> Effect<HomeAction, HomeNav> {
-    guard state.rooms.indices.contains(index) else { return .none }
-    state.currentRoomIndex = index
-    state.viewedFilters = []
-    state.filterAnchor = .recommended
-    state.decks = [:]            // 덱 캐시는 방에 딸린 것이다
-    state.currentCardIndex = 0
-    state.arrival = .advancing   // 방을 여는 중 — 데이터가 있는 정렬을 찾는다
-    state.changedRoomToastID = state.rooms[index].id
-    return showDeck(
-        filter: .recommended, revertingTo: revert, persistingRoom: true,
-        state: &state, fetchHomeCards: fetchHomeCards, currentLocation: currentLocation, lastViewedRoom: lastViewedRoom
-    )
+    guard state.rooms.indices.contains(probe.roomIndex) else { return finishProbe(&state) }
+    let room = state.rooms[probe.roomIndex]
+    state.probe = probe
+    state.isDeckLoading = true   // 받는 동안 빈 상태·소진 화면이 끼어들지 않게 한다
+    let known = state.myCoordinate
+    return .run { send in
+        do {
+            var origin = known
+            if probe.filter == .nearby, origin == nil {
+                guard case .coordinate(let resolved) = await currentLocation.execute() else {
+                    // 정책(EC-009): 권한 거부는 실패가 아니라 "그 정렬엔 볼 게 없다" 로 받는다.
+                    send(.probeLoaded(pins: [], roomIndex: probe.roomIndex, filter: probe.filter))
+                    return
+                }
+                origin = resolved
+                send(.myCoordinateResolved(resolved))
+            }
+            let pins = try await fetchHomeCards.execute(room: room, filter: probe.filter, origin: origin)
+            send(.probeLoaded(pins: Array(pins.prefix(deckPageSize)), roomIndex: probe.roomIndex, filter: probe.filter))
+        } catch is CancellationError {
+            return   // 취소는 결과가 없는 것이지 실패가 아니다
+        } catch {
+            // **빈 덱과 조회 실패는 다르다.** 빈 자리는 지나가지만(스루), 실패는 순회 직전 자리로
+            // 되돌린다 — 실패를 빈 것으로 뭉개면 "다 봤다" 로 읽혀 보던 덱까지 사라진다.
+            send(.deckLoadFailed(roomID: room.id, filter: probe.filter, revertTo: revert))
+        }
+    }
 }
 
-/// 현재 정렬의 덱을 다 봤을 때 이어서 갈 곳으로 옮긴다.
-/// 정책: 이 방에 미확인 정렬이 남아 있으면 **다음 방으로 가지 않고** 그 정렬로 자동 전환하고,
-/// 세 정렬을 모두 확인했을 때만 다음 방으로 넘어간다. 마지막 방까지 끝나면 소진 화면(002-3)에 남는다.
-/// **그 방의 다음 정렬**로 이어 본다 — 방을 연 직후 진입 정렬이 비었거나, 덱을 다 넘겼을 때.
-///
-/// 방은 절대 넘기지 않는다. 세 정렬이 모두 끝나면 ``DeckArrival/settled`` 로 굳고
-/// 화면은 완료(또는 빈 상태)로 간다.
-private func advanceToNextFilterInRoom(
-    state: inout HomeState,
-    fetchHomeCards: FetchHomeCardsUseCase,
-    currentLocation: CurrentLocationUseCase,
-    lastViewedRoom: LastViewedRoomUseCase
-) -> Effect<HomeAction, HomeNav> {
-    // 직접 누른 칩(`settled`)이면 아무것도 하지 않는다 — 빈 정렬은 빈 채로 둔다.
-    guard state.arrival == .advancing else { return .none }
-    let revert = DeckPosition(state)   // 확인 기록을 넣기 전 자리(조회 실패 시 여기로 되돌린다)
-    state.viewedFilters.insert(state.selectedFilter)
-    guard let next = state.nextUnviewedFilter else {
-        state.arrival = .settled   // 세 정렬 다 비었다 — 여기서 멈춘다
-        return .none
-    }
-    return showDeck(
-        filter: next, revertingTo: revert,
-        state: &state, fetchHomeCards: fetchHomeCards, currentLocation: currentLocation, lastViewedRoom: lastViewedRoom
-    )
+/// 더 갈 곳이 없다 — 커서를 걷고 화면을 확정한다(완료 또는 빈 상태).
+private func finishProbe(_ state: inout HomeState) -> Effect<HomeAction, HomeNav> {
+    state.probe = nil
+    state.isDeckLoading = false
+    return .none
 }
 
 /// 순수 reduce. UseCase(fetchRooms·fetchHomeCards·lastViewedRoom)는 Effect.run 안에서만 사용한다.
@@ -543,7 +559,7 @@ public func homeReducer(
             state.filterAnchor = filter
             state.viewedFilters.remove(filter)   // 다시 고른 정렬은 처음부터 다시 본다
             // 직접 누른 칩이다 — 그 정렬이 비어도 다른 칩으로 끌고 가지 않는다.
-            state.arrival = .settled
+            state.probe = nil
             return showDeck(
                 filter: filter, revertingTo: revert,
                 state: &state, fetchHomeCards: fetchHomeCards, currentLocation: currentLocation, lastViewedRoom: lastViewedRoom
@@ -557,16 +573,45 @@ public func homeReducer(
             guard filter == state.selectedFilter else { return .none }
             state.isDeckLoading = false
             state.currentCardIndex = 0
-            // 방을 여는 중이었다면 그 방의 다음 정렬을 찾아본다. 보던 중이면 빈 채로 둔다.
-            guard !pins.isEmpty else {
-                return advanceToNextFilterInRoom(state: &state, fetchHomeCards: fetchHomeCards, currentLocation: currentLocation, lastViewedRoom: lastViewedRoom)
-            }
-            state.arrival = .settled   // 보여줄 자리가 정해졌다
+            // 이 경로는 **정렬 칩을 직접 누른** 조회다 — 비어도 다른 칩으로 끌고 가지 않는다.
+            // 자동 순회는 `probeLoaded` 가 맡는다.
             return .none
+
+        case .probeLoaded(let pins, let roomIndex, let filter):
+            // 지나간 순회의 응답은 버린다 — 커서가 이미 다른 자리로 갔거나 순회가 끝났다.
+            guard let probe = state.probe, probe.roomIndex == roomIndex, probe.filter == filter else { return .none }
+            guard !pins.isEmpty else {
+                var next = probe
+                next.viewedFilters.insert(filter)
+                guard let target = nextProbeTarget(after: next, in: state) else { return finishProbe(&state) }
+                // 순회는 화면을 건드리지 않으므로 지금 자리가 곧 되돌아갈 자리다.
+                return fetchProbe(target, revertingTo: DeckPosition(state), state: &state,
+                                  fetchHomeCards: fetchHomeCards, currentLocation: currentLocation)
+            }
+            // 찾았다 — 지나온 자리는 건너뛰고 여기 한 번에 앉힌다.
+            if roomIndex != state.currentRoomIndex {
+                state.currentRoomIndex = roomIndex
+                state.decks = [:]
+                state.filterAnchor = .recommended
+                state.changedRoomToastID = state.rooms[roomIndex].id   // 실제로 도착한 방만 안내한다
+            }
+            state.selectedFilter = filter
+            state.decks[filter] = pins
+            state.currentCardIndex = 0
+            state.viewedFilters = probe.viewedFilters
+            state.isDeckLoading = false
+            state.probe = nil
+            let landedRoomID = state.rooms[roomIndex].id
+            return .run { _ in await lastViewedRoom.save(roomID: landedRoomID) }
 
         case .deckLoadFailed(let roomID, let filter, let revert):
             // 이미 다른 자리로 옮겨 갔으면 지나간 조회의 실패다 — 되돌리면 지금 화면을 엉뚱하게 끌고 간다.
-            guard roomID == state.currentRoom?.id, filter == state.selectedFilter else { return .none }
+            // 순회 중이면 화면이 아직 안 움직였으므로 **커서**와 대조한다.
+            let matchesProbe = state.probe.map {
+                state.rooms.indices.contains($0.roomIndex)
+                    && state.rooms[$0.roomIndex].id == roomID && $0.filter == filter
+            } ?? false
+            guard matchesProbe || (roomID == state.currentRoom?.id && filter == state.selectedFilter) else { return .none }
             // 실패하면 가려던 자리를 버리고 조회 직전 자리로 되돌려 기존 덱을 계속 보여준다.
             // 자리를 새것으로 둔 채 로딩만 끄면 그 덱이 비어 빈 상태("공동방 만들기")가 뜬다 —
             // 조회가 실패한 건데 장소가 없다고 말하게 된다.
@@ -579,7 +624,7 @@ public func homeReducer(
             state.viewedFilters = revert.viewedFilters
             state.filterAnchor = revert.filterAnchor
             state.changedRoomToastID = revert.changedRoomToastID   // 옮긴 적 없으니 전환 안내도 거둔다
-            state.arrival = revert.arrival
+            state.probe = revert.probe
             // 소진 자동 전환 경로에선 인덱스가 이미 덱 밖(pins.count)으로 밀려 있어, 그대로 되돌리면
             // 카드 없는 덱 분기에 들어간다. 복구한 덱의 마지막 카드로 클램프해 거기서 다시 넘기면 재시도된다.
             state.currentCardIndex = min(revert.cardIndex, max(0, state.pins.count - 1))
@@ -598,26 +643,35 @@ public func homeReducer(
             state.pins = pins
             state.currentCardIndex = 0
             state.isLoading = false   // 첫 덱까지 도착 → 이제 카드 유무가 확정돼 로딩 종료
-            // 진입 정렬(꾹 Pick)이 비면 그 방의 남은 정렬을 찾는다 — 방은 넘기지 않는다.
-            state.arrival = pins.isEmpty ? .advancing : .settled
-            guard !pins.isEmpty else {
-                return advanceToNextFilterInRoom(state: &state, fetchHomeCards: fetchHomeCards, currentLocation: currentLocation, lastViewedRoom: lastViewedRoom)
-            }
-            return .none
+            // 진입 정렬(꾹 Pick)이 비면 그 방 안에서 데이터가 있는 정렬을 찾는다 — 방은 넘기지 않는다.
+            // 앱을 켠 직후 사용자가 고르지도 않은 방에 가 있으면 어디로 왔는지 알 수 없다.
+            guard pins.isEmpty else { return .none }
+            let revert = DeckPosition(state)
+            let start = DeckProbe(
+                roomIndex: state.currentRoomIndex, filter: .recommended,
+                viewedFilters: [.recommended], crossesRooms: false
+            )
+            guard let target = nextProbeTarget(after: start, in: state) else { return .none }
+            return fetchProbe(target, revertingTo: revert, state: &state, fetchHomeCards: fetchHomeCards, currentLocation: currentLocation)
 
         case .swipeForward:
             // 마지막 카드에서 한 번 더 넘기면 인덱스가 덱 밖(pins.count)으로 나간다.
             if state.currentCardIndex < state.pins.count {
                 state.currentCardIndex += 1
             }
-            // 다 넘겼으면 **그 방의** 남은 정렬로 이어 본다(꾹 Pick → 최신순 → 가까운순).
-            // 세 덱을 다 보면 완료 화면([[HomeState.hasViewedAllPlaces]])에 선다 —
-            // 다음 방으로는 넘어가지 않는다(방은 사용자가 방 시트에서 고른다).
-            if state.isCurrentDeckExhausted {
-                state.arrival = .advancing
-                return advanceToNextFilterInRoom(state: &state, fetchHomeCards: fetchHomeCards, currentLocation: currentLocation, lastViewedRoom: lastViewedRoom)
-            }
-            return .none
+            // 다 넘겼으면 남은 정렬 → 다음 방으로 이어 본다. **마지막 방의 마지막 카드**까지
+            // 가서야 완료 화면([[HomeState.hasViewedAllPlaces]])에 선다.
+            // 지나가는 자리는 화면에 비치지 않는다(``DeckProbe``).
+            guard state.isCurrentDeckExhausted else { return .none }
+            let revert = DeckPosition(state)
+            var start = DeckProbe(
+                roomIndex: state.currentRoomIndex, filter: state.selectedFilter,
+                viewedFilters: state.viewedFilters, crossesRooms: true
+            )
+            start.viewedFilters.insert(state.selectedFilter)
+            state.viewedFilters = start.viewedFilters
+            guard let target = nextProbeTarget(after: start, in: state) else { return .none }
+            return fetchProbe(target, revertingTo: revert, state: &state, fetchHomeCards: fetchHomeCards, currentLocation: currentLocation)
 
         case .swipeBackward:
             // 되돌리기는 **현재 덱 안에서 넘긴 만큼 역순으로 이어진다**(FR-002). 덱이 바뀌면
@@ -673,19 +727,30 @@ public func homeReducer(
             return .none
 
         case .selectRoom(let roomID):
-            // 정책: 방 클릭 시 해당 방으로 바로 적용 + 시트 닫기 + 변경 툴팁(moveToRoom 이 함께 세운다).
+            // 정책: 방 클릭 시 해당 방으로 바로 적용 + 시트 닫기 + 변경 툴팁.
             // 툴팁의 3초 표시 시간은 뷰(페이드 애니메이션과 함께)가 관리하고, 여기서는 상태만 세운다.
             state.isRoomListPresented = false
             guard let index = state.rooms.firstIndex(where: { $0.id == roomID }) else { return .none }
             // 정책(EC-014): 지금 보고 있는 방을 다시 고르면 시트만 닫고 덱을 다시 구성하지 않는다 —
             // 재구성하면 넘겨 둔 진행 상태가 통째로 날아간다.
             guard index != state.currentRoomIndex else { return .none }
-            let effect = moveToRoom(
-                index: index, revertingTo: DeckPosition(state),
-                state: &state, fetchHomeCards: fetchHomeCards, currentLocation: currentLocation, lastViewedRoom: lastViewedRoom
+            let revert = DeckPosition(state)   // 조회가 실패하면 옛 방으로 되돌린다
+            // 방을 바꾼 것은 **사용자의 조작**이라 즉시 화면에 반영한다(뱃지·툴팁).
+            // 그 방 안에서 어느 정렬을 열지는 커서가 찾아 한 번에 커밋한다 — 칩이 훑는 과정은 보이지 않는다.
+            state.currentRoomIndex = index
+            state.viewedFilters = []
+            state.filterAnchor = .recommended
+            state.selectedFilter = .recommended
+            state.decks = [:]            // 덱 캐시는 방에 딸린 것이다
+            state.currentCardIndex = 0
+            state.changedRoomToastID = state.rooms[index].id
+            let target = DeckProbe(
+                roomIndex: index, filter: .recommended, viewedFilters: [], crossesRooms: false
             )
-            state.arrival = .advancing   // 이 방에서 데이터가 있는 정렬을 찾는다
-            return effect
+            // 정책 3의 "마지막으로 보던 방" 기록은 **착지할 때** 남긴다(`probeLoaded`) —
+            // 카드를 못 찾고 지나갈 자리를 미리 적으면 다음 실행이 빈 방에서 시작한다.
+            return fetchProbe(target, revertingTo: revert, state: &state,
+                              fetchHomeCards: fetchHomeCards, currentLocation: currentLocation)
 
         case .dismissRoomToast(let roomID):
             // 이 타이머가 세운 그 방 툴팁일 때만(id 일치) 숨긴다. 3초가 도는 사이 방을 바꾸면
