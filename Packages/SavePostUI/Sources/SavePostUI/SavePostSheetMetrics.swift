@@ -64,6 +64,22 @@ public enum SavePostSheetMetrics {
             + max(actionAreaBottomPadding, safeAreaBottom)
     }
 
+    /// 홈 카드 `다른 방 저장` 진입(002-5)의 시트 높이 — **방 개수와 무관하게 644 고정**이다.
+    ///
+    /// 013-1 ① 의 peek/full 단계와 개수 분기는 **외부 공유 수신** 진입의 규칙이다. 홈 진입은
+    /// 주석 002-5(node `2862-175523`) ② 가 "높이 644px 고정 / 방 리스트 스크롤 영역 448px 고정" 으로
+    /// 따로 못박아 두었다 — 그래서 단계도 개수 분기도 두지 않는다.
+    ///
+    /// 값 자체는 `full`·5개 이상과 같지만 **이유가 다르다**. 같다고 그쪽을 부르면 방이 4개인 계정에서
+    /// 612 로 줄어 주석과 어긋나므로, 여기서 높이를 직접 고정한다.
+    public static func homeEntryHeight(safeAreaBottom: CGFloat) -> CGFloat {
+        homeEntryDesignHeight - designSafeAreaBottom + max(actionAreaBottomPadding, safeAreaBottom)
+    }
+
+    /// 시안 기기(홈 인디케이터 34) 기준 홈 진입 높이.
+    /// 그래버 30 + 헤더 64 + 목록 448 + Action Area 102 = 644.
+    static let homeEntryDesignHeight: CGFloat = 644
+
     /// 시안 기기(홈 인디케이터 34) 기준 시트 높이.
     static func designHeight(_ detent: SavePostSheetDetent, roomCount: Int) -> CGFloat {
         switch detent {

@@ -72,6 +72,36 @@ struct SavePostSheetMetricsTests {
                 + SavePostSheetMetrics.actionAreaBottomBand(safeAreaBottom: 34) == CGFloat(102))
     }
 
+    // MARK: - 홈 진입 (주석 002-5 `2862-175523` ② — 높이 644 고정 · 목록 448 고정)
+
+    /// 홈 진입은 방 개수로 갈리지 않는다 — 방 4개짜리 계정도 612 가 아니라 644 다.
+    @Test("홈 진입 높이는 방 개수와 무관하게 644 고정 — 시안 기기")
+    func homeEntry_isFixedRegardlessOfRoomCount() {
+        #expect(SavePostSheetMetrics.homeEntryHeight(safeAreaBottom: 34) == CGFloat(644))
+        // 개수 분기를 타는 `.full` 을 잘못 부르면 4개에서 612 로 떨어진다 — 그 혼동을 못박는다.
+        #expect(SavePostSheetMetrics.height(.full, roomCount: 4, safeAreaBottom: 34) == CGFloat(612))
+    }
+
+    /// 주석이 함께 못박은 "방 리스트 스크롤 영역 448px" 이 실제로 나와야
+    /// 방 카드(104) 4장 + 5번째 32 걸침이 재현된다.
+    @Test("홈 진입 목록 뷰포트 448 — 시안 기기")
+    func homeEntry_listViewportMatchesDesign() {
+        #expect(homeEntryListViewport(safeAreaBottom: 34) == CGFloat(448))
+    }
+
+    /// 시스템 시트가 하단 인셋을 이미 넣어 주는 홈에서는 0 을 넘긴다 — 그때 detent 값이 630 이다.
+    @Test("홈 진입은 인셋 0 에서 630 (시스템 시트가 인셋을 따로 넣는다)")
+    func homeEntry_withoutHomeIndicator() {
+        #expect(SavePostSheetMetrics.homeEntryHeight(safeAreaBottom: 0) == CGFloat(630))
+    }
+
+    private func homeEntryListViewport(safeAreaBottom: CGFloat) -> CGFloat {
+        SavePostSheetMetrics.homeEntryHeight(safeAreaBottom: safeAreaBottom)
+            - SavePostSheetMetrics.headerHeight
+            - SavePostSheetMetrics.actionAreaContentHeight
+            - SavePostSheetMetrics.actionAreaBottomBand(safeAreaBottom: safeAreaBottom)
+    }
+
     /// 목록이 실제로 쓰는 세로 공간 — 시트 높이에서 헤더와 (액션 영역 + 그 아래 띠)를 뺀 값.
     private func listViewport(
         _ detent: SavePostSheetDetent,
