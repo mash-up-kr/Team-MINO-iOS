@@ -387,6 +387,7 @@ struct HomeReducerTests {
         ))
         await store.send(.swipeForward) {
             $0.currentCardIndex = 3   // = pins.count → 소진 상태(002-3)
+            $0.viewedFilters = [.recommended, .latest, .nearby]   // 소진한 정렬도 확인 기록에 든다
         }
         #expect(store.currentState.hasViewedAllPlaces)
         await store.send(.swipeForward)   // 덱 밖에서는 더 이상 전진하지 않음
@@ -489,6 +490,25 @@ struct HomeReducerTests {
         store.finish()
     }
 
+    @Test("L2 — 꾹 Pick 을 다 넘기면 같은 방의 최신순으로 이어진다 (방은 넘기지 않는다)")
+    func deckExhausted_advancesToNextFilterInSameRoom() async {
+        // 꾹 Pick 2장 · 최신순 2장 — 꾹 Pick 을 다 넘기면 최신순이 열려야 한다.
+        let latest = deckPins("latest", room: "1", count: 2)
+        let store = makeStore(
+            fetchPins: StubRoomDecks(decks: [deckKey("1", .latest): latest]),
+            state: HomeState(rooms: fixtureRooms, pins: deckPins("rec", room: "1", count: 2), currentCardIndex: 1)
+        )
+        store.exhaustive = false
+        await store.send(.swipeForward)   // 마지막 장을 넘겨 꾹 Pick 소진
+        await store.receive(.deckLoaded(pins: latest, roomID: "1", filter: .latest))
+
+        #expect(store.currentState.selectedFilter == .latest)
+        #expect(store.currentState.pins == latest)
+        #expect(store.currentState.currentRoom?.id == "1")     // 방은 그대로
+        #expect(!store.currentState.hasViewedAllPlaces)        // 아직 다 본 게 아니다
+        store.finish()
+    }
+
     @Test("L2 — 방을 열면 데이터가 있는 첫 정렬을 찾아 보여준다 (꾹 Pick → 최신순 → 가까운순)")
     func roomEntry_picksFirstFilterWithCards() async {
         // 꾹 Pick·최신순은 0장이고 가까운순에만 카드가 있다.
@@ -541,6 +561,7 @@ struct HomeReducerTests {
         ))
         await store.send(.swipeForward) {
             $0.currentCardIndex = 1
+            $0.viewedFilters = [.recommended, .latest, .nearby]
         }
         #expect(store.currentState.hasViewedAllPlaces)
         store.finish()
@@ -603,7 +624,7 @@ struct HomeReducerTests {
             $0.currentCardIndex = 0
             $0.changedRoomToastID = "2"
             $0.isDeckLoading = true
-            $0.arrival = .roomEntry
+            $0.arrival = .advancing
         }
         await store.receive(.deckLoadFailed(roomID: "2", filter: .recommended, revertTo: revert)) {
             $0.isDeckLoading = false
@@ -667,7 +688,7 @@ struct HomeReducerTests {
             $0.decks = [:]
             $0.changedRoomToastID = "2"
             $0.isDeckLoading = true
-            $0.arrival = .roomEntry   // 방을 여는 중 — 데이터 있는 정렬을 찾는다
+            $0.arrival = .advancing   // 방을 여는 중 — 데이터 있는 정렬을 찾는다
         }
         await store.receive(.deckLoaded(pins: room2, roomID: "2", filter: .recommended)) {
             $0.isDeckLoading = false
