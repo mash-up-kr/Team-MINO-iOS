@@ -11,6 +11,17 @@ public enum HomeRoute: Hashable {
     case createRoom
 }
 
+/// 지도 카메라를 내 위치로 옮겨 달라는 요청(005-1 현위치 버튼).
+///
+/// 좌표만 들지 않고 ``ordinal`` 을 함께 두는 이유는 **같은 자리를 다시 요청하는 경우** 때문이다.
+/// 지도를 손으로 옮긴 뒤 현위치를 다시 누르면 좌표는 그대로라 값이 안 바뀌고, 그러면 뷰가
+/// 갱신되지 않아 카메라가 돌아오지 않는다. 요청마다 달라지는 번호를 실어 "다시 눌렀다" 를
+/// 값으로 만든다.
+struct HomeMapFocus: Equatable {
+    let coordinate: Coordinate
+    let ordinal: Int
+}
+
 /// 탭 flow 는 앱 생존 내내 유지되므로 종료가 없다 — Output = Never.
 @Observable
 @MainActor
@@ -22,7 +33,34 @@ public final class HomeCoordinator: Coordinator {
 
     /// 열려 있는 장소 상세의 핀 (nil = 닫힘). 커버의 표시 항목이라 SwiftUI 가 닫힐 때 nil 을
     /// 되쓴다 — "열렸나" 플래그를 따로 두면 그 플래그와 핀이 어긋날 짝이 생긴다.
-    public var selectedPin: Pin?
+    public var selectedPin: Pin? {
+        didSet {
+            guard selectedPin?.id != oldValue?.id else { return }
+            // 지도는 이 핀이 열려 있는 동안에만 존재한다 — 다른 장소를 열거나 닫으면 이전 현위치
+            // 요청이 남아 새 장소가 화면 밖에 놓이는 일이 없도록 함께 비운다.
+            mapFocus = nil
+            // Store 를 **핀과 같은 순간에** 만든다. 뷰의 `.task` 에서 만들면 시트가 올라오기
+            // 시작한 뒤에야 콘텐츠가 채워져, 컨테이너만 올라오고 내용은 뒤늦게 제자리에 나타난다.
+            placeDetailStore = selectedPin.map { makePlaceDetailStore(pin: $0) }
+            if selectedPin != nil { placeDetailEpoch += 1 }
+        }
+    }
+
+    /// 장소 상세를 몇 번째로 여는지. 화면이 시트의 `.id` 로 써서 **표시마다 새 identity** 를 만든다.
+    ///
+    /// 핀 id 로는 부족하다 — 같은 카드를 다시 열면 값이 같아 SwiftUI 가 이전 시트를 재사용하고,
+    /// 그러면 콘텐츠가 등장 전환에 참여하지 않아 컨테이너만 올라오는 어긋난 연출이 된다.
+    public private(set) var placeDetailEpoch = 0
+
+    /// 열려 있는 장소 상세의 Store. ``selectedPin`` 과 수명을 같이한다 — 시트 **밖**의 지도 위
+    /// 현위치 버튼도 같은 Store 로 액션을 보내야 해서 화면이 아니라 여기서 든다.
+    public private(set) var placeDetailStore: PlaceDetailStore?
+
+    /// 지도가 장소 중심(``PlaceMapCameraMode/centered(_:)``) 대신 비출 자리. 현위치 버튼이 세운다.
+    private(set) var mapFocus: HomeMapFocus?
+
+    /// ``HomeMapFocus/ordinal`` 에 찍을 다음 번호. 표시에 쓰이지 않아 관찰 대상이 아니다.
+    @ObservationIgnored private var mapFocusCount = 0
 
     /// 탭바 자체를 레이아웃에서 빼야 하는(공간까지 없애는) 전체화면 상태인가 — MainTabView 가 본다.
     /// 공동방 만들기(createRoom)가 push 되면 자체 상단바를 가진 전체 화면이라 탭바를 감춘다.
@@ -30,8 +68,12 @@ public final class HomeCoordinator: Coordinator {
     /// 방 리스트 시트는 여기 넣지 않는다 — 시트 표시 중 탭바를 safeAreaInset 에서 넣다 빼면 reflow 가
     /// 시트 애니메이션과 어긋나 깜빡인다. 대신 탭바를 자리에 둔 채 불투명도만 0 으로 페이드해
     /// (isRoomListPresented) 그 뒤의 홈 콘텐츠 딤이 비치게 한다 → 탭바 자리도 딤 처리된다.
+    ///
+    /// 장소 상세도 여기 해당한다 — 뒤에 지도를 깔고 그 위에 시트가 올라오는 화면이라(저장 탭의
+    /// 장소 상세와 같은 모양) 탭바가 남으면 시트 하단이 그만큼 가린다. 시트가 아니라 **지도까지
+    /// 포함한 화면 전체**가 바뀌는 전환이라 방 리스트 시트와 달리 reflow 깜빡임 문제가 없다.
     public var isFullBleedContentPresented: Bool {
-        !path.isEmpty
+        !path.isEmpty || selectedPin != nil
     }
 
     /// 방 리스트 시트가 떠 있는가 — MainTabView 가 탭바를 딤 뒤로 페이드시킬 때 본다.
@@ -131,9 +173,16 @@ public final class HomeCoordinator: Coordinator {
             selectedPin = nil
             homeStore?.send(.tapSaveToOtherRoom(pin.id))
 
-        case .openSavedRooms, .focusMyLocation:
-            // 둘 다 시트 밖 **지도 위**에 그려지는 버튼('저장된 방' 005-1 ⑮ · 현위치)이 내는
-            // 전환이다. 홈에는 지도가 없어 버튼 자체를 띄우지 않으므로 여기 도달하지 않는다.
+        case .focusMyLocation(let coordinate):
+            mapFocusCount += 1
+            mapFocus = HomeMapFocus(coordinate: coordinate, ordinal: mapFocusCount)
+
+        case .openSavedRooms:
+            // TODO: 저장 탭에서 이 버튼은 **보고 있는 방을 갈아탄다**(`ArchiveCoordinator.selectSavedRoom`).
+            // 홈에서 같은 일을 하면 `currentRoom` 커서가 옮겨가 카드 덱이 재조회되는데, 그건
+            // "상세를 닫으면 보던 덱이 그대로" 라는 홈의 전제와 충돌한다. 무엇을 해야 할지
+            // 기획 확인 후 별도 작업으로 정한다 — 그때까지 버튼 자체를 띄우지 않으므로
+            // (``HomeTabView`` 의 부유 버튼 줄) 이 전환은 도달하지 않는다.
             break
         }
     }
