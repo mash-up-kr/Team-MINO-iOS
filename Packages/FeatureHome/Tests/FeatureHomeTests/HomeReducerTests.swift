@@ -747,10 +747,12 @@ struct HomeReducerTests {
             $0.decks = [:]
             $0.changedRoomToastID = "2"
             $0.isDeckLoading = true
+            $0.isRoomUserChosen = true   // 직접 고른 방이라 비어 있어도 떠나지 않는다
         }
         await store.receive(.deckLoaded(pins: room2, roomID: "2", filter: .recommended)) {
             $0.isDeckLoading = false
             $0.decks[.recommended] = room2
+            $0.isRoomUserChosen = false   // 카드를 봤으니 표시를 거둔다
         }
         #expect(await spy.saved == ["2"])
         store.finish()
@@ -762,6 +764,92 @@ struct HomeReducerTests {
         #expect(state.currentRoom?.id == "2")
         state.currentRoomIndex = 0
         #expect(state.currentRoom?.id == "1")
+    }
+
+    // MARK: - 직접 고른 방이 비었을 때 (FR-013 은 자동 전환의 규칙이고, TS-028 은 "그 방의 덱")
+
+    @Test("L2 — 직접 고른 방의 세 정렬이 모두 비어도 다음 방으로 떠나지 않고 그 방에 남는다")
+    func selectRoom_emptyRoomStaysPut() async {
+        // **가운데 방**을 골라야 이 규칙이 검증된다 — 마지막 방이면 갈 곳이 없어(hasNextRoom == false)
+        // 가드가 없어도 그 자리에 멈추므로, 규칙을 깨도 테스트가 통과해 버린다.
+        let rooms = fixtureRooms + [
+            Room(
+                id: "3", type: .shared, name: "세 번째 방", description: nil,
+                color: nil, ownerId: "owner-1", createdAt: fixtureDate,
+                pinCount: 5, memberCount: 1, users: []
+            )
+        ]
+        // 2번 방은 어느 정렬로도 카드가 없고, 3번 방에는 카드가 있다(가드가 없으면 그리로 끌려간다).
+        let store = makeStore(
+            fetchPins: StubRoomDecks(decks: [deckKey("3", .recommended): deckPins("r3", room: "3", count: 3)]),
+            state: HomeState(
+                rooms: rooms,
+                pins: deckPins("r1", room: "1", count: 3),
+                isRoomListPresented: true
+            )
+        )
+        // 중간 전이가 아니라 "결국 어느 방에 남았는가" 가 관심사다.
+        store.exhaustive = false
+        await store.send(.selectRoom("2"))
+        // 세 정렬을 차례로 조회하고 모두 비어 그 자리에 멈춘다 — 3번 방으로 넘어가지 않는다.
+        await store.receive(.deckLoaded(pins: [], roomID: "2", filter: .recommended))
+        await store.receive(.deckLoaded(pins: [], roomID: "2", filter: .latest))
+        await store.receive(.deckLoaded(pins: [], roomID: "2", filter: .nearby))
+
+        #expect(store.currentState.currentRoomIndex == 1)          // 고른 방 그대로
+        #expect(store.currentState.currentRoom?.id == "2")
+        #expect(store.currentState.showsEmptyState)                 // 그 방의 빈 상태를 보여 준다
+        store.finish()
+    }
+
+    @Test("L2 — 직접 고른 방의 꾹 Pick 이 비어도 그 방의 다른 정렬에 카드가 있으면 거기로 간다")
+    func selectRoom_emptyFirstFilterStillShowsRoomCards() async {
+        let latest = deckPins("r2-latest", room: "2", count: 2)
+        let store = makeStore(
+            fetchPins: StubRoomDecks(decks: [deckKey("2", .latest): latest]),
+            state: HomeState(
+                rooms: fixtureRooms,
+                pins: deckPins("r1", room: "1", count: 3),
+                isRoomListPresented: true
+            )
+        )
+        store.exhaustive = false
+        await store.send(.selectRoom("2"))
+        await store.receive(.deckLoaded(pins: [], roomID: "2", filter: .recommended))
+        await store.receive(.deckLoaded(pins: latest, roomID: "2", filter: .latest))
+
+        // 방 안에서의 정렬 순회는 막지 않는다 — 막으면 있는 카드를 못 보여준다.
+        #expect(store.currentState.currentRoom?.id == "2")
+        #expect(store.currentState.selectedFilter == .latest)
+        #expect(store.currentState.pins == latest)
+        #expect(!store.currentState.showsEmptyState)
+        store.finish()
+    }
+
+    @Test("L2 — 직접 고른 방의 카드를 본 뒤 소진하면 평소대로 다음 방으로 넘어간다(영구히 갇히지 않는다)")
+    func selectRoom_afterSeeingCardsAutoAdvanceResumes() async {
+        // 1번 방을 직접 고르고, 그 방의 카드를 본 뒤 세 정렬을 모두 소진시킨다.
+        let deck = deckPins("r1", room: "1", count: 1)
+        let store = makeStore(
+            fetchPins: StubRoomDecks(decks: [deckKey("1", .recommended): deck]),
+            state: HomeState(
+                rooms: fixtureRooms,
+                pins: deckPins("r2", room: "2", count: 1),
+                currentRoomIndex: 1,
+                isRoomListPresented: true
+            )
+        )
+        store.exhaustive = false
+        await store.send(.selectRoom("1"))
+        await store.receive(.deckLoaded(pins: deck, roomID: "1", filter: .recommended))
+        #expect(!store.currentState.isRoomUserChosen)   // 카드를 본 순간 표시가 풀린다
+
+        // 마지막 장을 넘기면 남은 정렬 → 다음 방 순회가 평소대로 이어진다.
+        await store.send(.swipeForward)
+        await store.receive(.deckLoaded(pins: [], roomID: "1", filter: .latest))
+        await store.receive(.deckLoaded(pins: [], roomID: "1", filter: .nearby))
+        #expect(store.currentState.currentRoom?.id == "2")   // 다음 방으로 넘어갔다
+        store.finish()
     }
 
     @Test("nextUnviewedFilter — 미확인 정렬이 남아 있으면 그 정렬, 다 봤으면 nil(= 다음 방)")

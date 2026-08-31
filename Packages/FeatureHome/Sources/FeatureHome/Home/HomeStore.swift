@@ -48,6 +48,16 @@ public struct HomeState: Equatable {
     /// 내 프로필 아바타 색 — 홈 우상단 마스코트가 이 색의 소품을 단다 (Figma `character/Home_Avatar`).
     /// 아직 못 읽었거나 색을 고른 적 없는 계정이면 nil 이라 소품 없는 기본 마스코트가 뜬다.
     public var myAvatarColor: AvatarColor?
+    /// 지금 방을 **사용자가 직접 골랐는가**(홈 방 시트). 아직 그 방의 카드를 한 장도 못 본 상태다.
+    ///
+    /// 이 동안에는 그 방이 비어 있어도 자동으로 다음 방에 넘기지 않는다 — 지목한 방을 놔두고
+    /// 마지막 방까지 끌려가면 사용자는 자기가 어디로 갔는지 알 수 없다. spec 의 "0개인 방을
+    /// 건너뛴다"(FR-013)는 **자동 전환이 갈 곳을 고를 때**의 규칙이고, 시트에서 방을 고르면
+    /// "**그 방의** 덱이 노출된다"(TS-028)가 따로 있다.
+    ///
+    /// 방 안에서 정렬을 옮기는 것은 막지 않는다 — 꾹 Pick 이 비어도 그 방의 최신순에 카드가
+    /// 있을 수 있어서, 정렬 순회까지 막으면 있는 카드를 못 보여준다.
+    var isRoomUserChosen: Bool
 
     public init(
         rooms: [Room] = [],
@@ -67,7 +77,8 @@ public struct HomeState: Equatable {
         savePost: SavePostState? = nil,
         savedToastID: Int? = nil,
         myCoordinate: Coordinate? = nil,
-        myAvatarColor: AvatarColor? = nil
+        myAvatarColor: AvatarColor? = nil,
+        isRoomUserChosen: Bool = false
     ) {
         self.rooms = rooms
         self.isLoading = isLoading
@@ -87,6 +98,7 @@ public struct HomeState: Equatable {
         self.savedToastID = savedToastID
         self.myCoordinate = myCoordinate
         self.myAvatarColor = myAvatarColor
+        self.isRoomUserChosen = isRoomUserChosen
     }
 
     /// 현재 기준의 카드 덱. 쓰기는 현재 기준의 덱만 갈아끼운다(다른 기준 캐시는 그대로).
@@ -269,6 +281,7 @@ public struct DeckPosition: Equatable, Sendable {
     public var viewedFilters: Set<PinFilter>
     public var filterAnchor: PinFilter
     public var changedRoomToastID: String?
+    var isRoomUserChosen: Bool
 
     public init(
         roomIndex: Int,
@@ -277,7 +290,8 @@ public struct DeckPosition: Equatable, Sendable {
         decks: [PinFilter: [Pin]] = [:],
         viewedFilters: Set<PinFilter> = [],
         filterAnchor: PinFilter = .recommended,
-        changedRoomToastID: String? = nil
+        changedRoomToastID: String? = nil,
+        isRoomUserChosen: Bool = false
     ) {
         self.roomIndex = roomIndex
         self.filter = filter
@@ -286,6 +300,7 @@ public struct DeckPosition: Equatable, Sendable {
         self.viewedFilters = viewedFilters
         self.filterAnchor = filterAnchor
         self.changedRoomToastID = changedRoomToastID
+        self.isRoomUserChosen = isRoomUserChosen
     }
 
     /// 지금 자리를 그대로 담는다 — 조회를 시작하며 상태를 건드리기 **전에** 캡처해야 한다.
@@ -297,7 +312,8 @@ public struct DeckPosition: Equatable, Sendable {
             decks: state.decks,
             viewedFilters: state.viewedFilters,
             filterAnchor: state.filterAnchor,
-            changedRoomToastID: state.changedRoomToastID
+            changedRoomToastID: state.changedRoomToastID,
+            isRoomUserChosen: state.isRoomUserChosen
         )
     }
 }
@@ -375,6 +391,7 @@ private func moveToRoom(
     state.filterAnchor = .recommended
     state.decks = [:]            // 덱 캐시는 방에 딸린 것이다
     state.currentCardIndex = 0
+    state.isRoomUserChosen = false   // 자동 전환이 기본값 — 수동 경로(selectRoom)가 뒤에서 세운다
     state.changedRoomToastID = state.rooms[index].id
     return showDeck(
         filter: .recommended, revertingTo: revert, persistingRoom: true,
@@ -400,6 +417,9 @@ private func advanceAfterDeck(
         )
     }
     guard state.hasNextRoom else { return .none }
+    // 사용자가 지목한 방이면 비어 있어도 남는다 — 그 방의 빈 상태를 보여 주고 멈춘다.
+    // 정렬 순회는 위에서 이미 끝난 뒤라, 그 방의 세 덱이 모두 비었다는 게 확인된 상태다.
+    guard !state.isRoomUserChosen else { return .none }
     return moveToRoom(
         index: state.currentRoomIndex + 1, revertingTo: revert,
         state: &state, fetchHomeCards: fetchHomeCards, currentLocation: currentLocation, lastViewedRoom: lastViewedRoom
@@ -525,6 +545,9 @@ public func homeReducer(
             guard !pins.isEmpty else {
                 return advanceAfterDeck(state: &state, fetchHomeCards: fetchHomeCards, currentLocation: currentLocation, lastViewedRoom: lastViewedRoom)
             }
+            // 고른 방의 카드를 실제로 봤다 — 이후 이 덱을 소진하면 평소대로 다음 방으로 넘어간다.
+            // (표시를 남겨 두면 사용자가 그 방에 영영 갇힌다)
+            state.isRoomUserChosen = false
             // 받아 온 덱이 이미 2장 이하면 넘길 새도 없이 다음 자리가 코앞이다 (EC-012).
             announceDeckEndingIfNeeded(&state)
             return .none
@@ -544,6 +567,7 @@ public func homeReducer(
             state.viewedFilters = revert.viewedFilters
             state.filterAnchor = revert.filterAnchor
             state.changedRoomToastID = revert.changedRoomToastID   // 옮긴 적 없으니 전환 안내도 거둔다
+            state.isRoomUserChosen = revert.isRoomUserChosen
             // 소진 자동 전환 경로에선 인덱스가 이미 덱 밖(pins.count)으로 밀려 있어, 그대로 되돌리면
             // 카드 없는 덱 분기에 들어간다. 복구한 덱의 마지막 카드로 클램프해 거기서 다시 넘기면 재시도된다.
             state.currentCardIndex = min(revert.cardIndex, max(0, state.pins.count - 1))
@@ -639,10 +663,12 @@ public func homeReducer(
             // 정책(EC-014): 지금 보고 있는 방을 다시 고르면 시트만 닫고 덱을 다시 구성하지 않는다 —
             // 재구성하면 넘겨 둔 진행 상태가 통째로 날아간다.
             guard index != state.currentRoomIndex else { return .none }
-            return moveToRoom(
+            let effect = moveToRoom(
                 index: index, revertingTo: DeckPosition(state),
                 state: &state, fetchHomeCards: fetchHomeCards, currentLocation: currentLocation, lastViewedRoom: lastViewedRoom
             )
+            state.isRoomUserChosen = true   // moveToRoom 이 false 로 되돌린 뒤라 여기서 세운다
+            return effect
 
         case .dismissRoomToast(let roomID):
             // 이 타이머가 세운 그 방 툴팁일 때만(id 일치) 숨긴다. 3초가 도는 사이 방을 바꾸면
