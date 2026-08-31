@@ -1,6 +1,5 @@
 import DesignSystem
 import Domain
-import ProfileSetupUI
 import SwiftUI
 
 /// 홈 셸 콘텐츠. 방 뱃지 헤더 + 타이틀 + 필터바 + (카드 덱 자리 | 빈상태 A).
@@ -358,7 +357,8 @@ struct HomeContentView: View {
     }
 
     private var mascotCharacter: some View {
-        HomeMascotView(mascot: AvatarPalette.homeMascot(of: store.state.myAvatarColor))
+        // 방 캐릭터 — 보는 사람이 아니라 **보고 있는 방**을 나타낸다(FR-021). 방을 바꾸면 함께 바뀐다.
+        HomeMascotView(mascot: HomeMascotPalette.mascot(of: store.state.currentRoom?.color))
             .contentShape(Rectangle())
             .onTapGesture { store.send(.tapRoomBadge) }   // 정책: 방 캐릭터 탭 → 방 선택 바텀 시트 토글(열려 있으면 닫는다)
             .accessibilityIdentifier("Home.mascot")
@@ -434,7 +434,7 @@ private extension PinFilter {
 /// 좌우 반전은 시안의 그룹 변환이다 — 익스포트되는 건 반전 전 원본이라 여기서 뒤집어야 시안과 같다.
 /// (시안에서 그룹은 x 249…375 인데 자식 좌표가 367·375 로 잡히는 게 그 반전의 흔적)
 ///
-/// 소품은 내 프로필 아바타 색을 따른다(`MHHomeMascot`). 13종이 **몸통을 공유**하므로 눈 구멍을
+/// 소품은 지금 보고 있는 **방의 대표 색**을 따른다(``HomeMascotPalette``). 13종이 **몸통을 공유**하므로 눈 구멍을
 /// 메우는 오버레이는 색과 무관하게 한 장(`homeMascotEyes`)으로 족하다.
 struct HomeMascotView: View {
     let mascot: MHHomeMascot
