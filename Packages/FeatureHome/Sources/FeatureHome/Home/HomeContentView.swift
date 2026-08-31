@@ -281,17 +281,27 @@ struct HomeContentView: View {
     /// 일러스트 + 카피 + "공동방 만들기" CTA. 헤더·필터는 mainContent 가 공통으로 그린다.
     /// CTA 는 공동방 유무와 무관하게 항상 노출한다(팀 정책 — PRD [SYS-009] Flow D 와는 다름).
     private var emptyStateBody: some View {
-        VStack(spacing: 20) {
-            illustrationPlaceholder(identifier: "Home.emptyState.illustration")
+        VStack(spacing: 24) {   // Figma `Frame 95`(5073:100182) gap 24
+            Image(dsImage: "homeEmptyStateIllustration")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 160, height: 160)   // Figma `image 77`(5073:100183)
+                .accessibilityIdentifier("Home.emptyState.illustration")
 
-            VStack(spacing: 0) {
-                Text("\"저번에 말한 거기가 어디였지?\"")
-                    .mhTypography(.label1NormalRegular)
+            VStack(spacing: 8) {
+                Text("공동방을 생성해보세요!")
+                    .mhTypography(.title3Bold)
                     .foregroundStyle(.mhPrimaryNormal)
 
-                Text("더 이상 묻지 말고, 친구와 함께 장소를 저장해 보세요.")
-                    .mhTypography(.label1NormalRegular)
-                    .foregroundStyle(.mhPrimaryNormal)
+                // 시안은 한 텍스트의 두 줄이지만 `Text` 하나에 `\n` 으로 넣으면 이 계층에서
+                // 한 줄로 잘린다(`"…어디였지?"…`). 줄마다 Text 를 두면 그대로 두 줄로 선다.
+                VStack(spacing: 0) {
+                    Text("\"저번에 말한 거기가 어디였지?\"")
+                    Text("더 이상 묻지 마세요.")
+                }
+                .mhTypography(.label1NormalRegular)
+                .foregroundStyle(.mhLabelAlternative)
+                .fixedSize(horizontal: false, vertical: true)
             }
             .multilineTextAlignment(.center)
             .accessibilityIdentifier("Home.emptyState.copy")
@@ -308,7 +318,8 @@ struct HomeContentView: View {
             .accessibilityIdentifier("Home.emptyState.createRoomButton")
         }
         .frame(maxWidth: .infinity)
-        .padding(.top, 58)
+        .padding(.horizontal, 20)
+        .padding(.top, 71)   // Figma: 필터바 하단(248) → 일러스트 상단(319)
     }
 
     // MARK: - 소진 본문 (모든 방의 장소를 다 봤을 때)
@@ -331,20 +342,6 @@ struct HomeContentView: View {
         .frame(maxWidth: .infinity)
         .padding(.top, 75)   // Figma: 필터바 하단(248) → 일러스트 상단(323)
         .accessibilityIdentifier("Home.allViewed")
-    }
-
-    /// 빈 상태 일러스트 자리(249×249)를 잡는 placeholder. 소진 화면은 실 에셋으로 교체됐고,
-    /// 빈 상태는 시안이 아직 정리되지 않아 자리만 잡아 둔다 — 에셋이 나오면 이 헬퍼를 Image 로 교체한다.
-    private func illustrationPlaceholder(identifier: String) -> some View {
-        RoundedRectangle(cornerRadius: 16)
-            .fill(Color.mhFillNormal)   // 화면 배경(alternative)과 구분되는 색
-            .frame(width: 249, height: 249)   // 소진 화면 일러스트와 같은 크기
-            .overlay {
-                Text("이미지 교체 예정")
-                    .mhTypography(.body2NormalMedium)
-                    .foregroundStyle(.mhLabelAlternative)
-            }
-            .accessibilityIdentifier(identifier)
     }
 
 // MARK: - 마스코트 캐릭터
