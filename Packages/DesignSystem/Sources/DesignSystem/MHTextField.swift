@@ -123,6 +123,7 @@ public struct MHTextField: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
+        .mhReportFieldFocus(identifier, isFocused: isFocused)
     }
 
     // MARK: Heading (라벨 + 필수 배지)
