@@ -15,15 +15,27 @@ struct CardDeckLayoutTests {
         #expect(Layout.recognizesSwipe(startX: 300, containerWidth: 375))
     }
 
-    @Test("좌측 영역에서 시작한 드래그는 카드 전환·복구에 반영하지 않는다 (TS-003)")
-    func ignores_leftArea() {
-        #expect(!Layout.recognizesSwipe(startX: 40, containerWidth: 375))
+    @Test("화면 왼쪽 가장자리에서 시작한 드래그는 카드 전환·복구에 반영하지 않는다 (TS-003)")
+    func ignores_leadingEdge() {
+        #expect(!Layout.recognizesSwipe(startX: 10, containerWidth: 375))
     }
 
-    @Test("경계(폭의 절반)는 우측 영역에 포함한다")
+    @Test("경계(가장자리 폭)는 인식 영역에 포함한다")
     func recognizes_atBoundary() {
-        #expect(Layout.recognizesSwipe(startX: 187.5, containerWidth: 375))
-        #expect(!Layout.recognizesSwipe(startX: 187.49, containerWidth: 375))
+        #expect(Layout.recognizesSwipe(startX: Layout.swipeAreaLeadingInset, containerWidth: 375))
+        #expect(!Layout.recognizesSwipe(startX: Layout.swipeAreaLeadingInset - 0.01, containerWidth: 375))
+    }
+
+    /// 회귀 방지 — 경계가 컨테이너 폭의 절반이던 시절 카드 **왼쪽 절반**이 통째로 죽어 있었다.
+    /// 카드는 컨테이너 가운데 정렬이라 그 경계가 카드 수평 중심과 겹쳤고, 사진 타일 2개 중
+    /// 왼쪽 것은 전부 사각지대였다. 아래 좌표는 iPhone 16(393pt) 기준 실제 카드 안의 지점이다.
+    @Test("카드 왼쪽 절반(왼쪽 사진 타일 포함)에서 시작한 드래그도 인식한다")
+    func recognizes_leftHalfOfCard() {
+        let container: CGFloat = 393                     // 화면 폭 = 덱 컨테이너 폭
+        let cardLeading = Layout.cardHorizontalInset / 2 // 카드는 가운데 정렬 → 왼쪽 끝 20
+        #expect(Layout.recognizesSwipe(startX: cardLeading + 4, containerWidth: container))   // 카드 왼쪽 끝
+        #expect(Layout.recognizesSwipe(startX: 100, containerWidth: container))               // 왼쪽 사진 타일 한복판
+        #expect(Layout.recognizesSwipe(startX: container / 2 - 1, containerWidth: container)) // 옛 경계 바로 왼쪽
     }
 
     @Test("폭을 아직 못 재면(첫 레이아웃 패스) 인식하지 않는다 — 0 나눗셈·오판정 방지")
