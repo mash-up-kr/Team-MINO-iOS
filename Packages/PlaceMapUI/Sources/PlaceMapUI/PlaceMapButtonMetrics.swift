@@ -19,25 +19,25 @@ import CoreGraphics
 /// 버튼을 2 어긋나게 두는 건 정렬 의도로 보기 어려워 한 줄로 맞췄고, 기준은 이미 구현·리뷰를
 /// 거친 `저장된 방` 쪽(아래끝 423 = 시트 윗끝 441 에서 18)을 택했다. 그래서 현위치만 시안보다
 /// 2 위에 선다(시안 16 → 18).
-enum ArchiveMapButtonMetrics {
+public enum PlaceMapButtonMetrics {
     /// 화면 오른쪽 끝에서 현위치 버튼까지 — 시안 375 − 355.
-    static let trailing: CGFloat = 20
+    public static let trailing: CGFloat = 20
 
     /// 두 버튼 사이 — 시안 315 − 307.
-    static let spacing: CGFloat = 8
+    public static let spacing: CGFloat = 8
 
     /// 시트 윗끝에서 버튼 줄 아래끝까지 — 시안 441 − 423.
     ///
     /// 시트가 드러낸 높이(`peek`)에 이만큼 더해 띄운다. `peek` 은 시트가 안전영역 **위로**
     /// 드러내는 높이라 시안의 "시트 윗끝" 과 기준이 같다.
-    static let bottomGap: CGFloat = 18
+    public static let bottomGap: CGFloat = 18
 
     /// 현위치 버튼 한 변 — 시안 40×40 (`size-[40px]`).
-    static let myLocationSize: CGFloat = 40
+    public static let myLocationSize: CGFloat = 40
 
     /// 현위치 버튼 안 아이콘 — 시안 20×20.
     ///
     /// 시안의 padding 은 8 이라 8 + 20 + 8 = 36 으로 프레임 40 과 맞지 않는다. 프레임 크기가
     /// 40 으로 고정돼 있으므로 padding 이 아니라 **가운데 정렬**로 놓는다(실질 padding 10).
-    static let myLocationIconSize: CGFloat = 20
+    public static let myLocationIconSize: CGFloat = 20
 }

@@ -38,7 +38,7 @@ public final class ArchiveCoordinator: Coordinator {
 
     public private(set) var selectedPin: Pin?
 
-    /// 지도가 핀 맞춤(``ArchiveMap/camera(for:focusing:)``) 대신 비출 자리. 현위치 버튼이 세운다.
+    /// 지도가 핀 맞춤(``PlaceMap/camera(for:focusing:)``) 대신 비출 자리. 현위치 버튼이 세운다.
     ///
     /// 보고 있는 방이 바뀌면 비운다(``showRoom(_:)``) — 새 방의 핀에 다시 맞춰야 하기 때문이다.
     /// 장소 상세를 닫는 것만으로는 비우지 않는다: 사용자가 옮겨 둔 지도를 시트를 닫았다고

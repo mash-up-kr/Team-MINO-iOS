@@ -1,4 +1,5 @@
 import DesignSystem
+import PlaceMapUI
 import SwiftUI
 
 /// 지도 위에 떠 있는 '저장된 방' 버튼. Figma `005-1 half`(`4170:129600`).

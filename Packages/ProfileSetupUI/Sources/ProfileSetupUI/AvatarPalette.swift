@@ -19,7 +19,7 @@ public enum AvatarPalette {
     /// (`character/Home_Avatar`·`character/Avatar Profile`), 캐릭터 그림에서 유도하지 않고 색에 직접 붙인다.
     ///
     /// 이름이 같아도 `rawValue` 로 잇지 않고 여기서 명시적으로 짝짓는다 — 이름으로 이으면 한쪽 enum 이
-    /// 바뀌어도 컴파일이 통과하고 런타임에 그림만 조용히 사라진다(`ArchiveMap.tint` 와 같은 판단).
+    /// 바뀌어도 컴파일이 통과하고 런타임에 그림만 조용히 사라진다(`PlaceMap.tint` 와 같은 판단).
     static let entries: [(
         character: MHCharacter, color: AvatarColor, mascot: MHHomeMascot, profile: MHAvatarProfile
     )] = [

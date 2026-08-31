@@ -1,5 +1,6 @@
 import DesignSystem
 import PlaceDetailUI
+import PlaceMapUI
 import RoomCreationUI
 import SwiftUI
 
@@ -25,7 +26,7 @@ struct ArchiveShellView: View {
     var body: some View {
         @Bindable var coordinator = coordinator
         ZStack {
-            ArchiveMapLayer(
+            PlaceMapLayer(
                 bottomInset: mapBottomInset,
                 pins: detailStore?.state.pins ?? [],
                 myLocation: coordinator.mapFocus?.coordinate,
@@ -122,14 +123,14 @@ struct ArchiveShellView: View {
     /// 시트보다 **먼저** 그려 시트가 올라오면 그 뒤로 가려지게 둔다 — full 단계에서 따로 숨기지
     /// 않아도 된다. 시트를 손으로 끌어 올리는 동안 버튼이 따라 움직이지 않는 건 필터바와 같은 한계다.
     ///
-    /// 자리 값의 근거는 ``ArchiveMapButtonMetrics``.
+    /// 자리 값의 근거는 ``PlaceMapButtonMetrics``.
     @ViewBuilder
     private func mapButtons(roomList: RoomListStore) -> some View {
         // 방 상세(장소 상세를 열지 않은 상태)에는 시안에 버튼이 없다 — 줄 자체를 그리지 않는다.
         if placeStore != nil || detailStore == nil {
             VStack(spacing: 0) {
                 Spacer(minLength: 0)
-                HStack(spacing: ArchiveMapButtonMetrics.spacing) {
+                HStack(spacing: PlaceMapButtonMetrics.spacing) {
                     Spacer(minLength: 0)
                     if let placeStore {
                         SavedRoomsButton { placeStore.send(.tapSavedRooms) }
@@ -139,11 +140,11 @@ struct ArchiveShellView: View {
                         if let placeStore { placeStore.send(.tapMyLocation) } else { roomList.send(.tapMyLocation) }
                     }
                 }
-                .padding(.trailing, ArchiveMapButtonMetrics.trailing)
+                .padding(.trailing, PlaceMapButtonMetrics.trailing)
                 // 시트 윗끝에서 18 — 드러난 높이가 단계마다 다르므로 지금 단계의 것을 쓴다
                 // (peek·half 둘 다 버튼이 보인다). 탭바가 시트를 덮는 만큼은 `mapBottomInset` 과
                 // 같은 이유로 함께 되돌려 준다.
-                .padding(.bottom, visiblePeek + tabBarCoverage + ArchiveMapButtonMetrics.bottomGap)
+                .padding(.bottom, visiblePeek + tabBarCoverage + PlaceMapButtonMetrics.bottomGap)
             }
         }
     }
