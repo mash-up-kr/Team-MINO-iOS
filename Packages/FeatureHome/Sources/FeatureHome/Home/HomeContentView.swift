@@ -358,23 +358,25 @@ struct HomeContentView: View {
 
     // MARK: - 소진 본문 (모든 방의 장소를 다 봤을 때)
 
-    /// Figma 002-3 「모든 카드를 다 봤을 때」 — 일러스트 + 카피만. 덱을 다시 채우는 CTA("장소 더 보기")는
-    /// PRD 6.0.0 에서 스펙아웃돼 이 화면에 버튼이 없다. 헤더·필터는 mainContent 가 공통으로 그린다.
+    /// Figma `002-3 모든 카드를 다 봤을 때`(3388:199413) — 일러스트 + 카피만. 덱을 다시 채우는
+    /// CTA("장소 더 보기")는 PRD 6.0.0 에서 스펙아웃돼 이 화면에 버튼이 없다(FR-014).
+    /// 헤더·필터는 mainContent 가 공통으로 그린다.
     private var allViewedBody: some View {
-        VStack(spacing: 20) {   // Figma: 일러스트 하단(572) → 카피 상단(592) = base lg 20
+        VStack(spacing: 24) {   // Figma `5073:101117` gap 24
             Image(dsImage: "homeAllViewedIllustration")
                 .resizable()
                 .scaledToFit()
-                .frame(width: 249, height: 249)
+                .frame(width: 209, height: 209)   // Figma `5073:101118`
                 .accessibilityIdentifier("Home.allViewed.illustration")
 
-            Text("꾹 눌러둔 장소를 모두 둘러봤어요")
-                .mhTypography(.label1NormalRegular)
-                .foregroundStyle(.mhPrimaryNormal)
+            Text("모든 장소를 다 봤어요!")
+                .mhTypography(.headline2Medium)
+                .foregroundStyle(.mhLabelNeutral)
                 .accessibilityIdentifier("Home.allViewed.copy")
         }
         .frame(maxWidth: .infinity)
-        .padding(.top, 75)   // Figma: 필터바 하단(248) → 일러스트 상단(323)
+        .padding(.horizontal, 20)
+        .padding(.top, 127)   // Figma: 필터바 하단(248) → 일러스트 상단(375)
         .accessibilityIdentifier("Home.allViewed")
     }
 

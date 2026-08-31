@@ -543,10 +543,12 @@ struct HomeReducerTests {
             $0.filterAnchor = .latest
             $0.selectedFilter = .latest
             $0.isDeckLoading = true
+            $0.arrival = .userPick   // 직접 누른 칩 — 비면 그 자리에 선다
         }
         await store.receive(.deckLoaded(pins: latest, roomID: "1", filter: .latest)) {
             $0.isDeckLoading = false
             $0.decks[.latest] = latest
+            $0.arrival = .swipe      // 카드를 봤으니 순회가 되살아난다
             $0.deckEndingToastFilter = .latest   // 1장뿐이라 도착하자마자 다음 정렬을 예고
         }
         #expect(store.currentState.filterOrder == [.latest, .recommended, .nearby])
@@ -602,10 +604,12 @@ struct HomeReducerTests {
             $0.filterAnchor = .latest
             $0.selectedFilter = .latest
             $0.isDeckLoading = true
+            $0.arrival = .userPick
         }
         await store.receive(.deckLoaded(pins: capped, roomID: "1", filter: .latest)) {
             $0.isDeckLoading = false
             $0.decks[.latest] = capped
+            $0.arrival = .swipe
         }
         #expect(store.currentState.pins.count == 10)
         store.finish()
@@ -749,12 +753,12 @@ struct HomeReducerTests {
             $0.decks = [:]
             $0.changedRoomToastID = "2"
             $0.isDeckLoading = true
-            $0.isRoomUserChosen = true   // 직접 고른 방이라 비어 있어도 떠나지 않는다
+            $0.arrival = .userPick   // 직접 고른 방이라 비어 있어도 떠나지 않는다
         }
         await store.receive(.deckLoaded(pins: room2, roomID: "2", filter: .recommended)) {
             $0.isDeckLoading = false
             $0.decks[.recommended] = room2
-            $0.isRoomUserChosen = false   // 카드를 봤으니 표시를 거둔다
+            $0.arrival = .swipe   // 카드를 봤으니 표시를 거둔다
         }
         #expect(await spy.saved == ["2"])
         store.finish()
@@ -766,6 +770,41 @@ struct HomeReducerTests {
         #expect(state.currentRoom?.id == "2")
         state.currentRoomIndex = 0
         #expect(state.currentRoom?.id == "1")
+    }
+
+    // MARK: - 직접 누른 정렬 칩이 비었을 때
+
+    @Test("L2 — 직접 누른 정렬이 비면 데이터 있는 정렬로 끌려가지 않는다")
+    func selectFilter_emptyStaysOnTappedChip() async {
+        // 최신순은 비어 있고 가까운순에는 카드가 있다 — 순회가 살아 있으면 가까운순으로 끌려간다.
+        let store = makeStore(
+            fetchPins: StubRoomDecks(decks: [deckKey("1", .nearby): deckPins("near", room: "1", count: 2)]),
+            state: HomeState(rooms: fixtureRooms, pins: deckPins("rec", room: "1", count: 2))
+        )
+        store.exhaustive = false
+        await store.send(.selectFilter(.latest))
+        await store.receive(.deckLoaded(pins: [], roomID: "1", filter: .latest))
+
+        #expect(store.currentState.selectedFilter == .latest)   // 누른 칩 그대로
+        #expect(store.currentState.pins.isEmpty)
+        #expect(store.currentState.currentRoom?.id == "1")      // 방도 그대로
+        store.finish()
+    }
+
+    @Test("L2 — 그 정렬에 카드가 있으면 평소대로 열리고 순회도 되살아난다")
+    func selectFilter_withCardsResumesTraversal() async {
+        let latest = deckPins("latest", room: "1", count: 2)
+        let store = makeStore(
+            fetchPins: StubRoomDecks(decks: [deckKey("1", .latest): latest]),
+            state: HomeState(rooms: fixtureRooms, pins: deckPins("rec", room: "1", count: 2))
+        )
+        store.exhaustive = false
+        await store.send(.selectFilter(.latest))
+        await store.receive(.deckLoaded(pins: latest, roomID: "1", filter: .latest))
+
+        #expect(store.currentState.pins == latest)
+        #expect(store.currentState.arrival == .swipe)   // 카드를 봤으니 순회가 풀린다
+        store.finish()
     }
 
     // MARK: - 최초 진입에서 시작 방이 비었을 때
@@ -893,7 +932,7 @@ struct HomeReducerTests {
         store.exhaustive = false
         await store.send(.selectRoom("1"))
         await store.receive(.deckLoaded(pins: deck, roomID: "1", filter: .recommended))
-        #expect(!store.currentState.isRoomUserChosen)   // 카드를 본 순간 표시가 풀린다
+        #expect(store.currentState.arrival == .swipe)   // 카드를 본 순간 표시가 풀린다
 
         // 마지막 장을 넘기면 남은 정렬 → 다음 방 순회가 평소대로 이어진다.
         await store.send(.swipeForward)
