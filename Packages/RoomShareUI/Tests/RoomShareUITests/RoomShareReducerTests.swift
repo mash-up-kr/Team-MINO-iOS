@@ -16,7 +16,7 @@ private struct StubShareTargets: FetchShareTargetsUseCase {
     var targets: [ShareTarget] = []
     var error: DomainError?
 
-    func execute(pinID: PinID) async throws -> [ShareTarget] {
+    func execute(placeID: PlaceID) async throws -> [ShareTarget] {
         if let error { throw error }
         return targets
     }
@@ -39,6 +39,7 @@ private struct ThrowingSavePin: SavePinToRoomsUseCase {
 @MainActor
 struct RoomShareReducerTests {
     private let pinID = PinID("pin-0")
+    private let placeID = PlaceID("place-0")
     private let targets = [
         ShareTarget(room: fixtureRoom("room-0"), alreadySaved: true),
         ShareTarget(room: fixtureRoom("room-1"), alreadySaved: false),
@@ -51,7 +52,7 @@ struct RoomShareReducerTests {
         state: RoomShareState? = nil
     ) -> TestStore<RoomShareState, RoomShareAction, RoomShareNav> {
         TestStore(
-            state ?? RoomShareState(pinID: pinID),
+            state ?? RoomShareState(pinID: pinID, placeID: placeID),
             reduce: roomShareReducer(fetchTargets: targets, savePin: savePin)
         )
     }
@@ -66,6 +67,7 @@ struct RoomShareReducerTests {
         selected.forEach { selection.toggle($0) }
         return RoomShareState(
             pinID: pinID,
+            placeID: placeID,
             rooms: targets.map { RoomShareRoom(from: $0.room) },
             alreadySavedRoomIDs: alreadySaved,
             selection: selection,

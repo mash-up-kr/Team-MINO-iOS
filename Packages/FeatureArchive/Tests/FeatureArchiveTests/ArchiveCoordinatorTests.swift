@@ -33,7 +33,7 @@ private struct StubCreateRoom: CreateRoomUseCase {
 }
 
 private struct StubShareTargets: FetchShareTargetsUseCase {
-    func execute(pinID: PinID) async throws -> [ShareTarget] { [] }
+    func execute(placeID: PlaceID) async throws -> [ShareTarget] { [] }
 }
 
 private struct StubSavePin: SavePinToRoomsUseCase {
@@ -161,7 +161,7 @@ struct ArchiveCoordinatorTests {
     func shareLocation() {
         let coordinator = makeCoordinator()
         let location = RoomDetailLocation(
-            id: "p1", name: "레이어스튜디오 10", address: "서울 성동구 상원4길 10",
+            id: "p1", placeID: "place-1", name: "레이어스튜디오 10", address: "서울 성동구 상원4길 10",
             commentCount: 0, photos: []
         )
         coordinator.handle(RoomDetailNav.shareLocation(location))

@@ -141,7 +141,7 @@ public final class ArchiveCoordinator: Coordinator {
     ///   핀 id 라 그대로 ``PinID`` 로 되돌린다.
     func makeRoomShareStore(location: RoomDetailLocation) -> RoomShareStore {
         Store(
-            RoomShareState(pinID: PinID(location.id)),
+            RoomShareState(pinID: PinID(location.id), placeID: PlaceID(location.placeID)),
             reduce: roomShareReducer(fetchTargets: deps.fetchShareTargets, savePin: deps.savePin),
             handle: { [weak self] in self?.handle($0) }
         )

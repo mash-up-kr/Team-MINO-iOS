@@ -323,7 +323,7 @@ private struct RoomShareLocationThumbnail: View {
 
 /// 프리뷰용 공유 대상 — 첫 방은 "이미 저장됨"이라 체크된 채 비활성으로 뜬다.
 private struct PreviewShareTargets: FetchShareTargetsUseCase {
-    func execute(pinID: PinID) async throws -> [ShareTarget] {
+    func execute(placeID: PlaceID) async throws -> [ShareTarget] {
         (0..<5).map { index in
             ShareTarget(
                 room: Room(
@@ -349,7 +349,7 @@ private struct PreviewCoverItem: Identifiable { let id = 0 }
         location: RoomSharePlace(name: "레이어스튜디오 10", address: "서울 성동구 상원4길 10", thumbnail: nil),
         makeStore: {
             RoomShareStore(
-                RoomShareState(pinID: PinID("pin-0")),
+                RoomShareState(pinID: PinID("pin-0"), placeID: PlaceID("place-0")),
                 reduce: roomShareReducer(fetchTargets: PreviewShareTargets(), savePin: PreviewSavePin())
             )
         },

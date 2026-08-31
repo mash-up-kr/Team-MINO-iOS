@@ -31,7 +31,7 @@ private struct StubDeps: HomeDeps {
 private struct StubUnused: FetchPinDetailUseCase, CurrentMemberUseCase, FetchSavedRoomsUseCase,
                            FetchPinCommentsUseCase, PostPinCommentUseCase, DeletePinCommentUseCase,
                            CurrentLocationUseCase, FetchShareTargetsUseCase {
-    func execute(pinID: PinID) async throws -> [ShareTarget] { throw DomainError.unknown }
+    func execute(placeID: PlaceID) async throws -> [ShareTarget] { throw DomainError.unknown }
     func execute(pinID: PinID) async throws -> PinDetail { throw DomainError.unknown }
     func execute() async throws -> MemberProfile { throw DomainError.unknown }
     func execute(pin: Pin) async throws -> [Room] { throw DomainError.unknown }

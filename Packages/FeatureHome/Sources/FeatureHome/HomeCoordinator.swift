@@ -158,7 +158,7 @@ public final class HomeCoordinator: Coordinator {
     /// 「다른 방에 공유」 시트 Store 팩토리 (011-1).
     func makeRoomShareStore(pin: Pin) -> RoomShareStore {
         Store(
-            RoomShareState(pinID: pin.id),
+            RoomShareState(pinID: pin.id, placeID: pin.place.id),
             reduce: roomShareReducer(fetchTargets: deps.fetchShareTargets, savePin: deps.savePin),
             handle: { [weak self] in self?.handle($0) }
         )

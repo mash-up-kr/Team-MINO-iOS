@@ -7,8 +7,12 @@ import MVI
 /// 저장 중에는 선택을 잠가야 한다. 의존성(UseCase)은 `Effect.run` 안에서만 쓸 수 있으므로
 /// `@State` 로는 이 셋을 함께 표현할 수 없다.
 public struct RoomShareState: Equatable {
-    /// 공유하려는 장소. 저장 요청이 이 id 로 나간다.
+    /// 공유하려는 핀. **저장**이 이 id 로 나간다(`POST /pins/{pinId}/duplicate`).
     public let pinID: PinID
+    /// 그 핀이 가리키는 장소. **후보 조회**가 이 id 로 나간다
+    /// (`GET /rooms?showHasPlaceId={placeId}`). 같은 장소도 방마다 핀 id 가 달라
+    /// "어느 방에 있는지" 는 장소 기준으로만 물을 수 있다(place-api.md §3).
+    public let placeID: PlaceID
     public var rooms: [RoomShareRoom] = []
     /// 이 장소가 **이미 들어 있는** 방. 체크된 채 비활성이고 `selection` 과 섞지 않는다 —
     /// 섞으면 "이미 저장된 방만 있는" 상태에서 공유 버튼이 켜진다(기획 011-1 ④).
@@ -30,6 +34,7 @@ public struct RoomShareState: Equatable {
     /// 방은 `.load` 가 채운다. 그 밖의 인자는 테스트가 중간 상태를 바로 세울 때만 쓴다.
     public init(
         pinID: PinID,
+        placeID: PlaceID,
         rooms: [RoomShareRoom] = [],
         alreadySavedRoomIDs: Set<String> = [],
         selection: RoomShareSelection = RoomShareSelection(),
@@ -38,6 +43,7 @@ public struct RoomShareState: Equatable {
         error: DomainError? = nil
     ) {
         self.pinID = pinID
+        self.placeID = placeID
         self.rooms = rooms
         self.alreadySavedRoomIDs = alreadySavedRoomIDs
         self.selection = selection
@@ -81,10 +87,10 @@ public func roomShareReducer(
     /// 둘로 나누면 한쪽만 고쳐져 같은 화면이 두 목록을 갖게 된다.
     func loadTargets(_ state: inout RoomShareState) -> Effect<RoomShareAction, RoomShareNav> {
         state.isLoading = true
-        let pinID = state.pinID
+        let placeID = state.placeID
         return .run { send in
             do {
-                send(.loaded(try await fetchTargets.execute(pinID: pinID)))
+                send(.loaded(try await fetchTargets.execute(placeID: placeID)))
             } catch is CancellationError {
                 return   // 시트를 닫아 취소된 것 — 결과가 없는 게 아니라 필요 없어진 것이다
             } catch {
