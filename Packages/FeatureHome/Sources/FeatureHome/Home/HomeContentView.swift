@@ -1,5 +1,6 @@
 import DesignSystem
 import Domain
+import SavePostUI
 import SwiftUI
 
 /// 홈 셸 콘텐츠. 방 뱃지 헤더 + 타이틀 + 필터바 + (카드 덱 자리 | 빈상태 A).
@@ -10,7 +11,7 @@ struct HomeContentView: View {
         ZStack(alignment: .topTrailing) {
             guideBackgroundWash  // 홈 가이드 딤 — 콘텐츠 아래(배경색 위)
             mainContent
-            roomSheetDim         // 「홈 방 시트」가 열릴 때 — 마스코트 아래(홈 콘텐츠만 덮는다)
+            roomListDim          // 「홈 방 시트」가 열릴 때 — 마스코트 아래(홈 콘텐츠만 덮는다)
             // 가이드 중에는 방 정체성을 무조건 세운다 — 안내가 뱃지·토끼를 화살표로 가리키므로
             // (「방 뱃지와 토끼를 클릭하면」) 그 둘이 없으면 화살표가 빈자리를 가리킨다.
             if store.state.showsRoomIdentity || store.state.isGuidePresented {
@@ -20,6 +21,7 @@ struct HomeContentView: View {
             }
             roomChangeTooltip
             deckEndingTooltip
+            savePostDim          // 게시물 저장 시트 딤 — 마스코트 위(002-5 ② 는 화면 전체가 딤)
         }
         .animation(.easeInOut(duration: 0.2), value: store.state.isGuidePresented)   // 루트의 가이드 페이드와 같은 속도
         .animation(.easeInOut(duration: 0.5), value: store.state.changedRoomToastID)
@@ -70,24 +72,62 @@ struct HomeContentView: View {
         }
     }
 
-    /// `다른 방 저장` 이 여는 시트 — 방 변경과 **같은 「홈 방 시트」**다(FR-005·FR-018).
+    /// 게시물 저장 시트의 딤. Figma `Material/Dimmer`(#171719 52%).
     ///
-    /// 외부 공유 수신의 체크박스형 「방 선택 시트」(013-1-3)가 아니다: 홈 탭은 그 시트를 쓰지 않고,
-    /// 400dp 3열 그리드에서 **방을 누르는 것이 곧 확정**이다. 그래서 방 변경과 같은 ``RoomListView`` 를
-    /// 그대로 쓰고, 체크·비활성으로 표시할 칸만 "이 장소가 이미 담긴 방" 으로 바꿔 넘긴다.
+    /// 시스템 스크림은 색·투명도를 바꾸는 공개 API 가 없고 실측이 검정 12% 라 시안(52%)과 크게 달라,
+    /// `presentationBackgroundInteraction` 으로 끄고 여기서 직접 깐다(「홈 방 시트」와 같은 방식).
+    /// 탭바 자리는 이 딤이 닿지 않으므로(딤이 탭바보다 아래 레이어) `MainTabView` 가 탭바를
+    /// 페이드시켜 뒤의 딤이 비치게 한다 — iOS 26 은 시트를 띄워 그려 시트 아래로 탭바가 드러난다.
+    ///
+    /// 「홈 방 시트」딤(``roomListDim``)과 **레이어가 다르다**: 저 시트는 마스코트를 딤 위에 남기지만
+    /// (뱃지·마스코트가 그 시트의 유일한 진입점이라 밝게 유지한다) 002-5 ② 는 화면 전체를 덮는다.
+    /// 뷰 트리에 항상 두고 opacity 만 애니메이션하는 이유는 ``roomListDim`` 과 같다.
+    private var savePostDim: some View {
+        let presented = store.state.savePost != nil
+        return Color.mhMaterialDimmer
+            .ignoresSafeArea()
+            .opacity(presented ? 1 : 0)
+            .contentShape(Rectangle())
+            .onTapGesture { store.send(.dismissSavePost) }   // 시스템 스크림의 바깥탭 닫기를 대신한다
+            .allowsHitTesting(presented)
+            .accessibilityIdentifier("Home.savePost.dim")
+    }
+
+    /// 게시물 저장 바텀시트 — [SYS-002] 「게시물 저장 시트」(002-5 ②, Figma `013-1-3` node 2862:177988).
+    ///
+    /// 마크업은 홈과 공유 익스텐션이 함께 쓰는 ``SavePostSheet`` 가 그리고, 여기서는 시트 컨테이너
+    /// (높이·배경·그래버 숨김)만 맡는다. 방 변경용 「홈 방 시트」(``RoomListView``)와는 다른 화면이다 —
+    /// 그 시트는 방 변경 전용으로 남는다(FR-018).
+    ///
+    /// 이미 그 장소가 담긴 방은 체크된 채 비활성으로 뜬다(013-1-3 시안) — 목록은 시트를 열 때
+    /// 서버에서 받는다(``SavePostState/alreadySavedRoomIDs``). 조회가 닿기 전 한 프레임 동안은
+    /// 아무것도 비활성이 아니지만, 도착하면 reduce 가 선택에서도 빼 준다.
     @ViewBuilder
     private var savePostSheet: some View {
         if let savePost = store.state.savePost {
-            RoomListView(
-                rooms: store.state.rooms,
-                currentRoomID: savePost.savedRoomID,
-                onSelectRoom: { store.send(.savePostToRoom($0)) },
-                onCreateRoom: { store.send(.tapCreateRoom) }
+            SavePostSheet(
+                rooms: store.state.rooms.map(SavePostRoom.init(_:)),
+                checkedRoomIDs: savePost.checkedRoomIDs,
+                disabledRoomIDs: savePost.alreadySavedRoomIDs,
+                canSubmit: savePost.canSubmit,
+                identifierPrefix: "Home.savePost",
+                onToggleRoom: { store.send(.toggleSavePostRoom($0)) },
+                onSave: { store.send(.tapSavePost) }
             )
-            .presentationDetents([.height(400)])
-            .presentationDragIndicator(.hidden)   // 그래버는 RoomListView 가 직접 그린다
-            .presentationBackgroundInteraction(.enabled(upThrough: .height(400)))   // 시스템 스크림 제거
+            // safeAreaBottom 0 — 시스템 시트가 하단 인셋을 이미 넣어 준다. detent 높이도 같은 이유로
+            // 홈 인디케이터를 뺀 값이다(`.height` 는 안전영역 **위쪽** 높이).
+            .presentationDetents([.height(savePostDetentHeight)])
+            .presentationDragIndicator(.hidden)   // 그래버는 시안대로 시트 안에서 직접 그린다
+            .presentationCornerRadius(20)         // 시안 radius 20 (시스템 기본 10 과 다름)
+            .presentationBackground(.mhBackgroundElevatedNormal)
+            // 시스템 스크림 제거 — 딤은 시안 색으로 프리젠터가 직접 그린다(savePostDim).
+            .presentationBackgroundInteraction(.enabled(upThrough: .height(savePostDetentHeight)))
         }
+    }
+
+    /// 홈 진입은 peek/full 단계도 방 개수 분기도 없이 **644 고정**이다(002-5 주석 ②).
+    private var savePostDetentHeight: CGFloat {
+        SavePostSheetMetrics.homeEntryHeight(safeAreaBottom: 0)
     }
 
     /// 게시물 저장 시트 표시 바인딩 — 스와이프 dismiss 도 reducer 로 흘려보낸다.
@@ -115,25 +155,23 @@ struct HomeContentView: View {
     /// 「홈 방 시트」가 열릴 때 홈 콘텐츠 위에 까는 딤(Figma 002-4-1 `rgba(0,0,0,0.7)`).
     /// 마스코트 아래 레이어라 마스코트는 딤에 안 덮인다. 탭하면 시트를 닫는다.
     ///
-    /// 방 변경과 `다른 방 저장` 이 **같은 시트**라(FR-005·FR-018) 딤도 하나로 둔다 — 둘 중 무엇이
-    /// 열려 있든 같은 화면이 같은 두께로 가려져야 한다.
+    /// `다른 방 저장` 은 이제 다른 화면(``savePostSheet``)이라 딤도 따로 쓴다 — 그쪽은 색도
+    /// (`Material/Dimmer`) 레이어도(마스코트 위) 다르다.
     ///
     /// 뷰 트리에 **항상** 두고 opacity 만 0↔1 로 애니메이션한다(조건부 삽입/제거 아님). 이유:
     /// `if` + `.transition` 으로 넣다 빼면 사라지는 순간 딤의 z-order 가 흔들려, 페이드아웃 중
     /// 카드덱·필터칩이 딤 위로 잠깐 번쩍 보였다. 항상 존재하면 z-order 가 고정된다.
-    private var roomSheetDim: some View {
-        let presented = store.state.isRoomListPresented || store.state.savePost != nil
+    private var roomListDim: some View {
+        let presented = store.state.isRoomListPresented
         return Color.black.opacity(0.7)
             .ignoresSafeArea()
             .opacity(presented ? 1 : 0)
             .contentShape(Rectangle())
-            .onTapGesture {
-                store.send(store.state.savePost != nil ? .dismissSavePost : .dismissRoomList)
-            }
+            .onTapGesture { store.send(.dismissRoomList) }
             // 탭 제스처까지 포함해 통째로 게이트 — 가장 바깥에 둬야 닫혀 있을 때 딤이
             // 카드덱 스와이프를 가로채지 않는다(안쪽에 두면 바깥 contentShape·tap 이 터치를 삼킴).
             .allowsHitTesting(presented)
-            .accessibilityIdentifier("Home.roomSheetDim")
+            .accessibilityIdentifier("Home.roomListDim")
     }
 
     /// 방 선택 시트 표시 바인딩 — 스와이프 dismiss 도 reducer 로 흘려보낸다.
@@ -475,7 +513,8 @@ struct HomeMascotView: View {
                 lastViewedRoom: PreviewLastViewedRoom(),
                 homeGuide: PreviewHomeGuide(),
                 savePin: PreviewSavePin(),
-                recordPinAccess: PreviewRecordPinAccess()
+                recordPinAccess: PreviewRecordPinAccess(),
+                fetchShareTargets: PreviewShareTargets()
             )
         )
     )
@@ -492,7 +531,8 @@ struct HomeMascotView: View {
                 lastViewedRoom: PreviewLastViewedRoom(),
                 homeGuide: PreviewHomeGuide(),
                 savePin: PreviewSavePin(),
-                recordPinAccess: PreviewRecordPinAccess()
+                recordPinAccess: PreviewRecordPinAccess(),
+                fetchShareTargets: PreviewShareTargets()
             )
         )
     )
@@ -501,6 +541,10 @@ struct HomeMascotView: View {
 /// 프리뷰 전용 UseCase. load 액션을 보내도 빈 배열을 반환한다.
 private struct PreviewFetchRooms: FetchRoomsUseCase {
     func execute() async throws -> [Room] { [] }
+}
+
+private struct PreviewShareTargets: FetchShareTargetsUseCase {
+    func execute(placeID: PlaceID) async throws -> [ShareTarget] { [] }
 }
 
 /// 프리뷰 전용 — 마지막으로 본 방 기록 없음(항상 최초 실행처럼 첫 방부터).

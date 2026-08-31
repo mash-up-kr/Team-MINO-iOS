@@ -192,25 +192,41 @@ public enum SavedToastKind: Equatable, Sendable {
     case shared
 }
 
-/// `다른 방 저장` 으로 열리는 「홈 방 시트」의 상태 (nil = 닫힘).
+/// `다른 방 저장` 으로 열리는 「게시물 저장 시트」([SYS-002], 002-5 ②)의 상태 (nil = 닫힘).
 ///
 /// 시트가 홈 화면 안에서 열고 닫히므로 별도 Store 없이 홈 상태의 한 조각으로 든다 —
 /// 저장 완료 토스트가 시트가 닫힌 **뒤** 홈 위에 뜨기 때문에 두 상태가 같은 reduce 안에 있어야 이어진다.
 ///
-/// 고른 방을 모아 두는 자리가 없는 것은 시트가 **누르는 즉시 확정**이기 때문이다
-/// (FR-018 — 체크박스도 확정 버튼도 두지 않는다).
+/// 이미 그 장소가 담긴 방은 체크된 채 **비활성**으로 뜬다(013-1-3). 그 목록은 시트를 열 때
+/// ``FetchShareTargetsUseCase`` 로 받는다 — 한 장소가 여러 방에 담길 수 있어 카드가 든 `roomID`
+/// 하나로는 부족하고, 핀 id 는 방마다 달라 **장소 id** 로만 물을 수 있다.
 public struct SavePostState: Equatable {
     /// 저장하려는 장소(카드).
     public var pinID: PinID
-    /// 이 장소가 이미 들어 있는 방 — 그리드에서 체크된 채 눌리지 않는다(중복 저장은 서버도 409 로 막는다).
-    public var savedRoomID: String?
+    /// 이 장소가 이미 담긴 방 — 체크된 채 눌리지 않는다. 조회가 도착하기 전에는 비어 있다.
+    public var alreadySavedRoomIDs: Set<String>
+    /// 사용자가 이번에 새로 고른 방. 복수 선택이며, 빈 채로 열린다.
+    public var selectedRoomIDs: Set<String>
     public var isSaving: Bool
 
-    public init(pinID: PinID, savedRoomID: String? = nil, isSaving: Bool = false) {
+    public init(
+        pinID: PinID,
+        alreadySavedRoomIDs: Set<String> = [],
+        selectedRoomIDs: Set<String> = [],
+        isSaving: Bool = false
+    ) {
         self.pinID = pinID
-        self.savedRoomID = savedRoomID
+        self.alreadySavedRoomIDs = alreadySavedRoomIDs
+        self.selectedRoomIDs = selectedRoomIDs
         self.isSaving = isSaving
     }
+
+    /// `저장하기` 활성 조건 — 이번에 **새로** 고른 방이 있어야 한다. 이미 담긴 방과 섞지 않는 이유는
+    /// 섞으면 "이미 저장된 방만 있는" 상태에서 버튼이 켜지기 때문이다.
+    public var canSubmit: Bool { !selectedRoomIDs.isEmpty && !isSaving }
+
+    /// 체크로 보이는 방 — 이미 담긴 방도 체크 상태다(013-1-3).
+    public var checkedRoomIDs: Set<String> { alreadySavedRoomIDs.union(selectedRoomIDs) }
 }
 
 public enum HomeAction: Equatable {
@@ -260,8 +276,14 @@ public enum HomeAction: Equatable {
     case tapSaveToOtherRoom(PinID)
     /// 게시물 저장 시트 닫기 (스와이프 dismiss 포함)
     case dismissSavePost
-    /// 「홈 방 시트」에서 방을 고름 → 그 방에 바로 저장한다(누르는 즉시 확정, FR-018).
-    case savePostToRoom(String)
+    /// 게시물 저장 시트가 쓸 "이 장소가 이미 담긴 방" 목록이 도착했다.
+    /// `pinID` 는 이 응답이 **어느 시트의 것인지** — 시트를 닫고 다른 카드로 다시 열면 지나간
+    /// 응답이 새 시트의 비활성 표시를 뒤덮지 않게 한다.
+    case savePostTargetsLoaded(pinID: PinID, alreadySavedRoomIDs: Set<String>)
+    /// 게시물 저장 시트에서 방 체크를 켜고 끈다(복수 선택).
+    case toggleSavePostRoom(String)
+    /// `저장하기` 탭 → 고른 방 **전부**에 저장한다(FR-025).
+    case tapSavePost
     /// 저장 작업이 끝남 → 시트를 닫고 완료 토스트를 띄운다.
     case savePostFinished
     /// 저장 실패 — 시트를 저장 전 상태로 되돌린다.
@@ -491,7 +513,8 @@ public func homeReducer(
     lastViewedRoom: LastViewedRoomUseCase,
     homeGuide: HomeGuideUseCase,
     savePin: SavePinToRoomsUseCase,
-    recordPinAccess: RecordPinAccessUseCase
+    recordPinAccess: RecordPinAccessUseCase,
+    fetchShareTargets: FetchShareTargetsUseCase
 ) -> (inout HomeState, HomeAction) -> Effect<HomeAction, HomeNav> {
     { state, action in
         switch action {
@@ -725,14 +748,26 @@ public func homeReducer(
             return .none
 
         case .tapSaveToOtherRoom(let pinID):
-            // 정책(FR-005): 메뉴를 닫고 「홈 방 시트」를 연다. 덱의 진행 상태는 건드리지 않는다.
-            // 카드가 지금 속한 방에는 이 장소가 이미 들어 있어 그 칸만 체크·비활성으로 뜬다.
-            // TODO(백엔드 연동): 한 장소가 여러 방에 담길 수 있어 실제 목록은 서버가 준다.
-            //   지금은 카드가 속한 방 하나만 알 수 있어 그것만 표시한다.
-            state.savePost = SavePostState(
-                pinID: pinID,
-                savedRoomID: state.pins.first { $0.id == pinID }?.roomID
-            )
+            // 정책(FR-005): 메뉴를 닫고 「게시물 저장 시트」를 연다. 덱의 진행 상태는 건드리지 않는다(TS-011).
+            guard let pin = state.pins.first(where: { $0.id == pinID }) else { return .none }
+            state.savePost = SavePostState(pinID: pinID)
+            let placeID = pin.place.id
+            // 방 목록은 이미 들고 있어 시트가 즉시 뜬다 — 이 조회는 그 위에 "이미 담긴 방" 표시만 얹는다.
+            // 실패·취소는 삼킨다: 표시가 없을 뿐 저장은 되고, 그 상태로 이미 담긴 방을 고르면
+            // 서버가 409 로 거절해 `savePostFailed` 로 돌아온다.
+            return .run { send in
+                guard let targets = try? await fetchShareTargets.execute(placeID: placeID) else { return }
+                send(.savePostTargetsLoaded(pinID: pinID, alreadySavedRoomIDs: targets.alreadySavedRoomIDs))
+            }
+
+        case .savePostTargetsLoaded(let pinID, let alreadySaved):
+            // 지나간 시트의 응답은 버린다 — 닫고 다른 카드로 다시 열었을 수 있다.
+            guard var sheet = state.savePost, sheet.pinID == pinID else { return .none }
+            sheet.alreadySavedRoomIDs = alreadySaved
+            // 조회가 오기 전에 골라 둔 방이 "이미 담긴 방"으로 밝혀지면 선택에서 뺀다 —
+            // 남겨 두면 비활성 칸이 저장 대상에 들어가 409 를 부른다.
+            sheet.selectedRoomIDs.subtract(alreadySaved)
+            state.savePost = sheet
             return .none
 
         case .dismissSavePost:
@@ -741,16 +776,30 @@ public func homeReducer(
             state.savePost = nil
             return .none
 
-        case .savePostToRoom(let roomID):
+        case .toggleSavePostRoom(let roomID):
+            // 저장이 시작된 뒤 선택이 바뀌면 화면과 실제 저장 대상이 어긋난다.
             guard var sheet = state.savePost, !sheet.isSaving else { return .none }
-            // 이미 담긴 방은 고를 수 없다 — 뷰가 그 칸을 눌리지 않게 그리지만, 뷰를 고치면 뚫린다.
-            guard roomID != sheet.savedRoomID else { return .none }
+            // 이미 담긴 방은 끌 수 없다 — 뷰가 체크박스를 비활성으로 그리지만, 뷰를 고치면 뚫린다.
+            guard !sheet.alreadySavedRoomIDs.contains(roomID) else { return .none }
+            if sheet.selectedRoomIDs.contains(roomID) {
+                sheet.selectedRoomIDs.remove(roomID)
+            } else {
+                sheet.selectedRoomIDs.insert(roomID)
+            }
+            state.savePost = sheet
+            return .none
+
+        case .tapSavePost:
+            // 뷰의 비활성 처리는 UI 레이어 방어라 뷰가 바뀌면 뚫린다 — 조건은 여기서도 지킨다(EC-018).
+            guard var sheet = state.savePost, sheet.canSubmit else { return .none }
             sheet.isSaving = true
             state.savePost = sheet
             let pinID = sheet.pinID
+            let roomIDs = sheet.selectedRoomIDs
             return .run { send in
                 do {
-                    try await savePin.execute(pinID: pinID, roomIDs: [roomID])
+                    // 이미 담긴 방은 고를 수 없으므로 여기 섞이지 않는다 — 새로 고른 방만 나간다(FR-025).
+                    try await savePin.execute(pinID: pinID, roomIDs: roomIDs)
                     send(.savePostFinished)
                 } catch {
                     send(.savePostFailed)

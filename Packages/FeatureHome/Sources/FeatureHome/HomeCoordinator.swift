@@ -133,7 +133,8 @@ public final class HomeCoordinator: Coordinator {
                 lastViewedRoom: deps.lastViewedRoom,
                 homeGuide: deps.homeGuide,
                 savePin: deps.savePin,
-                recordPinAccess: deps.recordPinAccess
+                recordPinAccess: deps.recordPinAccess,
+                fetchShareTargets: deps.fetchShareTargets
             ),
             handle: { [weak self] in self?.handle($0) }
         )
