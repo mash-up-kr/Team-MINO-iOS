@@ -38,6 +38,10 @@ public struct RoomCreationPromptView: View {
             RoomCreationPromptMessage()
                 .padding(20)
 
+            // 남는 높이를 여기서 먹어 액션 영역을 시트 바닥에 붙인다 — 없으면 그 높이가 액션 영역
+            // 아래로 몰려 버튼이 시안보다 44pt 떠 보인다(실측).
+            Spacer(minLength: 0)
+
             // safeArea: true — detent 높이가 홈 인디케이터를 포함하므로 액션 영역이 그 자리를
             // 자기 하단 여백으로 가져가야 시안의 Action Area 154 와 높이가 맞는다.
             MHActionArea(
