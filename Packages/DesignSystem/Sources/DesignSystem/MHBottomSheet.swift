@@ -86,6 +86,13 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
     /// 시트 위에 겹쳐 그려지는 하단 크롬(탭바 등)의 높이. peek 이 그 **위로** 노출되도록 그만큼 더 그린다.
     private let bottomCoverage: CGFloat
     private let detents: [MHBottomSheetDetent]
+    /// 콘텐츠를 하단 safe area(홈 인디케이터 영역)까지 늘릴지.
+    ///
+    /// 기본 `false` 는 지금까지의 동작이다 — 시트의 레이아웃 상자가 safe area 안에서 끝나고
+    /// (``MHBottomSheetLayout/fraction``) 흰 표면만 그 아래로 확장돼, 바닥에 인디케이터 몫의
+    /// 빈 띠가 남는다. `true` 면 콘텐츠 상자도 그만큼 내려가 그 띠를 채운다 — 흰 표면의 크기는
+    /// 그대로고 **채워지는 범위만** 달라진다.
+    private let extendsContentBelowSafeArea: Bool
     private let contentID: ID?
     private let content: (ID?) -> Content
 
@@ -131,6 +138,7 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
         mediumPeek: CGFloat? = nil,
         bottomCoverage: CGFloat = 0,
         detents: [MHBottomSheetDetent] = MHBottomSheetDetent.allCases,
+        extendsContentBelowSafeArea: Bool = false,
         content: @escaping (ID?) -> Content
     ) {
         assert(0 < lowFraction && lowFraction < mediumFraction && mediumFraction < 1,
@@ -143,6 +151,7 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
         self.mediumPeek = mediumPeek
         self.bottomCoverage = bottomCoverage
         self.detents = detents
+        self.extendsContentBelowSafeArea = extendsContentBelowSafeArea
         self.contentID = erasedContentID
         self.content = content
         self._appliedLow = State(initialValue: lowFraction)
@@ -194,7 +203,10 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
             let height = layout.clampedHeight(layout.height(of: detent) - dragTranslation)
             let isFull = height >= layout.height(of: .full)
 
-            sheet(height: height, isFull: isFull)
+            // full 은 이미 화면을 다 덮어 늘릴 것이 없다.
+            let bottomExtension = extendsContentBelowSafeArea && !isFull ? geometry.safeAreaInsets.bottom : 0
+
+            sheet(height: height, isFull: isFull, bottomExtension: bottomExtension)
                 .offset(y: isTransitioningDown ? height + geometry.safeAreaInsets.bottom : 0)
                 .frame(maxHeight: .infinity, alignment: .bottom)
                 // simultaneous 여야 스크롤 콘텐츠 위에서도 드래그를 받는다 —
@@ -259,7 +271,7 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
         var medium: CGFloat
     }
 
-    private func sheet(height: CGFloat, isFull: Bool) -> some View {
+    private func sheet(height: CGFloat, isFull: Bool, bottomExtension: CGFloat) -> some View {
         VStack(spacing: 0) {
             if !isFull { grabber }
             content(appliedContentID)   // 전환 중엔 이전 ID 로 그려 이전 콘텐츠 유지
@@ -268,7 +280,11 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
         }
         // 상단(그래버) 고정. 기본 center 정렬이면 낮은 높이에서 콘텐츠가 넘칠 때 상하로 클립돼
         // 그래버가 흰 시트 밖(위)으로 밀린다 — 항상 위를 기준으로 클립한다.
-        .frame(height: height, alignment: .top)
+        // 늘린 만큼 상자를 키우고, 아래 음수 padding 으로 그 몫을 레이아웃에서 도로 뺀다.
+        // 상자는 늘리기 전 크기로 자리를 잡고(= 윗끝 제자리) 그림만 아래로 넘쳐 화면 끝에 닿는다.
+        // `ignoresSafeArea` 로 하면 상자 자체가 커진 채 바닥 정렬돼 **윗끝이 올라가** 버린다 —
+        // 그러면 시트 위에 띄운 부유 버튼이 시트에 가린다(시뮬레이터 확인).
+        .frame(height: height + bottomExtension, alignment: .top)
         .clipShape(sheetShape(isFull: isFull))
         .background {
             // 시트 표면(흰 면)은 콘텐츠 레이아웃과 분리해 safe area 로 확장한다 — 하단은 항상,
@@ -280,6 +296,7 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
                 .shadow(color: isFull ? .clear : sheetShadow.color, radius: sheetShadow.blur / 2,
                         x: sheetShadow.x, y: sheetShadow.y)
         }
+        .padding(.bottom, -bottomExtension)
         .animation(.spring(duration: 0.3), value: detent)
     }
 
@@ -387,11 +404,13 @@ public extension MHBottomSheet where ID == Never {
         mediumPeek: CGFloat,
         bottomCoverage: CGFloat = 0,
         detents: [MHBottomSheetDetent] = MHBottomSheetDetent.allCases,
+        extendsContentBelowSafeArea: Bool = false,
         @ViewBuilder content: @escaping () -> Content
     ) {
         self.init(detent: detent, lowFraction: 0.15, mediumFraction: 0.5,
                   erasedContentID: nil, lowPeek: lowPeek, mediumPeek: mediumPeek,
                   bottomCoverage: bottomCoverage, detents: detents,
+                  extendsContentBelowSafeArea: extendsContentBelowSafeArea,
                   content: { _ in content() })
     }
 }
