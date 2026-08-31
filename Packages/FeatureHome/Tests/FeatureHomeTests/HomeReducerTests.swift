@@ -1102,6 +1102,27 @@ struct HomeReducerTests {
         #expect(await spy.saved.count == 1)   // 닫혔다고 저장이 취소되지 않는다
     }
 
+    @Test("L1 — 장소 상세 공유 완료는 공유 문구를 쓴다 ([SYS-003], TS-033)")
+    func sharedToOtherRooms_marksToastAsShareCopy() async {
+        // 같은 토스트 자리를 쓰지만 문구는 [SYS-003] 쪽이다(place-detail 2.2.0 TS-033).
+        let store = makeStore(state: HomeState(rooms: fixtureRooms))
+        await store.send(.sharedToOtherRooms) {
+            $0.savedToastKind = .shared
+            $0.savedToastID = 1
+        }
+        store.finish()
+    }
+
+    @Test("L1 — 홈 카드 저장 완료는 저장 문구를 쓴다 ([SYS-002])")
+    func savePostFinished_marksToastAsSaveCopy() async {
+        let store = makeStore(state: HomeState(rooms: fixtureRooms, savedToastKind: .shared))
+        await store.send(.savePostFinished) {
+            $0.savedToastKind = .saved
+            $0.savedToastID = 1
+        }
+        store.finish()
+    }
+
     @Test("L1 — 연속 저장은 토스트 id 를 올려 자동 dismiss 타이머를 다시 시작시킨다")
     func savePostFinished_incrementsToastID() async {
         let store = makeStore(state: HomeState(rooms: fixtureRooms, savedToastID: 1))

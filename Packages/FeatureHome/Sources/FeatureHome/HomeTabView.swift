@@ -173,12 +173,21 @@ public struct HomeTabView: View {
         }
     }
 
-    /// 저장 완료 스낵바 (Figma `013-2`). 위 주석과 같은 이유로 NavigationStack **바깥**에 둔다 —
+    /// 완료 토스트 문구 — 경로마다 스펙이 따로 정해 두었다(``SavedToastKind``).
+    /// 상태는 경로만 들고 문구는 여기서 고른다(예고 툴팁·방 전환 툴팁과 같은 방식).
+    private func savedToastTitle(_ kind: SavedToastKind) -> String {
+        switch kind {
+        case .saved: "저장이 완료됐습니다."     // [SYS-002] 게시물 저장 (Figma 013-2)
+        case .shared: "공유가 완료되었습니다."   // [SYS-003] 다른방에 공유 (place-detail 2.2.0 유저 플로우 6)
+        }
+    }
+
+    /// 저장·공유 완료 스낵바 (Figma `013-2`). 위 주석과 같은 이유로 NavigationStack **바깥**에 둔다 —
     /// 안에 두면 탭바에 가린다. 노출 2초 뒤 스스로 사라진다.
     @ViewBuilder
     private var savedToast: some View {
         if let store, let toastID = store.state.savedToastID {
-            MHSnackbar(title: "저장이 완료됐습니다.", icon: .checkThick)
+            MHSnackbar(title: savedToastTitle(store.state.savedToastKind), icon: .checkThick)
                 .padding(.horizontal, 20)
                 // 시안(013-2, node 2862:178010)의 "화면 바닥에서 40" 을 탭바 위로 옮긴 값 —
                 // 시안 프레임에는 탭바가 없어 그대로 40 을 주면 탭바에 겹친다.

@@ -42,6 +42,13 @@ public struct HomeState: Equatable {
     /// 뷰의 자동 dismiss 타이머가 매번 새로 시작된다 — 연속 저장에서 앞 타이머가 뒤 토스트를 지우지 않게
     /// dismiss action 이 이 id 를 실어 보낸다([[changedRoomToastID]] 와 같은 방어).
     public var savedToastID: Int?
+    /// 완료 토스트의 **진입 경로** (문구는 뷰가 이 값에서 파생한다 — [[changedRoomToastID]] 와 같은 방식).
+    /// [[savedToastID]] 가 nil 인 동안에는 의미가 없다.
+    ///
+    /// 두 경로가 같은 토스트 자리를 쓰지만 문구는 스펙이 따로 정해 두었다 — 홈 카드 `다른 방 저장`은
+    /// [SYS-002] 「게시물 저장」이라 `저장이 완료됐습니다.`(Figma 013-2), 장소 상세 [다른방에 공유]는
+    /// [SYS-003] 이라 `공유가 완료되었습니다.`(place-detail 2.2.0 유저 플로우 6·TS-033)다.
+    public var savedToastKind: SavedToastKind = .saved
     /// 가까운순 조회의 기준점(내 위치). 그 기준을 처음 고른 순간에 한 번 얻어 들고 있는다 —
     /// 서버가 `sort=nearby` 에 좌표를 요구하고, 매번 다시 측위하면 칩을 오갈 때마다 몇 초씩 걸린다.
     public var myCoordinate: Coordinate?
@@ -76,6 +83,7 @@ public struct HomeState: Equatable {
         isGuidePresented: Bool = false,
         savePost: SavePostState? = nil,
         savedToastID: Int? = nil,
+        savedToastKind: SavedToastKind = .saved,
         myCoordinate: Coordinate? = nil,
         myAvatarColor: AvatarColor? = nil,
         isRoomUserChosen: Bool = false
@@ -96,6 +104,7 @@ public struct HomeState: Equatable {
         self.isGuidePresented = isGuidePresented
         self.savePost = savePost
         self.savedToastID = savedToastID
+        self.savedToastKind = savedToastKind
         self.myCoordinate = myCoordinate
         self.myAvatarColor = myAvatarColor
         self.isRoomUserChosen = isRoomUserChosen
@@ -162,6 +171,15 @@ public struct HomeState: Equatable {
     /// 현재 정렬 덱에서 (현재 카드 포함) 아직 넘기지 않은 카드 수. 덱 끝 예고 툴팁([[deckEndingToastFilter]])
     /// 판단에 쓴다. 덱을 다 넘겨 인덱스가 덱 밖으로 나가면([[isCurrentDeckExhausted]]) 0 이다.
     public var remainingInCurrentDeck: Int { max(0, pins.count - currentCardIndex) }
+}
+
+/// 완료 토스트를 띄운 경로. 문구가 경로마다 다르게 정해져 있어(각 스펙) 상태는 경로만 들고
+/// 문구는 뷰가 고른다.
+public enum SavedToastKind: Equatable, Sendable {
+    /// 홈 카드 `다른 방 저장` — [SYS-002] 「게시물 저장」.
+    case saved
+    /// 장소 상세 [다른방에 공유] — [SYS-003] 「방 선택 시트」.
+    case shared
 }
 
 /// `다른 방 저장` 으로 열리는 「홈 방 시트」의 상태 (nil = 닫힘).
@@ -727,6 +745,7 @@ public func homeReducer(
         case .savePostFinished:
             // 시트를 먼저 닫고 그 자리에 토스트만 남긴다(Figma 013-2).
             state.savePost = nil
+            state.savedToastKind = .saved
             state.savedToastID = (state.savedToastID ?? 0) + 1
             return .none
 
@@ -737,6 +756,8 @@ public func homeReducer(
             return .none
 
         case .sharedToOtherRooms:
+            // 홈 저장과 같은 토스트 자리를 쓰지만 문구는 [SYS-003] 쪽이다(place-detail 2.2.0 TS-033).
+            state.savedToastKind = .shared
             state.savedToastID = (state.savedToastID ?? 0) + 1
             return .none
 
