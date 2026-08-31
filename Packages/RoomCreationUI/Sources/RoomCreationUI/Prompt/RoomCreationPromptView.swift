@@ -16,11 +16,12 @@ import SwiftUI
 /// }
 /// ```
 public struct RoomCreationPromptView: View {
-    /// `presentationDetents(.height(_:))` 에 넘길 값.
+    /// `presentationDetents(.height(_:))` 에 넘길 값. 시안 시트 높이 그대로다(812 − 324).
     ///
-    /// 시안 시트 높이 492(812 − 320)는 홈 인디케이터(34)까지 포함한 값인데, iOS 의 `.height` 는
-    /// 하단 안전영역 **위쪽** 높이라 그만큼 뺀다(`RoomShareSheet` 와 같은 계산).
-    public static let detentHeight: CGFloat = 492 - 34
+    /// 홈 인디케이터(34)를 빼지 않는다 — `.height` 는 하단 안전영역을 **포함한** 전체 높이라,
+    /// 빼면 그만큼 본문이 눌린다(일러스트가 160 → 154 로 줄고 안내 문구가 두 줄에서 한 줄로
+    /// 잘렸다). 시안의 Action Area 154 도 홈 인디케이터를 포함한 값이라 계산이 맞아떨어진다.
+    public static let detentHeight: CGFloat = 812 - 324
 
     private let onCreate: () -> Void
     private let onLater: () -> Void

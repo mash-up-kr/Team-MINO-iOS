@@ -31,20 +31,8 @@ struct InviteFriendsContent: View {
                         .animation(.easeInOut(duration: 0.2), value: notice)
                 }
         }
-        .background(alignment: .bottom) { cloudBackground }
         .background(Color.mhBackgroundNormalNormal)
         .ignoresSafeArea(edges: .bottom)
-    }
-
-    /// 화면 하단을 채우는 옅은 구름 장식(Figma `BG` 375×325 — 튜토리얼 화면과 같은 에셋).
-    private var cloudBackground: some View {
-        Image(MHIllustration.cloudBackground)
-            .resizable()
-            .scaledToFill()
-            .frame(height: 325)
-            .frame(maxWidth: .infinity)
-            .clipped()
-            .accessibilityHidden(true)
     }
 
     // MARK: - Title / Illustration / Description
@@ -82,7 +70,7 @@ struct InviteFriendsContent: View {
         Image(MHIllustration.inviteFriends)
             .resizable()
             .scaledToFit()
-            .frame(width: 267, height: 289)
+            .frame(width: 234, height: 288)
             .accessibilityHidden(true)
     }
 

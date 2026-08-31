@@ -10,13 +10,8 @@ import SwiftUI
 public enum MHIllustration: String, CaseIterable, Sendable {
     /// 공동방이 하나도 없을 때 쓰는 캐릭터 일러스트.
     case emptyRoom = "emptyRoomIllustration"
-    /// 친구를 부르는 캐릭터 3인 + 폰. Figma `009-1 친구 초대`.
+    /// 봉투 뒤에서 내다보는 캐릭터. Figma `009-1 친구 초대`.
     case inviteFriends = "inviteFriendsIllustration"
-    /// 화면 하단에 까는 구름 배경(375×325). 가로를 채우고 하단에 붙인다.
-    ///
-    /// 지금 쓰는 곳은 친구초대뿐이지만 DesignSystem 에 둔다 — RoomCreationUI 는
-    /// FeatureOnboarding 번들에 접근할 수 없어 여기 있어야 로드된다.
-    case cloudBackground
 }
 
 public extension Image {
