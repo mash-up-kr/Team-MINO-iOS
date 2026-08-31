@@ -6,10 +6,6 @@ import SwiftUI
 /// 스텝 목록을 주입받지 않는 이유: 뷰와 reduce 가 서로 다른 개수를 보면
 /// CTA 가 보이는데 눌러도 아무 일이 없는 상태가 된다. 둘 다 ``TutorialStep/all`` 하나만 본다.
 struct TutorialContent: View {
-    private static let mascotSize = CGSize(width: 90, height: 117.143)
-    /// 오른쪽으로 6pt 넘겨 잘리고, 세로는 Figma 125 − 상태바 54.
-    private static let mascotOffset = CGSize(width: 6, height: 71)
-
     private let steps = TutorialStep.all
 
     @Binding var pageIndex: Int
@@ -23,8 +19,6 @@ struct TutorialContent: View {
             MHTopNavigation(title: "튜토리얼", onSkip: isLastPage ? nil : onTapSkip)
             pager
         }
-        // 페이저 밖에 둔다 — 안에 넣으면 다섯 장이 같은 그림인데도 스와이프마다 함께 밀린다.
-        .overlay(alignment: .topTrailing) { mascot }
         .safeAreaInset(edge: .bottom) { bottomBar }
         // safeAreaInset 뒤에 깐다 — 앞에 두면 하단 바 영역이 배경 밖으로 밀려 부모 색이 비친다.
         .background(Color.mhBackgroundNormalNormal)
@@ -40,17 +34,6 @@ struct TutorialContent: View {
         // 기본 인디케이터를 끄고 dot 은 하단 바에서 그린다 — 시안 위치가 기본값과 다르다.
         .tabViewStyle(.page(indexDisplayMode: .never))
         .accessibilityIdentifier("Tutorial.pager")
-    }
-
-    /// DS 에셋은 왼쪽에서 내다보는 방향이라 뒤집는다(Figma 도 같은 벡터를 뒤집어 썼다).
-    private var mascot: some View {
-        Image(dsImage: "homeMascot")
-            .resizable()
-            .scaledToFit()
-            .frame(width: Self.mascotSize.width, height: Self.mascotSize.height)
-            .scaleEffect(x: -1, y: 1)
-            .offset(x: Self.mascotOffset.width, y: Self.mascotOffset.height)
-            .accessibilityHidden(true)
     }
 
     /// CTA 는 마지막 스텝에서만 보이되 **자리는 늘 차지한다** — 나타날 때 자리를 밀면

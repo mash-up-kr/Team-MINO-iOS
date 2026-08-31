@@ -5,6 +5,8 @@ struct TutorialStep: Identifiable {
     let title: String
     /// `Illustration.xcassets` 의 이미지 이름.
     let illustration: String
+    /// 카드 오른쪽 위에 걸터앉는 캐릭터. 스텝마다 소품이 다르다.
+    let mascot: String
 }
 
 extension TutorialStep {
@@ -13,27 +15,32 @@ extension TutorialStep {
         TutorialStep(
             id: 1,
             title: "인스타그램 공유 버튼\n찾아서 눌러주기",
-            illustration: "tutorialStep1"
+            illustration: "tutorialStep1",
+            mascot: "tutorialMascot1"
         ),
         TutorialStep(
             id: 2,
             title: "공유 대상 버튼\n찾아서 눌러주기",
-            illustration: "tutorialStep2"
+            illustration: "tutorialStep2",
+            mascot: "tutorialMascot2"
         ),
         TutorialStep(
             id: 3,
             title: "앱 목록을 쓸어넘겨\n더보기 버튼 눌러주기",
-            illustration: "tutorialStep3"
+            illustration: "tutorialStep3",
+            mascot: "tutorialMascot3"
         ),
         TutorialStep(
             id: 4,
             title: "앱 목록을 쓸어내려\n꾹 앱 눌러주기",
-            illustration: "tutorialStep4"
+            illustration: "tutorialStep4",
+            mascot: "tutorialMascot4"
         ),
         TutorialStep(
             id: 5,
             title: "꾹에 공유하기만 하면\n지도에 추가 완료",
-            illustration: "tutorialStep5"
+            illustration: "tutorialStep5",
+            mascot: "tutorialMascot5"
         )
     ]
 }
