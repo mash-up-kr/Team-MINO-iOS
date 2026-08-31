@@ -778,6 +778,34 @@ struct HomeReducerTests {
         #expect(state.currentRoom?.id == "1")
     }
 
+    // MARK: - 최초 진입에서 시작 방이 비었을 때
+
+    @Test("L2 — 최초 진입은 시작 방의 정렬만 훑고, 다른 방으로 끌려가지 않는다")
+    func initialDeckLoaded_staysInStartRoom() async {
+        // 시작 방(1번)은 어느 정렬로도 비어 있고 3번 방에만 카드가 있다 —
+        // 방을 넘기면 앱을 켠 사용자가 고르지도 않은 마지막 방에 가 있게 된다.
+        let rooms = fixtureRooms + [
+            Room(
+                id: "3", type: .shared, name: "세 번째 방", description: nil,
+                color: nil, ownerId: "owner-1", createdAt: fixtureDate,
+                pinCount: 5, memberCount: 1, users: []
+            )
+        ]
+        let store = makeStore(
+            fetchPins: StubRoomDecks(decks: [deckKey("3", .recommended): deckPins("r3", room: "3", count: 3)]),
+            state: HomeState(rooms: rooms)
+        )
+        store.exhaustive = false
+        await store.send(.initialDeckLoaded(pins: [], roomID: "1"))
+        // 그 방의 남은 정렬은 훑는다 — 꾹 Pick 은 방에 장소가 있어도 비어 올 수 있어서다.
+        await store.receive(.deckLoaded(pins: [], roomID: "1", filter: .latest))
+        await store.receive(.deckLoaded(pins: [], roomID: "1", filter: .nearby))
+
+        #expect(store.currentState.currentRoom?.id == "1")   // 시작 방 그대로
+        #expect(store.currentState.showsEmptyState)
+        store.finish()
+    }
+
     // MARK: - 직접 고른 방이 비었을 때 (FR-013 은 자동 전환의 규칙이고, TS-028 은 "그 방의 덱")
 
     @Test("L2 — 직접 고른 방의 세 정렬이 모두 비어도 다음 방으로 떠나지 않고 그 방에 남는다")
@@ -803,10 +831,8 @@ struct HomeReducerTests {
         // 중간 전이가 아니라 "결국 어느 방에 남았는가" 가 관심사다.
         store.exhaustive = false
         await store.send(.selectRoom("2"))
-        // 세 정렬을 차례로 조회하고 모두 비어 그 자리에 멈춘다 — 3번 방으로 넘어가지 않는다.
+        // 꾹 Pick 이 비면 거기서 멈춘다 — 남은 정렬로도, 3번 방으로도 넘어가지 않는다.
         await store.receive(.deckLoaded(pins: [], roomID: "2", filter: .recommended))
-        await store.receive(.deckLoaded(pins: [], roomID: "2", filter: .latest))
-        await store.receive(.deckLoaded(pins: [], roomID: "2", filter: .nearby))
 
         #expect(store.currentState.currentRoomIndex == 1)          // 고른 방 그대로
         #expect(store.currentState.currentRoom?.id == "2")
@@ -814,8 +840,8 @@ struct HomeReducerTests {
         store.finish()
     }
 
-    @Test("L2 — 직접 고른 방의 꾹 Pick 이 비어도 그 방의 다른 정렬에 카드가 있으면 거기로 간다")
-    func selectRoom_emptyFirstFilterStillShowsRoomCards() async {
+    @Test("L2 — 직접 고른 방의 꾹 Pick 이 비면 다른 정렬에 카드가 있어도 저 혼자 넘어가지 않는다")
+    func selectRoom_emptyFirstFilterStaysOnChosenFilter() async {
         let latest = deckPins("r2-latest", room: "2", count: 2)
         let store = makeStore(
             fetchPins: StubRoomDecks(decks: [deckKey("2", .latest): latest]),
@@ -828,10 +854,33 @@ struct HomeReducerTests {
         store.exhaustive = false
         await store.send(.selectRoom("2"))
         await store.receive(.deckLoaded(pins: [], roomID: "2", filter: .recommended))
-        await store.receive(.deckLoaded(pins: latest, roomID: "2", filter: .latest))
 
-        // 방 안에서의 정렬 순회는 막지 않는다 — 막으면 있는 카드를 못 보여준다.
+        // 최신순에 카드가 있지만 칩이 저 혼자 옮겨 가지 않는다 — 고른 방의 꾹 Pick 에 그대로 선다.
         #expect(store.currentState.currentRoom?.id == "2")
+        #expect(store.currentState.selectedFilter == .recommended)
+        #expect(store.currentState.pins.isEmpty)
+        #expect(store.currentState.showsEmptyState)
+        store.finish()
+    }
+
+    @Test("L2 — 그 상태에서 사용자가 최신순 칩을 누르면 그 덱이 열린다")
+    func selectRoom_emptyFirstFilterThenUserTapsChip() async {
+        let latest = deckPins("r2-latest", room: "2", count: 2)
+        let store = makeStore(
+            fetchPins: StubRoomDecks(decks: [deckKey("2", .latest): latest]),
+            state: HomeState(
+                rooms: fixtureRooms,
+                pins: deckPins("r1", room: "1", count: 3),
+                isRoomListPresented: true
+            )
+        )
+        store.exhaustive = false
+        await store.send(.selectRoom("2"))
+        await store.receive(.deckLoaded(pins: [], roomID: "2", filter: .recommended))
+
+        // 자동 순회는 막았어도 수동 경로는 그대로다 — 칩을 누르면 카드를 볼 수 있다.
+        await store.send(.selectFilter(.latest))
+        await store.receive(.deckLoaded(pins: latest, roomID: "2", filter: .latest))
         #expect(store.currentState.selectedFilter == .latest)
         #expect(store.currentState.pins == latest)
         #expect(!store.currentState.showsEmptyState)

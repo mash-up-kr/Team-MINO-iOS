@@ -62,9 +62,22 @@ public struct HomeState: Equatable {
     /// 건너뛴다"(FR-013)는 **자동 전환이 갈 곳을 고를 때**의 규칙이고, 시트에서 방을 고르면
     /// "**그 방의** 덱이 노출된다"(TS-028)가 따로 있다.
     ///
-    /// 방 안에서 정렬을 옮기는 것은 막지 않는다 — 꾹 Pick 이 비어도 그 방의 최신순에 카드가
-    /// 있을 수 있어서, 정렬 순회까지 막으면 있는 카드를 못 보여준다.
+    /// 방 안의 정렬 순회도 함께 막는다 — 꾹 Pick 이 비어도 최신순으로 저 혼자 넘어가지 않는다.
+    /// 있는 카드를 자동으로 찾아 주는 대신, 어느 정렬을 볼지는 사용자가 칩으로 정한다.
     var isRoomUserChosen: Bool
+
+    /// 지금 방에 **앱을 켜서** 들어왔는가(최초 진입) — 아직 그 방의 카드를 한 장도 못 본 상태다.
+    ///
+    /// 이 동안에는 그 방의 정렬은 훑되 **방은 넘기지 않는다**. 넘기기 시작하면 앱을 켠 사용자가
+    /// 고르지도 않은 마지막 방에 가 있게 되는데, 어디로 왔는지도 왜 왔는지도 알 수 없는 자리다.
+    ///
+    /// 정렬 순회까지 막지는 않는다 — 꾹 Pick 은 방에 장소가 있어도 비어 올 수 있어서
+    /// (서버가 라벨 4종으로 덱을 채우다 정원이 미달이면 그대로 짧게 준다), 그것까지 막으면
+    /// 카드가 있는데 빈 화면을 띄우게 된다.
+    ///
+    /// [[isRoomUserChosen]] 과 나눠 두는 이유는 **막는 범위가 다르기** 때문이다 —
+    /// 방 시트로 직접 고른 경우는 정렬 순회도 함께 막는다.
+    var isInitialRoom: Bool
 
     public init(
         rooms: [Room] = [],
@@ -86,7 +99,8 @@ public struct HomeState: Equatable {
         savedToastKind: SavedToastKind = .saved,
         myCoordinate: Coordinate? = nil,
         myAvatarColor: AvatarColor? = nil,
-        isRoomUserChosen: Bool = false
+        isRoomUserChosen: Bool = false,
+        isInitialRoom: Bool = false
     ) {
         self.rooms = rooms
         self.isLoading = isLoading
@@ -108,6 +122,7 @@ public struct HomeState: Equatable {
         self.myCoordinate = myCoordinate
         self.myAvatarColor = myAvatarColor
         self.isRoomUserChosen = isRoomUserChosen
+        self.isInitialRoom = isInitialRoom
     }
 
     /// 현재 기준의 카드 덱. 쓰기는 현재 기준의 덱만 갈아끼운다(다른 기준 캐시는 그대로).
@@ -304,6 +319,7 @@ public struct DeckPosition: Equatable, Sendable {
     public var filterAnchor: PinFilter
     public var changedRoomToastID: String?
     var isRoomUserChosen: Bool
+    var isInitialRoom: Bool
 
     public init(
         roomIndex: Int,
@@ -313,7 +329,8 @@ public struct DeckPosition: Equatable, Sendable {
         viewedFilters: Set<PinFilter> = [],
         filterAnchor: PinFilter = .recommended,
         changedRoomToastID: String? = nil,
-        isRoomUserChosen: Bool = false
+        isRoomUserChosen: Bool = false,
+        isInitialRoom: Bool = false
     ) {
         self.roomIndex = roomIndex
         self.filter = filter
@@ -323,6 +340,7 @@ public struct DeckPosition: Equatable, Sendable {
         self.filterAnchor = filterAnchor
         self.changedRoomToastID = changedRoomToastID
         self.isRoomUserChosen = isRoomUserChosen
+        self.isInitialRoom = isInitialRoom
     }
 
     /// 지금 자리를 그대로 담는다 — 조회를 시작하며 상태를 건드리기 **전에** 캡처해야 한다.
@@ -335,7 +353,8 @@ public struct DeckPosition: Equatable, Sendable {
             viewedFilters: state.viewedFilters,
             filterAnchor: state.filterAnchor,
             changedRoomToastID: state.changedRoomToastID,
-            isRoomUserChosen: state.isRoomUserChosen
+            isRoomUserChosen: state.isRoomUserChosen,
+            isInitialRoom: state.isInitialRoom
         )
     }
 }
@@ -414,6 +433,7 @@ private func moveToRoom(
     state.decks = [:]            // 덱 캐시는 방에 딸린 것이다
     state.currentCardIndex = 0
     state.isRoomUserChosen = false   // 자동 전환이 기본값 — 수동 경로(selectRoom)가 뒤에서 세운다
+    state.isInitialRoom = false      // 방을 넘긴 시점에서 더는 '최초 진입한 방'이 아니다
     state.changedRoomToastID = state.rooms[index].id
     return showDeck(
         filter: .recommended, revertingTo: revert, persistingRoom: true,
@@ -432,16 +452,29 @@ private func advanceAfterDeck(
 ) -> Effect<HomeAction, HomeNav> {
     let revert = DeckPosition(state)   // 확인 기록을 넣기 전 자리를 담아 둔다(실패하면 여기로 돌아온다)
     state.viewedFilters.insert(state.selectedFilter)
+    // 사용자가 직접 고른 방에서는 **정렬도 방도** 자동으로 넘기지 않는다 — 지목한 자리에 그대로 선다.
+    //
+    // 자동 순회는 "계속 넘기다 보니 다음으로 이어진다" 는 맥락이 있어야 읽힌다. 방을 직접 고른
+    // 직후에는 그 맥락이 없어서, 칩이 저 혼자 꾹 Pick → 최신순 → 가까운순으로 튀면 사용자는
+    // 자기가 고른 방을 보고 있는 건지조차 알 수 없다. 빈 정렬은 빈 채로 두고, 다른 정렬을 볼지는
+    // 사용자가 칩을 눌러 정한다.
+    //
+    // 카드를 한 장이라도 보면 이 표시가 풀리므로([[HomeAction.deckLoaded]]), 그 뒤 덱을 소진할
+    // 때는 평소대로 순회한다.
+    guard !state.isRoomUserChosen else { return .none }
     if let next = state.nextUnviewedFilter {
         return showDeck(
             filter: next, revertingTo: revert,
             state: &state, fetchHomeCards: fetchHomeCards, currentLocation: currentLocation, lastViewedRoom: lastViewedRoom
         )
     }
-    guard state.hasNextRoom else { return .none }
-    // 사용자가 지목한 방이면 비어 있어도 남는다 — 그 방의 빈 상태를 보여 주고 멈춘다.
-    // 정렬 순회는 위에서 이미 끝난 뒤라, 그 방의 세 덱이 모두 비었다는 게 확인된 상태다.
-    guard !state.isRoomUserChosen else { return .none }
+    // 최초 진입한 방에서는 방을 넘기지 않는다([[HomeState.isInitialRoom]]). 정렬 순회는 위에서
+    // 이미 끝난 뒤라, 시작 방의 세 덱이 모두 비었다는 게 확인된 상태다 — 그 방의 빈 상태를
+    // 보여 주고 멈춘다. 다른 방은 사용자가 방 시트에서 고른다.
+    //
+    // 이 표시가 **정렬 순회 내내 유지돼야** 한다. 호출 인자로 받으면 첫 호출만 막히고, 정렬을
+    // 훑는 사이 `deckLoaded` 가 부르는 다음 호출에서 그대로 방을 넘어가 버린다(테스트로 확인).
+    guard !state.isInitialRoom, state.hasNextRoom else { return .none }
     return moveToRoom(
         index: state.currentRoomIndex + 1, revertingTo: revert,
         state: &state, fetchHomeCards: fetchHomeCards, currentLocation: currentLocation, lastViewedRoom: lastViewedRoom
@@ -570,6 +603,7 @@ public func homeReducer(
             // 고른 방의 카드를 실제로 봤다 — 이후 이 덱을 소진하면 평소대로 다음 방으로 넘어간다.
             // (표시를 남겨 두면 사용자가 그 방에 영영 갇힌다)
             state.isRoomUserChosen = false
+            state.isInitialRoom = false
             // 받아 온 덱이 이미 2장 이하면 넘길 새도 없이 다음 자리가 코앞이다 (EC-012).
             announceDeckEndingIfNeeded(&state)
             return .none
@@ -590,6 +624,7 @@ public func homeReducer(
             state.filterAnchor = revert.filterAnchor
             state.changedRoomToastID = revert.changedRoomToastID   // 옮긴 적 없으니 전환 안내도 거둔다
             state.isRoomUserChosen = revert.isRoomUserChosen
+            state.isInitialRoom = revert.isInitialRoom
             // 소진 자동 전환 경로에선 인덱스가 이미 덱 밖(pins.count)으로 밀려 있어, 그대로 되돌리면
             // 카드 없는 덱 분기에 들어간다. 복구한 덱의 마지막 카드로 클램프해 거기서 다시 넘기면 재시도된다.
             state.currentCardIndex = min(revert.cardIndex, max(0, state.pins.count - 1))
@@ -608,7 +643,9 @@ public func homeReducer(
             state.pins = pins
             state.currentCardIndex = 0
             state.isLoading = false   // 첫 덱까지 도착 → 이제 카드 유무가 확정돼 로딩 종료
-            // 첫 정렬이 비어 있으면 남은 정렬·방으로 넘어간다(빈 화면에 막히지 않게).
+            // 첫 정렬이 비면 **그 방 안의** 남은 정렬로만 넘어간다 — 방은 넘기지 않는다.
+            // (꾹 Pick 은 방에 장소가 있어도 비어 올 수 있어서 정렬 순회는 남겨 둔다)
+            state.isInitialRoom = pins.isEmpty
             guard !pins.isEmpty else {
                 return advanceAfterDeck(state: &state, fetchHomeCards: fetchHomeCards, currentLocation: currentLocation, lastViewedRoom: lastViewedRoom)
             }
