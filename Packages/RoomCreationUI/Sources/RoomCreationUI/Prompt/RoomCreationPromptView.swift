@@ -50,10 +50,12 @@ public struct RoomCreationPromptView: View {
                 safeArea: true
             )
         }
-        // 남는 높이까지 채워야 배경이 시트 끝까지 칠해진다 — 콘텐츠만큼만 차지하면 아래쪽에
-        // 시트의 반투명 바탕이 드러나 뒤의 탭바가 비친다.
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        // `maxHeight: .infinity` 를 주지 않는다 — detent 시트 안에서 높이를 무한히 요구하면
+        // 레이아웃이 수렴하지 않아 시트를 띄우는 순간 앱이 멎는다(시뮬레이터 확인).
+        // 남는 높이는 위의 `Spacer` 가 먹고, 시트 바닥까지의 배경은 `presentationBackground` 가 칠한다.
+        .frame(maxWidth: .infinity)
         .background(.mhBackgroundElevatedNormal)
+        .presentationBackground(.mhBackgroundElevatedNormal)
         .accessibilityIdentifier("RoomCreationPrompt.sheet")
     }
 
