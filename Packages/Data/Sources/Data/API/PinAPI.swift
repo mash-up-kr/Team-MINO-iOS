@@ -53,6 +53,20 @@ enum PinAPI {
         )
     }
 
+    /// 이 장소를 **다른 방에도 담는다** (`POST /api/v1/pins/{pinId}/duplicate`, 기획 011-1).
+    ///
+    /// 서버가 원본 방·대상 방 멤버십을 모두 검증하고, **대상 방 중 하나라도 같은 장소가 있으면
+    /// 409(`DUPLICATE_PIN_IN_ROOM`)로 전체를 거절한다** — 부분 성공이 없다. 화면이 이미 담긴
+    /// 방을 체크·비활성으로 빼 두므로(011-1 ④) 정상 경로에서는 나지 않지만, 그 목록이 낡았으면
+    /// (다른 기기가 먼저 담음) 통째로 실패한다.
+    static func duplicate(pinID: String, roomIDs: Set<String>) -> Endpoint<OkResponse> {
+        Endpoint(
+            path: "\(base)/\(pinID)/duplicate",
+            method: .post,
+            body: .json(DuplicatePinRequestDTO(roomIds: Array(roomIDs)))
+        )
+    }
+
     /// 조회 기준(필터 칩) → 서버 `sort` 값. 두 어휘를 잇는 자리는 여기 하나다.
     private static func sort(for filter: PinFilter) -> String {
         switch filter {
