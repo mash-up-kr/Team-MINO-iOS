@@ -67,6 +67,19 @@ private struct StubRoomDecks: FetchHomeCardsUseCase {
 
 private func deckKey(_ roomID: String, _ filter: PinFilter) -> String { "\(roomID)/\(filter.rawValue)" }
 
+/// 어느 방에 조회가 나갔는지 기록하는 스텁 — "빈 방은 묻지도 않는다" 를 검증한다.
+private actor SpyRoomDecks: FetchHomeCardsUseCase {
+    private let decks: [String: [Pin]]
+    private(set) var requestedRooms: [String] = []
+
+    init(decks: [String: [Pin]]) { self.decks = decks }
+
+    func execute(room: Room, filter: PinFilter, origin: Coordinate?) async throws -> [Pin] {
+        requestedRooms.append(room.id)
+        return decks[deckKey(room.id, filter)] ?? []
+    }
+}
+
 /// 한 (방 × 정렬) 덱. `tag` 로 어느 덱인지 구분한다.
 private func deckPins(_ tag: String, room: String, count: Int) -> [Pin] {
     (0..<count).map { i in
@@ -506,6 +519,38 @@ struct HomeReducerTests {
         #expect(store.currentState.pins == latest)
         #expect(store.currentState.currentRoom?.id == "1")     // 방은 그대로
         #expect(!store.currentState.hasViewedAllPlaces)        // 아직 다 본 게 아니다
+        store.finish()
+    }
+
+    @Test("L2 — 저장 장소가 0개인 방은 조회 없이 건너뛴다 (FR-013)")
+    func traversal_skipsEmptyRoomsWithoutFetching() async {
+        // fixtureRooms[1]("데이트 코스")는 pinCount 0 이다 — 방 목록이 이미 알려주므로 물어볼 필요가 없다.
+        let rooms = fixtureRooms + [
+            Room(
+                id: "3", type: .shared, name: "세 번째 방", description: nil,
+                color: nil, ownerId: "owner-1", createdAt: fixtureDate,
+                pinCount: 5, memberCount: 1, users: []
+            )
+        ]
+        let r3 = deckPins("r3", room: "3", count: 2)
+        let stub = SpyRoomDecks(decks: [deckKey("3", .recommended): r3])
+        let store = makeStore(
+            fetchPins: stub,
+            state: HomeState(
+                rooms: rooms, selectedFilter: .nearby,
+                pins: deckPins("r1", room: "1", count: 1),
+                currentCardIndex: 1, viewedFilters: [.recommended, .latest], filterAnchor: .nearby
+            )
+        )
+        store.exhaustive = false
+        await store.send(.swipeForward)   // 1번 방의 마지막 정렬까지 소진
+        // 2번 방(0개)은 건너뛰고 곧바로 3번 방에 착지한다.
+        await store.receive(.probeLoaded(pins: r3, roomIndex: 2, filter: .recommended))
+
+        #expect(store.currentState.currentRoom?.id == "3")
+        #expect(store.currentState.pins == r3)
+        // 빈 방에는 조회를 보내지 않았다.
+        #expect(await stub.requestedRooms.contains("2") == false)   // 2번 방엔 묻지 않았다
         store.finish()
     }
 

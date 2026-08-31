@@ -429,13 +429,21 @@ private func showDeck(
 private func nextProbeTarget(after probe: DeckProbe, in state: HomeState) -> DeckProbe? {
     // 지금 보고 있는 방에서는 사용자가 고른 정렬이 앞에 오고(filterOrder), 넘어간 방은 기본 순서다.
     let order = probe.roomIndex == state.currentRoomIndex ? state.filterOrder : PinFilter.allCases
+    // 가까운순은 좌표가 있어야 서버가 받는다. 순회 중 측위가 한 번 걸릴 수 있지만 후보에서 빼지는
+    // 않는다 — 그 방의 데이터가 가까운순에만 있을 수 있고, 권한 거부는 EC-009 가 "후보 0건" 으로
+    // 규정해 두었다. 측위는 첫 한 번뿐이고 그 뒤로는 [[HomeState.myCoordinate]] 를 재사용한다.
     if let next = order.first(where: { !probe.viewedFilters.contains($0) }) {
         var target = probe
         target.filter = next
         return target
     }
     guard probe.crossesRooms else { return nil }
-    let nextRoom = probe.roomIndex + 1
+    // **저장 장소가 0개인 방은 조회 없이 건너뛴다**(FR-013). 방 목록이 `pinCount` 를 이미 실어 주므로
+    // 빈 방마다 왕복하며 서 있을 이유가 없다 — 순회가 느리게 체감되던 가장 큰 원인이었다.
+    var nextRoom = probe.roomIndex + 1
+    while state.rooms.indices.contains(nextRoom), state.rooms[nextRoom].pinCount == 0 {
+        nextRoom += 1
+    }
     guard state.rooms.indices.contains(nextRoom) else { return nil }
     return DeckProbe(roomIndex: nextRoom, filter: .recommended, viewedFilters: [], crossesRooms: true)
 }
