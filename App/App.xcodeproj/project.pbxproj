@@ -84,6 +84,7 @@
 		PS10000000000000000000F1 /* ProfileSetupUI */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ProfileSetupUI; path = ../Packages/ProfileSetupUI; sourceTree = SOURCE_ROOT; };
 		PD10000000000000000000F1 /* PlaceDetailUI */ = {isa = PBXFileReference; lastKnownFileType = folder; name = PlaceDetailUI; path = ../Packages/PlaceDetailUI; sourceTree = SOURCE_ROOT; };
 		PM10000000000000000000F1 /* PlaceMapUI */ = {isa = PBXFileReference; lastKnownFileType = folder; name = PlaceMapUI; path = ../Packages/PlaceMapUI; sourceTree = SOURCE_ROOT; };
+		RS10000000000000000000F1 /* RoomShareUI */ = {isa = PBXFileReference; lastKnownFileType = folder; name = RoomShareUI; path = ../Packages/RoomShareUI; sourceTree = SOURCE_ROOT; };
 		D5E8A1C90F2B43D6A81C7E35 /* FeatureOnboarding */ = {isa = PBXFileReference; lastKnownFileType = folder; name = FeatureOnboarding; path = ../Packages/FeatureOnboarding; sourceTree = SOURCE_ROOT; };
 		6A1D4F0C2B7E4E1D9C3A5F73 /* MapUI */ = {isa = PBXFileReference; lastKnownFileType = folder; name = MapUI; path = ../Packages/MapUI; sourceTree = SOURCE_ROOT; };
 		6A1D4F0C2B7E4E1D9C3A5F75 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
@@ -253,6 +254,7 @@
 				PS10000000000000000000F1 /* ProfileSetupUI */,
 				PD10000000000000000000F1 /* PlaceDetailUI */,
 				PM10000000000000000000F1 /* PlaceMapUI */,
+				RS10000000000000000000F1 /* RoomShareUI */,
 				D5E8A1C90F2B43D6A81C7E35 /* FeatureOnboarding */,
 				6A1D4F0C2B7E4E1D9C3A5F73 /* MapUI */,
 				35D426C5753A372F270C6E9D /* Networking */,

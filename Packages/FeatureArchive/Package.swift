@@ -15,13 +15,14 @@ let package = Package(
         .package(path: "../Core"),
         .package(path: "../RoomCreationUI"),
         .package(path: "../PlaceMapUI"),
+        .package(path: "../RoomShareUI"),
         .package(path: "../ProfileSetupUI"),
         .package(path: "../PlaceDetailUI"),
     ],
     targets: [
         .target(
             name: "FeatureArchive",
-            dependencies: ["FlowCoordination", "DesignSystem", "MVI", "Domain", "Core", "RoomCreationUI", "PlaceMapUI", "ProfileSetupUI", "PlaceDetailUI"]
+            dependencies: ["FlowCoordination", "DesignSystem", "MVI", "Domain", "Core", "RoomCreationUI", "PlaceMapUI", "RoomShareUI", "ProfileSetupUI", "PlaceDetailUI"]
         ),
         .testTarget(
             name: "FeatureArchiveTests",

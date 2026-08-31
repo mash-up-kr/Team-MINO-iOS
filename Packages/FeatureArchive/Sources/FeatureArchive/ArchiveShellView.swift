@@ -2,6 +2,7 @@ import DesignSystem
 import PlaceDetailUI
 import PlaceMapUI
 import RoomCreationUI
+import RoomShareUI
 import SwiftUI
 
 struct ArchiveShellView: View {
@@ -96,12 +97,19 @@ struct ArchiveShellView: View {
         .task(id: coordinator.selectedPin?.id.value) { syncPlaceStore() }
         .sheet(item: $coordinator.sharingLocation, onDismiss: showShareToast) { location in
             RoomShareSheet(
-                location: location,
+                location: RoomSharePlace(
+                    name: location.name, address: location.address, thumbnail: location.thumbnail
+                ),
                 makeStore: { coordinator.makeRoomShareStore(location: location) },
-                createRoomChild: $coordinator.shareCreateRoomChild,
+                createRoomItem: $coordinator.shareCreateRoomChild,
                 onClose: { coordinator.sharingLocation = nil },
                 onRoomCreated: coordinator.roomsDidChange
-            )
+            ) { child, onFinished in
+                // 저장 탭 헤더 "+" 와 같은 화면 — 건너뛰기 없음(showsSkip: false).
+                // flow 소유는 이 Feature 몫이라 화면·finish 배선을 여기서 준다(시트는 결과만 받는다).
+                RoomFormView(makeStore: child.makeRoomFormStore, showsSkip: false)
+                    .flowRoot(child, onFinish: onFinished)
+            }
             // `.presentationDetents` 는 시트가 직접 단다 — full 높이가 방 개수로 갈리는데
             // 그 개수는 시트 안의 `RoomShareStore` 만 안다(``RoomShareSheet`` 주석).
             .presentationCornerRadius(20)

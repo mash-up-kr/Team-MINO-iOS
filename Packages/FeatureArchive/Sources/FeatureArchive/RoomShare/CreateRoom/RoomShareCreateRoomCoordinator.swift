@@ -1,14 +1,7 @@
 import FlowCoordination
+import RoomShareUI
 import Observation
 import RoomCreationUI
-
-/// 공유 시트에서 연 공동방 만들기 flow 의 결과. `FlowFinish` 로 부모에게 1회 보고된다.
-enum RoomShareCreateRoomResult: Equatable, Sendable {
-    /// 방이 서버에 만들어졌다 — 공유 시트가 목록을 다시 받아야 새 방이 보인다.
-    case created
-    /// 만들지 않고 나왔다.
-    case cancelled
-}
 
 /// 이 flow 안에는 추가 화면이 없어 Route 가 비어 있다.
 /// (화면이 늘면 그때 재귀 패턴대로 자체 `NavigationStack` 을 연다 —

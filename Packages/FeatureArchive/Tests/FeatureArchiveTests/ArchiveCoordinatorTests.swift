@@ -1,5 +1,6 @@
 import Core
 import Foundation
+import RoomShareUI
 import Testing
 import Domain
 import PlaceDetailUI

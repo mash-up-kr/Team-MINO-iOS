@@ -2,7 +2,7 @@ import Domain
 import Foundation
 import MVITestSupport
 import Testing
-@testable import FeatureArchive
+import RoomShareUI
 
 private func fixtureRoom(_ id: String) -> Room {
     Room(
