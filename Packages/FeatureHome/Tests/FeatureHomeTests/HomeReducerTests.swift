@@ -399,6 +399,18 @@ struct HomeReducerTests {
         store.finish()
     }
 
+    @Test("L2 — 되돌리기는 넘긴 만큼 역순으로 이어지고 덱 시작에서 멈춘다 (FR-002, TS-002a)")
+    func swipeBackward_repeatsUntilDeckStart() async {
+        // 스펙 4.0.0 이 되돌리기를 1단계에서 「현재 덱에서 넘긴 만큼」으로 넓혔다.
+        let store = makeStore(state: HomeState(pins: fixturePins, currentCardIndex: 3))
+        await store.send(.swipeBackward) { $0.currentCardIndex = 2 }
+        await store.send(.swipeBackward) { $0.currentCardIndex = 1 }
+        await store.send(.swipeBackward) { $0.currentCardIndex = 0 }
+        await store.send(.swipeBackward)   // 덱 시작 — 여기서 멈춘다
+        #expect(store.currentState.currentCardIndex == 0)
+        store.finish()
+    }
+
     @Test("L1 — swipeBackward 는 첫 카드에서 clamp 된다")
     func swipeBackward_clamps() async {
         let store = makeStore(state: HomeState(pins: fixturePins, currentCardIndex: 0))

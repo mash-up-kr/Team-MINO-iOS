@@ -629,8 +629,12 @@ public func homeReducer(
             return .none
 
         case .swipeBackward:
-            // 되돌리기는 **현재 덱 안에서 1단계**뿐이다 — 덱이 바뀌면 되돌리기 이력이 초기화되므로
-            // 첫 카드에서 더 뒤로 가면 이전 덱이 아니라 아무 일도 일어나지 않는다(EC-001·EC-003).
+            // 되돌리기는 **현재 덱 안에서 넘긴 만큼 역순으로 이어진다**(FR-002). 덱이 바뀌면
+            // 되돌리기 이력이 초기화되므로, 첫 카드에서 더 뒤로 가면 이전 덱으로 넘어가지 않고
+            // 아무 일도 일어나지 않는다(EC-001·EC-003).
+            //
+            // 스펙 3.0.0 은 이걸 1단계로 묶어 뒀지만 4.0.0 이 뒤집었다 — 두 번째 되돌리기가
+            // 아무 반응이 없어 고장으로 읽혔기 때문이다(TS-002a).
             guard state.currentCardIndex > 0 else { return .none }
             state.currentCardIndex -= 1
             return .none
