@@ -13,8 +13,7 @@ import SwiftUI
 /// 파스텔 정사각(80pt 기준 radius 14) 위에 **색칠된 토끼 실루엣** 한 장. 얼굴·소품이 없어
 /// 작은 크기에서도 색이 먼저 읽힌다.
 ///
-/// > ``MHRoomThumbnail`` 이 현재 그리는 `roomThumbnail_<color>` 는 **이전 세대 아트**(얼굴 있는
-/// > 블롭 캐릭터)다. 교체는 별도 작업 — 이 타입은 새 아트를 에셋에 들여놓기만 한다.
+/// ``MHRoomThumbnail`` 이 이 아트를 그린다.
 public enum MHRoomCover: String, CaseIterable, Sendable {
     /// 아바타 색을 아직 고르지 않은 계정 자리 (Figma `Property 1=black`). 회색 실루엣이다.
     case plain = "roomCoverBlack"
@@ -37,8 +36,9 @@ public enum MHRoomCover: String, CaseIterable, Sendable {
 /// 파스텔 원 위에 **검은 토끼 얼굴 + 색별 소품**(셰프 모자·밀짚모자·귀마개·하트 선글라스 …).
 /// 몸통은 13종이 모두 같고 소품만 다르다 — ``MHHomeMascot`` 과 같은 구성이다.
 ///
-/// > ``MHCharacter``(`character01`~`character12`) 는 **이전 세대 아트**(얼굴 있는 블롭 캐릭터)이고
-/// > 화면들이 아직 그것을 그린다. 교체는 별도 작업 — 이 타입은 새 아트를 에셋에 들여놓기만 한다.
+/// 아바타 슬롯(``MHAvatar``·``MHAvatarGroup``·``MHAvatarStack``·``MHComment``)이 이 아트를 그린다.
+/// ``MHCharacter``(`character01`~`character12`) 는 이전 세대 아트인데, 프로필 **선택** 그리드와
+/// 마이페이지 큰 프로필에는 아직 남아 있다 — 그리드는 "선언 순서 = 저장되는 색" 계약이 걸려 있다.
 public enum MHAvatarProfile: String, CaseIterable, Sendable {
     /// 아바타 색을 아직 고르지 않은 계정 자리 (Figma `Property 1=black`). 소품이 없다.
     case plain = "avatarProfileBlack"

@@ -52,6 +52,14 @@ public final class ArchiveCoordinator: Coordinator {
 
     /// 탭바 자체를 레이아웃에서 빼야 하는 전체화면 상태인가 — MainTabView 가 본다.
     /// 방 상세 시트, 그리고 자체 상단바를 가진 push 화면(공동방 만들기)이 여기 해당한다.
+    ///
+    /// **방 리스트 시트가 `Full` 로 올라간 상태는 여기 넣지 않는다 — 탭바를 유지한다.**
+    /// PRD [SYS-005] Flow B 는 "3단 바텀시트가 `Full` 로 승격된 상태에서는 감춘다" 라고 적혀 있지만,
+    /// 시안은 반대로 그려져 있다(`003-1-3 full`·`003-2-3 full` 두 프레임 모두 `Bottom Navigation`
+    /// 인스턴스를 y=711/714 에 두고 있다). **시안을 따르기로 확정했다**(담당자 결정 2026-08-30).
+    ///
+    /// 문서와 어긋나는 쪽이라 여기 적어 둔다 — PRD 만 보고 "버그" 로 판단해 되돌리지 않도록.
+    /// 방 상세(`[SCR-005]` "몰입감을 위해 바텀 네비게이션 비노출")는 이와 별개로 계속 감춘다.
     public var isFullBleedContentPresented: Bool {
         isRoomDetailPresented || !path.isEmpty
     }
@@ -71,6 +79,14 @@ public final class ArchiveCoordinator: Coordinator {
     /// 않는다 — 두면 플래그와 목록이 어긋날 짝이 생긴다.
     var savedRooms: SavedRoomsPresentation?
 
+    /// 방 목록이 바뀐 횟수. 껍데기가 이 값의 변화를 보고 방 리스트를 다시 받는다(``ArchiveShellView``).
+    ///
+    /// 껍데기가 사라졌다 돌아오는 전환(공동방 만들기 push→pop · 탭 복귀)은 `.task` 가 이미 재조회하므로
+    /// 여기서 세지 않는다 — 세면 한 번의 복귀에 조회가 두 번 나가고, 두 번째 `.loaded` 가
+    /// ``RoomListState/skipsNextCreatePrompt`` 를 이미 쓴 뒤라 취소하고 나온 사용자에게 유도 시트가 뜬다.
+    /// **시트가 떠 있어 껍데기가 살아 있는 동안 방이 늘어난 경우**(공유 시트 위 커버에서 방 생성)만 센다.
+    private(set) var roomsRevision = 0
+
     /// 공유 저장이 **성공했을 때만** 서는 1회성 신호. 시트가 닫힌 뒤 껍데기가 소비해 완료 토스트를
     /// 띄운다. X 로 닫거나 저장에 실패하면 서지 않는다 — 그 자리에 완료 토스트가 뜨면 거짓말이 된다.
     /// 관찰 대상이 아니다(소비 시점이 `onDismiss`, 즉 뷰 갱신 중이라 관찰되면 재갱신을 부른다).
@@ -85,7 +101,11 @@ public final class ArchiveCoordinator: Coordinator {
     public func makeRoomListStore() -> RoomListStore {
         Store(
             RoomListState(),
-            reduce: roomListReducer(useCase: deps.fetchRooms, promptSnooze: deps.roomCreationPromptSnooze),
+            reduce: roomListReducer(
+                useCase: deps.fetchRooms,
+                promptSnooze: deps.roomCreationPromptSnooze,
+                currentLocation: deps.currentLocation
+            ),
             handle: { [weak self] in self?.handle($0) }
         )
     }
@@ -142,15 +162,28 @@ public final class ArchiveCoordinator: Coordinator {
             showRoom(room)
         case .goToCreateRoom:
             push(.createRoom)
+        case .focusMyLocation(let coordinate):
+            focusMap(on: coordinate)
         }
     }
 
     func handle(_ nav: RoomFormNav) {
         switch nav {
-        case .didSubmit, .didCancel, .didSkip:
+        // spec FR-007 — 만들었으면 방 리스트를 스쳐 그 방 상세로 간다. 여기서는 id 만 세워 두고,
+        // 실제 전환은 방 리스트가 재조회로 그 방을 받은 뒤에 낸다(``RoomListAction/openCreatedRoom``).
+        case .didSubmit(let roomId):
+            createdRoomID = roomId
+            pop()
+        case .didCancel, .didSkip:
             // 저장은 폼이 이미 끝냈다 — 여기 오면 서버에 반영된 뒤다. 취소도 같은 자리로 돌아간다.
             pop()
         }
+    }
+
+    /// 방금 만든 방 id 를 읽고 지운다. 두 번째 호출은 `nil` — 같은 생성으로 상세가 두 번 열리지 않는다.
+    func consumeCreatedRoomID() -> String? {
+        defer { createdRoomID = nil }
+        return createdRoomID
     }
 
     func handle(_ nav: RoomDetailNav) {
@@ -181,9 +214,15 @@ public final class ArchiveCoordinator: Coordinator {
         case .openSavedRooms(let presentation):
             savedRooms = presentation
         case .focusMyLocation(let coordinate):
-            mapFocusCount += 1
-            mapFocus = ArchiveMapFocus(coordinate: coordinate, ordinal: mapFocusCount)
+            focusMap(on: coordinate)
         }
+    }
+
+    /// 현위치 버튼(003-1 ⑦ · 005-1)이 낸 카메라 요청을 세운다. 방 리스트와 장소 상세가 같은 자리를
+    /// 쓰므로 한 곳에 둔다 — 두 벌로 두면 한쪽만 고쳐도 컴파일이 통과한다.
+    private func focusMap(on coordinate: Coordinate) {
+        mapFocusCount += 1
+        mapFocus = ArchiveMapFocus(coordinate: coordinate, ordinal: mapFocusCount)
     }
 
     /// 보고 있는 방을 바꾼다. 지도 카메라 요청(``mapFocus``)은 방과 수명을 같이한다 —
@@ -214,6 +253,17 @@ public final class ArchiveCoordinator: Coordinator {
             shareCreateRoomChild = RoomShareCreateRoomCoordinator(deps: deps)
         }
     }
+
+    /// 방 목록이 바뀌었다고 알린다. 지금 부르는 곳은 공유 시트 위 커버의 방 생성뿐이다.
+    func roomsDidChange() {
+        roomsRevision += 1
+    }
+
+    /// 방금 만든 방 id — 껍데기가 방 리스트에 넘겨 그 방 상세로 잇는다(spec FR-007).
+    ///
+    /// 방 전체가 아니라 id 만 드는 이유는 만들기 화면이 id 만 돌려주기 때문이다
+    /// (``RoomFormNav/didSubmit(roomId:)``). 상세는 멤버·장소 수까지 필요해 재조회 응답에서 찾는다.
+    private(set) var createdRoomID: String?
 
     /// 공유 완료 신호를 읽고 지운다. 두 번째 호출은 `false` — 같은 저장으로 토스트가 두 번 뜨지 않는다.
     func consumeSavedShare() -> Bool {

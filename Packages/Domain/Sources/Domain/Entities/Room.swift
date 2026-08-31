@@ -13,6 +13,11 @@ public struct Room: Equatable, Identifiable, Sendable {
     public let createdAt: Date
     /// 저장된 장소 수("장소 N개").
     public let pinCount: Int
+    /// 방 카드 썸네일에 콜라주로 깔 **최근 장소 사진 최대 4장**(최신순). 003-2 ④.
+    ///
+    /// 저장된 장소가 없으면 비어 있다 — 003-2 ③ 의 "장소 0개면 생성 시 고른 컬러칩+캐릭터 조합
+    /// 유지" 가 이 빈 배열로 표현된다.
+    public let placeThumbnails: [URL]
     public let memberCount: Int
     public let users: [RoomMember]
 
@@ -33,7 +38,8 @@ public struct Room: Equatable, Identifiable, Sendable {
         createdAt: Date,
         pinCount: Int,
         memberCount: Int,
-        users: [RoomMember]
+        users: [RoomMember],
+        placeThumbnails: [URL] = []
     ) {
         self.id = id
         self.type = type
@@ -45,5 +51,6 @@ public struct Room: Equatable, Identifiable, Sendable {
         self.pinCount = pinCount
         self.memberCount = memberCount
         self.users = users
+        self.placeThumbnails = placeThumbnails
     }
 }

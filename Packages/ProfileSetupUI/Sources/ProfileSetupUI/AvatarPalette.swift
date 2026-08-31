@@ -13,23 +13,28 @@ import SwiftUI
 /// > 재정렬하면 이미 저장된 프로필이 다른 캐릭터를 가리킨다. 색은 캐릭터 아트의 대표색을
 /// > Atomic 팔레트와 대조해 정했다(`character07`·`character12` 는 팔레트 색과 정확히 일치).
 public enum AvatarPalette {
-    /// 그리드 순서대로의 (캐릭터, 색, 홈 마스코트) 쌍.
+    /// 그리드 순서대로의 (캐릭터, 색, 홈 마스코트, 아바타 프로필) 쌍.
     ///
-    /// 마스코트는 Figma 가 **색 이름으로** 배리언트를 나눠 둔 별개 아트라(`character/Home_Avatar`),
-    /// 캐릭터 그림에서 유도하지 않고 색에 직접 붙인다.
-    static let entries: [(character: MHCharacter, color: AvatarColor, mascot: MHHomeMascot)] = [
-        (.character01, .red, .red),
-        (.character02, .redOrange, .redOrange),
-        (.character03, .orange, .orange),
-        (.character04, .green, .green),
-        (.character05, .purple, .purple),
-        (.character06, .lime, .lime),
-        (.character07, .cyan, .cyan),
-        (.character08, .pink, .pink),
-        (.character09, .blue, .blue),
-        (.character10, .brown, .brown),
-        (.character11, .lightBlue, .lightBlue),
-        (.character12, .violet, .violet),
+    /// 마스코트·아바타 프로필은 Figma 가 **색 이름으로** 배리언트를 나눠 둔 별개 아트라
+    /// (`character/Home_Avatar`·`character/Avatar Profile`), 캐릭터 그림에서 유도하지 않고 색에 직접 붙인다.
+    ///
+    /// 이름이 같아도 `rawValue` 로 잇지 않고 여기서 명시적으로 짝짓는다 — 이름으로 이으면 한쪽 enum 이
+    /// 바뀌어도 컴파일이 통과하고 런타임에 그림만 조용히 사라진다(`ArchiveMap.tint` 와 같은 판단).
+    static let entries: [(
+        character: MHCharacter, color: AvatarColor, mascot: MHHomeMascot, profile: MHAvatarProfile
+    )] = [
+        (.character01, .red, .red, .red),
+        (.character02, .redOrange, .redOrange, .redOrange),
+        (.character03, .orange, .orange, .orange),
+        (.character04, .green, .green, .green),
+        (.character05, .purple, .purple, .purple),
+        (.character06, .lime, .lime, .lime),
+        (.character07, .cyan, .cyan, .cyan),
+        (.character08, .pink, .pink, .pink),
+        (.character09, .blue, .blue, .blue),
+        (.character10, .brown, .brown, .brown),
+        (.character11, .lightBlue, .lightBlue, .lightBlue),
+        (.character12, .violet, .violet, .violet),
     ]
 
     /// 아무것도 안 고른 상태에서 보여주고 저장하는 값 — 시안 010-1 이 미리보기에 1번을 띄운다.
@@ -59,9 +64,23 @@ public enum AvatarPalette {
         color.flatMap(index(of:)).map(character(at:)) ?? `default`.character
     }
 
+    /// 도메인 색으로 **아바타 프로필 아트**(`character/Avatar Profile`)를 얻는다.
+    ///
+    /// 색을 아직 고르지 않았거나 우리가 모르는 색이면 ``MHAvatarProfile/plain`` — 소품 없는 검은
+    /// 얼굴로, 시안이 "아바타 색을 아직 고르지 않은 계정 자리" 로 마련해 둔 배리언트다.
+    /// (얼굴 쪽 `character(of:)` 는 1번으로 떨어지지만, 그건 **내가 고르는** 그리드의 폴백이라 다르다 —
+    /// 남의 계정을 빨간 캐릭터로 그리면 그 사람이 빨강을 고른 것처럼 보인다.)
+    static func profile(of color: AvatarColor?) -> MHAvatarProfile {
+        color.flatMap(index(of:)).map { entries[$0].profile } ?? .plain
+    }
+
     /// 도메인 색으로 얼굴 그림을 얻는다 — 아바타 그룹·스택처럼 `Image` 를 바로 받는 자리가 쓴다.
+    ///
+    /// 아바타 슬롯(``MHAvatar``·``MHAvatarGroup``·``MHAvatarStack``·``MHComment``)은 모두 새 아트를 쓴다.
+    /// 프로필 **선택** 그리드(`characters`)와 마이페이지 큰 프로필은 아직 이전 세대 아트(``MHCharacter``)다 —
+    /// 그리드는 "선언 순서 = 저장되는 색" 이라는 계약이 걸려 있어 별도 작업으로 둔다.
     public static func image(of color: AvatarColor?) -> Image {
-        Image(character(of: color))
+        Image(profile(of: color))
     }
 
     /// 한 줄에 얼굴을 몇 개까지 늘어놓는가. 넘치는 인원은 그리지 않는다(시안에 "+N" 배지가 없다).

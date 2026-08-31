@@ -16,6 +16,9 @@ struct RoomDTO: Decodable {
     let pinCount: Int?
     let memberCount: Int?
     let users: [RoomMemberDTO]?
+    /// 스펙: "최근 핀 최대 4개의 장소 대표 이미지 URL(최신순). **저장된 핀이 없으면 방 대표 색상 키 1개**".
+    /// 한 배열에 두 의미가 섞여 오므로 `toDomain()` 이 URL 만 남긴다.
+    let thumbnailList: [String]?
 }
 
 /// `?showUsers=true` 로 조회했을 때만 실리는 방 멤버.
@@ -60,8 +63,21 @@ extension RoomDTO {
             createdAt: createdAt,
             pinCount: pinCount ?? 0,
             memberCount: memberCount ?? 0,
-            users: (users ?? []).map { $0.toDomain() }
+            users: (users ?? []).map { $0.toDomain() },
+            placeThumbnails: placeThumbnails()
         )
+    }
+
+    /// `thumbnailList` 에서 **사진 URL 만** 골라 낸다. 색상 키는 버린다 — 색은 `color` 로 이미 온다.
+    ///
+    /// `URL(string:)` 만으로는 못 거른다 — `URL(string: "orange")` 는 스킴 없는 상대 URL 로
+    /// **성공**하기 때문에, 색상 키가 사진으로 둔갑한다. 그래서 스킴까지 본다.
+    private func placeThumbnails() -> [URL] {
+        (thumbnailList ?? []).compactMap { raw in
+            guard let url = URL(string: raw), let scheme = url.scheme?.lowercased(),
+                  scheme == "http" || scheme == "https" else { return nil }
+            return url
+        }
     }
 }
 

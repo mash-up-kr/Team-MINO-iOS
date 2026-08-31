@@ -272,6 +272,60 @@ struct ArchiveCoordinatorTests {
         #expect(reported == [.created])
     }
 
+    // 공유 시트 위 커버에서 방을 만들면 껍데기가 사라지지 않아 `.task` 재조회가 걸리지 않는다 —
+    // 방 리스트는 이 신호로만 갱신된다.
+    @Test("방 목록 변경 신호는 부를 때마다 올라간다")
+    func roomsDidChange_bumpsRevision() {
+        let coordinator = makeCoordinator()
+        let before = coordinator.roomsRevision
+
+        coordinator.roomsDidChange()
+
+        #expect(coordinator.roomsRevision == before + 1)
+    }
+
+    // push→pop 경로는 껍데기의 `.task` 가 이미 다시 조회한다. 여기서까지 신호를 올리면 한 번의
+    // 복귀에 조회가 두 번 나가고, 두 번째 `.loaded` 가 skip 플래그를 이미 쓴 뒤라 **취소하고 나온**
+    // 사용자에게 공동방 생성 유도 시트가 뜬다.
+    @Test("push→pop 하는 방 만들기는 변경 신호를 올리지 않는다 — 재조회가 두 번 나가면 안 된다")
+    func roomFormNav_doesNotBumpRevision() {
+        for nav: RoomFormNav in [.didSubmit(roomId: "room-1"), .didCancel, .didSkip] {
+            let coordinator = makeCoordinator()
+            coordinator.handle(RoomListNav.goToCreateRoom)
+            let before = coordinator.roomsRevision
+
+            coordinator.handle(nav)
+
+            #expect(coordinator.roomsRevision == before)
+        }
+    }
+
+    // spec FR-007 — 만든 방 id 를 세워 두고, 껍데기가 방 리스트에 넘겨 상세로 잇는다.
+    @Test("FR-007 — didSubmit 은 만든 방 id 를 남기고, 한 번만 소비된다")
+    func didSubmit_recordsCreatedRoomID() {
+        let coordinator = makeCoordinator()
+        coordinator.handle(RoomListNav.goToCreateRoom)
+
+        coordinator.handle(RoomFormNav.didSubmit(roomId: "room-9"))
+
+        #expect(coordinator.path.isEmpty)   // 리스트로 pop 한 뒤 상세로 이어진다
+        #expect(coordinator.consumeCreatedRoomID() == "room-9")
+        #expect(coordinator.consumeCreatedRoomID() == nil)   // 같은 생성으로 두 번 열리지 않는다
+    }
+
+    // 취소·건너뛰기는 방을 만들지 않았으니 이어 갈 상세도 없다.
+    @Test("FR-007 — 취소·건너뛰기는 방 id 를 남기지 않는다")
+    func cancelDoesNotRecordCreatedRoomID() {
+        for nav: RoomFormNav in [.didCancel, .didSkip] {
+            let coordinator = makeCoordinator()
+            coordinator.handle(RoomListNav.goToCreateRoom)
+
+            coordinator.handle(nav)
+
+            #expect(coordinator.consumeCreatedRoomID() == nil)
+        }
+    }
+
     @Test("goToCreateRoom 은 방 만들기 화면을 push 하고 탭바를 감춘다")
     func handleGoToCreateRoom_pushes() {
         let coordinator = ArchiveCoordinator(deps: StubArchiveDeps())
