@@ -107,10 +107,10 @@ public struct ProfileSetupState: Equatable {
         (!name.isEmpty || selectedCharacterIndex != nil) && !isSaving
     }
 
-    /// 서버로 보낼 아바타 색. 아무것도 안 골랐으면 첫 캐릭터로 본다 — 화면이 무선택일 때도
-    /// 1번 캐릭터를 미리보기에 띄우므로(시안 010-1), 그대로 저장되는 게 사용자가 본 것과 같다.
+    /// 서버로 보낼 아바타 색. 아무것도 안 골랐으면 `gray` 다 — 화면이 무선택일 때 소품 없는
+    /// 기본 아바타를 띄우므로(시안 010-1), 그대로 저장돼야 사용자가 본 것과 같다.
     var avatarColorToSave: AvatarColor {
-        AvatarPalette.color(at: selectedCharacterIndex ?? 0)
+        selectedCharacterIndex.map(AvatarPalette.color(at:)) ?? .gray
     }
 
     /// **서버에 보낼 수 있는** 문자 — 한글 완성형·영문·공백. 방 이름과 달리 숫자를 허용하지 않는다.

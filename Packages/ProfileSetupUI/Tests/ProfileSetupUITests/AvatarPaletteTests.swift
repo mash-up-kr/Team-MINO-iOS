@@ -11,21 +11,22 @@ struct AvatarPaletteTests {
     func rawValuesMatchServerContract() {
         #expect(Set(AvatarColor.allCases.map(\.rawValue)) == [
             "red", "red_orange", "orange", "green", "purple", "lime",
-            "cyan", "pink", "blue", "brown", "light_blue", "violet",
+            "cyan", "pink", "blue", "brown", "light_blue", "violet", "gray",
         ])
     }
 
-    // 아바타에는 "안 고름" 이 없다 — 무선택도 첫 캐릭터로 저장하므로 gray 를 쓰지 않는다.
-    @Test("gray 는 아바타 색이 아니다")
-    func grayIsNotAnAvatarColor() {
-        #expect(AvatarColor(rawValue: "gray") == nil)
+    // gray 는 "안 고름" 을 표현하는 값이라 그리드에 칸이 없다 — 방 색(RoomColor.gray)과 같은 자리다.
+    @Test("gray 는 그리드에 칸이 없다")
+    func grayHasNoGridSlot() {
+        #expect(AvatarPalette.index(of: .gray) == nil)
+        #expect(!AvatarPalette.entries.map(\.color).contains(.gray))
     }
 
-    @Test("캐릭터 12종과 색 12종이 하나씩 짝지어진다")
+    @Test("캐릭터 12종과 gray 를 뺀 색 12종이 하나씩 짝지어진다")
     func entriesArePairedOneToOne() {
         #expect(AvatarPalette.entries.count == 12)
         #expect(Set(AvatarPalette.entries.map(\.character)).count == 12)
-        #expect(Set(AvatarPalette.entries.map(\.color)) == Set(AvatarColor.allCases))
+        #expect(Set(AvatarPalette.entries.map(\.color)) == Set(AvatarColor.allCases).subtracting([.gray]))
     }
 
     // 그리드 순서가 곧 저장되는 색이다. 재정렬하면 기존 프로필이 다른 캐릭터가 된다.
@@ -68,10 +69,39 @@ struct AvatarPaletteTests {
     }
 
     // 얼굴(character)과 달리 마스코트는 시안이 "안 고름" 그림을 따로 준다.
-    @Test("아바타 색이 없으면 소품 없는 기본 마스코트다")
+    @Test("아바타 색이 없거나 gray 면 소품 없는 기본 마스코트다")
     func absentColorFallsBackToPlain() {
         #expect(AvatarPalette.homeMascot(of: nil) == .plain)
-        #expect(AvatarPalette.character(of: nil) == .character01)   // 얼굴 쪽 폴백은 그대로
+        #expect(AvatarPalette.homeMascot(of: .gray) == .plain)
+        // 이전 세대 아트(MHCharacter)에는 "안 고름" 그림이 없어 1번으로 떨어진다.
+        #expect(AvatarPalette.character(of: nil) == .character01)
+        #expect(AvatarPalette.character(of: .gray) == .character01)
+    }
+
+    // MARK: - 프로필 아바타 아트
+
+    @Test("색 12종이 아바타 12종과 하나씩 짝지어진다 — 기본(plain)은 색이 아니다")
+    func avatarsArePairedOneToOne() {
+        let avatars = Set(AvatarPalette.entries.map(\.avatar))
+        #expect(avatars.count == 12)
+        #expect(!avatars.contains(.plain))
+        #expect(avatars.union([.plain]) == Set(MHAvatarProfile.allCases))
+    }
+
+    @Test("그리드 자리마다 정해진 아바타가 나온다")
+    func avatarMatchesTable() {
+        for (index, entry) in AvatarPalette.entries.enumerated() {
+            #expect(AvatarPalette.avatar(at: index) == entry.avatar)
+        }
+        #expect(AvatarPalette.avatars == AvatarPalette.entries.map(\.avatar))
+    }
+
+    // 마스코트와 같은 근거 — 시안(010-1)이 무선택 자리에 "안 고름" 그림을 따로 준다.
+    @Test("무선택과 범위 밖 인덱스는 소품 없는 기본 아바타다")
+    func avatarFallsBackToPlain() {
+        #expect(AvatarPalette.avatar(at: nil) == .plain)
+        #expect(AvatarPalette.avatar(at: -1) == .plain)
+        #expect(AvatarPalette.avatar(at: 99) == .plain)
     }
 
     @Test("한 줄에 늘어놓는 얼굴은 displayLimit 개까지")
