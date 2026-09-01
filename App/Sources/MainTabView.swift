@@ -35,14 +35,13 @@ enum MainTab: Int, CaseIterable {
 /// 탭바는 safeAreaInset 으로 붙여 콘텐츠가 기본으로 탭바에 가리지 않는다.
 struct MainTabView: View {
     private let coordinator: AppCoordinator
-    @State private var selectedTabID: Int = MainTab.home.rawValue
 
     init(coordinator: AppCoordinator) {
         self.coordinator = coordinator
     }
 
     private var selectedTab: MainTab {
-        MainTab(rawValue: selectedTabID) ?? .home
+        MainTab(rawValue: coordinator.selectedTabID) ?? .home
     }
 
     /// 홈에서 딤을 직접 까는 시트(방 리스트 · 게시물 저장)가 떠 있는가.
@@ -59,14 +58,15 @@ struct MainTabView: View {
     }
 
     var body: some View {
-        content
+        @Bindable var coordinator = coordinator
+        return content
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 if !isFullBleedContentPresented {
                     // 방 리스트 시트가 뜨면 탭바를 자리에 둔 채 페이드아웃(제거하지 않음 → reflow·깜빡임 없음).
                     // 탭바가 투명해지면 그 뒤에 깔린 홈 콘텐츠 딤(ignoresSafeArea)이 비쳐 탭바 자리도 딤 처리된다.
                     MHTabBar(
                         items: MainTab.allCases.map(\.tabBarItem),
-                        selectedID: $selectedTabID
+                        selectedID: $coordinator.selectedTabID
                     )
                     .opacity(isHomeDimmedSheetPresented ? 0 : 1)
                     .allowsHitTesting(!isHomeDimmedSheetPresented)

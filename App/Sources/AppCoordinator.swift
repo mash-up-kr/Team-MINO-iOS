@@ -15,6 +15,13 @@ final class AppCoordinator {
     let notification: NotificationCoordinator
     let profile: ProfileCoordinator
 
+    /// 지금 보고 있는 탭. **View 의 `@State` 가 아니라 여기 있다** — 알림에서 저장 탭으로 넘기는
+    /// 것처럼 코드가 탭을 바꿔야 하는 경로가 있어서다(딥링크·푸시도 같은 자리를 쓰게 된다).
+    ///
+    /// `MainTab` 이 아니라 `Int` 인 이유: `MHTabBar` 가 `Binding<Int>` 를 받는다. 여기서 `MainTab`
+    /// 으로 들면 뷰마다 변환 Binding 을 손으로 만들어야 한다.
+    var selectedTabID: Int = MainTab.home.rawValue
+
     /// 앱 진입 게이트. 화면 Store 와 달리 **앱 수명과 같아** Coordinator 가 직접 든다 —
     /// 온보딩 완료 보고를 여기로 밀어넣어야 해서 View 의 `@State` 에 둘 수 없다.
     let launch: AppLaunchStore
