@@ -35,24 +35,31 @@ struct ProfileMainContentView: View {
 
     // MARK: - 프로필 요약
 
-    // 아바타(120)는 100 슬롯 위로 10 씩 넘쳐 그려진다(Figma Container/Content) — 위 여백에서 그만큼 뺀다.
     private var profileSummary: some View {
         VStack(spacing: Metric.avatarToNameGap) {
             avatar
             nameRow
         }
-        .padding(.top, Metric.summaryTop - Metric.avatarBleed)
+        .padding(.top, Metric.summaryTop)
         .padding(.bottom, Metric.sectionGap)
     }
 
-    // 캐릭터 아트가 옅은 원 배경까지 포함한 이미지라 테두리를 0 으로 둔다
+    // 아바타 아트가 옅은 원 배경까지 포함한 이미지라 테두리를 0 으로 둔다
     // (`ProfileSetupContent.previewAvatar` 와 같은 이유 — 두 화면이 같은 아바타를 같게 그린다).
+    // 그림도 온보딩과 같은 세대(`character/Avatar Profile`)를 쓴다 — 색을 안 고른 계정은 소품 없는
+    // 기본 아바타이지, 1번(빨강) 캐릭터가 아니다(``AvatarPalette/profile(of:)``).
+    //
+    // Figma 는 100 슬롯(`Container`, overflow-clip)에 120 아트(`Content`)를 담는다 — 아트가 20 넘치고
+    // 넘친 만큼은 잘려서, 캐릭터가 원을 꽉 채운다. 온보딩(010-1)은 같은 아트를 120 슬롯에 담아
+    // 안 자른다 — 두 화면의 아바타 크기가 다른 건 시안 그대로다.
     private var avatar: some View {
         MHAvatar(
-            Image(AvatarPalette.character(of: state.avatarColor)),
-            size: Metric.avatarSize,
+            AvatarPalette.image(of: state.avatarColor),
+            size: Metric.avatarArtSize,
             borderWidth: 0
         )
+        .frame(width: Metric.avatarSize, height: Metric.avatarSize)
+        .clipShape(Circle())
         .accessibilityIdentifier("ProfileMain.avatar")
     }
 
@@ -135,6 +142,8 @@ struct ProfileMainContentView: View {
             Spacer(minLength: 0)
             // 바인딩의 set 만 흘려보내고 state 는 결과가 확정된 뒤에 바뀐다 — 낙관적 업데이트 금지(UX-003).
             // 요청 중에는 잠근다 — 시스템 팝업이 떠 있는 사이 한 번 더 눌러 반대 방향 요청이 들어가는 걸 막는다.
+            // 시안의 Wanted DS 스위치(52×32·썸 24)와 크기가 조금 다르지만(51×31) 시스템 토글을 쓴다 —
+            // 접근성·다크모드·햅틱·애니메이션을 공짜로 얻고 유지 비용이 없다.
             Toggle("", isOn: Binding(get: { isOn }, set: onChange))
                 .labelsHidden()
                 .tint(Color.mhPrimaryNormal)
@@ -166,9 +175,9 @@ struct ProfileMainContentView: View {
     private enum Metric {
         static let hPadding: CGFloat = 20
         static let summaryTop: CGFloat = 32        // safe area → 프로필 블록
-        static let avatarSize: CGFloat = 120
-        static let avatarBleed: CGFloat = 10       // 100 슬롯 위로 넘치는 양
-        static let avatarToNameGap: CGFloat = 2
+        static let avatarSize: CGFloat = 100       // 원으로 잘라 내는 슬롯
+        static let avatarArtSize: CGFloat = 120    // 슬롯 안에 그려지는 아트(넘치는 20 은 잘린다)
+        static let avatarToNameGap: CGFloat = 12
         static let nameToPencilGap: CGFloat = 2
         static let pencilSize: CGFloat = 20
         static let bandHeight: CGFloat = 12
