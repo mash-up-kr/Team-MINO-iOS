@@ -16,11 +16,12 @@ import SwiftUI
 /// }
 /// ```
 public struct RoomCreationPromptView: View {
-    /// `presentationDetents(.height(_:))` 에 넘길 값.
+    /// `presentationDetents(.height(_:))` 에 넘길 값. 시안 시트 높이 그대로다(812 − 324).
     ///
-    /// 시안 시트 높이 492(812 − 320)는 홈 인디케이터(34)까지 포함한 값인데, iOS 의 `.height` 는
-    /// 하단 안전영역 **위쪽** 높이라 그만큼 뺀다(`RoomShareSheet` 와 같은 계산).
-    public static let detentHeight: CGFloat = 492 - 34
+    /// 홈 인디케이터(34)를 빼지 않는다 — `.height` 는 하단 안전영역을 **포함한** 전체 높이라,
+    /// 빼면 그만큼 본문이 눌린다(일러스트가 160 → 154 로 줄고 안내 문구가 두 줄에서 한 줄로
+    /// 잘렸다). 시안의 Action Area 154 도 홈 인디케이터를 포함한 값이라 계산이 맞아떨어진다.
+    public static let detentHeight: CGFloat = 812 - 324
 
     private let onCreate: () -> Void
     private let onLater: () -> Void
@@ -37,15 +38,26 @@ public struct RoomCreationPromptView: View {
             RoomCreationPromptMessage()
                 .padding(20)
 
-            // safeArea: false — 시트가 이미 홈 인디케이터 높이를 확보한다(detentHeight 주석 참조).
+            // 남는 높이를 여기서 먹어 액션 영역을 시트 바닥에 붙인다 — 없으면 그 높이가 액션 영역
+            // 아래로 몰려 버튼이 시안보다 44pt 떠 보인다(실측).
+            Spacer(minLength: 0)
+
+            // safeArea: false — 시트 콘텐츠는 이미 안전영역 안에 놓이므로 홈 인디케이터 자리는
+            // SwiftUI 가 비워 준다. 여기서 true 를 주면 액션 영역이 자기 높이를 스스로 잰
+            // 안전영역 인셋으로 정하는데(``MHActionArea`` 의 `bottomInset`), 그 높이가 다시
+            // 인셋 측정을 바꿔 시트 레이아웃이 수렴하지 않는다 — 시트를 띄우는 순간 앱이 멎는다.
             MHActionArea(
                 main: MHAction("공동방 만들기", action: onCreate),
                 sub: MHAction("나중에 만들래요", action: onLater),
                 safeArea: false
             )
         }
+        // `maxHeight: .infinity` 도 주지 않는다 — 같은 이유로 detent 시트 안에서 무한 높이를
+        // 요구하면 레이아웃이 수렴하지 않는다. 남는 높이는 위의 `Spacer` 가 먹고,
+        // 홈 인디케이터 띠까지의 배경은 `presentationBackground` 가 칠한다.
         .frame(maxWidth: .infinity)
         .background(.mhBackgroundElevatedNormal)
+        .presentationBackground(.mhBackgroundElevatedNormal)
         .accessibilityIdentifier("RoomCreationPrompt.sheet")
     }
 

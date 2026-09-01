@@ -13,7 +13,11 @@ public struct RoomCreationPromptMessage: View {
 
     public var body: some View {
         VStack(spacing: 24) {
+            // Figma `2314:95486` 실측 — 정사각 160 슬롯. 에셋도 정사각이라 잘리지 않는다.
             Image(MHIllustration.emptyRoom)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 160, height: 160)
                 .accessibilityHidden(true)
 
             VStack(spacing: 8) {

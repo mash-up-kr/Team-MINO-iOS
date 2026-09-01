@@ -96,8 +96,8 @@ struct ProfileSetupAPIReducerTests {
         store.finish()
     }
 
-    @Test("L2 — 캐릭터를 안 골랐으면 첫 캐릭터로 저장한다 — 화면이 보여준 것과 같은 값")
-    func save_withoutSelection_usesFirstCharacter() async {
+    @Test("L2 — 캐릭터를 안 골랐으면 gray 로 저장한다 — 화면이 보여준 것과 같은 값")
+    func save_withoutSelection_usesGray() async {
         let register = StubRegisterProfileUseCase()
         let store = TestStore(ProfileSetupState(mode: .create), reduce: profileSetupReducer(.create(register: register)))
 
@@ -106,7 +106,7 @@ struct ProfileSetupAPIReducerTests {
         await store.receive(.saveSucceeded) { $0.isSaving = false }
         store.receiveNavigation(.didSave)
 
-        #expect(register.received?.avatarColor == .red)
+        #expect(register.received?.avatarColor == .gray)
         store.finish()
     }
 

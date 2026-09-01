@@ -1,9 +1,14 @@
 import DesignSystem
 import SwiftUI
 
-/// 튜토리얼 한 스텝. 번호 뱃지 + 두 줄 제목 + 예시 카드. Figma `000-1 튜토리얼_step 1`(node 3798:167079) 외 4장.
+/// 튜토리얼 한 스텝. 번호 뱃지 + 두 줄 제목 + 예시 카드 + 카드에 걸터앉은 캐릭터.
+/// Figma `000-1 튜토리얼_step 1`(node 3798:167079) 외 4장.
 struct TutorialStepPage: View {
     private static let cardSize = CGSize(width: 305, height: 420)
+    /// 다섯 장이 같은 상자를 쓴다 — 소품이 삐져나온 만큼 여백으로 들어 있어 몸통 위치가 장마다 같다.
+    private static let mascotSize = CGSize(width: 73, height: 90)
+    /// 카드 오른쪽 위 모서리 기준. 카드 위로 62.4 올려 발만 카드 상단에 걸치게 한다.
+    private static let mascotOffset = CGSize(width: -17.5, height: -62.4)
 
     let step: TutorialStep
 
@@ -44,12 +49,23 @@ struct TutorialStepPage: View {
             .aspectRatio(Self.cardSize.width / Self.cardSize.height, contentMode: .fit)
             .frame(maxWidth: Self.cardSize.width, maxHeight: Self.cardSize.height)
             .clipShape(RoundedRectangle(cornerRadius: 16))
+            // clipShape 뒤에 얹는다 — 앞에 두면 카드 밖으로 나온 몸통이 잘린다.
+            .overlay(alignment: .topTrailing) { mascot }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     private var illustration: some View {
         Image(step.illustration, bundle: .module)
             .resizable()
+            .accessibilityHidden(true)
+    }
+
+    private var mascot: some View {
+        Image(step.mascot, bundle: .module)
+            .resizable()
+            .scaledToFit()
+            .frame(width: Self.mascotSize.width, height: Self.mascotSize.height)
+            .offset(x: Self.mascotOffset.width, y: Self.mascotOffset.height)
             .accessibilityHidden(true)
     }
 }
