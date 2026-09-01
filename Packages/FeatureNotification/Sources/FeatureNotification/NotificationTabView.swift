@@ -13,8 +13,8 @@ public struct NotificationTabView: View {
     }
 
     public var body: some View {
-        @Bindable var coordinator = coordinator
-        return ZStack(alignment: .bottom) {
+        // 바인딩은 스택 쪽에서만 필요하다 — 여기서 @Bindable 을 또 만들면 쓰지 않는 사본이 생긴다.
+        ZStack(alignment: .bottom) {
             stack
             openFailureToast
         }

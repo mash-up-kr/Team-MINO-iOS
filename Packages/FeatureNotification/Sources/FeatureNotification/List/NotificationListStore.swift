@@ -168,31 +168,16 @@ public func notificationListReducer(
                 return .none
 
             case .place(let pinID):
-                state.openingNotificationID = id
-                return .run { send in
-                    do {
-                        // 장소 상세는 시트의 한 단계이고 배경 지도가 방에 의존한다 — 핀이 속한
-                        // 방까지 세워야 빈 지도 위에 시트만 뜨지 않는다.
-                        let pin = try await fetchPinDetail.execute(pinID: pinID).pin
-                        let room = try await fetchRoom.execute(id: pin.roomID)
-                        send(.openResolved(id: id, destination: .place(pin: pin, room: room)))
-                    } catch is CancellationError {
-                        return   // 취소는 실패가 아니다(`.load` 주석 참조)
-                    } catch {
-                        send(.openFailed(id: id))
-                    }
+                return startOpen(&state, id: id) {
+                    // 장소 상세는 시트의 한 단계이고 배경 지도가 방에 의존한다 — 핀이 속한
+                    // 방까지 세워야 빈 지도 위에 시트만 뜨지 않는다.
+                    let pin = try await fetchPinDetail.execute(pinID: pinID).pin
+                    return .place(pin: pin, room: try await fetchRoom.execute(id: pin.roomID))
                 }
 
             case .room(let roomID):
-                state.openingNotificationID = id
-                return .run { send in
-                    do {
-                        send(.openResolved(id: id, destination: .room(try await fetchRoom.execute(id: roomID))))
-                    } catch is CancellationError {
-                        return
-                    } catch {
-                        send(.openFailed(id: id))
-                    }
+                return startOpen(&state, id: id) {
+                    .room(try await fetchRoom.execute(id: roomID))
                 }
             }
 
@@ -214,6 +199,27 @@ public func notificationListReducer(
             guard state.openFailureToken == token else { return .none }
             state.openFailureToken = 0
             return .none
+        }
+    }
+}
+
+/// 이동 대상 조회를 띄운다. 잠금·취소·실패 처리가 목적지 종류와 무관해 한 곳에 모은다 —
+/// 갈래마다 흩어 두면 한쪽에만 `CancellationError` 처리를 빠뜨리는 식으로 어긋난다.
+///
+/// `resolve` 만 갈래별로 다르다. 결과는 항상 `openResolved`/`openFailed` 로 되돌아온다.
+private func startOpen(
+    _ state: inout NotificationListState,
+    id: String,
+    resolve: @escaping @Sendable () async throws -> NotificationCrossTabDestination
+) -> Effect<NotificationListAction, NotificationListNav> {
+    state.openingNotificationID = id
+    return .run { send in
+        do {
+            send(.openResolved(id: id, destination: try await resolve()))
+        } catch is CancellationError {
+            return   // 취소는 실패가 아니다(`.load` 주석 참조)
+        } catch {
+            send(.openFailed(id: id))
         }
     }
 }

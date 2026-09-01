@@ -59,38 +59,6 @@ private func saveErrorNotification(id: String) -> AppNotification {
     )
 }
 
-private let fixtureRoom = Room(
-    id: "room-1", type: .shared, name: "맛집 탐방", description: nil, color: .cyan,
-    ownerId: "u1", createdAt: fixtureNow, pinCount: 3, memberCount: 2, users: []
-)
-
-private let fixturePin = Pin(
-    id: PinID("pin-0"),
-    roomID: fixtureRoom.id,
-    place: Place(
-        id: PlaceID("place-0"), name: "패스트리 순간", address: "서울 성동구",
-        coordinate: Coordinate(latitude: 37.5443, longitude: 127.0557), category: nil
-    ),
-    category: .worthVisiting,
-    createdAt: fixtureNow
-)
-
-/// 이동 대상 조회 스텁. 성공/실패를 각각 지정한다.
-private struct StubOpenDestination: FetchPinDetailUseCase, FetchRoomUseCase {
-    var pin: Pin? = fixturePin
-    var room: Room? = fixtureRoom
-
-    func execute(pinID: PinID) async throws -> PinDetail {
-        guard let pin else { throw DomainError.pinsFetchFailed }
-        return PinDetail(pin: pin, sourceURL: nil)
-    }
-
-    func execute(id: String) async throws -> Room {
-        guard let room else { throw DomainError.roomsFetchFailed }
-        return room
-    }
-}
-
 private struct StubFetchNotifications: FetchNotificationsUseCase {
     var firstResult: Result<Page<AppNotification>, DomainError> = .success(
         Page(items: [fixtureNotification(id: "0")], page: 0, pageSize: 20, hasNext: false)
@@ -368,9 +336,9 @@ struct NotificationListReducerTests {
 
         await store.send(.tapNotification(item.id)) { $0.openingNotificationID = "0" }
         await store.receive(
-            .openResolved(id: "0", destination: .place(pin: fixturePin, room: fixtureRoom))
+            .openResolved(id: "0", destination: .place(pin: NotificationFixture.pin, room: NotificationFixture.room))
         ) { $0.openingNotificationID = nil }
-        store.receiveNavigation(.openCrossTab(.place(pin: fixturePin, room: fixtureRoom)))
+        store.receiveNavigation(.openCrossTab(.place(pin: NotificationFixture.pin, room: NotificationFixture.room)))
         store.finish()
     }
 
@@ -379,10 +347,10 @@ struct NotificationListReducerTests {
         let store = makeStore(state: loadedState([roomNotification(id: "0")]))
 
         await store.send(.tapNotification("0")) { $0.openingNotificationID = "0" }
-        await store.receive(.openResolved(id: "0", destination: .room(fixtureRoom))) {
+        await store.receive(.openResolved(id: "0", destination: .room(NotificationFixture.room))) {
             $0.openingNotificationID = nil
         }
-        store.receiveNavigation(.openCrossTab(.room(fixtureRoom)))
+        store.receiveNavigation(.openCrossTab(.room(NotificationFixture.room)))
         store.finish()
     }
 
@@ -456,7 +424,7 @@ struct NotificationListReducerTests {
         state.openingNotificationID = "1"
         let store = makeStore(state: state)
 
-        await store.send(.openResolved(id: "0", destination: .room(fixtureRoom)))
+        await store.send(.openResolved(id: "0", destination: .room(NotificationFixture.room)))
         await store.send(.openFailed(id: "0"))
         store.finish()
     }
