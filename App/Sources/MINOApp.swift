@@ -16,7 +16,10 @@ struct MINOApp: App {
                 // RootView 는 WindowGroup 안에서 identity 가 고정이라 1회만 실행된다
                 // (reduce 의 `.idle` 가드가 2차 방어).
                 .task { app.launch.send(.start) }
-            // .onOpenURL { url in app.handle(url) }   // 딥링크 진입점 자리 (후속)
+                // 콜드 런치로 들어온 URL 도 SwiftUI 가 여기로 넘겨준다.
+                // ⚠️ `SceneDelegate` 에 `scene(_:openURLContexts:)` 를 구현하면 이 modifier 가
+                //    조용히 안 불린다 — SwiftUI 가 URL 전달을 그쪽에 넘기기 때문.
+                .onOpenURL { url in app.handle(url) }
         }
     }
 }
