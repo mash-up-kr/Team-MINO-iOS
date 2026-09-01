@@ -1,7 +1,10 @@
 import Foundation
 
-/// 홈 카드 덱의 조회 기준(필터 칩). 순서가 곧 화면의 칩 순서다.
-/// 정책: 한 기준의 카드를 모두 넘기면 다음 기준으로 자동 전환하고, 마지막 기준까지 소진하면 소진 화면을 띄운다.
+/// 홈 카드 덱의 조회 기준(필터 칩). **선언 순서가 곧 칩 순서이자 기본 순회 순서**다.
+///
+/// 이 순서를 어떻게 도는지는 여기서 정하지 않는다 — 고른 칩을 앞으로 돌릴지, 한 방을 다 본 뒤
+/// 다음 방으로 넘어갈지가 "어떻게 그 자리에 왔는가"(스와이프 vs 방 지목)에 달려 있어 화면 이력이
+/// 필요하기 때문이다. 그건 홈 화면이 정하고, 여기는 순서만 든다.
 public enum PinFilter: String, CaseIterable, Equatable, Hashable, Sendable {
     /// 꾹 Pick (기본)
     case recommended
@@ -9,18 +12,4 @@ public enum PinFilter: String, CaseIterable, Equatable, Hashable, Sendable {
     case latest
     /// 가까운순
     case nearby
-
-    /// 다음 기준. 마지막(`nearby`)이면 nil — 더 넘길 기준이 없다는 뜻.
-    public var next: PinFilter? {
-        let all = Self.allCases
-        guard let index = all.firstIndex(of: self), index + 1 < all.count else { return nil }
-        return all[index + 1]
-    }
-
-    /// 이전 기준. 첫 기준(`recommended`)이면 nil — 첫 카드에서 뒤로 가도 더 돌아갈 곳이 없다.
-    public var previous: PinFilter? {
-        let all = Self.allCases
-        guard let index = all.firstIndex(of: self), index > 0 else { return nil }
-        return all[index - 1]
-    }
 }

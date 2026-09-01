@@ -318,13 +318,6 @@ struct HomeReducerTests {
         store.finish()
     }
 
-    @Test("PinFilter.next 는 칩 순서를 따르고 마지막에서 끝난다")
-    func pinFilterNext_followsChipOrder() {
-        #expect(PinFilter.recommended.next == .latest)
-        #expect(PinFilter.latest.next == .nearby)
-        #expect(PinFilter.nearby.next == nil)
-    }
-
     // MARK: - Navigation
 
     @Test("tapCreateRoom 은 goToCreateRoom 으로 navigate 한다")
