@@ -15,7 +15,7 @@ struct NotificationRepositoryImplTests {
         """
         { "id": "\(id)", "type": "\(type)", "typeLabel": "이미 저장해둔 곳이에요",
           "targetName": "패스트리 순간", "createdAt": "2026-09-01T12:00:00.000Z",
-          "payload": { "placeId": "pin-\(id)" } }
+          "payload": { "pinId": "pin-\(id)" } }
         """
     }
 

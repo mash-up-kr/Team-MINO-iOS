@@ -23,9 +23,13 @@ struct NotificationDTO: Decodable {
 }
 
 /// 유형별로 오는 키가 달라 **전 필드를 옵셔널**로 연다.
+///
+/// 서버는 장소 대상 알림에 `placeId`(장소 마스터 id)도 함께 싣지만 **읽지 않는다** — 이동은
+/// 핀 단위이고, 하나의 장소가 여러 방에 저장되면 핀이 여러 개라 장소 id 만으로는 어디를 열지
+/// 정해지지 않는다. 어느 핀을 고를지는 서버가 유형별 정책으로 판단해 `pinId` 로 내려준다.
 struct NotificationPayloadDTO: Decodable {
-    /// 이름은 place 지만 **핀 id 와 같은 값**이다(팀 확인) — `GET /pins/{pinId}` 에 그대로 넣는다.
-    let placeId: String?
+    /// 이동 대상 핀. `GET /pins/{pinId}` 에 그대로 넣고, 열 방은 그 응답의 `roomId` 가 정한다.
+    let pinId: String?
     let roomId: String?
 }
 
@@ -66,7 +70,10 @@ extension NotificationDTO {
     static func mapDestination(type: NotificationType, payload: NotificationPayloadDTO?) -> NotificationDestination {
         switch type {
         case .duplicateSave, .nearbyReminder, .commentReminder:
-            guard let id = Self.trimmed(payload?.placeId) else { return .unresolved }
+            // `placeId` 로 폴백하지 않는다 — 그건 장소 마스터 id 라 `GET /pins/{id}` 에 넣으면
+            // 404 가 난다. 없으면 `.unresolved` 로 두는 편이(셀은 그리되 탭 무반응) 잘못된
+            // 요청을 보내는 것보다 낫다.
+            guard let id = Self.trimmed(payload?.pinId) else { return .unresolved }
             return .place(pinID: PinID(id))
         case .saveError:
             return .saveError

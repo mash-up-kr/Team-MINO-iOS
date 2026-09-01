@@ -37,13 +37,29 @@ struct NotificationDTOTests {
 
     // MARK: - 유형 → 도착지
 
-    @Test("장소 대상 3종은 payload.placeId 를 핀 id 로 읽는다", arguments: [
+    @Test("장소 대상 3종은 payload.pinId 로 이동한다", arguments: [
         "PIN_DUPLICATED", "NEARBY_PLACE", "TOP_COMMENTED_PLACE",
     ])
     func mapsPlaceTypesToPinDestination(_ type: String) throws {
-        let dto = try decode(json(type: type, payload: #"{"placeId":"pin-1"}"#))
+        let dto = try decode(json(type: type, payload: #"{"pinId":"pin-1"}"#))
 
         #expect(dto.toDomain().destination == .place(pinID: PinID("pin-1")))
+    }
+
+    // 서버는 둘 다 싣는다. `placeId` 는 장소 마스터 id 라 `GET /pins/{id}` 에 넣으면 404 다 —
+    // 읽는 키가 되돌아가면 장소 알림이 전부 조용히 실패하므로 여기서 고정한다.
+    @Test("placeId 가 함께 와도 pinId 를 읽는다")
+    func prefersPinIdOverPlaceId() throws {
+        let dto = try decode(json(payload: #"{"placeId":"place-1","pinId":"pin-1"}"#))
+
+        #expect(dto.toDomain().destination == .place(pinID: PinID("pin-1")))
+    }
+
+    @Test("pinId 없이 placeId 만 오면 이동하지 않는다 — 잘못된 조회를 보내지 않는다")
+    func placeIdAloneDoesNotResolve() throws {
+        let dto = try decode(json(payload: #"{"placeId":"place-1"}"#))
+
+        #expect(dto.toDomain().destination == .unresolved)
     }
 
     @Test("방 대상 2종은 payload.roomId 를 읽는다", arguments: [
@@ -67,7 +83,7 @@ struct NotificationDTOTests {
     // 목록에서 걸러질 알림이 이동 경로를 갖고 있으면, 필터를 한 줄 놓치는 순간 엉뚱한 곳으로 간다.
     @Test("모르는 유형은 원문을 보존하고 도착지는 반드시 unresolved 다")
     func unknownTypeAlwaysResolvesToUnresolved() throws {
-        let dto = try decode(json(type: "REALLY_NEW_KIND", payload: #"{"placeId":"pin-1"}"#))
+        let dto = try decode(json(type: "REALLY_NEW_KIND", payload: #"{"pinId":"pin-1"}"#))
         let notification = dto.toDomain()
 
         #expect(notification.type == .unknown(raw: "REALLY_NEW_KIND"))
@@ -77,14 +93,14 @@ struct NotificationDTOTests {
     @Test("유형과 무관한 키가 섞여 와도 그 유형이 요구하는 키만 읽는다")
     func readsOnlyTheKeyTheTypeRequires() throws {
         let place = try decode(json(type: "PIN_DUPLICATED", payload: #"{"roomId":"room-1"}"#))
-        let room = try decode(json(type: "ROOM_JOINED_SELF", payload: #"{"placeId":"pin-1"}"#))
+        let room = try decode(json(type: "ROOM_JOINED_SELF", payload: #"{"pinId":"pin-1"}"#))
 
         #expect(place.toDomain().destination == .unresolved)
         #expect(room.toDomain().destination == .unresolved)
     }
 
     @Test("payload 키가 통째로 없거나 식별자가 공백뿐이면 도착지가 없다", arguments: [
-        nil, "{}", #"{"placeId":null}"#, #"{"placeId":"   "}"#,
+        nil, "{}", #"{"pinId":null}"#, #"{"pinId":"   "}"#,
     ])
     func missingIdentifierBecomesUnresolved(_ payload: String?) throws {
         let dto = try decode(json(type: "PIN_DUPLICATED", payload: payload))
