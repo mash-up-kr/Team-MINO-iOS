@@ -77,6 +77,10 @@ public func notificationListReducer(
                 do {
                     let page = try await useCase.execute()
                     send(.loaded(page))
+                } catch is CancellationError {
+                    // 취소는 결과가 없는 것이지 실패가 아니다 — 화면을 떠나 store 가 사라졌거나
+                    // 새 요청이 이 요청을 밀어냈다. 실패 화면을 띄우면 정상 조작에 오류가 뜬다.
+                    return
                 } catch let error as DomainError {
                     send(.loadFailed(error))
                 } catch {
@@ -156,6 +160,8 @@ private func startLoadNext(
         do {
             let page = try await useCase.execute(next: request)
             send(.loadedNext(page))
+        } catch is CancellationError {
+            return   // 취소는 실패가 아니다(`.load` 주석 참조)
         } catch let error as DomainError {
             send(.loadNextFailed(error))
         } catch {
