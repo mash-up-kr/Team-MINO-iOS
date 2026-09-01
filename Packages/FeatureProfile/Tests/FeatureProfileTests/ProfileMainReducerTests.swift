@@ -20,7 +20,7 @@ struct ProfileMainReducerTests {
         )
     }
 
-    // MARK: - 프로필 조회 (FR-001 / FR-009)
+    // MARK: - 프로필 조회 (FR-001 / FR-003)
 
     @Test("L2 — 조회에 성공하면 닉네임과 아바타가 채워진다")
     func loadProfile_success_fillsSummary() async {
@@ -51,7 +51,7 @@ struct ProfileMainReducerTests {
         store.finish()
     }
 
-    // 재조회는 복귀할 때마다 일어난다(FR-009). 저장하고 돌아온 직후 잠깐 끊긴 것만으로
+    // 재조회는 복귀할 때마다 일어난다. 저장하고 돌아온 직후 잠깐 끊긴 것만으로
     // 방금 저장한 프로필이 사라져 보이면 안 되고, 그 상태로 연필을 누르면 편집 화면이
     // 빈 채로 열려 FR-002 까지 깨진다.
     @Test("L2 — 재조회에 실패해도 마지막으로 읽은 프로필을 지우지 않는다")
