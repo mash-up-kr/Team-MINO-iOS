@@ -100,10 +100,12 @@ struct NotificationListContainerView: View {
     }
 
     private var centeredIllustration: some View {
-        // TODO: 디자이너 에셋 전달 대기. 도착 전까지는 일러스트가 접히고 문구만 보인다.
         MHIllustratedMessage(
             illustration: .mhAssetIfAvailable("notificationEmptyIllustration", bundle: .module),
-            title: "받은 알림이 없어요"
+            // Figma 006-1-2: 일러스트 173x173, bottom(301+173=474) → 문구 top(499) 간격 = 25.
+            illustrationSize: 173,
+            title: "받은 알림이 없어요",
+            illustrationSpacing: 25
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityIdentifier("Notification.empty")

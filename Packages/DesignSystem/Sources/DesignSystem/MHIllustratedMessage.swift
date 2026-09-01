@@ -35,6 +35,7 @@ public enum MHIllustratedMessageAlignment: Equatable, Sendable {
 /// ```
 public struct MHIllustratedMessage: View {
     private let illustration: Image?
+    private let illustrationSize: CGFloat
     private let title: String
     private let messages: [String]
     private let alignment: MHIllustratedMessageAlignment
@@ -42,18 +43,21 @@ public struct MHIllustratedMessage: View {
 
     /// - Parameters:
     ///   - illustration: 스팟 일러스트. 호출부 번들의 이미지를 그대로 넘긴다. `nil` 이면 생략된다.
+    ///   - illustrationSize: 일러스트 한 변의 길이. 시안마다 다르다(알림 빈 상태 173 · 저장 오류 197).
     ///   - title: 제목. 줄 수는 고정하지 않는다 — 길면 줄바꿈된다.
     ///   - messages: 제목 아래 본문. 비우면 제목만 그린다. 줄 수는 고정하지 않는다.
     ///   - alignment: 가로 정렬.
     ///   - illustrationSpacing: 일러스트와 제목 사이 간격.
     public init(
         illustration: Image?,
+        illustrationSize: CGFloat = 299,
         title: String,
         messages: [String] = [],
         alignment: MHIllustratedMessageAlignment = .center,
         illustrationSpacing: CGFloat = 32
     ) {
         self.illustration = illustration
+        self.illustrationSize = illustrationSize
         self.title = title
         self.messages = messages
         self.alignment = alignment
@@ -68,7 +72,7 @@ public struct MHIllustratedMessage: View {
                 illustration
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 299, height: 299)
+                    .frame(width: illustrationSize, height: illustrationSize)
                     .accessibilityHidden(true)
             }
 

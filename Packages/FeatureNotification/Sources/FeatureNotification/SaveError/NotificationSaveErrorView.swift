@@ -15,26 +15,26 @@ struct NotificationSaveErrorContentView: View {
     let onTapBack: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(spacing: 0) {
             MHTopNavigation(onBack: onTapBack)
 
-            // TODO: 디자이너 에셋 전달 대기(다크모드 변형 포함). 도착 전까지는 일러스트가
-            // 통째로 접히고 문구만 보인다 — 빈 칸을 남기지 않는다.
             MHIllustratedMessage(
                 illustration: .mhAssetIfAvailable("notificationSaveErrorIllustration", bundle: .module),
+                // Figma 006-2: 일러스트 197x197, bottom(237.5+197=434.5) → 타이틀 top(474.5) 간격 = 40.
+                illustrationSize: 197,
                 title: "확인해주세요",
                 messages: [
                     "현재 한국 내 장소만 지원됩니다.",
                     "사진 속 장소인식은 아직 지원하지 않습니다",
                     "본문에 주소나 장소명을 포함해주세요",
                 ],
-                alignment: .leading,
-                // Figma: 일러스트 bottom(86 + 299 = 385) → 타이틀 top(542 − 54 = 488) 간격 = 103.
-                illustrationSpacing: 103
+                // 시안의 네 줄 모두 중심이 x=187(프레임 중앙)로 맞는다 — 픽셀로 확인했다.
+                // 예전 시안은 leading 이었다(노드가 5073:* 로 갱신되며 바뀜).
+                alignment: .center,
+                illustrationSpacing: 40
             )
-            // Figma: Top Navigation 콘텐츠 높이(98 − 상태바 54 = 44) 기준, 일러스트 top(140 − 54 = 86)
-            // 까지 간격 = 86 − 44 = 42.
-            .padding(.top, 42)
+            // Figma: 일러스트 top(237.5 − 상태바 54 = 183.5) − Top Navigation 높이(24 + 상하 10 = 44).
+            .padding(.top, 139.5)
             // 제목에 직접 붙이던 identifier 를 컨테이너 단위로 올린다 — 골격이 부품 안으로
             // 들어가 호출부가 개별 요소에 붙일 수 없다.
             .accessibilityIdentifier("NotificationSaveError.message")
