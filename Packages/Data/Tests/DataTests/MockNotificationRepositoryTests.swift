@@ -35,20 +35,16 @@ struct MockNotificationRepositoryTests {
         #expect(types.contains(.roomJoined))
         #expect(page.items.contains { if case .unknown = $0.type { true } else { false } })
 
-        // FR-012 의 썸네일 두 갈래(장소 이미지 / 기본 아이콘)가 실제로 목에서 재현되는지 —
-        // placeImageUrl 을 통째로 빼도 이 단언 없이는 개수·유형 단언 어느 것도 안 잡는다.
-        let placeImageURLs = page.items.compactMap { notification -> URL?? in
-            guard case let .place(_, imageURL, _) = notification.payload else { return nil }
-            return .some(imageURL)
-        }
-        #expect(placeImageURLs.contains { $0 != nil })
+        // FR-012 의 썸네일 두 갈래(사진 / 기본 아이콘)가 실제로 목에서 재현되는지 —
+        // thumbnailUrl 을 통째로 빼도 이 단언 없이는 개수·유형 단언 어느 것도 안 잡는다.
+        #expect(page.items.contains { $0.thumbnailURL != nil })
+        #expect(page.items.contains { $0.thumbnailURL == nil })
 
-        let roomParticipantNames = page.items.compactMap { notification -> String?? in
-            guard case let .room(_, _, participantName) = notification.payload else { return nil }
-            return .some(participantName)
-        }
-        #expect(roomParticipantNames.contains { $0 != nil })
-        #expect(roomParticipantNames.contains { $0 == nil })
+        // 도착지 세 갈래가 목에 다 있어야 화면 확인이 의미를 갖는다.
+        let destinations = page.items.map(\.destination)
+        #expect(destinations.contains { if case .place = $0 { true } else { false } })
+        #expect(destinations.contains { if case .room = $0 { true } else { false } })
+        #expect(destinations.contains(.saveError))
     }
 
     @Test("다음 장은 이전 장과 항목이 겹치지 않는다")

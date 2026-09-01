@@ -16,26 +16,47 @@ private func fixtureNotification(id: String, createdAt: Date = fixtureNow) -> Ap
     AppNotification(
         id: NotificationID(id),
         type: .duplicateSave,
-        payload: .place(name: "연남동 스탠딩 커피", imageURL: nil, placeID: nil),
+        title: "이미 저장해둔 곳이에요",
+        targetName: "연남동 스탠딩 커피",
+        thumbnailURL: nil,
+        destination: .place(pinID: PinID("pin-\(id)")),
         createdAt: createdAt
     )
 }
 
-// payload 는 일부러 resolved 인 `.place` 로 둔다 — `.unresolved` 를 함께 쓰면 `.unknown` 필터
-// 줄을 지워도 `.unresolved` 필터에 걸려 통과해, `.unknown` 필터를 실제로 검증하지 못하게 된다.
+// destination 은 일부러 resolved 인 `.place` 로 둔다 — `.unresolved` 로 두면 `.unknown` 필터 줄을
+// 지워도 셀이 안 그려질 이유가 따로 생겨, `.unknown` 필터를 실제로 검증하지 못하게 된다.
 private func unknownTypeNotification(id: String) -> AppNotification {
     AppNotification(
         id: NotificationID(id), type: .unknown(raw: "future_type"),
-        payload: .place(name: "무관", imageURL: nil, placeID: nil), createdAt: fixtureNow
+        title: "무관", targetName: "무관", thumbnailURL: nil,
+        destination: .place(pinID: PinID("pin-\(id)")), createdAt: fixtureNow
     )
 }
 
-private func unresolvedPayloadNotification(id: String) -> AppNotification {
-    AppNotification(id: NotificationID(id), type: .memberJoined, payload: .unresolved, createdAt: fixtureNow)
+/// 이동 대상 식별자가 없는 알림 — **걸러지지 않고 목록에 남는다**. 탭만 아무 일도 하지 않는다.
+private func unresolvedNotification(id: String) -> AppNotification {
+    AppNotification(
+        id: NotificationID(id), type: .memberJoined,
+        title: "새 멤버가 들어왔어요", targetName: "맛집 탐방", thumbnailURL: nil,
+        destination: .unresolved, createdAt: fixtureNow
+    )
+}
+
+private func roomNotification(id: String, roomID: String = "room-1") -> AppNotification {
+    AppNotification(
+        id: NotificationID(id), type: .roomJoined,
+        title: "방에 참가했어요", targetName: "맛집 탐방", thumbnailURL: nil,
+        destination: .room(roomID: roomID), createdAt: fixtureNow
+    )
 }
 
 private func saveErrorNotification(id: String) -> AppNotification {
-    AppNotification(id: NotificationID(id), type: .saveError, payload: .saveError, createdAt: fixtureNow)
+    AppNotification(
+        id: NotificationID(id), type: .saveError,
+        title: "장소를 저장하지 못했어요", targetName: "인스타그램 게시물", thumbnailURL: nil,
+        destination: .saveError, createdAt: fixtureNow
+    )
 }
 
 private struct StubFetchNotifications: FetchNotificationsUseCase {
@@ -195,11 +216,11 @@ struct NotificationListReducerTests {
         store.finish()
     }
 
-    @Test("L1 — load 는 .unknown 유형과 .unresolved payload 를 목록에서 거른다")
-    func load_filtersUnknownAndUnresolved() async {
+    @Test("L1 — load 는 앱이 모르는 유형만 목록에서 거른다")
+    func load_filtersUnknownType() async {
         let visible = fixtureNotification(id: "0")
         let page = Page(
-            items: [visible, unknownTypeNotification(id: "1"), unresolvedPayloadNotification(id: "2")],
+            items: [visible, unknownTypeNotification(id: "1")],
             page: 0, pageSize: 20, hasNext: false
         )
         let store = makeStore(StubFetchNotifications(firstResult: .success(page)))
@@ -207,6 +228,22 @@ struct NotificationListReducerTests {
         await store.receive(.loaded(page)) {
             $0.phase = .loaded
             $0.items = [NotificationListItem(from: visible, now: fixtureNow)]
+            $0.nextRequest = page.next
+        }
+        store.finish()
+    }
+
+    // 문구는 서버가 완성해서 주므로 이동 대상이 없어도 셀 내용은 멀쩡하다 — 걸러 내면 서버가
+    // 보낸 알림이 이유 없이 사라진다.
+    @Test("L1 — 이동 대상 식별자가 없는 알림도 목록에 남는다")
+    func load_keepsUnresolvedDestination() async {
+        let unresolved = unresolvedNotification(id: "0")
+        let page = Page(items: [unresolved], page: 0, pageSize: 20, hasNext: false)
+        let store = makeStore(StubFetchNotifications(firstResult: .success(page)))
+        await store.send(.load) { $0.phase = .loading }
+        await store.receive(.loaded(page)) {
+            $0.phase = .loaded
+            $0.items = [NotificationListItem(from: unresolved, now: fixtureNow)]
             $0.nextRequest = page.next
         }
         store.finish()
@@ -312,7 +349,7 @@ struct NotificationListReducerTests {
     @Test("L2 — 걸러진 빈 장이 두 번 연속이어도 세 번째 장에서 정상 종료한다(다단 자동 이어받기)")
     func load_autoContinuesAcrossMultipleFilteredPages() async {
         let firstPage = Page(items: [unknownTypeNotification(id: "0")], page: 0, pageSize: 20, hasNext: true)
-        let secondPage = Page(items: [unresolvedPayloadNotification(id: "1")], page: 1, pageSize: 20, hasNext: true)
+        let secondPage = Page(items: [unknownTypeNotification(id: "1")], page: 1, pageSize: 20, hasNext: true)
         let thirdPage = Page(items: [fixtureNotification(id: "2")], page: 2, pageSize: 20, hasNext: false)
 
         struct MultiHopFetch: FetchNotificationsUseCase {

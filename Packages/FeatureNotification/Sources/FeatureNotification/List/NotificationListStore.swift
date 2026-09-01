@@ -133,7 +133,10 @@ public func notificationListReducer(
             case .saveError:
                 return .navigate(.pushSaveError)
             case .place, .room:
-                // 탭 밖 이동은 이번 PR 범위 밖([SYS-004] 없음) — 아무 일도 하지 않는다.
+                // 탭 밖 이동 배선은 다음 커밋 몫 — 조회를 끼워야 해서 여기서 끝나지 않는다.
+                return .none
+            case .unresolved:
+                // 서버가 이동 대상을 주지 않았다. 셀은 그렸지만 갈 곳이 없다.
                 return .none
             }
         }
@@ -194,14 +197,16 @@ private func continueIfNothingNew(
     return .run { send in send(.loadNext) }
 }
 
-/// `.unknown` 유형(서버 유형 문자열 계약이 아직 확정되지 않았다)과 `.unresolved` payload
-/// (Data 레이어가 표시값을 못 뽑아 이미 "표시 불가"로 판정한 것)는 목록에 담기지 않는다. 이 둘을
-/// 그대로 통과시키면 Data 가 세운 방어가 화면에서 무력화돼 "님이 들어왔어요" 같은 깨진 셀이 보인다.
+/// **앱이 모르는 유형만** 목록에서 뺀다. 서버에 유형이 늘었는데 앱이 아직 모르는 상황이라
+/// 셀을 어떻게 그려야 할지 알 수 없다.
+///
+/// 이동 대상 식별자가 없는 것(`.unresolved`)은 **거르지 않는다** — 문구는 서버가 완성해서 주므로
+/// 셀 내용은 멀쩡하고, 탭만 아무 일도 하지 않는다. 여기서 걸러 내면 서버가 보낸 알림이 이유 없이
+/// 사라진다.
 private func mapItems(_ notifications: [AppNotification], now: Date) -> [NotificationListItem] {
     notifications
         .filter {
             if case .unknown = $0.type { return false }
-            if case .unresolved = $0.payload { return false }
             return true
         }
         .map { NotificationListItem(from: $0, now: now) }

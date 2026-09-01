@@ -42,7 +42,7 @@ public final class MockNotificationRepository: NotificationRepository {
         let (rawEnd, endOverflowed) = start.addingReportingOverflow(request.pageSize)
         guard !endOverflowed else { throw DomainError.notificationsFetchFailed }
         do {
-            let all = try JSONDecoder().decode(MockNotificationsDTO.self, from: Data(json.utf8)).data
+            let all = try APIDecoder.make().decode(MockNotificationsDTO.self, from: Data(json.utf8)).data
             let end = min(rawEnd, all.count)
             let slice = start < all.count ? Array(all[start..<end]) : []
             let page = Networking.Page(
@@ -55,195 +55,215 @@ public final class MockNotificationRepository: NotificationRepository {
         }
     }
 
-    /// 유형 6종 + 알 수 없는 type 1건(`notif-0007`, 첫 장 안). 21건 — 첫 장 20 + 다음 장 1.
-    /// createdAt 내림차순. 장소 대상 3종(`duplicateSave`·`nearbyReminder`·`commentReminder`)에만
-    /// `placeImageUrl` 을 실어 FR-012 의 두 썸네일 갈래를 재현한다. `saveError`·모르는 유형은
-    /// payload 키 자체를 생략해 "옵셔널 필드가 없어도 디코딩은 성공한다" 를 목에서도 재현한다.
-    ///
-    /// `type` 문자열은 잠정이다(`NotificationDTO.mapType` 주석 참고) — 여기 쓴 값도 그 placeholder 다.
+    /// 확정 유형 6종 + 앱이 모르는 type 1건(`notif-0007`, 첫 장 안). 21건 — 첫 장 20 + 다음 장 1.
+    /// createdAt 내림차순. 장소 대상 3종에만 `thumbnailUrl` 을 실어 FR-012 의 두 썸네일 갈래를
+    /// 재현하고, `SAVE_FAILED` 는 payload 키 자체를 생략해 "이동 대상 없음" 을 목에서도 재현한다.
     public static let mockJSON = """
     {
       "data": [
         {
           "id": "notif-0001",
-          "type": "duplicateSave",
-          "createdAt": "2026-08-21T09:00:00Z",
+          "type": "PIN_DUPLICATED",
+          "typeLabel": "이미 저장해둔 곳이에요",
+          "createdAt": "2026-08-21T20:00:00.000Z",
+          "targetName": "패스트리 순간",
+          "thumbnailUrl": "https://cdn.mino.app/places/0001.jpg",
           "payload": {
-            "placeName": "연남동 스탠딩 커피",
-            "placeImageUrl": "https://cdn.mino.app/places/0001.jpg",
-            "placeId": "place-0001"
+            "placeId": "pin-0001"
           }
         },
         {
           "id": "notif-0002",
-          "type": "saveError",
-          "createdAt": "2026-08-21T08:00:00Z"
+          "type": "SAVE_FAILED",
+          "typeLabel": "장소를 저장하지 못했어요",
+          "createdAt": "2026-08-21T19:00:00.000Z",
+          "targetName": "인스타그램 게시물"
         },
         {
           "id": "notif-0003",
-          "type": "nearbyReminder",
-          "createdAt": "2026-08-21T07:00:00Z",
+          "type": "NEARBY_PLACE",
+          "typeLabel": "근처에 저장한 장소가 있어요",
+          "createdAt": "2026-08-21T18:00:00.000Z",
+          "targetName": "망원 국수집",
+          "thumbnailUrl": "https://cdn.mino.app/places/0003.jpg",
           "payload": {
-            "placeName": "을지로 골목집",
-            "placeImageUrl": "https://cdn.mino.app/places/0003.jpg",
-            "placeId": "place-0003"
+            "placeId": "pin-0003"
           }
         },
         {
           "id": "notif-0004",
-          "type": "commentReminder",
-          "createdAt": "2026-08-21T06:00:00Z",
+          "type": "TOP_COMMENTED_PLACE",
+          "typeLabel": "코멘트가 제일 많이 달린 장소에요",
+          "createdAt": "2026-08-21T17:00:00.000Z",
+          "targetName": "해방촌 루프탑",
+          "thumbnailUrl": "https://cdn.mino.app/places/0004.jpg",
           "payload": {
-            "placeName": "성수동 카페거리",
-            "placeImageUrl": "https://cdn.mino.app/places/0004.jpg",
-            "placeId": "place-0004"
+            "placeId": "pin-0004"
           }
         },
         {
           "id": "notif-0005",
-          "type": "memberJoined",
-          "createdAt": "2026-08-21T05:00:00Z",
+          "type": "ROOM_MEMBER_JOINED",
+          "typeLabel": "새 멤버가 들어왔어요",
+          "createdAt": "2026-08-21T16:00:00.000Z",
+          "targetName": "주말 산책",
           "payload": {
-            "roomName": "언젠가 가야지 방",
-            "roomId": "room-0005",
-            "participantName": "지은"
+            "roomId": "room-0005"
           }
         },
         {
           "id": "notif-0006",
-          "type": "roomJoined",
-          "createdAt": "2026-08-21T04:00:00Z",
+          "type": "ROOM_JOINED_SELF",
+          "typeLabel": "방에 참가했어요",
+          "createdAt": "2026-08-21T15:00:00.000Z",
+          "targetName": "맛집 탐방",
           "payload": {
-            "roomName": "주말 나들이",
             "roomId": "room-0006"
           }
         },
         {
           "id": "notif-0007",
-          "type": "futureType",
-          "createdAt": "2026-08-21T03:00:00Z"
+          "type": "REALLY_NEW_KIND",
+          "typeLabel": "새로 생긴 알림",
+          "targetName": "무언가",
+          "createdAt": "2026-08-21T14:00:00.000Z"
         },
         {
           "id": "notif-0008",
-          "type": "saveError",
-          "createdAt": "2026-08-21T02:00:00Z"
+          "type": "SAVE_FAILED",
+          "typeLabel": "장소를 저장하지 못했어요",
+          "createdAt": "2026-08-21T13:00:00.000Z",
+          "targetName": "인스타그램 게시물"
         },
         {
           "id": "notif-0009",
-          "type": "nearbyReminder",
-          "createdAt": "2026-08-21T01:00:00Z",
+          "type": "NEARBY_PLACE",
+          "typeLabel": "근처에 저장한 장소가 있어요",
+          "createdAt": "2026-08-21T12:00:00.000Z",
+          "targetName": "해방촌 루프탑",
+          "thumbnailUrl": "https://cdn.mino.app/places/0009.jpg",
           "payload": {
-            "placeName": "성수동 카페거리",
-            "placeImageUrl": "https://cdn.mino.app/places/0009.jpg",
-            "placeId": "place-0009"
+            "placeId": "pin-0009"
           }
         },
         {
           "id": "notif-0010",
-          "type": "commentReminder",
-          "createdAt": "2026-08-21T00:00:00Z",
+          "type": "TOP_COMMENTED_PLACE",
+          "typeLabel": "코멘트가 제일 많이 달린 장소에요",
+          "createdAt": "2026-08-21T11:00:00.000Z",
+          "targetName": "연남동 스탠딩 커피",
+          "thumbnailUrl": "https://cdn.mino.app/places/0010.jpg",
           "payload": {
-            "placeName": "합정 브런치",
-            "placeImageUrl": "https://cdn.mino.app/places/0010.jpg",
-            "placeId": "place-0010"
+            "placeId": "pin-0010"
           }
         },
         {
           "id": "notif-0011",
-          "type": "memberJoined",
-          "createdAt": "2026-08-20T23:00:00Z",
+          "type": "ROOM_MEMBER_JOINED",
+          "typeLabel": "새 멤버가 들어왔어요",
+          "createdAt": "2026-08-21T10:00:00.000Z",
+          "targetName": "주말 산책",
           "payload": {
-            "roomName": "맛집 탐방",
-            "roomId": "room-0011",
-            "participantName": "서연"
+            "roomId": "room-0011"
           }
         },
         {
           "id": "notif-0012",
-          "type": "roomJoined",
-          "createdAt": "2026-08-20T22:00:00Z",
+          "type": "ROOM_JOINED_SELF",
+          "typeLabel": "방에 참가했어요",
+          "createdAt": "2026-08-21T09:00:00.000Z",
+          "targetName": "맛집 탐방",
           "payload": {
-            "roomName": "우리 동네 맛집",
             "roomId": "room-0012"
           }
         },
         {
           "id": "notif-0013",
-          "type": "duplicateSave",
-          "createdAt": "2026-08-20T21:00:00Z",
+          "type": "PIN_DUPLICATED",
+          "typeLabel": "이미 저장해둔 곳이에요",
+          "createdAt": "2026-08-21T08:00:00.000Z",
+          "targetName": "망원 국수집",
+          "thumbnailUrl": "https://cdn.mino.app/places/0013.jpg",
           "payload": {
-            "placeName": "을지로 골목집",
-            "placeImageUrl": "https://cdn.mino.app/places/0013.jpg",
-            "placeId": "place-0013"
+            "placeId": "pin-0013"
           }
         },
         {
           "id": "notif-0014",
-          "type": "saveError",
-          "createdAt": "2026-08-20T20:00:00Z"
+          "type": "SAVE_FAILED",
+          "typeLabel": "장소를 저장하지 못했어요",
+          "createdAt": "2026-08-21T07:00:00.000Z",
+          "targetName": "인스타그램 게시물"
         },
         {
           "id": "notif-0015",
-          "type": "nearbyReminder",
-          "createdAt": "2026-08-20T19:00:00Z",
+          "type": "NEARBY_PLACE",
+          "typeLabel": "근처에 저장한 장소가 있어요",
+          "createdAt": "2026-08-21T06:00:00.000Z",
+          "targetName": "연남동 스탠딩 커피",
+          "thumbnailUrl": "https://cdn.mino.app/places/0015.jpg",
           "payload": {
-            "placeName": "합정 브런치",
-            "placeImageUrl": "https://cdn.mino.app/places/0015.jpg",
-            "placeId": "place-0015"
+            "placeId": "pin-0015"
           }
         },
         {
           "id": "notif-0016",
-          "type": "commentReminder",
-          "createdAt": "2026-08-20T18:00:00Z",
+          "type": "TOP_COMMENTED_PLACE",
+          "typeLabel": "코멘트가 제일 많이 달린 장소에요",
+          "createdAt": "2026-08-21T05:00:00.000Z",
+          "targetName": "패스트리 순간",
+          "thumbnailUrl": "https://cdn.mino.app/places/0016.jpg",
           "payload": {
-            "placeName": "연남동 스탠딩 커피",
-            "placeImageUrl": "https://cdn.mino.app/places/0016.jpg",
-            "placeId": "place-0016"
+            "placeId": "pin-0016"
           }
         },
         {
           "id": "notif-0017",
-          "type": "memberJoined",
-          "createdAt": "2026-08-20T17:00:00Z",
+          "type": "ROOM_MEMBER_JOINED",
+          "typeLabel": "새 멤버가 들어왔어요",
+          "createdAt": "2026-08-21T04:00:00.000Z",
+          "targetName": "주말 산책",
           "payload": {
-            "roomName": "언젠가 가야지 방",
-            "roomId": "room-0017",
-            "participantName": "지은"
+            "roomId": "room-0017"
           }
         },
         {
           "id": "notif-0018",
-          "type": "roomJoined",
-          "createdAt": "2026-08-20T16:00:00Z",
+          "type": "ROOM_JOINED_SELF",
+          "typeLabel": "방에 참가했어요",
+          "createdAt": "2026-08-21T03:00:00.000Z",
+          "targetName": "맛집 탐방",
           "payload": {
-            "roomName": "주말 나들이",
             "roomId": "room-0018"
           }
         },
         {
           "id": "notif-0019",
-          "type": "duplicateSave",
-          "createdAt": "2026-08-20T15:00:00Z",
+          "type": "PIN_DUPLICATED",
+          "typeLabel": "이미 저장해둔 곳이에요",
+          "createdAt": "2026-08-21T02:00:00.000Z",
+          "targetName": "해방촌 루프탑",
+          "thumbnailUrl": "https://cdn.mino.app/places/0019.jpg",
           "payload": {
-            "placeName": "성수동 카페거리",
-            "placeImageUrl": "https://cdn.mino.app/places/0019.jpg",
-            "placeId": "place-0019"
+            "placeId": "pin-0019"
           }
         },
         {
           "id": "notif-0020",
-          "type": "saveError",
-          "createdAt": "2026-08-20T14:00:00Z"
+          "type": "SAVE_FAILED",
+          "typeLabel": "장소를 저장하지 못했어요",
+          "createdAt": "2026-08-21T01:00:00.000Z",
+          "targetName": "인스타그램 게시물"
         },
         {
           "id": "notif-0021",
-          "type": "nearbyReminder",
-          "createdAt": "2026-08-20T13:00:00Z",
+          "type": "NEARBY_PLACE",
+          "typeLabel": "근처에 저장한 장소가 있어요",
+          "createdAt": "2026-08-21T00:00:00.000Z",
+          "targetName": "패스트리 순간",
+          "thumbnailUrl": "https://cdn.mino.app/places/0021.jpg",
           "payload": {
-            "placeName": "연남동 스탠딩 커피",
-            "placeImageUrl": "https://cdn.mino.app/places/0021.jpg",
-            "placeId": "place-0021"
+            "placeId": "pin-0021"
           }
         }
       ]

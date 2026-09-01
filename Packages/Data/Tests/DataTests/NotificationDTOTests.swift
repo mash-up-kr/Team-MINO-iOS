@@ -1,276 +1,146 @@
 import Foundation
+import Networking
 import Testing
 import Domain
 @testable import Data
 
-/// `NotificationDTO.toDomain()` 경계 매핑 순수 로직 테스트.
-/// DTO 는 internal 이라 이 파일(Data 테스트 타깃)에서만 만들 수 있다.
-///
-/// 이 스위트가 **`type` 과 `payload` 의 조합 규칙을 강제하는 유일한 장치**다 — 도메인 타입은
-/// 어긋난 조합을 막지 못하고, `precondition` 도 두지 않기로 했다(서버 데이터로 앱을 죽이지 않는다).
+/// 이 스위트가 **서버 `type` 문자열과 도착지 사이의 대응을 강제하는 유일한 장치**다 — 대응표를
+/// 고치면 여기가 먼저 깨진다. 표시 문구는 서버가 완성해서 주므로 매핑 대상이 아니다.
 @Suite("NotificationDTO → AppNotification 매핑")
 struct NotificationDTOTests {
-    private func makeDTO(
+    private static let iso = Date.ISO8601FormatStyle(includingFractionalSeconds: true)
+
+    private func decode(_ json: String) throws -> NotificationDTO {
+        try APIDecoder.make().decode(NotificationDTO.self, from: Data(json.utf8))
+    }
+
+    private func decodeList(_ json: String) throws -> [NotificationDTO] {
+        try APIDecoder.make().decode([NotificationDTO].self, from: Data(json.utf8))
+    }
+
+    private func json(
         id: String = "n1",
-        type: String = "duplicateSave",
-        payload: NotificationPayloadDTO? = nil,
-        readAt: String? = nil,
-        createdAt: String = "2026-08-21T09:00:00Z"
-    ) -> NotificationDTO {
-        NotificationDTO(id: id, type: type, payload: payload, readAt: readAt, createdAt: createdAt)
+        type: String = "PIN_DUPLICATED",
+        typeLabel: String? = "이미 저장해둔 곳이에요",
+        targetName: String? = "패스트리 순간",
+        thumbnailUrl: String? = nil,
+        payload: String? = nil,
+        createdAt: String = "2026-09-01T12:00:00.000Z"
+    ) -> String {
+        var fields = ["\"id\":\"\(id)\"", "\"type\":\"\(type)\"", "\"createdAt\":\"\(createdAt)\""]
+        if let typeLabel { fields.append("\"typeLabel\":\"\(typeLabel)\"") }
+        if let targetName { fields.append("\"targetName\":\"\(targetName)\"") }
+        if let thumbnailUrl { fields.append("\"thumbnailUrl\":\"\(thumbnailUrl)\"") }
+        if let payload { fields.append("\"payload\":\(payload)") }
+        return "{\(fields.joined(separator: ","))}"
     }
 
-    private func makePayloadDTO(
-        placeName: String? = nil,
-        placeImageUrl: String? = nil,
-        placeId: String? = nil,
-        roomName: String? = nil,
-        roomId: String? = nil,
-        participantName: String? = nil
-    ) -> NotificationPayloadDTO {
-        NotificationPayloadDTO(
-            placeName: placeName, placeImageUrl: placeImageUrl, placeId: placeId,
-            roomName: roomName, roomId: roomId, participantName: participantName
-        )
+    // MARK: - 유형 → 도착지
+
+    @Test("장소 대상 3종은 payload.placeId 를 핀 id 로 읽는다", arguments: [
+        "PIN_DUPLICATED", "NEARBY_PLACE", "TOP_COMMENTED_PLACE",
+    ])
+    func mapsPlaceTypesToPinDestination(_ type: String) throws {
+        let dto = try decode(json(type: type, payload: #"{"placeId":"pin-1"}"#))
+
+        #expect(dto.toDomain().destination == .place(pinID: PinID("pin-1")))
     }
 
-    @Test("중복 저장은 장소 이름과 장소 식별자를 실어 나른다")
-    func mapsDuplicateSaveToPlace() {
-        let dto = makeDTO(type: "duplicateSave", payload: makePayloadDTO(placeName: "연남동 스탠딩 커피", placeId: "place-1"))
+    @Test("방 대상 2종은 payload.roomId 를 읽는다", arguments: [
+        "ROOM_MEMBER_JOINED", "ROOM_JOINED_SELF",
+    ])
+    func mapsRoomTypesToRoomDestination(_ type: String) throws {
+        let dto = try decode(json(type: type, payload: #"{"roomId":"room-1"}"#))
 
-        let notification = dto.toDomain()
-
-        #expect(notification.type == .duplicateSave)
-        #expect(notification.payload == .place(name: "연남동 스탠딩 커피", imageURL: nil, placeID: "place-1"))
+        #expect(dto.toDomain().destination == .room(roomID: "room-1"))
     }
 
-    @Test("저장 오류는 실어 나를 값이 없다")
-    func mapsSaveErrorWithoutValues() {
-        let dto = makeDTO(type: "saveError", payload: nil)
-
+    @Test("저장 오류는 payload 없이 저장 오류 안내로 간다")
+    func mapsSaveFailedWithoutPayload() throws {
+        let dto = try decode(json(type: "SAVE_FAILED", payload: nil))
         let notification = dto.toDomain()
 
         #expect(notification.type == .saveError)
-        #expect(notification.payload == .saveError)
+        #expect(notification.destination == .saveError)
     }
 
-    @Test("위치 리마인드 단건은 장소 이름을 싣는다")
-    func mapsNearbyReminderToPlace() {
-        let dto = makeDTO(type: "nearbyReminder", payload: makePayloadDTO(placeName: "강남역 스타벅스"))
-
+    // 목록에서 걸러질 알림이 이동 경로를 갖고 있으면, 필터를 한 줄 놓치는 순간 엉뚱한 곳으로 간다.
+    @Test("모르는 유형은 원문을 보존하고 도착지는 반드시 unresolved 다")
+    func unknownTypeAlwaysResolvesToUnresolved() throws {
+        let dto = try decode(json(type: "REALLY_NEW_KIND", payload: #"{"placeId":"pin-1"}"#))
         let notification = dto.toDomain()
 
-        #expect(notification.type == .nearbyReminder)
-        #expect(notification.payload == .place(name: "강남역 스타벅스", imageURL: nil, placeID: nil))
+        #expect(notification.type == .unknown(raw: "REALLY_NEW_KIND"))
+        #expect(notification.destination == .unresolved)
     }
 
-    @Test("코멘트 리마인드는 장소 이름을 싣는다")
-    func mapsCommentReminderToPlace() {
-        let dto = makeDTO(type: "commentReminder", payload: makePayloadDTO(placeName: "성수동 카페거리"))
+    @Test("유형과 무관한 키가 섞여 와도 그 유형이 요구하는 키만 읽는다")
+    func readsOnlyTheKeyTheTypeRequires() throws {
+        let place = try decode(json(type: "PIN_DUPLICATED", payload: #"{"roomId":"room-1"}"#))
+        let room = try decode(json(type: "ROOM_JOINED_SELF", payload: #"{"placeId":"pin-1"}"#))
 
-        let notification = dto.toDomain()
-
-        #expect(notification.type == .commentReminder)
-        #expect(notification.payload == .place(name: "성수동 카페거리", imageURL: nil, placeID: nil))
+        #expect(place.toDomain().destination == .unresolved)
+        #expect(room.toDomain().destination == .unresolved)
     }
 
-    @Test("장소 이미지 주소를 그대로 실어 나른다")
-    func carriesPlaceImageURL() {
-        let dto = makeDTO(
-            type: "duplicateSave",
-            payload: makePayloadDTO(placeName: "연남동 스탠딩 커피", placeImageUrl: "https://cdn.mino.app/places/1.jpg")
-        )
+    @Test("payload 키가 통째로 없거나 식별자가 공백뿐이면 도착지가 없다", arguments: [
+        nil, "{}", #"{"placeId":null}"#, #"{"placeId":"   "}"#,
+    ])
+    func missingIdentifierBecomesUnresolved(_ payload: String?) throws {
+        let dto = try decode(json(type: "PIN_DUPLICATED", payload: payload))
 
-        let notification = dto.toDomain()
-
-        guard case let .place(_, imageURL, _) = notification.payload else {
-            Issue.record("payload 가 .place 가 아니다: \(notification.payload)")
-            return
-        }
-        #expect(imageURL == URL(string: "https://cdn.mino.app/places/1.jpg"))
+        #expect(dto.toDomain().destination == .unresolved)
     }
 
-    @Test("이미지 주소가 주소 꼴이 아니면 없는 것으로 둔다")
-    func dropsMalformedPlaceImageURL() {
-        let dto = makeDTO(
-            type: "duplicateSave",
-            payload: makePayloadDTO(placeName: "연남동 스탠딩 커피", placeImageUrl: "완전히 깨진 주소")
-        )
+    // MARK: - 표시값
 
+    @Test("표시 문구는 서버 값을 그대로 옮긴다 — 앱이 유형별 문구를 만들지 않는다")
+    func carriesServerStringsVerbatim() throws {
+        let dto = try decode(json(typeLabel: "서버가 정한 문구", targetName: "성수 브루잉"))
         let notification = dto.toDomain()
 
-        guard case let .place(name, imageURL, _) = notification.payload else {
-            Issue.record("payload 가 .place 가 아니다: \(notification.payload)")
-            return
-        }
-        #expect(name == "연남동 스탠딩 커피")
-        #expect(imageURL == nil)
+        #expect(notification.title == "서버가 정한 문구")
+        #expect(notification.targetName == "성수 브루잉")
     }
 
-    @Test("http(s) 가 아닌 스킴은 이미지 주소로 받아들이지 않는다")
-    func dropsNonHTTPImageURLScheme() {
-        let dto = makeDTO(
-            type: "duplicateSave",
-            payload: makePayloadDTO(placeName: "연남동 스탠딩 커피", placeImageUrl: "javascript:alert(1)")
-        )
+    @Test("스킴 없는 썸네일 문자열은 버린다 — 상대 URL 로 성공해 엉뚱한 값이 이미지가 된다")
+    func dropsThumbnailWithoutHTTPScheme() throws {
+        let http = try decode(json(thumbnailUrl: "https://cdn.example.com/a.jpg"))
+        let bare = try decode(json(thumbnailUrl: "orange"))
 
-        let notification = dto.toDomain()
-
-        guard case let .place(_, imageURL, _) = notification.payload else {
-            Issue.record("payload 가 .place 가 아니다: \(notification.payload)")
-            return
-        }
-        #expect(imageURL == nil)
+        #expect(http.toDomain().thumbnailURL == URL(string: "https://cdn.example.com/a.jpg"))
+        #expect(bare.toDomain().thumbnailURL == nil)
     }
 
-    @Test("타인 참가 알림은 참가자 이름과 방 이름을 함께 싣는다")
-    func mapsMemberJoinedWithParticipantName() {
-        let dto = makeDTO(
-            type: "memberJoined",
-            payload: makePayloadDTO(roomName: "언젠가 가야지 방", roomId: "room-1", participantName: "지은")
-        )
+    // MARK: - 회귀 방지
 
-        let notification = dto.toDomain()
+    // 항목 하나에 키가 없다고 배열 전체가 실패하면 알림 탭이 통째로 죽는다.
+    @Test("표시 문구가 빠진 항목이 섞여도 페이지 전체가 디코딩된다")
+    func missingDisplayStringsDoNotKillThePage() throws {
+        let list = "[\(json()),\(json(id: "n2", typeLabel: nil, targetName: nil))]"
 
-        #expect(notification.type == .memberJoined)
-        #expect(notification.payload == .room(name: "언젠가 가야지 방", roomID: "room-1", participantName: "지은"))
+        let dtos = try decodeList(list)
+
+        #expect(dtos.count == 2)
+        #expect(dtos[1].toDomain().title == "")
+        #expect(dtos[1].toDomain().targetName == "")
     }
 
-    @Test("본인 참가 알림에는 참가자 이름이 없다")
-    func mapsRoomJoinedWithoutParticipantName() {
-        let dto = makeDTO(type: "roomJoined", payload: makePayloadDTO(roomName: "주말 나들이", roomId: "room-2"))
+    // 서버는 소수점 이하 초를 붙여 보낸다. `Date(_:strategy: .iso8601)` 은 iOS 26 미만에서 그걸
+    // 거부해 전부 epoch 로 떨어뜨린다(APIDecoder 주석의 실측) — 기대값을 파서로 만들면 그 회귀를
+    // 못 잡으므로 여기서는 초 단위 숫자로 직접 적는다.
+    @Test("소수점 이하 초가 붙은 createdAt 이 정확히 파싱된다")
+    func parsesFractionalSecondTimestamps() throws {
+        let dto = try decode(json(createdAt: "2026-09-01T12:00:00.566Z"))
 
-        let notification = dto.toDomain()
-
-        #expect(notification.type == .roomJoined)
-        #expect(notification.payload == .room(name: "주말 나들이", roomID: "room-2", participantName: nil))
+        let expected = Date(timeIntervalSince1970: 1_788_264_000.566)
+        #expect(abs(dto.toDomain().createdAt.timeIntervalSince(expected)) < 0.001)
     }
 
-    @Test("알 수 없는 종류는 원문을 잃지 않는다")
-    func preservesRawStringForUnknownType() {
-        let dto = makeDTO(type: "한번도_본_적_없는_값")
+    @Test("소수점이 없는 createdAt 도 그대로 파싱된다")
+    func parsesPlainTimestamps() throws {
+        let dto = try decode(json(createdAt: "2026-09-01T12:00:00Z"))
 
-        let notification = dto.toDomain()
-
-        #expect(notification.type == .unknown(raw: "한번도_본_적_없는_값"))
-    }
-
-    @Test("알 수 없는 종류여도 나머지 필드는 그대로 옮겨진다")
-    func keepsOtherFieldsWhenTypeIsUnknown() {
-        let dto = makeDTO(id: "n42", type: "미확정타입", createdAt: "2026-08-21T09:00:00Z")
-
-        let notification = dto.toDomain()
-
-        #expect(notification.id == NotificationID("n42"))
-        #expect(notification.createdAt == parseISO8601("2026-08-21T09:00:00Z"))
-        #expect(notification.payload == .unresolved)
-    }
-
-    @Test("종류가 요구하는 값이 없으면 해석하지 못한 것으로 둔다")
-    func fallsBackToUnresolvedWhenRequiredFieldMissing() {
-        let dto = makeDTO(type: "duplicateSave", payload: nil)
-
-        let notification = dto.toDomain()
-
-        #expect(notification.payload == .unresolved)
-    }
-
-    @Test("payload 키가 통째로 없어도 디코딩은 성공한다")
-    func decodesWhenPayloadKeyIsAbsent() throws {
-        let json = #"{"id":"n1","type":"duplicateSave","createdAt":"2026-08-21T09:00:00Z"}"#
-        let dto = try JSONDecoder().decode(NotificationDTO.self, from: Data(json.utf8))
-
-        let notification = dto.toDomain()
-
-        #expect(notification.payload == .unresolved)
-    }
-
-    @Test("날짜를 못 읽으면 epoch 로 둔다")
-    func fallsBackToEpochWhenDateIsUnreadable() {
-        let dto = makeDTO(createdAt: "깨진값")
-
-        let notification = dto.toDomain()
-
-        #expect(notification.createdAt == Date(timeIntervalSince1970: 0))
-    }
-
-    @Test("서버가 보낸 읽음 시각은 도메인까지 올라오지 않는다")
-    func doesNotCarryReadAtIntoDomain() throws {
-        let json = #"{"id":"n1","type":"duplicateSave","readAt":"2026-08-21T10:00:00Z","createdAt":"2026-08-21T09:00:00Z"}"#
-        let dto = try JSONDecoder().decode(NotificationDTO.self, from: Data(json.utf8))
-
-        #expect(dto.readAt == "2026-08-21T10:00:00Z")
-        // AppNotification 에는 readAt 을 담는 자리가 없다 — 아래 매핑 결과가 컴파일되는 것 자체가 그 증거다.
-        let notification = dto.toDomain()
-        #expect(notification.id == NotificationID("n1"))
-    }
-
-    @Test("종류와 무관한 필드가 섞여 와도 종류가 요구하는 값만 읽는다")
-    func readsOnlyFieldsTheTypeRequiresWhenPayloadIsPolluted() {
-        let dto = makeDTO(
-            type: "memberJoined",
-            payload: makePayloadDTO(
-                placeName: "엉뚱하게 섞인 장소",
-                placeImageUrl: "https://cdn.mino.app/places/x.jpg",
-                roomName: "언젠가 가야지 방",
-                roomId: "room-1",
-                participantName: "지은"
-            )
-        )
-
-        let notification = dto.toDomain()
-
-        #expect(notification.payload == .room(name: "언젠가 가야지 방", roomID: "room-1", participantName: "지은"))
-    }
-
-    @Test("역방향으로 섞여 와도 마찬가지다")
-    func readsOnlyFieldsTheTypeRequiresInReverse() {
-        let dto = makeDTO(
-            type: "duplicateSave",
-            payload: makePayloadDTO(
-                placeName: "연남동 스탠딩 커피",
-                placeId: "place-1",
-                roomName: "엉뚱하게 섞인 방",
-                roomId: "room-x",
-                participantName: "엉뚱한 사람"
-            )
-        )
-
-        let notification = dto.toDomain()
-
-        #expect(notification.payload == .place(name: "연남동 스탠딩 커피", imageURL: nil, placeID: "place-1"))
-    }
-
-    @Test("타인 참가 알림에 참가자 이름이 없으면 해석하지 못한 것으로 둔다")
-    func requiresParticipantNameForMemberJoined() {
-        let dto = makeDTO(type: "memberJoined", payload: makePayloadDTO(roomName: "언젠가 가야지 방", roomId: "room-1"))
-
-        let notification = dto.toDomain()
-
-        #expect(notification.payload == .unresolved)
-    }
-
-    @Test("본인 참가 알림에 참가자 이름이 실려 와도 읽지 않는다")
-    func roomJoinedIgnoresParticipantNameEvenWhenPresent() {
-        // memberJoined ↔ roomJoined 교차 오염의 반대 방향. 이 픽스처가 없으면
-        // `participantName: dto?.participantName` 처럼 항상 읽는 구현도 통과해, 두 참가
-        // 유형이 payload 로는 구별되지 않게 된다.
-        let dto = makeDTO(
-            type: "roomJoined",
-            payload: makePayloadDTO(roomName: "주말 나들이", roomId: "room-2", participantName: "엉뚱하게 섞인 이름")
-        )
-
-        let notification = dto.toDomain()
-
-        #expect(notification.payload == .room(name: "주말 나들이", roomID: "room-2", participantName: nil))
-    }
-
-    @Test("공백뿐인 이름은 없는 것으로 둔다")
-    func blankNameFallsBackToUnresolved() {
-        let dto = makeDTO(type: "duplicateSave", payload: makePayloadDTO(placeName: "   "))
-
-        let notification = dto.toDomain()
-
-        #expect(notification.payload == .unresolved)
+        #expect(dto.toDomain().createdAt == Date(timeIntervalSince1970: 1_788_264_000))
     }
 }
