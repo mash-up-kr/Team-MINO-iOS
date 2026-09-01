@@ -23,6 +23,14 @@ public struct NotificationListState: Equatable {
     /// 자동 이어받기가 연속으로 헛돈 횟수 — 화면에 보탤 항목이 0개인 장을 몇 번 내리 받았는가.
     /// 사용자 조작 없이 요청이 반복되는 유일한 경로라 상한이 필요하다(`maxConsecutiveEmptyPages`).
     public var consecutiveEmptyPages: Int
+    /// 이동 대상을 조회 중인 알림 id. `nil` 이 아니면 **어떤 셀도 눌리지 않는다** — 조회가 끝나면
+    /// 탭이 바뀌므로, 그 사이에 다른 셀을 눌러 두 번째 목적지가 뒤따라 열리면 안 된다.
+    /// 저장 오류 셀도 함께 막는다: 알림 탭 스택에 화면이 쌓인 채 저장 탭으로 넘어가면, 나중에
+    /// 알림 탭으로 돌아왔을 때 목록이 아니라 그 화면이 떠 있다.
+    public var openingNotificationID: String?
+    /// 이동 대상 조회에 실패한 횟수 — 스낵바를 띄우는 트리거다(``HomeState/savedToastID`` 선례).
+    /// 같은 실패가 반복돼도 값이 달라져 스낵바가 다시 뜬다.
+    public var openFailureToken: Int
 
     public init(
         phase: Phase = .loading,
@@ -30,7 +38,9 @@ public struct NotificationListState: Equatable {
         nextRequest: PageRequest? = nil,
         isLoadingNext: Bool = false,
         loadNextFailed: Bool = false,
-        consecutiveEmptyPages: Int = 0
+        consecutiveEmptyPages: Int = 0,
+        openingNotificationID: String? = nil,
+        openFailureToken: Int = 0
     ) {
         self.phase = phase
         self.items = items
@@ -38,6 +48,8 @@ public struct NotificationListState: Equatable {
         self.isLoadingNext = isLoadingNext
         self.loadNextFailed = loadNextFailed
         self.consecutiveEmptyPages = consecutiveEmptyPages
+        self.openingNotificationID = openingNotificationID
+        self.openFailureToken = openFailureToken
     }
 }
 
@@ -51,11 +63,20 @@ public enum NotificationListAction: Equatable {
     case loadedNext(Page<AppNotification>)
     case loadNextFailed(DomainError)
     case tapNotification(NotificationListItem.ID)
+    /// 이동 대상 조회가 끝났다. **어느 알림의 응답인지 `id` 로 확인한다** — 늦게 온 응답이
+    /// 그 사이에 시작된 다른 이동을 덮어쓰지 않게.
+    case openResolved(id: String, destination: NotificationCrossTabDestination)
+    case openFailed(id: String)
+    case dismissOpenFailureToast(Int)
 }
 
 public enum NotificationListNav: Equatable, Sendable {
     /// 저장 오류 알림 카드를 탭했을 때(FR-010) — 어느 카드를 눌러도 같은 화면이라 연관값이 없다(EC-013).
     case pushSaveError
+    /// 알림 탭 밖(저장 탭)으로 나가는 이동. **완성된 객체를 싣는다** — 도착지 화면들이
+    /// `Pin`·`Room` 을 필수로 받아서, 조회를 여기서 끝내지 않으면 그 화면들이 "데이터 없는 상태" 를
+    /// 새로 표현해야 한다(`ArchiveCoordinator.open` 주석).
+    case openCrossTab(NotificationCrossTabDestination)
 }
 
 public typealias NotificationListStore = Store<NotificationListState, NotificationListAction, NotificationListNav>
@@ -64,6 +85,8 @@ public typealias NotificationListStore = Store<NotificationListState, Notificati
 /// [Convention] .claude/docs/mvi-coordinator-di.md §5 — reduce 는 UseCase 를 받는다.
 public func notificationListReducer(
     useCase: FetchNotificationsUseCase,
+    fetchPinDetail: FetchPinDetailUseCase,
+    fetchRoom: FetchRoomUseCase,
     now: @escaping () -> Date = Date.init
 ) -> (inout NotificationListState, NotificationListAction) -> Effect<NotificationListAction, NotificationListNav> {
     { state, action in
@@ -132,17 +155,65 @@ public func notificationListReducer(
             return .none
 
         case .tapNotification(let id):
+            // 조회 중에는 어떤 셀도 받지 않는다(`openingNotificationID` 주석).
+            guard state.openingNotificationID == nil else { return .none }
             guard let item = state.items.first(where: { $0.id == id }) else { return .none }
+
             switch item.destination {
             case .saveError:
                 return .navigate(.pushSaveError)
-            case .place, .room:
-                // 탭 밖 이동 배선은 다음 커밋 몫 — 조회를 끼워야 해서 여기서 끝나지 않는다.
-                return .none
+
             case .unresolved:
                 // 서버가 이동 대상을 주지 않았다. 셀은 그렸지만 갈 곳이 없다.
                 return .none
+
+            case .place(let pinID):
+                state.openingNotificationID = id
+                return .run { send in
+                    do {
+                        // 장소 상세는 시트의 한 단계이고 배경 지도가 방에 의존한다 — 핀이 속한
+                        // 방까지 세워야 빈 지도 위에 시트만 뜨지 않는다.
+                        let pin = try await fetchPinDetail.execute(pinID: pinID).pin
+                        let room = try await fetchRoom.execute(id: pin.roomID)
+                        send(.openResolved(id: id, destination: .place(pin: pin, room: room)))
+                    } catch is CancellationError {
+                        return   // 취소는 실패가 아니다(`.load` 주석 참조)
+                    } catch {
+                        send(.openFailed(id: id))
+                    }
+                }
+
+            case .room(let roomID):
+                state.openingNotificationID = id
+                return .run { send in
+                    do {
+                        send(.openResolved(id: id, destination: .room(try await fetchRoom.execute(id: roomID))))
+                    } catch is CancellationError {
+                        return
+                    } catch {
+                        send(.openFailed(id: id))
+                    }
+                }
             }
+
+        case .openResolved(let id, let destination):
+            guard state.openingNotificationID == id else { return .none }   // 늦게 온 응답
+            // 성공해도 잠금을 푼다. 안 풀면 크로스탭 배선이 빠졌을 때 목록이 아무 피드백도 없이
+            // 영구히 잠긴다 — 화면은 어차피 곧 사라지므로 푸는 쪽의 실패 모드가 훨씬 부드럽다.
+            state.openingNotificationID = nil
+            return .navigate(.openCrossTab(destination))
+
+        case .openFailed(let id):
+            guard state.openingNotificationID == id else { return .none }
+            state.openingNotificationID = nil
+            state.openFailureToken += 1
+            return .none
+
+        case .dismissOpenFailureToast(let token):
+            // 뒤이어 뜬 스낵바를 앞선 타이머가 지우지 않게 토큰이 그대로일 때만 내린다.
+            guard state.openFailureToken == token else { return .none }
+            state.openFailureToken = 0
+            return .none
         }
     }
 }

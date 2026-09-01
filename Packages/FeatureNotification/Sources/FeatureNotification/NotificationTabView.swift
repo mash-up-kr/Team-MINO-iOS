@@ -14,7 +14,16 @@ public struct NotificationTabView: View {
 
     public var body: some View {
         @Bindable var coordinator = coordinator
-        NavigationStack(path: $coordinator.path) {
+        return ZStack(alignment: .bottom) {
+            stack
+            openFailureToast
+        }
+        .animation(.easeInOut(duration: 0.2), value: store?.state.openFailureToken)
+    }
+
+    private var stack: some View {
+        @Bindable var coordinator = coordinator
+        return NavigationStack(path: $coordinator.path) {
             content
                 // 이 화면이 직접 헤더(NotificationListHeader)를 그린다 — 시스템 내비바를 숨긴다.
                 .toolbar(.hidden, for: .navigationBar)
@@ -29,6 +38,28 @@ public struct NotificationTabView: View {
                             .toolbar(.hidden, for: .navigationBar)
                             .enablesBackSwipe()
                     }
+                }
+        }
+    }
+
+    /// 이동 대상 조회에 실패했을 때. `NavigationStack` **바깥**에 둔다 — 안에 두면 탭바에 가린다
+    /// (``HomeTabView/savedToast`` 선례).
+    @ViewBuilder
+    private var openFailureToast: some View {
+        if let store, store.state.openFailureToken > 0 {
+            let token = store.state.openFailureToken
+            MHSnackbar(title: "화면을 열지 못했어요", icon: .circleExclamationFill)
+                .padding(.horizontal, 20)
+                // 011-2 스펙의 "스크린 하단에서 40" 을 탭바 위로 올린 값 — 알림 탭은 탭바가 살아 있다.
+                .padding(.bottom, 40)
+                .allowsHitTesting(false)
+                .transition(.opacity)
+                .accessibilityIdentifier("Notification.openFailureToast")
+                .task(id: token) {
+                    // 취소를 삼키면 안 된다. try? 로 받으면 새 스낵바가 이 task 를 취소했을 때
+                    // sleep 이 즉시 반환하고, 이어지는 dismiss 가 **방금 뜬 것**을 지운다.
+                    do { try await Task.sleep(for: .seconds(2)) } catch { return }
+                    store.send(.dismissOpenFailureToast(token))
                 }
         }
     }

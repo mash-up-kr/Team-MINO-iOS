@@ -122,6 +122,12 @@ private struct PreviewFetchNotifications: FetchNotificationsUseCase {
     func execute(next request: PageRequest) async throws -> Page<AppNotification> { page }
 }
 
+/// 프리뷰는 셀을 눌러 이동하지 않는다 — 도착지 조회는 항상 실패시켜 스낵바 경로만 살려 둔다.
+private struct PreviewFailingFetch: FetchPinDetailUseCase, FetchRoomUseCase {
+    func execute(pinID: PinID) async throws -> PinDetail { throw DomainError.pinsFetchFailed }
+    func execute(id: String) async throws -> Room { throw DomainError.roomsFetchFailed }
+}
+
 @MainActor
 private func previewStore(_ items: [AppNotification]) -> NotificationListStore {
     NotificationListStore(
@@ -129,7 +135,9 @@ private func previewStore(_ items: [AppNotification]) -> NotificationListStore {
         reduce: notificationListReducer(
             useCase: PreviewFetchNotifications(
                 page: Page(items: items, page: 0, pageSize: 20, hasNext: false)
-            )
+            ),
+            fetchPinDetail: PreviewFailingFetch(),
+            fetchRoom: PreviewFailingFetch()
         )
     )
 }
