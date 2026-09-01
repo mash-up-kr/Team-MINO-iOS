@@ -16,6 +16,8 @@ import Networking
 struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, LaunchDeps, OnboardingDeps, ProfileDeps {
     let fetchMember: FetchMemberUseCase
     let fetchRooms: FetchRoomsUseCase
+    /// 방 하나를 id 로 여는 경로(알림 → 방·장소 상세)가 쓴다. 목록 조회와 저장소를 공유한다.
+    let fetchRoom: FetchRoomUseCase
     let fetchHomeCards: FetchHomeCardsUseCase
     let fetchRoomPins: FetchRoomPinsUseCase
     let fetchNotifications: FetchNotificationsUseCase
@@ -78,6 +80,7 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
         let pins = PinRepositoryImpl(client: httpClient)
 
         self.fetchRooms = DefaultFetchRoomsUseCase(repository: rooms)
+        self.fetchRoom = DefaultFetchRoomUseCase(repository: rooms)
 
         self.fetchHomeCards = DefaultFetchHomeCardsUseCase(repository: pins)
         self.fetchRoomPins = DefaultFetchRoomPinsUseCase(repository: pins)

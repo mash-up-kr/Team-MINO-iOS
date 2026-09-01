@@ -18,6 +18,17 @@ enum RoomAPI {
         )
     }
 
+    /// 방 하나. 목록과 달리 **`users`·`thumbnailList` 를 주지 않고 `showUsers` 쿼리도 받지 않는다**
+    /// (스펙 확인). 멤버 얼굴이 필요하면 ``members(_:)`` 를 함께 부른다.
+    static func detail(_ roomId: String) -> Endpoint<RoomDTO> {
+        Endpoint(path: "\(base)/\(roomId)")
+    }
+
+    /// 방 멤버 목록. 단건 상세가 멤버를 빼고 주기 때문에 있는 경로다.
+    static func members(_ roomId: String) -> Endpoint<[RoomMemberDTO]> {
+        Endpoint(path: "\(base)/\(roomId)/members")
+    }
+
     static func create(_ body: SaveRoomRequestDTO) -> Endpoint<RoomDTO> {
         Endpoint(path: base, method: .post, body: .json(body))
     }
