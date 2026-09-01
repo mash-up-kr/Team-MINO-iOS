@@ -44,12 +44,42 @@ struct ProfileCoordinatorTests {
     }
 
     // NavigationStack 기본 동작 — pop 된 화면은 다시 push 될 때 빈 상태로 시작한다.
-    @Test("make*Store 재호출 시 매번 새 인스턴스를 만든다")
-    func makeStores_returnNewInstanceEachTime() {
+    @Test("makeProfileSetupStore 는 재호출마다 새 인스턴스를 만든다")
+    func makeSetupStore_returnsNewInstanceEachTime() {
         let coord = ProfileCoordinator(deps: StubProfileDeps())
 
-        #expect(coord.makeProfileMainStore() !== coord.makeProfileMainStore())
         #expect(coord.makeProfileSetupStore() !== coord.makeProfileSetupStore())
+    }
+
+    // 탭을 오가면 View 는 폐기되지만(MainTabView 는 선택된 탭만 그린다) Store 는 여기 남아야 한다 —
+    // 새로 만들면 재진입마다 빈 상태부터 다시 그려져 조회 왕복이 그대로 체감된다.
+    @Test("마이페이지 Store 는 한 번 만들고 재사용한다")
+    func profileMainStore_isCreatedOnce() {
+        let coord = ProfileCoordinator(deps: StubProfileDeps())
+
+        #expect(coord.profileMainStore() === coord.profileMainStore())
+    }
+
+    // 첫 프레임을 서버 응답 전에 채우는 값이다.
+    @Test("마이페이지 Store 는 마지막으로 알던 프로필로 시작한다")
+    func profileMainStore_seedsFromLastKnownProfile() {
+        var deps = StubProfileDeps()
+        deps.lastKnownProfile = StubLastKnownProfileUseCase(profile: .stub(nickname: "김유빈", avatarColor: .cyan))
+        let coord = ProfileCoordinator(deps: deps)
+
+        let store = coord.profileMainStore()
+
+        #expect(store.state.nickname == "김유빈")
+        #expect(store.state.avatarColor == .cyan)
+    }
+
+    // 이번 실행에서 아직 한 번도 못 읽었으면 빈 값으로 시작한다 — 없는 이름을 지어내지 않는다.
+    @Test("마지막으로 알던 프로필이 없으면 빈 상태로 시작한다")
+    func profileMainStore_startsEmptyWithoutLastKnownProfile() {
+        let coord = ProfileCoordinator(deps: StubProfileDeps())
+
+        #expect(coord.profileMainStore().state.nickname.isEmpty)
+        #expect(coord.profileMainStore().state.avatarColor == nil)
     }
 
     // handle 직접 호출 테스트는 이 배선이 끊겨도 통과하므로 별도로 둔다(OnboardingCoordinatorTests 선례).
@@ -57,7 +87,7 @@ struct ProfileCoordinatorTests {
     func profileMainStore_isWiredToPath() async {
         let coord = ProfileCoordinator(deps: StubProfileDeps())
 
-        let store = coord.makeProfileMainStore()
+        let store = coord.profileMainStore()
         store.send(.profileLoaded(.stub()))
         store.send(.tapEditProfile)
 

@@ -37,9 +37,16 @@ public struct ProfileMainState: Equatable {
     public var isLocationBusy: Bool
     public var dialog: ProfileMainDialog?
 
-    public init() {
-        self.nickname = ""
-        self.avatarColor = nil
+    /// 마지막으로 알던 프로필로 첫 화면을 채운다 — 없으면(이번 실행의 첫 조회 전) 빈 값이다.
+    ///
+    /// 서버 응답을 기다렸다가 그리면 그 기다림이 **매 진입마다** "빈 화면 → 값" 바꿔치기로 보인다.
+    /// 먼저 아는 값을 그리고 ``ProfileMainAction/loadProfile`` 의 결과로 조용히 갈아 끼운다.
+    ///
+    /// > 스위치(``isNotificationOn``·``isLocationOn``)는 여기서 채우지 않는다 — 스펙이 "로컬 캐시가
+    /// > 아니라 진입·복귀마다 재조회" 를 명시한다(FR-009). 프로필에는 그런 요구가 없다.
+    public init(profile: Profile? = nil) {
+        self.nickname = profile?.nickname ?? ""
+        self.avatarColor = profile?.avatarColor
         self.isNotificationOn = false
         self.isLocationOn = false
         self.isNotificationBusy = false
@@ -49,8 +56,11 @@ public struct ProfileMainState: Equatable {
 }
 
 public enum ProfileMainAction: Equatable {
-    /// 진입·복귀 시 프로필 재조회(FR-009). 스위치 동기화와 **나눠 둔다** — 묶으면 즉시 읽히는
-    /// 권한 상태가 네트워크 왕복을 기다리게 된다.
+    /// 진입·복귀 시 프로필 재조회. 스펙 요구가 아니라 구현 선택이다 — 스펙이 프로필에 요구하는 건
+    /// FR-003(저장 완료 시 즉시 반영)뿐이고, 진입마다 다시 읽는 건 다른 기기·다른 경로에서 바뀐 값을
+    /// 따라잡기 위해서다. (스위치의 FR-009 와 근거가 다르다)
+    ///
+    /// 스위치 동기화와 **나눠 둔다** — 묶으면 즉시 읽히는 권한 상태가 네트워크 왕복을 기다리게 된다.
     case loadProfile
     case profileLoaded(Profile)          // Response Action (성공)
     case profileLoadFailed(DomainError)  // Response Action (실패)
@@ -111,7 +121,7 @@ public func profileMainReducer(
             state.avatarColor = profile.avatarColor
             return .none
 
-        // **마지막으로 읽은 값을 지우지 않는다.** 재조회는 복귀할 때마다 일어나므로(FR-009) 이 경로는
+        // **마지막으로 읽은 값을 지우지 않는다.** 재조회는 복귀할 때마다 일어나므로 이 경로는
         // 최초 진입뿐 아니라 "이미 잘 보여주던 화면" 에서도 밟힌다. 지워 버리면 저장하고 돌아온 직후
         // 잠깐 끊긴 것만으로 방금 저장한 프로필이 사라져 보이고, 그 상태로 연필을 누르면 편집 화면이
         // 빈 채로 열려 FR-002(기존 값이 채워진 채)까지 깨진다.

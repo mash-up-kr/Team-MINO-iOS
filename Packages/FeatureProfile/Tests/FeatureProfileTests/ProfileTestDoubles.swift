@@ -54,9 +54,17 @@ struct StubLocationSettingUseCase: LocationSettingUseCase {
     func turnOn() async -> PermissionActivation { activation }
 }
 
+/// 이번 실행에서 마지막으로 읽은 프로필을 정해 주는 스텁. 기본은 "아직 한 번도 못 읽음"(nil).
+struct StubLastKnownProfileUseCase: LastKnownProfileUseCase {
+    var profile: Profile?
+
+    func execute() -> Profile? { profile }
+}
+
 /// 테스트가 쓰는 최소 deps 묶음. Coordinator 배선 테스트에서 쓴다.
 struct StubProfileDeps: ProfileDeps {
     var fetchProfile: FetchProfileUseCase = StubFetchProfileUseCase()
+    var lastKnownProfile: LastKnownProfileUseCase = StubLastKnownProfileUseCase()
     var updateProfile: UpdateProfileUseCase = StubUpdateProfileUseCase()
     var notificationSetting: NotificationSettingUseCase = StubNotificationSettingUseCase()
     var locationSetting: LocationSettingUseCase = StubLocationSettingUseCase()
