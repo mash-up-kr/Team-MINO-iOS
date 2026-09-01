@@ -1,6 +1,6 @@
 import CoreGraphics
 import Testing
-@testable import FeatureArchive
+import RoomShareUI
 
 /// 시안 수치는 리뷰에서 눈으로 셀 수 없다 — 값이 바뀌면 여기서 걸린다.
 struct RoomShareSheetMetricsTests {

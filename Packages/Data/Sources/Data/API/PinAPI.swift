@@ -32,6 +32,14 @@ enum PinAPI {
         Endpoint(path: "\(base)/\(pinID)")
     }
 
+    /// 장소를 **열어 봤다**고 기록한다 (`POST /api/v1/pins/{pinId}/accesses`).
+    ///
+    /// append-only 로그라 같은 장소를 여러 번 보내도 된다. 서버는 이 기록을 홈 카드 덱의
+    /// 묵힘 계산(꾹 Pick 경과일 초기화)과 클릭수 집계(`친구들이 많이 본 곳` 라벨)에 쓴다.
+    static func recordAccess(pinID: String) -> Endpoint<OkResponse> {
+        Endpoint(path: "\(base)/\(pinID)/accesses", method: .post)
+    }
+
     /// 인스타그램 링크에서 장소를 추출해 **여러 방에** 핀을 추가한다.
     ///
     /// **202 Accepted 에 본문이 없다** — 서버가 추출을 비동기로 하므로 돌려줄 핀이 아직 없다.
@@ -42,6 +50,20 @@ enum PinAPI {
             path: "api/v1/rooms/pins",
             method: .post,
             body: .json(CreatePinRequestDTO(url: url, roomIds: Array(roomIDs)))
+        )
+    }
+
+    /// 이 장소를 **다른 방에도 담는다** (`POST /api/v1/pins/{pinId}/duplicate`, 기획 011-1).
+    ///
+    /// 서버가 원본 방·대상 방 멤버십을 모두 검증하고, **대상 방 중 하나라도 같은 장소가 있으면
+    /// 409(`DUPLICATE_PIN_IN_ROOM`)로 전체를 거절한다** — 부분 성공이 없다. 화면이 이미 담긴
+    /// 방을 체크·비활성으로 빼 두므로(011-1 ④) 정상 경로에서는 나지 않지만, 그 목록이 낡았으면
+    /// (다른 기기가 먼저 담음) 통째로 실패한다.
+    static func duplicate(pinID: String, roomIDs: Set<String>) -> Endpoint<OkResponse> {
+        Endpoint(
+            path: "\(base)/\(pinID)/duplicate",
+            method: .post,
+            body: .json(DuplicatePinRequestDTO(roomIds: Array(roomIDs)))
         )
     }
 

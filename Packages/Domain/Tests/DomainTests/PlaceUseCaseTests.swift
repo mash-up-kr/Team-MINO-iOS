@@ -13,7 +13,7 @@ private final class StubCurrentMemberRepository: CurrentMemberRepository {
     func currentMember() async throws -> MemberProfile { try result.get() }
 }
 
-private actor StubSavePinRepository: SavePinRepository {
+private actor StubSavePinRepository: SavePinRepository, ShareTargetRepository {
     let targets: [ShareTarget]
     private(set) var savedPinID: PinID?
     private(set) var savedRoomIDs: Set<String>?
@@ -25,7 +25,7 @@ private actor StubSavePinRepository: SavePinRepository {
         savedRoomIDs = roomIDs
     }
 
-    func shareTargets(pinID: PinID) async throws -> [ShareTarget] { targets }
+    func shareTargets(placeID: PlaceID) async throws -> [ShareTarget] { targets }
 }
 
 final class PlaceUseCaseTests: XCTestCase {
@@ -67,7 +67,8 @@ final class PlaceUseCaseTests: XCTestCase {
         ]
         let sut = DefaultFetchShareTargetsUseCase(repository: StubSavePinRepository(targets: targets))
 
-        let result = try await sut.execute(pinID: PinID("pin-1"))
+        // 조회는 **장소** id 로 나간다 — 같은 장소도 방마다 핀 id 가 다르다(place-api.md §3).
+        let result = try await sut.execute(placeID: PlaceID("place-1"))
 
         XCTAssertEqual(result, targets)
     }

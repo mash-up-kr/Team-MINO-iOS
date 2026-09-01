@@ -38,6 +38,7 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
     /// 앱 진입 분기(`LaunchDeps`)가 등록 여부를 묻는 데 쓴다 — 프로필이 있으면 온보딩을 마친 것이다.
     /// 마이페이지 프로필 설정(`.edit`)도 진입하면서 이걸로 현재 값을 채운다.
     let fetchProfile: FetchProfileUseCase
+    let recordPinAccess: RecordPinAccessUseCase
     let updateProfile: UpdateProfileUseCase
     let notificationSetting: NotificationSettingUseCase
     let locationSetting: LocationSettingUseCase
@@ -82,6 +83,8 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
         self.fetchHomeCards = DefaultFetchHomeCardsUseCase(repository: pins)
         self.fetchRoomPins = DefaultFetchRoomPinsUseCase(repository: pins)
         self.fetchPinDetail = DefaultFetchPinDetailUseCase(repository: pins)
+        // 「경과일 초기화 확인」(홈 spec FR-007) — 상세를 연 사실을 서버에 남긴다.
+        self.recordPinAccess = DefaultRecordPinAccessUseCase(repository: pins)
         // 삭제만 스텁이다 — 서버에 삭제 엔드포인트가 없다(`StubPinDeletionRepository` 주석).
         self.deletePin = DefaultDeletePinUseCase(repository: StubPinDeletionRepository())
 
@@ -96,14 +99,15 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
         // 홈 사용 가이드 1회 표기 플래그도 같은 이유로 UserDefaults.
         self.homeGuide = DefaultHomeGuideUseCase(repository: UserDefaultsHomeGuideRepository())
 
-        // 다른 방 저장: 저장 API 미연결 → Mock Repository 사용. 어느 방에 담았는지를 메모리에
-        // 들고 있어야 "이미 저장된 방" 표시가 목업에서도 산다. 추후 SavePinRepositoryImpl 로 교체.
-        let savePinRepository = MockSavePinRepository(rooms: rooms, pins: pins)
-        self.savePin = DefaultSavePinToRoomsUseCase(repository: savePinRepository)
-        self.fetchShareTargets = DefaultFetchShareTargetsUseCase(repository: savePinRepository)
-        // 저장된 방(014)도 같은 저장소를 봐야 한다 — 다른 인스턴스로 만들면 방금 공유한 방이
-        // 목록에 없다.
-        self.fetchSavedRooms = DefaultFetchSavedRoomsUseCase(repository: savePinRepository)
+        // 「다른 방에 공유」(011-1) — 저장과 조회가 서로 다른 엔드포인트다(place-api.md §3·§4).
+        // 저장은 핀 id 로 `POST /pins/{pinId}/duplicate`, 후보 조회는 **장소 id** 로
+        // `GET /rooms?showHasPlaceId=` 다. 같은 장소도 방마다 핀 id 가 달라 조회는 장소 기준이다.
+        let shareTargets = ShareTargetRepositoryImpl(client: httpClient)
+        self.savePin = DefaultSavePinToRoomsUseCase(repository: SavePinRepositoryImpl(client: httpClient))
+        self.fetchShareTargets = DefaultFetchShareTargetsUseCase(repository: shareTargets)
+        // 저장된 방(014)도 같은 조회를 쓴다 — "방 목록 + 그 방에 이 장소가 있는지" 가 이미 한
+        // 응답으로 오므로 저장된 방만 따로 물을 API 가 필요 없다.
+        self.fetchSavedRooms = DefaultFetchSavedRoomsUseCase(repository: shareTargets)
 
         // 지금 앱을 쓰는 사람: 프로필 API 미연결 → Mock. MockRoomRepository 의 user-0001 과 같은 사람이다.
         let currentMemberRepository = MockCurrentMemberRepository()

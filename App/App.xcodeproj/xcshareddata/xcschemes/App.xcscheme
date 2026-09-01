@@ -92,6 +92,26 @@
             skipped = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
+               BlueprintIdentifier = "PlaceMapUITests"
+               BuildableName = "PlaceMapUITests"
+               BlueprintName = "PlaceMapUITests"
+               ReferencedContainer = "container:../Packages/PlaceMapUI">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "RoomShareUITests"
+               BuildableName = "RoomShareUITests"
+               BlueprintName = "RoomShareUITests"
+               ReferencedContainer = "container:../Packages/RoomShareUI">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
                BlueprintIdentifier = "PlaceDetailUITests"
                BuildableName = "PlaceDetailUITests"
                BlueprintName = "PlaceDetailUITests"

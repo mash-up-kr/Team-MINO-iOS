@@ -25,6 +25,31 @@ enum CardDeckLayout {
     /// 좌드래그 복귀 진행도가 이 값을 넘으면 이전 카드로 확정한다.
     static let backwardProgressThreshold: CGFloat = 0.3
 
+    /// 스와이프를 인식하지 않는 **좌측 가장자리** 폭(pt).
+    ///
+    /// 정책(카드덱 FR-003): 화면 좌측 영역에서 시작한 드래그는 카드 전환·복구에 반영하지 않는다.
+    /// 그 "영역" 의 경계를 시안·PRD 가 pt 로 못 박지 않아 처음에는 화면을 반으로 갈랐는데
+    /// (spec research.md R-005 가 "가정 — 디자이너 확인 항목" 으로 남겨 둔 값), 카드가 컨테이너
+    /// 가운데 정렬이라 그 경계가 **카드의 수평 중심**과 겹쳤다. 그래서 카드 왼쪽 절반이 통째로
+    /// 사각지대가 됐다 — 사진 타일 2개가 중심을 기준으로 갈라져 있어 왼쪽 타일은 전부 죽고
+    /// 오른쪽 타일만 살았다. 같은 자리에서 탭(상세 열기)은 되는데 스와이프만 안 되니
+    /// 사용자에겐 규칙이 아니라 고장으로 읽힌다.
+    ///
+    /// 그래서 제외 범위를 **화면 가장자리**로만 좁힌다. 시스템 엣지 제스처가 차지하는 폭(iOS 약 20pt)에
+    /// 여유를 둔 값이다. 덱 컨테이너가 화면 폭 전체라(좌우 패딩 없음) 이 값이 곧 화면 왼쪽 끝에서의
+    /// 거리다. 디자이너가 경계를 확정하면 여기만 고친다.
+    static let swipeAreaLeadingInset: CGFloat = 24
+
+    /// 이 드래그를 카드 전환·복구에 반영할지. 판정 기준은 **손가락이 닿은 지점**(startLocation)이라,
+    /// 우측에서 시작해 좌측까지 끌고 가는 되돌리기 드래그는 끝까지 인식된다.
+    ///
+    /// `containerWidth` 는 폭을 아직 못 잰 첫 레이아웃 패스를 걸러내는 데만 쓴다 — 그때는 좌표계도
+    /// 확정 전이라 startX 를 믿을 수 없다.
+    static func recognizesSwipe(startX: CGFloat, containerWidth: CGFloat) -> Bool {
+        guard containerWidth > 0 else { return false }
+        return startX >= swipeAreaLeadingInset
+    }
+
     /// 드래그가 끝났을 때(onEnded) 덱이 취할 동작.
     enum SwipeOutcome: Equatable {
         case forward    // 다음 카드로 넘김
@@ -32,10 +57,10 @@ enum CardDeckLayout {
         case snapBack   // 제자리(넘길 카드 없거나 약하게 밀었을 때)
     }
 
-    /// 좌드래그(뒤로)를 받을지. 덱 안이면 이전 카드로, 첫 카드여도 돌아갈 이전 덱이 있으면 그쪽으로 간다 —
-    /// 첫 카드에서 무조건 막으면 "이전 기준의 마지막 카드로 복귀"가 제스처 단계에서 잘려 도달할 수 없다.
-    static func allowsBackwardDrag(currentIndex: Int, canReturnToPreviousDeck: Bool) -> Bool {
-        currentIndex > 0 || canReturnToPreviousDeck
+    /// 좌드래그(뒤로)를 받을지. 되돌리기는 **현재 덱 안에서 1단계**뿐이라 첫 카드에서는 받지 않는다
+    /// (EC-001·EC-003 — 덱이 바뀌면 되돌리기 이력이 초기화된다).
+    static func allowsBackwardDrag(currentIndex: Int) -> Bool {
+        currentIndex > 0
     }
 
     /// onEnded 분기의 순수 결정. 애니메이션 실행은 뷰가, "무엇을 할지"는 여기가 정한다.

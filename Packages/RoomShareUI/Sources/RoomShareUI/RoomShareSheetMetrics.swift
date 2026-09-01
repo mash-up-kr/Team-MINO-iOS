@@ -24,18 +24,18 @@ import CoreGraphics
 /// 홈 인디케이터 34 를 자기 하단 여백으로 삼는데, 여기서는 `MHActionArea(safeArea: false)` 88 아래로
 /// 시스템이 34 를 따로 깔아 20 이 더 먹히기 때문이다. ``SavePostSheetMetrics`` 도 같은 20 을 안고 간다.
 /// 헤더 158 = 그래버 30 + 장소 60 + 새 방 56 + 구분선 12, 액션 88 = 상하 패딩 20×2 + 버튼 48(`.large`).
-enum RoomShareSheetMetrics {
+public enum RoomShareSheetMetrics {
     /// 시안 기기의 하단 safe-area(홈 인디케이터).
-    static let designSafeAreaBottom: CGFloat = 34
+    public static let designSafeAreaBottom: CGFloat = 34
 
     /// 진입 단계 — 방 개수와 무관하게 고정이다.
-    static let peekDetentHeight: CGFloat = 500 - designSafeAreaBottom
+    public static let peekDetentHeight: CGFloat = 500 - designSafeAreaBottom
 
     /// 펼친 단계. 5개부터 한 칸 커져 5번째 카드가 걸쳐 보인다.
     ///
     /// 4개 **미만**은 시안에 값이 없어 "4개" 와 같이 둔다 — 남는 자리는 목록 아래 여백이 가져간다.
     /// (디자인 확인 대상. 값이 정해지면 여기 한 줄만 갈아끼운다)
-    static func fullDetentHeight(roomCount: Int) -> CGFloat {
+    public static func fullDetentHeight(roomCount: Int) -> CGFloat {
         let design: CGFloat = roomCount >= 5 ? 708 : 676
         return design - designSafeAreaBottom
     }

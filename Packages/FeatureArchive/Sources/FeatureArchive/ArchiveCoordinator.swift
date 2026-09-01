@@ -4,6 +4,7 @@ import FlowCoordination
 import MVI
 import PlaceDetailUI
 import RoomCreationUI
+import RoomShareUI
 import SwiftUI
 
 /// 저장 탭 flow 의 하위 화면. (카드 탭 등 나머지 전환은 아직 없다)
@@ -38,7 +39,7 @@ public final class ArchiveCoordinator: Coordinator {
 
     public private(set) var selectedPin: Pin?
 
-    /// 지도가 핀 맞춤(``ArchiveMap/camera(for:focusing:)``) 대신 비출 자리. 현위치 버튼이 세운다.
+    /// 지도가 핀 맞춤(``PlaceMap/camera(for:focusing:)``) 대신 비출 자리. 현위치 버튼이 세운다.
     ///
     /// 보고 있는 방이 바뀌면 비운다(``showRoom(_:)``) — 새 방의 핀에 다시 맞춰야 하기 때문이다.
     /// 장소 상세를 닫는 것만으로는 비우지 않는다: 사용자가 옮겨 둔 지도를 시트를 닫았다고
@@ -140,7 +141,7 @@ public final class ArchiveCoordinator: Coordinator {
     ///   핀 id 라 그대로 ``PinID`` 로 되돌린다.
     func makeRoomShareStore(location: RoomDetailLocation) -> RoomShareStore {
         Store(
-            RoomShareState(pinID: PinID(location.id)),
+            RoomShareState(pinID: PinID(location.id), placeID: PlaceID(location.placeID)),
             reduce: roomShareReducer(fetchTargets: deps.fetchShareTargets, savePin: deps.savePin),
             handle: { [weak self] in self?.handle($0) }
         )

@@ -1,4 +1,5 @@
 import DesignSystem
+import RoomShareUI
 import SwiftUI
 
 /// 이 장소가 중복 저장된 방 목록 바텀시트. Figma `014 저장된 방`(`4170:126144`).

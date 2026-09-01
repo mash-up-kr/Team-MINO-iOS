@@ -1,5 +1,5 @@
 import Testing
-@testable import FeatureArchive
+import RoomShareUI
 
 /// 공유 시트의 방 선택 규칙. View 밖 순수 타입이라 결정적으로 검증한다.
 struct RoomShareSelectionTests {
