@@ -9,8 +9,7 @@ import Foundation
 /// 디자인·에셋·서버가 한 어휘를 쓰게 하려는 것이다.
 ///
 /// > 방 색(`RoomColor`)과 케이스가 같지만 타입을 나눠 둔다. 서버가 두 계약을 따로 정의하고
-/// > 있어(방은 `maxLength 7`, 아바타는 `20`) 한쪽이 늘어도 다른 쪽이 따라가지 않으며,
-/// > 아바타에는 "안 고름"(`gray`)이 없다 — 무선택도 첫 캐릭터로 저장한다.
+/// > 있어(방은 `maxLength 7`, 아바타는 `20`) 한쪽이 늘어도 다른 쪽이 따라가지 않는다.
 public enum AvatarColor: String, Equatable, Sendable, CaseIterable {
     case red
     case redOrange = "red_orange"
@@ -24,4 +23,7 @@ public enum AvatarColor: String, Equatable, Sendable, CaseIterable {
     case brown
     case lightBlue = "light_blue"
     case violet
+    /// 아직 아바타를 고르지 않음. 그리드에 칸이 없고 소품 없는 기본 그림으로 그려진다
+    /// (`ProfileSetupUI.AvatarPalette`). `RoomColor.gray` 와 같은 자리다.
+    case gray
 }

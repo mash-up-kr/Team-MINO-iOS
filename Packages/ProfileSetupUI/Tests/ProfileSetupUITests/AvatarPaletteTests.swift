@@ -11,21 +11,22 @@ struct AvatarPaletteTests {
     func rawValuesMatchServerContract() {
         #expect(Set(AvatarColor.allCases.map(\.rawValue)) == [
             "red", "red_orange", "orange", "green", "purple", "lime",
-            "cyan", "pink", "blue", "brown", "light_blue", "violet",
+            "cyan", "pink", "blue", "brown", "light_blue", "violet", "gray",
         ])
     }
 
-    // 아바타에는 "안 고름" 이 없다 — 무선택도 첫 캐릭터로 저장하므로 gray 를 쓰지 않는다.
-    @Test("gray 는 아바타 색이 아니다")
-    func grayIsNotAnAvatarColor() {
-        #expect(AvatarColor(rawValue: "gray") == nil)
+    // gray 는 "안 고름" 을 표현하는 값이라 그리드에 칸이 없다 — 방 색(RoomColor.gray)과 같은 자리다.
+    @Test("gray 는 그리드에 칸이 없다")
+    func grayHasNoGridSlot() {
+        #expect(AvatarPalette.index(of: .gray) == nil)
+        #expect(!AvatarPalette.entries.map(\.color).contains(.gray))
     }
 
-    @Test("캐릭터 12종과 색 12종이 하나씩 짝지어진다")
+    @Test("캐릭터 12종과 gray 를 뺀 색 12종이 하나씩 짝지어진다")
     func entriesArePairedOneToOne() {
         #expect(AvatarPalette.entries.count == 12)
         #expect(Set(AvatarPalette.entries.map(\.character)).count == 12)
-        #expect(Set(AvatarPalette.entries.map(\.color)) == Set(AvatarColor.allCases))
+        #expect(Set(AvatarPalette.entries.map(\.color)) == Set(AvatarColor.allCases).subtracting([.gray]))
     }
 
     // 그리드 순서가 곧 저장되는 색이다. 재정렬하면 기존 프로필이 다른 캐릭터가 된다.
@@ -68,21 +69,20 @@ struct AvatarPaletteTests {
     }
 
     // 얼굴(character)과 달리 마스코트는 시안이 "안 고름" 그림을 따로 준다.
-    @Test("아바타 색이 없으면 소품 없는 기본 마스코트다")
+    @Test("아바타 색이 없거나 gray 면 소품 없는 기본 마스코트다")
     func absentColorFallsBackToPlain() {
         #expect(AvatarPalette.homeMascot(of: nil) == .plain)
-        #expect(AvatarPalette.character(of: nil) == .character01)   // 얼굴 쪽 폴백은 그대로
+        #expect(AvatarPalette.homeMascot(of: .gray) == .plain)
+        // 이전 세대 아트(MHCharacter)에는 "안 고름" 그림이 없어 1번으로 떨어진다.
+        #expect(AvatarPalette.character(of: nil) == .character01)
+        #expect(AvatarPalette.character(of: .gray) == .character01)
     }
 
-    // 아바타 슬롯이 쓰는 그림은 새 아트(`character/Avatar Profile`)다.
-    @Test("색으로 고른 아바타 프로필은 그리드 표와 같다")
-    func profileMatchesTable() {
-        for entry in AvatarPalette.entries {
-            #expect(AvatarPalette.profile(of: entry.color) == entry.profile)
-        }
-    }
+    // MARK: - 아바타 프로필 아트
+    //
+    // 아바타 슬롯과 프로필 선택 그리드가 함께 쓰는 새 아트(`character/Avatar Profile`)다.
 
-    @Test("12색이 서로 다른 아바타 프로필로 짝지어진다")
+    @Test("12색이 서로 다른 아바타 프로필로 짝지어진다 — 기본(plain)은 색이 아니다")
     func profilesAreDistinct() {
         let profiles = Set(AvatarPalette.entries.map(\.profile))
         #expect(profiles.count == AvatarPalette.entries.count)
@@ -90,10 +90,31 @@ struct AvatarPaletteTests {
         #expect(profiles.union([.plain]) == Set(MHAvatarProfile.allCases))
     }
 
-    // 마스코트와 같은 처리다. 남의 계정을 빨간 캐릭터로 그리면 그 사람이 빨강을 고른 것처럼 보인다.
-    @Test("아바타 색이 없으면 소품 없는 검은 프로필이다")
-    func absentColorFallsBackToPlainProfile() {
+    @Test("색으로 고른 아바타 프로필은 그리드 표와 같다")
+    func profileMatchesTable() {
+        for entry in AvatarPalette.entries {
+            #expect(AvatarPalette.profile(of: entry.color) == entry.profile)
+        }
+    }
+
+    // 그리드는 색이 아니라 자리(인덱스)로 고른다 — 색 경로와 별개로 고정한다.
+    @Test("그리드 자리마다 정해진 아바타 프로필이 나온다")
+    func profileMatchesTableByIndex() {
+        for (index, entry) in AvatarPalette.entries.enumerated() {
+            #expect(AvatarPalette.profile(at: index) == entry.profile)
+        }
+        #expect(AvatarPalette.profiles == AvatarPalette.entries.map(\.profile))
+    }
+
+    // 마스코트와 같은 근거 — 시안(010-1)이 무선택 자리에 "안 고름" 그림을 따로 준다.
+    // 남의 계정을 빨간 캐릭터로 그리면 그 사람이 빨강을 고른 것처럼 보인다.
+    @Test("무선택·gray·범위 밖은 소품 없는 검은 프로필이다")
+    func absentSelectionFallsBackToPlainProfile() {
         #expect(AvatarPalette.profile(of: nil) == .plain)
+        #expect(AvatarPalette.profile(of: .gray) == .plain)
+        #expect(AvatarPalette.profile(at: nil) == .plain)
+        #expect(AvatarPalette.profile(at: -1) == .plain)
+        #expect(AvatarPalette.profile(at: 99) == .plain)
     }
 
     @Test("한 줄에 늘어놓는 얼굴은 displayLimit 개까지")
