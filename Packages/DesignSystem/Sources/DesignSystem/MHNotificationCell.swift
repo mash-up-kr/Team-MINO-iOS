@@ -9,11 +9,12 @@ public enum MHNotificationThumbnail {
     /// 저장 오류 알림 전용 — 회색 원 안 느낌표. 서버가 주는 사진이 아니라 **유형이 정하는 도상**이라
     /// `.place` 와 갈라 둔다(시안 `006-1-1` 두 번째 셀, `Thumbnail` 컴포넌트의 이미지 fill).
     case saveError
-    /// 사진이 없는 경우(공동방 참가 등) 기본 아이콘.
+    /// 사진이 없거나 못 받아온 경우의 자리표시.
     ///
-    /// > 방 알림은 원래 방 썸네일(사진 콜라주 또는 색상 커버)을 그려야 하는데, 알림 응답이 사진
-    /// > URL 한 장만 줘서 아직 표현할 수 없다. 서버가 방 썸네일을 어떤 모양으로 줄지 정해지면
-    /// > `MHRoomThumbnailKind` 를 받는 케이스로 대체한다.
+    /// > **시안에 근거가 없다.** `006-1-1` 의 6칸은 전부 썸네일이 있어(장소 사진 3 · 느낌표 1 ·
+    /// > 방 사진 2) "사진 없는 셀" 자체가 그려져 있지 않다. 서버가 `thumbnailUrl` 을 `null` 로
+    /// > 줄 때 무엇을 그릴지는 **아직 정해지지 않았다**(방 색상 커버가 후보).
+    /// > 정해지기 전까지 이 자리표시가 그 자리를 대신한다.
     case icon
 }
 
@@ -119,6 +120,7 @@ public struct MHNotificationCell: View {
                 .fill(.mhFillNormal)
                 .frame(width: Self.thumbnailSize, height: Self.thumbnailSize)
                 .overlay {
+                    // TODO: 도상 미확정 — 시안에 대응하는 셀이 없어 임시로 고른 것이다.
                     MHIcon.image.image
                         .resizable()
                         .scaledToFit()
