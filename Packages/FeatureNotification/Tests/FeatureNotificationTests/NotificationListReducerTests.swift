@@ -6,7 +6,7 @@ import MVITestSupport
 
 // [Convention] plan/background/retained/handoff-mvi-reduce-test.md 「이번 PR4 에서 실제로 쓰게 될 시나리오」
 
-private let fixtureNow = Date(timeIntervalSince1970: 1_700_000_000)
+private let fixtureNow = NotificationFixture.now
 
 /// 프로덕션의 `maxConsecutiveEmptyPages` 는 private 이라 여기서 값을 다시 적는다.
 /// 어긋나면 상한 테스트가 실패하므로, 값을 바꿀 때 이 줄도 함께 고치라는 신호가 된다.

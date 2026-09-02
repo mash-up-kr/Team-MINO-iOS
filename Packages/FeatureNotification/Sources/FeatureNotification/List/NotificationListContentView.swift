@@ -41,25 +41,17 @@ struct NotificationListContentView: View {
         ScrollView {
             LazyVStack(spacing: 0) {
                 ForEach(notifications) { item in
-                    NotificationCellRow(
-                        title: item.title,
-                        subtitle: item.subtitle,
-                        time: item.time,
-                        imageURL: item.imageURL,
-                        // 저장 오류는 이 목적지로만 온다(`NotificationDTO.mapDestination`) —
-                        // 표시 모델에 유형을 따로 들지 않아도 여기서 가려진다.
-                        isSaveError: item.destination == .saveError
-                    )
-                    .contentShape(Rectangle())
-                    .onTapGesture { onSelectNotification?(item.id) }
-                    // 갈 곳이 없는 셀은 버튼이 아니다 — 트레잇을 붙이면 VoiceOver 가 "버튼" 이라
-                    // 읽어 주고 아무 일도 안 일어난다.
-                    .accessibilityAddTraits(item.destination == .unresolved ? [] : .isButton)
-                    .accessibilityIdentifier("Notification.cell.\(item.id)")
-                    .onAppear {
-                        guard item.id == notifications.last?.id else { return }
-                        onScrollToEnd?()
-                    }
+                    NotificationCellRow(item: item)
+                        .contentShape(Rectangle())
+                        .onTapGesture { onSelectNotification?(item.id) }
+                        // 갈 곳이 없는 셀은 버튼이 아니다 — 트레잇을 붙이면 VoiceOver 가 "버튼"
+                        // 이라 읽어 주고 아무 일도 안 일어난다.
+                        .accessibilityAddTraits(item.destination == .unresolved ? [] : .isButton)
+                        .accessibilityIdentifier("Notification.cell.\(item.id)")
+                        .onAppear {
+                            guard item.id == notifications.last?.id else { return }
+                            onScrollToEnd?()
+                        }
                 }
             }
         }
