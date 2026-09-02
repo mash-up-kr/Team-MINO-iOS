@@ -20,9 +20,15 @@ import SwiftUI
 /// > 메뉴가 열린 모습은 ``MHMenu`` 와 동일하게 `ImageRenderer` 로는 렌더되지 않아 **시뮬레이터로만
 /// > 육안 확인**된다.
 ///
+/// > **`dateText`**: 코멘트 작성 시각 표기(예: "3일 전"). Figma 배치 시안이 없어(005 주석10 —
+/// > "런칭 이후" 미구현 항목) 잠정으로 이름 행 trailing 에 캡션 위계로 둔다 — 시안이 나오면 이
+/// > 자리만 옮기면 되도록 `MHComment` 안에 한 곳으로 모았다. `nil` 이면 그리지 않는다. 문자열 계산
+/// > (상대/절대 표기 규칙)은 DS 몫이 아니라 호출부가 만들어 넘긴다(``CommentDateText``, PlaceDetailUI).
+///
 /// ```swift
 /// MHComment(avatar: Image("me"), name: "이름", comment: "친구가 남긴 코멘트입니다.")
 /// MHComment(avatar: nil, name: "이름", comment: longText) { openProfile() }   // 아바타 탭
+/// MHComment(avatar: nil, name: "이름", comment: body, dateText: "3일 전")     // 작성 시각 표기
 /// MHComment(avatar: nil, name: "이름", comment: body,
 ///           menuItems: [MHMenuItem("댓글 삭제") { delete() }],
 ///           menuPresented: $isOpen)                                          // 케밥 + 메뉴
@@ -31,6 +37,7 @@ public struct MHComment: View {
     private let avatar: Image?
     private let name: String
     private let comment: String
+    private let dateText: String?
     private let maxBodyHeight: CGFloat
     private let menuItems: [MHMenuItem]
     private let externalMenuPresented: Binding<Bool>?
@@ -43,6 +50,7 @@ public struct MHComment: View {
         avatar: Image?,
         name: String,
         comment: String,
+        dateText: String? = nil,
         maxBodyHeight: CGFloat = 140,
         menuItems: [MHMenuItem] = [],
         menuPresented: Binding<Bool>? = nil,
@@ -52,6 +60,7 @@ public struct MHComment: View {
         self.avatar = avatar
         self.name = name
         self.comment = comment
+        self.dateText = dateText
         self.maxBodyHeight = maxBodyHeight
         self.menuItems = menuItems
         self.externalMenuPresented = menuPresented
@@ -73,8 +82,15 @@ public struct MHComment: View {
                 Text(name)
                     .mhTypography(.label1NormalMedium)
                     .foregroundStyle(.mhLabelAlternative)
-                if hasMenu {
+                if dateText != nil || hasMenu {
                     Spacer(minLength: 8)
+                }
+                if let dateText {
+                    Text(dateText)
+                        .mhTypography(.caption1Regular)
+                        .foregroundStyle(.mhLabelAssistive)
+                }
+                if hasMenu {
                     moreButton
                 }
             }
@@ -169,6 +185,19 @@ public struct MHComment: View {
     return VStack(alignment: .leading, spacing: 24) {
         MHComment(avatar: nil, name: "이름", comment: short)
         MHComment(avatar: nil, name: "이름", comment: long)   // 140pt 에서 잘림
+    }
+    .frame(width: 335)
+    .padding()
+}
+
+#Preview("MHComment — 작성 시각") {
+    VStack(alignment: .leading, spacing: 24) {
+        MHComment(avatar: nil, name: "이름", comment: "방금 남긴 코멘트입니다.", dateText: "방금 전")
+        MHComment(avatar: nil, name: "이름", comment: "3일 전 코멘트입니다.", dateText: "3일 전")
+        MHComment(
+            avatar: nil, name: "이름", comment: "11일 넘게 지난 코멘트입니다.", dateText: "2026.08.20",
+            menuItems: [MHMenuItem("댓글 삭제") {}]
+        )   // 날짜 + 케밥 동시 노출
     }
     .frame(width: 335)
     .padding()
