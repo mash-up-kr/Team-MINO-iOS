@@ -84,8 +84,12 @@ public struct ProfileSetupState: Equatable {
     }
 
     /// 길이와 허용 문자를 함께 본다. 어느 집합을 쓰느냐로 "입력 중"과 "저장 가능"이 갈린다.
+    ///
+    /// **트림된 값** 기준으로 문자를 본다 — 서버로 실제 나가는 값이 `trimmedName` 이기 때문이다.
+    /// 그래서 앞뒤 공백(`"  민호  "`)은 걸러지지 않는다(트림하면 서버 pattern 을 통과하는 값이라
+    /// 막을 이유가 없다) — 막아야 하는 건 트림해도 남는 **내부** 공백(`"이 지훈"`)뿐이다.
     private func isAcceptable(_ allowed: CharacterSet) -> Bool {
-        isWithinLength && name.unicodeScalars.allSatisfy(allowed.contains)
+        isWithinLength && trimmedName.unicodeScalars.allSatisfy(allowed.contains)
     }
 
     /// 에러로 그릴지 판정 — **입력 중 기준이라 자모를 봐준다.**
@@ -119,9 +123,12 @@ public struct ProfileSetupState: Equatable {
     }
 
     /// **서버에 보낼 수 있는** 문자 — 한글 완성형·영문만. 방 이름과 달리 숫자를 허용하지 않고,
-    /// **공백도 허용하지 않는다** — 서버 스키마 `pattern: ^[가-힣A-Za-z]+$` 가 공백·숫자·특수문자를
+    /// 공백도 허용하지 않는다 — 서버 스키마 `pattern: ^[가-힣A-Za-z]+$` 가 공백·숫자·특수문자를
     /// 전부 거부한다. 자모를 보내면 `400 VALIDATION_ERROR` 가 온다 — 실측으로 확인했다.
     /// `CharacterSet.alphanumerics` 를 쓰지 않는 건 그게 일본어·키릴까지 통과시키기 때문.
+    ///
+    /// `isAcceptable(_:)` 이 이 집합을 **트림된 값**에 대고 본다 — 그래서 여기 공백을 넣지 않아도
+    /// 앞뒤 공백은 막히지 않는다(트림하면 사라진다). 막히는 건 트림해도 남는 내부 공백뿐이다.
     private static let submittableScalars: CharacterSet = {
         var set = CharacterSet()
         set.insert(charactersIn: "a"..."z")
