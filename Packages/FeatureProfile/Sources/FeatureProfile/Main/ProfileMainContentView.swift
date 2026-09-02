@@ -23,14 +23,9 @@ struct ProfileMainContentView: View {
             }
         }
         .background(Color.mhBackgroundNormalNormal)
-        .mhDialog(item: state.dialog) { dialog in
-            MHDialog(
-                title: dialog.title,
-                message: dialog.message,
-                cancel: MHAction("취소") { send(.dismissDialog) },
-                confirm: MHAction("설정으로 이동") { send(.confirmDialog) }
-            )
-        }
+        // 안내 다이얼로그는 **여기서 띄우지 않는다.** 딤이 탭바까지 덮어야 하는데 탭바는 루트가
+        // 이 콘텐츠 위에 얹으므로, 탭 콘텐츠 안에서 그리면 탭바만 밝게 남는다.
+        // 루트(`MainTabView`)가 z-order 를 책임진다 — `HomeGuideOverlay` 와 같은 이유.
     }
 
     // MARK: - 프로필 요약
@@ -191,7 +186,9 @@ struct ProfileMainContentView: View {
     }
 }
 
-private extension ProfileMainDialog {
+// 루트(`MainTabView`)가 이 문구로 `MHDialog` 를 조립한다 — 딤이 탭바 위에 와야 해서
+// 다이얼로그를 탭 콘텐츠 안이 아니라 루트에서 그린다(``ProfileCoordinator/presentedDialog``).
+public extension ProfileMainDialog {
     var title: String {
         switch self {
         case .notificationBlocked: "알림 권한이 꺼져 있어요"
@@ -234,11 +231,21 @@ private extension ProfileMainDialog {
     )
 }
 
-#Preview("위치 끄기 안내") {
+// 실제로는 루트(`MainTabView`)가 탭바 위에 얹어 그린다 — 여기선 그 조합을 흉내 내 문구만 본다.
+// 탭바까지 덮이는 모습은 이 프리뷰로 확인할 수 없다.
+#Preview("위치 끄기 안내(루트 조합 흉내)") {
     ProfileMainContentView(
-        state: .preview(nickname: "홍길동", avatarColor: .pink, isLocationOn: true, dialog: .locationTurnOff),
+        state: .preview(nickname: "홍길동", avatarColor: .pink, isLocationOn: true),
         send: { _ in }
     )
+    .mhDialog(item: ProfileMainDialog.locationTurnOff) { dialog in
+        MHDialog(
+            title: dialog.title,
+            message: dialog.message,
+            cancel: MHAction("취소") {},
+            confirm: MHAction("설정으로 이동") {}
+        )
+    }
 }
 
 private extension ProfileMainState {
@@ -248,7 +255,6 @@ private extension ProfileMainState {
         isNotificationOn: Bool = false,
         isLocationOn: Bool = false,
         isNotificationBusy: Bool = false,
-        dialog: ProfileMainDialog? = nil
     ) -> Self {
         var state = ProfileMainState()
         state.nickname = nickname
@@ -256,7 +262,6 @@ private extension ProfileMainState {
         state.isNotificationOn = isNotificationOn
         state.isLocationOn = isLocationOn
         state.isNotificationBusy = isNotificationBusy
-        state.dialog = dialog
         return state
     }
 }

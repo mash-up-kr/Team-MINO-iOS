@@ -20,16 +20,26 @@ public final class ProfileCoordinator: Coordinator {
     public var cover: Never?
     public let finish = FlowFinish<Never>()
 
-    /// 안내 다이얼로그가 떠 있는가 — MainTabView 가 본다.
+    /// 떠 있는 안내 다이얼로그 — **루트(`MainTabView`)가 그린다.**
     ///
-    /// `mhDialog` 의 딤은 **탭 콘텐츠 안**에 깔려 탭바보다 아래 레이어다. 그래서 탭바만 밝게 남는데,
-    /// 루트가 탭바를 투명하게 만들면 뒤의 딤이 비쳐 탭바 자리까지 덮인다
-    /// (`HomeCoordinator.isSavePostPresented` 가 같은 이유로 존재한다).
+    /// 딤이 탭바까지 덮어야 하는데 탭바는 루트가 탭 콘텐츠 위에 얹으므로, 탭 콘텐츠 안에서
+    /// 그리면 탭바만 밝게 남는다. 그래서 z-order 를 쥔 루트로 올린다
+    /// (`HomeCoordinator.isGuidePresented` 가 같은 이유로 존재한다).
     ///
     /// Store 를 여기서 만들어 읽는다 — `state` 를 읽는 순간 관찰이 걸려 다이얼로그가 뜨고 질 때
-    /// 루트가 다시 그려진다. 호출부가 마이 탭일 때만 이 값을 보므로 다른 탭에서 Store 가 생기지 않는다.
-    public var isDimmedDialogPresented: Bool {
-        profileMainStore().state.dialog != nil
+    /// 루트가 다시 그려진다. 호출부가 마이 탭일 때만 보므로 다른 탭에서 Store 가 생기지 않는다.
+    public var presentedDialog: ProfileMainDialog? {
+        profileMainStore().state.dialog
+    }
+
+    /// 안내의 취소 — 루트에서 그리는 다이얼로그가 상태를 닫도록 위임받는다.
+    public func dismissDialog() {
+        profileMainStore().send(.dismissDialog)
+    }
+
+    /// 안내의 확인 — 세 경우 모두 OS 설정 앱으로 보낸다.
+    public func confirmDialog() {
+        profileMainStore().send(.confirmDialog)
     }
 
     /// 탭바 자체를 레이아웃에서 빼야 하는 전체화면 상태인가 — MainTabView 가 본다.

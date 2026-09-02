@@ -45,14 +45,17 @@ struct MainTabView: View {
         MainTab(rawValue: selectedTabID) ?? .home
     }
 
-    /// 탭 콘텐츠 안에서 딤을 까는 화면이 떠 있는가 — 홈의 시트(방 리스트 · 게시물 저장)와
-    /// 마이페이지의 안내 다이얼로그가 여기 해당한다.
+    /// 홈에서 딤을 직접 까는 시트(방 리스트 · 게시물 저장)가 떠 있는가.
     /// 그 딤은 탭바보다 아래 레이어라 탭바가 밝게 남으므로, 탭바를 투명하게 만들어 뒤의 딤이 비치게 한다.
-    private var isTabBarDimmed: Bool {
-        coordinator.home.isRoomListPresented
-            || coordinator.home.isSavePostPresented
-            // 마이 탭일 때만 본다 — 다른 탭에서 마이페이지 Store 를 미리 만들지 않기 위해서다.
-            || (selectedTab == .profile && coordinator.profile.isDimmedDialogPresented)
+    private var isHomeDimmedSheetPresented: Bool {
+        coordinator.home.isRoomListPresented || coordinator.home.isSavePostPresented
+    }
+
+    /// 마이페이지 안내 다이얼로그 — 딤이 **탭바 위**에 와야 해서 탭 콘텐츠가 아니라 여기서 띄운다.
+    /// 탭바는 자리에 그대로 두고 딤 아래로 어두워진다(홈 시트처럼 지우지 않는다).
+    /// 마이 탭일 때만 읽는다 — 다른 탭에서 마이페이지 Store 를 미리 만들지 않기 위해서다.
+    private var profileDialog: ProfileMainDialog? {
+        selectedTab == .profile ? coordinator.profile.presentedDialog : nil
     }
 
     /// 탭바 없이 화면 바닥까지 깔려야 하는 화면(방 상세 바텀시트 · 공동방 만들기 등)이 떠 있는가.
@@ -66,25 +69,33 @@ struct MainTabView: View {
         content
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 if !isFullBleedContentPresented {
-                    // 딤 위 화면(홈 시트 · 마이페이지 다이얼로그)이 뜨면 탭바를 자리에 둔 채
-                    // 페이드아웃한다(제거하지 않음 → reflow·깜빡임 없음).
-                    // 탭바가 투명해지면 그 뒤에 깔린 탭 콘텐츠의 딤(ignoresSafeArea)이 비쳐
-                    // 탭바 자리까지 딤 처리된다. 함께 끄는 hitTesting 이 딤 중 탭 전환도 막는다.
+                    // 방 리스트 시트가 뜨면 탭바를 자리에 둔 채 페이드아웃(제거하지 않음 → reflow·깜빡임 없음).
+                    // 탭바가 투명해지면 그 뒤에 깔린 홈 콘텐츠 딤(ignoresSafeArea)이 비쳐 탭바 자리도 딤 처리된다.
                     MHTabBar(
                         items: MainTab.allCases.map(\.tabBarItem),
                         selectedID: $selectedTabID
                     )
-                    .opacity(isTabBarDimmed ? 0 : 1)
-                    .allowsHitTesting(!isTabBarDimmed)
+                    .opacity(isHomeDimmedSheetPresented ? 0 : 1)
+                    .allowsHitTesting(!isHomeDimmedSheetPresented)
                     // 딤은 시트가 뜨는 순간 빠르게 걸리고(0.1), 닫힐 땐 기존 속도로 풀린다(0.3).
                     // 닫힘까지 빠르게 하면 탭바가 시트보다 먼저 복귀해 깜빡일 수 있어 켜지는 쪽만 앞당긴다.
                     .animation(
-                        isTabBarDimmed
+                        isHomeDimmedSheetPresented
                             ? .easeOut(duration: 0.1)
                             : .easeInOut(duration: 0.3),
-                        value: isTabBarDimmed
+                        value: isHomeDimmedSheetPresented
                     )
                 }
+            }
+            // 마이페이지 안내. 탭바를 얹은 **뒤에** 붙어야 딤이 탭바 위로 덮인다 — 탭바는 사라지지
+            // 않고 딤 아래로 어두워진다. 문구·동작은 FeatureProfile 이 들고 루트는 z-order 만 책임진다.
+            .mhDialog(item: profileDialog) { dialog in
+                MHDialog(
+                    title: dialog.title,
+                    message: dialog.message,
+                    cancel: MHAction("취소") { coordinator.profile.dismissDialog() },
+                    confirm: MHAction("설정으로 이동") { coordinator.profile.confirmDialog() }
+                )
             }
             // 홈 사용 가이드의 "시작하기" CTA 는 탭바 자리를 통째로 덮어야 해서(시안) 탭 콘텐츠 안이
             // 아니라 여기(루트)에서 그린다. 딤은 홈이 요소별로 걸고, 루트는 z-order 만 책임진다.
