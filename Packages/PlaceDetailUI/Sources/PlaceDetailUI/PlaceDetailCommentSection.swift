@@ -71,6 +71,8 @@ struct PlaceDetailCommentSection: View {
             avatar: AvatarPalette.image(of: comment.author.avatarColor),
             name: comment.author.nickname,
             comment: comment.body,
+            // now 는 여기(View) 에서 만든다 — reduce/State 에 넣으면 순수성이 깨진다.
+            dateText: CommentDateText.text(for: comment.createdAt, now: Date(), calendar: .current),
             menuItems: canDelete(comment) ? [MHMenuItem("댓글 삭제") { onRequestDelete(comment.id) }] : [],
             menuPresented: Binding(
                 get: { menuCommentID == comment.id },
