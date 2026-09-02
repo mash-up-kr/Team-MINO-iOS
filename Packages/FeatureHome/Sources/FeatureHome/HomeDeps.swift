@@ -17,6 +17,4 @@ public protocol HomeDeps: PlaceDetailDeps, RoomShareCreateRoomDeps {
     /// 「다른 방에 공유」 시트(011-1)가 고를 수 있는 방 목록. 저장 탭과 같은 UseCase 다.
     var fetchShareTargets: FetchShareTargetsUseCase { get }
     var createRoom: CreateRoomUseCase { get }
-    /// 카드를 눌러 상세를 열 때 보내는 「경과일 초기화 확인」 (FR-007).
-    var recordPinAccess: RecordPinAccessUseCase { get }
 }

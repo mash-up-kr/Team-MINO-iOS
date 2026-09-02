@@ -3,7 +3,7 @@ import Domain
 /// 장소 상세 화면이 요구하는 좁은 의존성 묶음.
 ///
 /// 이 화면을 띄우는 flow(저장 탭·홈)의 deps 프로토콜이 이것을 확장한다 — 그러면 조립부(App)는
-/// 지금처럼 자기 flow 의 deps 하나만 준수하면 되고, 화면은 자기가 쓰는 여섯 개만 본다.
+/// 지금처럼 자기 flow 의 deps 하나만 준수하면 되고, 화면은 자기가 쓰는 것만 본다.
 public protocol PlaceDetailDeps {
     /// "원문보기" 가 쓰는 핀 단독 조회 — 목록 응답에는 출처 링크가 실리지 않는다.
     var fetchPinDetail: FetchPinDetailUseCase { get }
@@ -20,6 +20,12 @@ public protocol PlaceDetailDeps {
     /// 005-1 현위치 버튼이 쓰는 내 위치. 버튼은 지도 위에 있으므로 지도가 없는 진입점(홈)에서는
     /// 그리지 않지만, 화면이 같은 리듀서를 쓰므로 의존은 그대로 받는다.
     var currentLocation: CurrentLocationUseCase { get }
+    /// 「경과일 초기화 확인」(홈 spec FR-007) — 이 장소를 방금 확인했다고 서버에 남긴다.
+    ///
+    /// **이 화면이 열릴 때** 보낸다. 홈 카드·지도 마커·저장된 방 전환·알림 중 어디로 들어왔든
+    /// 사용자가 장소를 확인한 것은 같아서, 진입점이 아니라 도착 화면이 기록의 주체다
+    /// (2026-08-29 구두 논의 확정 · Figma 002-1 주석 ③).
+    var recordPinAccess: RecordPinAccessUseCase { get }
 }
 
 /// 장소 상세 Store 를 만든다. 이 화면의 **유일한 진입점**이다.
@@ -28,7 +34,7 @@ public protocol PlaceDetailDeps {
 /// `Store(_:reduce:)` + `observeNavigation` 은 구독을 빠뜨리면 화면 전환이 크래시·로그 없이
 /// 조용히 안 된다(`mvi-coordinator-di.md` §4).
 ///
-/// 리듀서를 직접 노출하지 않는 이유는 인자가 일곱 개라, 진입점마다 손으로 엮으면 한 곳에서만
+/// 리듀서를 직접 노출하지 않는 이유는 인자가 여덟 개라, 진입점마다 손으로 엮으면 한 곳에서만
 /// 유스케이스를 빠뜨려도 그 화면의 코멘트·저장된 방이 조용히 비기 때문이다.
 /// - Parameter label: 헤더 상단에 노출할 큐레이션 라벨. **홈 카드로 진입한 경우에만** 넘긴다 —
 ///   다른 경로(저장 탭·지도·알림)는 `nil` 이다 (Figma 002-1-1 ①).
@@ -49,6 +55,7 @@ public func makePlaceDetailStore(
             postComment: deps.postComment,
             deleteComment: deps.deleteComment,
             currentLocation: deps.currentLocation,
+            recordPinAccess: deps.recordPinAccess,
             pin: pin
         ),
         handle: handle

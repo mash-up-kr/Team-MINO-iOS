@@ -57,7 +57,8 @@ private let fixtureAuthor = MemberProfile(id: MemberID("user-0001"), nickname: "
 struct PlaceDetailReducerTests {
     private func makeStore(
         source: StubFetchPinDetail.Outcome = .source(fixtureSourceURL),
-        location: CurrentLocationResult = .coordinate(fixtureMyCoordinate)
+        location: CurrentLocationResult = .coordinate(fixtureMyCoordinate),
+        recordPinAccess: RecordPinAccessUseCase = SpyRecordPinAccess()
     ) -> TestStore<PlaceDetailState, PlaceDetailAction, PlaceDetailNav> {
         TestStore(
             PlaceDetailState(place: PlaceDetailPlace(from: fixturePin, label: nil), currentMember: fixtureAuthor),
@@ -69,6 +70,7 @@ struct PlaceDetailReducerTests {
                 postComment: StubPostPinComment(outcome: .failure(.unknown)),
                 deleteComment: StubDeletePinComment(),
                 currentLocation: StubCurrentLocation(result: location),
+                recordPinAccess: recordPinAccess,
                 pin: fixturePin
             )
         )
@@ -116,6 +118,51 @@ struct PlaceDetailReducerTests {
         await store.send(.load) { $0.isLoadingSource = true }
         await store.send(.load)
         store.finish()
+    }
+
+    // MARK: - 「경과일 초기화 확인」 (spec FR-007 · Figma 002-1 주석 ③)
+
+    @Test("L2 — 상세가 열리면 이 핀으로 기록을 정확히 1회 보낸다")
+    func load_recordsAccessOnce() async {
+        let spy = SpyRecordPinAccess()
+        let store = makeStore(recordPinAccess: spy)
+
+        await store.send(.load) { $0.isLoadingSource = true }
+        await store.receive(.sourceLoaded(fixtureSourceURL)) {
+            $0.sourceURL = fixtureSourceURL
+            $0.isLoadingSource = false
+        }
+
+        #expect(await spy.recorded == [fixturePin.id])
+        store.finish()
+    }
+
+    @Test("L1 — 조회 중 들어온 두 번째 load 는 기록도 다시 보내지 않는다")
+    func load_doesNotRecordAccessTwiceWhileLoading() async {
+        let spy = SpyRecordPinAccess()
+        let store = makeStore(source: .cancelled, recordPinAccess: spy)
+
+        await store.send(.load) { $0.isLoadingSource = true }
+        await store.send(.load)
+
+        #expect(await spy.recorded == [fixturePin.id])
+        store.finish()
+    }
+
+    @Test("L2 — 기록이 실패해도 화면은 그대로다 — 재시도도 안내도 없다 (EC-022)")
+    func recordAccessFailure_leavesScreenUntouched() async {
+        let spy = SpyRecordPinAccess(failure: .unknown)
+        let store = makeStore(recordPinAccess: spy)
+
+        await store.send(.load) { $0.isLoadingSource = true }
+        // 성공했을 때와 같은 전이다 — exhaustive 단언이라 실패가 state 를 건드렸으면 여기서 걸린다.
+        await store.receive(.sourceLoaded(fixtureSourceURL)) {
+            $0.sourceURL = fixtureSourceURL
+            $0.isLoadingSource = false
+        }
+
+        #expect(await spy.recorded == [fixturePin.id])
+        store.finish()   // 실패를 알리는 Response Action 도 없었음을 잔여 검사로 확인한다
     }
 
     @Test("L1 — tapClose 는 close 로 navigate 한다")

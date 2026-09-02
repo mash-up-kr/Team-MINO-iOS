@@ -49,6 +49,7 @@ struct PlaceDetailSavedRoomsTests {
                 postComment: StubPostPinComment(outcome: .failure(.unknown)),
                 deleteComment: StubDeletePinComment(),
                 currentLocation: QuietCurrentLocation(),
+                recordPinAccess: SpyRecordPinAccess(),
                 pin: savedPin
             )
         )

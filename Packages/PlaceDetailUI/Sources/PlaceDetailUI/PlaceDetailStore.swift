@@ -118,23 +118,36 @@ func placeDetailReducer(
     deleteComment: DeletePinCommentUseCase,
     /// 005-1 현위치 버튼이 쓰는 내 위치. 그 버튼은 지도 위에 있으므로 지도를 가진 진입점만 그린다.
     currentLocation: CurrentLocationUseCase,
+    /// 「경과일 초기화 확인」 — 이 화면이 열린 사실을 서버에 남긴다(``PlaceDetailDeps`` 주석 참조).
+    recordPinAccess: RecordPinAccessUseCase,
     pin: Pin
 ) -> (inout PlaceDetailState, PlaceDetailAction) -> Effect<PlaceDetailAction, PlaceDetailNav> {
     { state, action in
         switch action {
+        // 진입 액션 — 뷰가 상세를 띄우면서 한 번 보낸다(``PlaceDetailView`` 의 `.task`).
+        // 출처 조회와 「경과일 초기화 확인」①이 여기서 함께 나간다.
         case .load:
             guard !state.isLoadingSource else { return .none }
             state.isLoadingSource = true
             return .run { send in
+                // 상세가 열렸다는 사실만 남기면 되므로 출처 조회를 기다리지 않고 나란히 보낸다.
+                // 결과를 화면에 되돌릴 것이 없어 Response Action 도 없다 — 실패는 그대로 삼킨다:
+                // 꾹 Pick 우선순위가 한 번 안 밀릴 뿐이라 재시도도 안내도 붙이지 않는다(EC-022).
+                async let recorded: Void? = try? recordPinAccess.execute(pinID: pin.id)
+
                 do {
                     send(.sourceLoaded(try await useCase.execute(pinID: pin.id).sourceURL))
                 } catch is CancellationError {
-                    return                                   // 화면을 떠난 것 — 실패가 아니다
+                    // 화면을 떠난 것 — 실패가 아니다
                 } catch let error as DomainError {
                     send(.sourceLoadFailed(error))
                 } catch {
                     send(.sourceLoadFailed(.unknown))
                 }
+
+                // 결과가 없어도 반드시 받아 둔다 — `async let` 은 받지 않고 스코프를 벗어나는 순간
+                // 취소·정리돼 기록이 서버에 닿기 전에 날아간다.
+                _ = await recorded
             }
 
         case .sourceLoaded(let url):

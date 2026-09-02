@@ -58,6 +58,7 @@ struct PlaceDetailCommentDeleteTests {
                 ),
                 deleteComment: StubDeletePinComment(outcome: delete),
                 currentLocation: QuietCurrentLocation(),
+                recordPinAccess: SpyRecordPinAccess(),
                 pin: deletePin
             )
         )
