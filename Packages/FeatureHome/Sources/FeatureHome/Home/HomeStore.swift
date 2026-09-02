@@ -251,10 +251,6 @@ public enum HomeAction: Equatable {
     case swipeForward
     case swipeBackward
     case tapCard(PinID)
-    /// 카드 탭이 실제로 상세를 여는 순간. `tapCard` 와 나눠 둔 이유는 그 자리에서 「경과일 초기화 확인」도
-    /// 함께 보내야 하는데, 한 Effect 는 화면 전환과 네트워크 중 하나만 낼 수 있어서다 —
-    /// 전환을 먼저 내보내고 기록은 그 뒤에 붙인다(기록 응답을 기다리면 탭이 네트워크만큼 늦어진다).
-    case openPlaceDetail(Pin)
     /// 홈 사용 가이드를 아직 안 봤는지 묻는다(최초 진입 1회 정책). `load` 와 나눠 두는 이유는
     /// 가이드가 그리는 카드 덱이 모형이라(``HomeGuideMockDeck``) 방·덱 조회 결과를 기다릴
     /// 이유가 없고, 조회가 늦거나 실패해도 안내는 떠야 하기 때문이다.
@@ -499,7 +495,6 @@ public func homeReducer(
     lastViewedRoom: LastViewedRoomUseCase,
     homeGuide: HomeGuideUseCase,
     savePin: SavePinToRoomsUseCase,
-    recordPinAccess: RecordPinAccessUseCase,
     fetchShareTargets: FetchShareTargetsUseCase
 ) -> (inout HomeState, HomeAction) -> Effect<HomeAction, HomeNav> {
     { state, action in
@@ -695,15 +690,11 @@ public func homeReducer(
             // 카드가 넘긴 건 id 뿐이라 지금 덱에서 핀을 되찾는다. 못 찾으면 아무 데도 가지 않는다 —
             // 덱이 갈리는 순간(방·기준 전환)에 들어온 탭이라 열어야 할 장소가 이미 없다.
             guard let pin = state.pins.first(where: { $0.id == pinID }) else { return .none }
-            // 정책(FR-007·FR-023): 카드 탭은 상세로 이동하면서 「경과일 초기화 확인」①을 서버에 보낸다.
+            // 정책: 카드 탭은 상세로 보내기만 한다. 「경과일 초기화 확인」①은 **장소 상세가 열릴 때**
+            // 그 화면이 보낸다(2026-08-29 논의 확정 · Figma 002-1 주석 ③) — 지도 마커·저장된 방
+            // 전환·알림으로 들어와도 같은 기록이 남아야 하는데, 진입점마다 호출을 달면 관리 지점이
+            // 그만큼 흩어진다.
             // 덱의 진행 상태(잔여 카드·되돌리기 이력)는 그대로다 — 「카드 열람 확인」②은 넘길 때만 생긴다.
-            return .run { send in
-                send(.openPlaceDetail(pin))
-                // 집계용 로그라 실패해도 사용자에게 알릴 것이 없고, 다시 열면 또 기록된다(append-only).
-                try? await recordPinAccess.execute(pinID: pinID)
-            }
-
-        case .openPlaceDetail(let pin):
             return .navigate(.openPlaceDetail(pin))
 
         case .checkGuide:

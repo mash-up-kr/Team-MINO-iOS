@@ -482,7 +482,6 @@ struct HomeMascotView: View {
                 lastViewedRoom: PreviewLastViewedRoom(),
                 homeGuide: PreviewHomeGuide(),
                 savePin: PreviewSavePin(),
-                recordPinAccess: PreviewRecordPinAccess(),
                 fetchShareTargets: PreviewShareTargets()
             )
         )
@@ -500,7 +499,6 @@ struct HomeMascotView: View {
                 lastViewedRoom: PreviewLastViewedRoom(),
                 homeGuide: PreviewHomeGuide(),
                 savePin: PreviewSavePin(),
-                recordPinAccess: PreviewRecordPinAccess(),
                 fetchShareTargets: PreviewShareTargets()
             )
         )
@@ -526,11 +524,6 @@ private struct PreviewLastViewedRoom: LastViewedRoomUseCase {
 private struct PreviewHomeGuide: HomeGuideUseCase {
     func hasSeen() async -> Bool { true }
     func markSeen() async {}
-}
-
-/// 프리뷰 전용 — 접근 기록을 보내지 않는다.
-private struct PreviewRecordPinAccess: RecordPinAccessUseCase {
-    func execute(pinID: PinID) async throws {}
 }
 
 /// 프리뷰 전용 — 저장은 아무것도 하지 않는다.
