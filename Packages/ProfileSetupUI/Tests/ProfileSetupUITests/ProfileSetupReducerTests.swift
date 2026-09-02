@@ -124,9 +124,10 @@ struct ProfileSetupReducerTests {
         store.finish()
     }
 
-    @Test("L1 — 한글·영문·공백이 아닌 문자가 섞이면 저장이 막히고 에러를 표시한다")
+    // 서버 스키마 pattern `^[가-힣A-Za-z]+$` 는 공백도 거부한다 — 숫자·특수문자와 같은 취급이다.
+    @Test("L1 — 한글·영문이 아닌 문자(숫자·특수문자·공백 포함)가 섞이면 저장이 막히고 에러를 표시한다")
     func nameChanged_disallowedCharacters_blocksSaveAndShowsError() async {
-        for invalid in ["민호1", "민호!", "민호😀", "みんほ", "Мино"] {
+        for invalid in ["민호1", "민호!", "민호😀", "みんほ", "Мино", "이 지훈", "mi no", "민 호", "민호 Mino", " 민호", "민호 "] {
             let store = makeCreateTestStore()
 
             await store.send(.nameChanged(invalid)) {
@@ -139,9 +140,9 @@ struct ProfileSetupReducerTests {
         }
     }
 
-    @Test("L1 — 한글·영문·공백 조합은 저장이 열리고 에러가 없다")
+    @Test("L1 — 한글·영문 조합은 저장이 열리고 에러가 없다")
     func nameChanged_allowedCharacters_enablesSave() async {
-        for valid in ["민호", "Mino", "mi no", "민 호", "민호 Mino"] {
+        for valid in ["민호", "Mino"] {
             let store = makeCreateTestStore()
 
             await store.send(.nameChanged(valid)) {
@@ -152,6 +153,51 @@ struct ProfileSetupReducerTests {
             #expect(!store.currentState.shouldShowNameError, "\(valid) 는 에러가 없어야 한다")
             store.finish()
         }
+    }
+
+    @Test("L1 — 최대 길이(15자)까지는 저장이 활성이다 — 한글·영문 둘 다")
+    func nameChanged_maximumLength_enablesSave() async {
+        for valid in [
+            String(repeating: "가", count: ProfileSetupLimit.maximumNameLength),
+            String(repeating: "a", count: ProfileSetupLimit.maximumNameLength),
+        ] {
+            let store = makeCreateTestStore()
+
+            await store.send(.nameChanged(valid)) {
+                $0.name = valid
+            }
+
+            #expect(store.currentState.isSaveEnabled, "\(valid.count)자는 저장이 열려야 한다")
+            #expect(!store.currentState.shouldShowNameError)
+            store.finish()
+        }
+    }
+
+    @Test("L1 — 최대 길이(15자)를 넘기면 저장이 막히고 에러를 표시한다 — 서버 400 VALIDATION_ERROR 를 미리 막는다")
+    func nameChanged_exceedsMaximumLength_blocksSaveAndShowsError() async {
+        let store = makeCreateTestStore()
+        let tooLong = String(repeating: "가", count: ProfileSetupLimit.maximumNameLength + 1)
+
+        await store.send(.nameChanged(tooLong)) {
+            $0.name = tooLong
+        }
+
+        #expect(!store.currentState.isSaveEnabled)
+        #expect(store.currentState.shouldShowNameError)
+        store.finish()
+    }
+
+    @Test("L1 — 완성된 글자 뒤에 자모가 이어져도 입력 중 에러로 보지 않는다 — 저장만 막는다")
+    func nameChanged_completedNameFollowedByJamo_doesNotShowErrorButBlocksSave() async {
+        let store = makeCreateTestStore()
+
+        await store.send(.nameChanged("지훈ㅇ")) {
+            $0.name = "지훈ㅇ"
+        }
+
+        #expect(!store.currentState.shouldShowNameError, "조합 중이라 아직 틀린 게 아니다")
+        #expect(!store.currentState.isSaveEnabled, "조합이 끝나야 보낼 수 있다")
+        store.finish()
     }
 
     @Test("L1 — 입력이 비어 있으면 에러를 표시하지 않는다 — 진입 직후 빨간 테두리가 뜨면 안 된다")

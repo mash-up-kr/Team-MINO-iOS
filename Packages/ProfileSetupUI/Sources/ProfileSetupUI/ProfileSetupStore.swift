@@ -3,10 +3,15 @@ import Foundation
 import MVI
 
 // [Convention] .claude/docs/mvi-coordinator-di.md 5절 — 화면 = Store 1개 = 폴더 1개, State/Action/Nav/reducer 한 파일
-/// 이름 최소 길이. 화면이 안내 문구로 보여주는 값과 저장 활성 판정이 어긋나지 않도록 한 곳에서만 정의한다
+/// 이름 길이 제한. 화면이 안내 문구로 보여주는 값과 저장 활성 판정이 어긋나지 않도록 한 곳에서만 정의한다
 /// (`ProfileSetupContent` 가 같은 값을 읽는다).
+///
+/// 서버 스키마 `POST /api/v1/users`·`PATCH /api/v1/users/me` 의 `nickname` 은
+/// `minLength: 2, maxLength: 15` — 상한을 넘기면 `400 VALIDATION_ERROR`
+/// ("닉네임은 15자 이하여야 합니다.", 실측)가 온다.
 public enum ProfileSetupLimit {
     public static let minimumNameLength = 2
+    public static let maximumNameLength = 15
 }
 
 /// 이 화면에 무엇을 하러 들어왔는가. State 에 담기는 **순수 값**이다.
@@ -73,14 +78,14 @@ public struct ProfileSetupState: Equatable {
         name.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// 최소 길이를 넘는가.
-    private var isLongEnough: Bool {
-        trimmedName.count >= ProfileSetupLimit.minimumNameLength
+    /// 길이가 허용 범위(최소~최대) 안인가. 서버 스키마 `minLength`·`maxLength` 와 같은 경계다.
+    private var isWithinLength: Bool {
+        (ProfileSetupLimit.minimumNameLength...ProfileSetupLimit.maximumNameLength).contains(trimmedName.count)
     }
 
     /// 길이와 허용 문자를 함께 본다. 어느 집합을 쓰느냐로 "입력 중"과 "저장 가능"이 갈린다.
     private func isAcceptable(_ allowed: CharacterSet) -> Bool {
-        isLongEnough && name.unicodeScalars.allSatisfy(allowed.contains)
+        isWithinLength && name.unicodeScalars.allSatisfy(allowed.contains)
     }
 
     /// 에러로 그릴지 판정 — **입력 중 기준이라 자모를 봐준다.**
@@ -113,17 +118,15 @@ public struct ProfileSetupState: Equatable {
         selectedCharacterIndex.map(AvatarPalette.color(at:)) ?? .gray
     }
 
-    /// **서버에 보낼 수 있는** 문자 — 한글 완성형·영문·공백. 방 이름과 달리 숫자를 허용하지 않는다.
-    ///
-    /// 서버 규칙과 같은 집합이다. 자모를 보내면 `400 VALIDATION_ERROR`
-    /// ("닉네임은 한글/영문(공백 포함)만 사용할 수 있습니다") 가 온다 — 실측으로 확인했다.
+    /// **서버에 보낼 수 있는** 문자 — 한글 완성형·영문만. 방 이름과 달리 숫자를 허용하지 않고,
+    /// **공백도 허용하지 않는다** — 서버 스키마 `pattern: ^[가-힣A-Za-z]+$` 가 공백·숫자·특수문자를
+    /// 전부 거부한다. 자모를 보내면 `400 VALIDATION_ERROR` 가 온다 — 실측으로 확인했다.
     /// `CharacterSet.alphanumerics` 를 쓰지 않는 건 그게 일본어·키릴까지 통과시키기 때문.
     private static let submittableScalars: CharacterSet = {
         var set = CharacterSet()
         set.insert(charactersIn: "a"..."z")
         set.insert(charactersIn: "A"..."Z")
         set.insert(charactersIn: "\u{AC00}"..."\u{D7A3}")   // 한글 완성형
-        set.insert(" ")
         return set
     }()
 

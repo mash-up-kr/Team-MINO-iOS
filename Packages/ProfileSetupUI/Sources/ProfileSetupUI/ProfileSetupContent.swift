@@ -47,11 +47,13 @@ struct ProfileSetupContent: View {
                         .frame(maxWidth: .infinity)
 
                     MHTextField(
-                        "한글·영문 \(ProfileSetupLimit.minimumNameLength)글자 이상",
+                        "한글·영문 \(ProfileSetupLimit.minimumNameLength)~\(ProfileSetupLimit.maximumNameLength)자",
                         text: $name,
                         heading: "이름 또는 닉네임",
                         isRequired: true,
-                        description: "한글·영문 \(ProfileSetupLimit.minimumNameLength)글자 이상을 입력해주세요.",
+                        // Figma `010` 주석 1번은 하한(2글자 이상)만 말한다 — 상한 문구는 시안에 없어
+                        // 서버 스키마(`maxLength: 15`)에 맞춰 추정한 값이다.
+                        description: "한글·영문 \(ProfileSetupLimit.minimumNameLength)~\(ProfileSetupLimit.maximumNameLength)자를 입력해주세요.",
                         status: showsNameError ? .negative : .normal,
                         identifier: "ProfileSetup.nameField"
                     )

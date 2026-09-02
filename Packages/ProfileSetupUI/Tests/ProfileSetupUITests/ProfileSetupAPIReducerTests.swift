@@ -63,19 +63,37 @@ struct ProfileSetupAPIReducerTests {
         store.finish()
     }
 
-    @Test("L2 — create 저장은 등록 API 를 타고 트림된 이름·아바타를 보낸다")
+    // 공백이 서버 pattern(`^[가-힣A-Za-z]+$`)에서 빠지면서 앞뒤 공백이 섞인 원문은 타이핑
+    // 단계에서부터 이미 저장이 막힌다(아래 `nameChanged_leadingOrTrailingSpace_blocksSave`) —
+    // 그래서 이 테스트는 공백 없는 입력으로 등록 API 호출 자체를 검증한다.
+    @Test("L2 — create 저장은 등록 API 를 타고 이름·아바타를 보낸다")
     func createMode_saveCallsRegister() async {
         let register = StubRegisterProfileUseCase()
         let store = TestStore(ProfileSetupState(mode: .create), reduce: profileSetupReducer(.create(register: register)))
 
-        await store.send(.nameChanged("  민호  ")) { $0.name = "  민호  " }
+        await store.send(.nameChanged("민호")) { $0.name = "민호" }
         await store.send(.selectCharacter(3)) { $0.selectedCharacterIndex = 3 }
         await store.send(.tapSave) { $0.isSaving = true }
         await store.receive(.saveSucceeded) { $0.isSaving = false }
         store.receiveNavigation(.didSave)
 
-        #expect(register.received?.nickname == "민호", "앞뒤 공백은 빼고 보낸다")
+        #expect(register.received?.nickname == "민호")
         #expect(register.received?.avatarColor == .green)
+        store.finish()
+    }
+
+    // 원문에 남은 앞뒤 공백도 disallowed 문자라 즉시 오류로 잡힌다 — trim 은 length 판정에만
+    // 쓰이고(State.trimmedName), 문자 판정(isAcceptable)은 원문 그대로 본다.
+    @Test("L2 — 앞뒤 공백이 섞인 이름은 저장이 막혀 등록 API 를 타지 않는다")
+    func createMode_leadingOrTrailingSpace_blocksSave() async {
+        let register = StubRegisterProfileUseCase()
+        let store = TestStore(ProfileSetupState(mode: .create), reduce: profileSetupReducer(.create(register: register)))
+
+        await store.send(.nameChanged(" 민호 ")) { $0.name = " 민호 " }
+        await store.send(.tapSave)
+
+        #expect(register.received == nil)
+        // finish 가 미수신 effect/navigation 잔여를 검사한다 — tapSave 가 나갔다면 여기서 실패한다
         store.finish()
     }
 
