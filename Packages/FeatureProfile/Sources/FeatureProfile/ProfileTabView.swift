@@ -61,6 +61,10 @@ public struct ProfileTabView: View {
             // 두 번씩 나간다(시뮬레이터 로그로 확인: pop 시 7ms 간격 2회).
             // 스위치에는 이 재조회가 스펙 요구다(FR-009) — 위 `onChange` 주석 참조.
             .task { refresh() }
+            // **떠날 때 안내를 닫는다.** Store 가 Coordinator 에 살아 있어 `state` 가 탭 전환에도
+            // 남는데, 그중 다이얼로그는 "지금 이 화면을 보고 있는 사람에게 하는 말" 이라 수명이
+            // 화면 쪽이다. 안 닫으면 다른 탭을 한참 돌다 돌아왔을 때 맥락 없는 알럿이 떠 있다.
+            .onDisappear { store.send(.dismissDialog) }
     }
 
     /// 프로필과 스위치를 **따로** 보낸다 — 묶으면 즉시 읽히는 권한 상태가 네트워크 왕복을 기다린다.
