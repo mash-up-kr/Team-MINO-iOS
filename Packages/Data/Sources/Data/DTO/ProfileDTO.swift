@@ -24,6 +24,25 @@ struct ProfileDTO: Decodable {
     }
 }
 
+extension ProfileDTO {
+    /// 같은 응답을 **신원**으로 읽는다 (``CurrentMemberRepositoryImpl``).
+    ///
+    /// ``Profile`` 과 값이 겹치지만 타입을 나눠 둔다 — 이쪽은 코멘트 작성자·핀 저장자와 **같은
+    /// 어휘**(``MemberProfile``)라야 "내가 쓴 코멘트인가" 를 식별자끼리 맞출 수 있다
+    /// (``PinComment/isWritten(by:)``). `Profile.id` 는 `String`, `MemberProfile.id` 는
+    /// `MemberID` 라 그 비교가 타입으로 갈린다.
+    ///
+    /// `createdAt` 은 옮기지 않는다 — 신원 표시·소유 판정에 쓰이지 않는 값이다.
+    func toMemberProfile() -> MemberProfile {
+        MemberProfile(
+            id: MemberID(id),
+            nickname: nickname,
+            // 모르는 색은 `toDomain()` 과 같이 "아바타 없음" 으로 떨군다.
+            avatarColor: avatar?.color.flatMap(AvatarColor.init(rawValue:))
+        )
+    }
+}
+
 /// 응답의 아바타. 값은 팔레트 색 이름(`red`·`light_blue` …)이고, 어느 캐릭터 그림인지는
 /// 클라이언트가 정한다.
 ///
