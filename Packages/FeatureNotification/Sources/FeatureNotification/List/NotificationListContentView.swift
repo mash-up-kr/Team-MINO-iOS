@@ -45,7 +45,10 @@ struct NotificationListContentView: View {
                         title: item.title,
                         subtitle: item.subtitle,
                         time: item.time,
-                        imageURL: item.imageURL
+                        imageURL: item.imageURL,
+                        // 저장 오류는 이 목적지로만 온다(`NotificationDTO.mapDestination`) —
+                        // 표시 모델에 유형을 따로 들지 않아도 여기서 가려진다.
+                        isSaveError: item.destination == .saveError
                     )
                     .contentShape(Rectangle())
                     .onTapGesture { onSelectNotification?(item.id) }

@@ -6,7 +6,14 @@ public enum MHNotificationThumbnail {
     /// 그리고, 셀이 실측 radius(9.8)로 바깥에서 자른다(``MHThumbnail`` 의 `radius: true` 는 12
     /// 고정이라 쓰지 않는다).
     case place(Image)
-    /// 사진이 없는 경우(오류 저장, 공동방 참가 등) 기본 아이콘.
+    /// 저장 오류 알림 전용 — 회색 원 안 느낌표. 서버가 주는 사진이 아니라 **유형이 정하는 도상**이라
+    /// `.place` 와 갈라 둔다(시안 `006-1-1` 두 번째 셀, `Thumbnail` 컴포넌트의 이미지 fill).
+    case saveError
+    /// 사진이 없는 경우(공동방 참가 등) 기본 아이콘.
+    ///
+    /// > 방 알림은 원래 방 썸네일(사진 콜라주 또는 색상 커버)을 그려야 하는데, 알림 응답이 사진
+    /// > URL 한 장만 줘서 아직 표현할 수 없다. 서버가 방 썸네일을 어떤 모양으로 줄지 정해지면
+    /// > `MHRoomThumbnailKind` 를 받는 케이스로 대체한다.
     case icon
 }
 
@@ -101,12 +108,17 @@ public struct MHNotificationCell: View {
             MHThumbnail(image, ratio: .square)
                 .frame(width: Self.thumbnailSize, height: Self.thumbnailSize)
                 .clipShape(RoundedRectangle(cornerRadius: Self.thumbnailRadius))
+        case .saveError:
+            // 그림 자체가 배경(흰 라운드 사각형)까지 포함한다 — 셀이 따로 배경을 깔지 않는다.
+            Image(.saveErrorThumbnail)
+                .resizable()
+                .frame(width: Self.thumbnailSize, height: Self.thumbnailSize)
+                .clipShape(RoundedRectangle(cornerRadius: Self.thumbnailRadius))
         case .icon:
             RoundedRectangle(cornerRadius: Self.thumbnailRadius)
                 .fill(.mhFillNormal)
                 .frame(width: Self.thumbnailSize, height: Self.thumbnailSize)
                 .overlay {
-                    // TODO: 기본 아이콘 도상 — step-6 figma 시각 대조에서 확정. 지금은 `MHIcon.image` 후보.
                     MHIcon.image.image
                         .resizable()
                         .scaledToFit()
