@@ -38,6 +38,9 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
     /// 앱 진입 분기(`LaunchDeps`)가 등록 여부를 묻는 데 쓴다 — 프로필이 있으면 온보딩을 마친 것이다.
     /// 마이페이지 프로필 설정(`.edit`)도 진입하면서 이걸로 현재 값을 채운다.
     let fetchProfile: FetchProfileUseCase
+    /// 마이페이지가 **첫 프레임에** 그릴 프로필. 서버를 기다리지 않고 이번 실행에서 마지막으로
+    /// 읽은 값을 준다 — 등록·조회·수정 유스케이스가 지나가며 채워 둔다.
+    let lastKnownProfile: LastKnownProfileUseCase
     let recordPinAccess: RecordPinAccessUseCase
     let updateProfile: UpdateProfileUseCase
     let notificationSetting: NotificationSettingUseCase
@@ -135,21 +138,29 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
         // 로컬 패키지로 내리지 않기 위해서다 — SDK 어댑터는 컴포지션 루트가 갖는다.
         self.ensureSession = DefaultEnsureSessionUseCase(repository: FirebaseAuthRepository())
 
+        // 세 프로필 유스케이스가 **같은 캐시**를 지난다 — 어느 경로로 프로필을 얻었든(앱 시작의
+        // 등록 여부 판단 포함) 다음 마이페이지 진입의 첫 프레임이 채워진다.
+        let profileCache = InMemoryLastKnownProfileRepository()
+        self.lastKnownProfile = DefaultLastKnownProfileUseCase(cache: profileCache)
+
         // 프로필 등록: 실 API(POST /api/v1/users). 등록은 인증 미들웨어를 부분만 타므로
         // (UserAPI.register 의 .unregisteredUser) 세션만 있으면 최초 진입에서도 통과한다.
         self.registerProfile = DefaultRegisterProfileUseCase(
-            repository: ProfileRepositoryImpl(client: httpClient)
+            repository: ProfileRepositoryImpl(client: httpClient),
+            cache: profileCache
         )
 
         // 온보딩 여부 판단: 실 API(GET /api/v1/users/me). 로컬 플래그를 쓰지 않는 이유는
         // AppLaunchStore.establishSession 주석 참조.
         self.fetchProfile = DefaultFetchProfileUseCase(
-            repository: ProfileRepositoryImpl(client: httpClient)
+            repository: ProfileRepositoryImpl(client: httpClient),
+            cache: profileCache
         )
 
         // 프로필 수정: 실 API(PATCH /api/v1/users/me). 마이페이지 프로필 설정의 저장이다.
         self.updateProfile = DefaultUpdateProfileUseCase(
-            repository: ProfileRepositoryImpl(client: httpClient)
+            repository: ProfileRepositoryImpl(client: httpClient),
+            cache: profileCache
         )
 
         // 권한 어댑터는 플랫폼 프레임워크(UserNotifications·CoreLocation)를 타므로 여기서 만든다

@@ -3,7 +3,7 @@ import Domain
 import Testing
 @testable import ProfileSetupUI
 
-/// 인덱스 ↔ 색 ↔ 캐릭터를 잇는 표가 어긋나면 **저장된 프로필이 다른 캐릭터를 가리킨다.**
+/// 인덱스 ↔ 색 ↔ 그림을 잇는 표가 어긋나면 **저장된 프로필이 다른 캐릭터를 가리킨다.**
 /// 그 어긋남은 화면을 봐야만 드러나므로 여기서 고정한다.
 struct AvatarPaletteTests {
     // 서버 스펙의 enum 을 그대로 옮긴 값이다. 하나라도 어긋나면 400 이다.
@@ -48,7 +48,6 @@ struct AvatarPaletteTests {
     func outOfRangeFallsBackToFirst() {
         #expect(AvatarPalette.color(at: -1) == .red)
         #expect(AvatarPalette.color(at: 99) == .red)
-        #expect(AvatarPalette.character(at: 99) == .character01)
     }
 
     // MARK: - 홈 마스코트
@@ -68,14 +67,10 @@ struct AvatarPaletteTests {
         }
     }
 
-    // 얼굴(character)과 달리 마스코트는 시안이 "안 고름" 그림을 따로 준다.
     @Test("아바타 색이 없거나 gray 면 소품 없는 기본 마스코트다")
     func absentColorFallsBackToPlain() {
         #expect(AvatarPalette.homeMascot(of: nil) == .plain)
         #expect(AvatarPalette.homeMascot(of: .gray) == .plain)
-        // 이전 세대 아트(MHCharacter)에는 "안 고름" 그림이 없어 1번으로 떨어진다.
-        #expect(AvatarPalette.character(of: nil) == .character01)
-        #expect(AvatarPalette.character(of: .gray) == .character01)
     }
 
     // MARK: - 아바타 프로필 아트

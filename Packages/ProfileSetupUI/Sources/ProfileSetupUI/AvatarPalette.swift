@@ -6,7 +6,7 @@ import SwiftUI
 ///
 /// 어휘가 각자 다른 이유로 존재한다 — 화면은 그리드 자리(인덱스)로 고르고, 서버는 색 이름만
 /// 알며(`avatar.color`), 그림은 자리마다 다르다: 프로필·아바타 슬롯은 `MHAvatarProfile`,
-/// 홈 우상단 마스코트는 `MHHomeMascot`, 마이페이지 큰 프로필은 아직 이전 세대 `MHCharacter` 다.
+/// 홈 우상단 마스코트는 `MHHomeMascot` 이다.
 /// 이들을 잇는 표를 여기 한 곳에만 두어 어긋난 매핑이 여러 곳에 생기지 않게 한다.
 /// (`RoomColorPalette` 와 같은 역할)
 ///
@@ -24,6 +24,8 @@ public enum AvatarPalette {
     /// 튜플이 아니라 구조체인 이유는 열이 넷이라서다 — 3-멤버부터 SwiftLint `large_tuple` 이
     /// 경고하고 4-멤버는 에러다.
     struct Entry {
+        /// 이전 세대 아트. 지금 그리는 화면은 없고 **그리드 순서 계약의 기준**으로만 남는다
+        /// (선언 순서 = 저장되는 색 — `AvatarPaletteTests.orderMatchesFigmaGrid`).
         let character: MHCharacter
         let color: AvatarColor
         let mascot: MHHomeMascot
@@ -57,10 +59,6 @@ public enum AvatarPalette {
         entries.indices.contains(index) ? entries[index].color : `default`.color
     }
 
-    static func character(at index: Int) -> MHCharacter {
-        entries.indices.contains(index) ? entries[index].character : `default`.character
-    }
-
     /// 그리드 자리 → 아바타 그림. 아직 안 골랐거나(`nil`) 범위 밖이면 소품 없는 기본 아바타다 —
     /// 시안 `010-1`(2314:95662)이 무선택 미리보기에 `black` 배리언트를 그린다.
     /// (``homeMascot(of:)``·``profile(of:)`` 가 색을 모를 때 `.plain` 으로 떨어지는 것과 같은 근거)
@@ -74,29 +72,20 @@ public enum AvatarPalette {
         entries.firstIndex { $0.color == color }
     }
 
-    /// 도메인 색으로 캐릭터 그림을 얻는다 — **이전 세대 아트가 남은 자리**(마이페이지 큰 프로필)가 쓴다.
-    ///
-    /// 색을 모르거나(서버 팔레트가 우리보다 앞서 나간 경우) 아직 아바타가 없는 계정, `gray` 면
-    /// 1번으로 떨어진다. ``MHCharacter`` 에는 "안 고름" 그림이 없어서다 —
-    /// 새 아트로 옮긴 자리는 그 자리에 `plain` 을 그린다(``profile(of:)``).
-    public static func character(of color: AvatarColor?) -> MHCharacter {
-        color.flatMap(index(of:)).map(character(at:)) ?? `default`.character
-    }
-
     /// 도메인 색으로 **아바타 프로필 아트**(`character/Avatar Profile`)를 얻는다.
     ///
     /// 색을 아직 고르지 않았거나 우리가 모르는 색이면 ``MHAvatarProfile/plain`` — 소품 없는 검은
     /// 얼굴로, 시안이 "아바타 색을 아직 고르지 않은 계정 자리" 로 마련해 둔 배리언트다.
-    /// (얼굴 쪽 `character(of:)` 는 1번으로 떨어지지만, 그건 **내가 고르는** 그리드의 폴백이라 다르다 —
-    /// 남의 계정을 빨간 캐릭터로 그리면 그 사람이 빨강을 고른 것처럼 보인다.)
+    /// (1번 캐릭터로 떨어뜨리면 안 된다 — 남의 계정을 빨간 캐릭터로 그리면 그 사람이 빨강을
+    /// 고른 것처럼 보인다.)
     static func profile(of color: AvatarColor?) -> MHAvatarProfile {
         color.flatMap(index(of:)).map { entries[$0].profile } ?? .plain
     }
 
     /// 도메인 색으로 얼굴 그림을 얻는다 — 아바타 그룹·스택처럼 `Image` 를 바로 받는 자리가 쓴다.
     ///
-    /// 아바타 슬롯(``MHAvatar``·``MHAvatarGroup``·``MHAvatarStack``·``MHComment``)과 프로필
-    /// 선택 그리드는 모두 새 아트를 쓴다. 마이페이지 큰 프로필만 아직 이전 세대(``MHCharacter``)다.
+    /// 아바타 슬롯(``MHAvatar``·``MHAvatarGroup``·``MHAvatarStack``·``MHComment``)·프로필 선택
+    /// 그리드·마이페이지 큰 프로필이 모두 이 아트를 쓴다.
     public static func image(of color: AvatarColor?) -> Image {
         Image(profile(of: color))
     }

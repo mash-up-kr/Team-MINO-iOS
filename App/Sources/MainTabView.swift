@@ -51,6 +51,13 @@ struct MainTabView: View {
         coordinator.home.isRoomListPresented || coordinator.home.isSavePostPresented
     }
 
+    /// 마이페이지 안내 다이얼로그 — 딤이 **탭바 위**에 와야 해서 탭 콘텐츠가 아니라 여기서 띄운다.
+    /// 탭바는 자리에 그대로 두고 딤 아래로 어두워진다(홈 시트처럼 지우지 않는다).
+    /// 마이 탭일 때만 읽는다 — 다른 탭에서 마이페이지 Store 를 미리 만들지 않기 위해서다.
+    private var profileDialog: ProfileMainDialog? {
+        selectedTab == .profile ? coordinator.profile.presentedDialog : nil
+    }
+
     /// 탭바 없이 화면 바닥까지 깔려야 하는 화면(방 상세 바텀시트 · 공동방 만들기 등)이 떠 있는가.
     private var isFullBleedContentPresented: Bool {
         coordinator.archive.isFullBleedContentPresented
@@ -79,6 +86,16 @@ struct MainTabView: View {
                         value: isHomeDimmedSheetPresented
                     )
                 }
+            }
+            // 마이페이지 안내. 탭바를 얹은 **뒤에** 붙어야 딤이 탭바 위로 덮인다 — 탭바는 사라지지
+            // 않고 딤 아래로 어두워진다. 문구·동작은 FeatureProfile 이 들고 루트는 z-order 만 책임진다.
+            .mhDialog(item: profileDialog) { dialog in
+                MHDialog(
+                    title: dialog.title,
+                    message: dialog.message,
+                    cancel: MHAction("취소") { coordinator.profile.dismissDialog() },
+                    confirm: MHAction("설정으로 이동") { coordinator.profile.confirmDialog() }
+                )
             }
             // 홈 사용 가이드의 "시작하기" CTA 는 탭바 자리를 통째로 덮어야 해서(시안) 탭 콘텐츠 안이
             // 아니라 여기(루트)에서 그린다. 딤은 홈이 요소별로 걸고, 루트는 z-order 만 책임진다.
