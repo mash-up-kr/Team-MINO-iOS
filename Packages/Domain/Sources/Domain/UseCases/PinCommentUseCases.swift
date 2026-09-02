@@ -15,7 +15,9 @@ public protocol PostPinCommentUseCase: Sendable {
 /// 내가 남긴 코멘트를 지운다 (기획 005-1 ⑭).
 /// 누가 지울 수 있는지(``PinComment/isWritten(by:)``)는 서버가 최종 판정한다.
 public protocol DeletePinCommentUseCase: Sendable {
-    func execute(commentID: PinCommentID) async throws
+    /// - Parameter pinID: 삭제 경로가 핀 하위라 코멘트 id 만으로는 부족하다
+    ///   (``PinCommentRepository/delete(pinID:commentID:)``).
+    func execute(pinID: PinID, commentID: PinCommentID) async throws
 }
 
 public struct DefaultFetchPinCommentsUseCase: FetchPinCommentsUseCase {
@@ -55,7 +57,7 @@ public struct DefaultDeletePinCommentUseCase: DeletePinCommentUseCase {
         self.repository = repository
     }
 
-    public func execute(commentID: PinCommentID) async throws {
-        try await repository.delete(commentID: commentID)
+    public func execute(pinID: PinID, commentID: PinCommentID) async throws {
+        try await repository.delete(pinID: pinID, commentID: commentID)
     }
 }

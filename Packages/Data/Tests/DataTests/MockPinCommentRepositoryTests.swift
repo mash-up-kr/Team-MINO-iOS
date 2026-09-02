@@ -142,7 +142,7 @@ struct MockPinCommentRepositoryTests {
         let sut = makeSUT(commentCount: 0)
         let posted = try await sut.post(pinID: Self.pinID, body: "좋았어요")
 
-        try await sut.delete(commentID: posted.id)
+        try await sut.delete(pinID: Self.pinID, commentID: posted.id)
 
         #expect(try await sut.comments(pinID: Self.pinID).isEmpty)
     }
@@ -153,7 +153,7 @@ struct MockPinCommentRepositoryTests {
         let posted = try await sut.post(pinID: Self.pinID, body: "좋았어요")
         let before = try await sut.comments(pinID: Self.pinID)
 
-        try await sut.delete(commentID: posted.id)
+        try await sut.delete(pinID: Self.pinID, commentID: posted.id)
         let after = try await sut.comments(pinID: Self.pinID)
 
         #expect(after == Array(before.dropLast()))

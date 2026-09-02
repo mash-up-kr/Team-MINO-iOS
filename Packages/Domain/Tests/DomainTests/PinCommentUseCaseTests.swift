@@ -10,7 +10,7 @@ private actor StubPinPinCommentRepository: PinCommentRepository {
     private let stored: [PinComment]
     private let error: DomainError?
     private(set) var postedBodies: [String] = []
-    private(set) var deletedIDs: [PinCommentID] = []
+    private(set) var deleted: [(pinID: PinID, commentID: PinCommentID)] = []
 
     init(stored: [PinComment] = [], error: DomainError? = nil) {
         self.stored = stored
@@ -34,8 +34,8 @@ private actor StubPinPinCommentRepository: PinCommentRepository {
         )
     }
 
-    func delete(commentID: PinCommentID) async throws {
-        deletedIDs.append(commentID)
+    func delete(pinID: PinID, commentID: PinCommentID) async throws {
+        deleted.append((pinID, commentID))
         if let error { throw error }
     }
 }
@@ -108,14 +108,17 @@ struct PostPinCommentUseCaseTests {
 }
 
 struct DeletePinCommentUseCaseTests {
-    @Test("고른 코멘트의 id 를 그대로 저장소에 넘긴다")
+    @Test("고른 코멘트의 핀·id 를 그대로 저장소에 넘긴다")
     func passesCommentIDToRepository() async throws {
         let repository = StubPinPinCommentRepository()
         let sut = DefaultDeletePinCommentUseCase(repository: repository)
 
-        try await sut.execute(commentID: PinCommentID("c1"))
+        try await sut.execute(pinID: commentPin, commentID: PinCommentID("c1"))
 
-        #expect(await repository.deletedIDs == [PinCommentID("c1")])
+        let deleted = await repository.deleted
+        #expect(deleted.count == 1)
+        #expect(deleted.first?.pinID == commentPin)
+        #expect(deleted.first?.commentID == PinCommentID("c1"))
     }
 
     @Test("저장소 오류를 그대로 올려보낸다 — 삼키면 화면이 지워진 줄 안다")
@@ -123,7 +126,7 @@ struct DeletePinCommentUseCaseTests {
         let sut = DefaultDeletePinCommentUseCase(repository: StubPinPinCommentRepository(error: DomainError.unknown))
 
         await #expect(throws: DomainError.unknown) {
-            try await sut.execute(commentID: PinCommentID("c1"))
+            try await sut.execute(pinID: commentPin, commentID: PinCommentID("c1"))
         }
     }
 }

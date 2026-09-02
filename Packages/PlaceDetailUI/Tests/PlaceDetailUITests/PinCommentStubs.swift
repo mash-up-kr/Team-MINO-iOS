@@ -51,6 +51,10 @@ struct StubPostPinComment: PostPinCommentUseCase {
 }
 
 /// 코멘트 삭제를 즉답시키는 스텁.
+///
+/// `log` 를 넘기면 받은 인자를 적어 둔다 — 삭제 경로가 핀 하위라(`delete(pinID:commentID:)`)
+/// **어느 핀으로 나갔는지**가 검증 대상이 됐다. 인자를 버리는 스텁만 두면 리듀서가 엉뚱한 핀을
+/// 실어 보내도 테스트가 통과한다.
 struct StubDeletePinComment: DeletePinCommentUseCase {
     enum Outcome: Sendable {
         case success
@@ -59,17 +63,29 @@ struct StubDeletePinComment: DeletePinCommentUseCase {
     }
 
     let outcome: Outcome
+    let log: DeletedCommentLog?
 
-    init(outcome: Outcome = .success) {
+    init(outcome: Outcome = .success, log: DeletedCommentLog? = nil) {
         self.outcome = outcome
+        self.log = log
     }
 
-    func execute(commentID: PinCommentID) async throws {
+    func execute(pinID: PinID, commentID: PinCommentID) async throws {
+        await log?.record(pinID: pinID, commentID: commentID)
         switch outcome {
         case .success: return
         case .failure(let error): throw error
         case .cancelled: throw CancellationError()
         }
+    }
+}
+
+/// 삭제 스텁이 받은 인자 기록장.
+actor DeletedCommentLog {
+    private(set) var entries: [(pinID: PinID, commentID: PinCommentID)] = []
+
+    func record(pinID: PinID, commentID: PinCommentID) {
+        entries.append((pinID, commentID))
     }
 }
 

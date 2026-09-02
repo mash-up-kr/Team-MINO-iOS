@@ -17,5 +17,10 @@ public protocol PinCommentRepository: Sendable {
     /// 만들면 그 값이 삭제의 손잡이라 서버 id 와 어긋나는 순간 지울 수 없는 줄이 남는다.
     func post(pinID: PinID, body: String) async throws -> PinComment
     /// 코멘트 하나를 지운다. 반환 없이 끝나면 그 코멘트는 더 이상 없다.
-    func delete(commentID: PinCommentID) async throws
+    ///
+    /// 코멘트 id 만으로는 지울 수 없어 **핀도 함께 받는다** — 서버 경로가
+    /// `DELETE /api/v1/pins/{pinId}/comments/{commentId}` 라 핀 없이는 요청을 만들지 못한다.
+    /// 구현체가 코멘트 id → 핀 을 기억하는 캐시로 우회하지 않는다: 조회를 거치지 않고 손에 들어온
+    /// 코멘트(등록 직후의 그 줄)는 그 캐시에 없어 **방금 쓴 것부터** 지우지 못한다.
+    func delete(pinID: PinID, commentID: PinCommentID) async throws
 }

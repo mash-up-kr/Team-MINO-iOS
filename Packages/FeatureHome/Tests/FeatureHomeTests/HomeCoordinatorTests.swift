@@ -36,7 +36,7 @@ private struct StubUnused: FetchPinDetailUseCase, CurrentMemberUseCase, FetchSav
     func execute(pin: Pin) async throws -> [Room] { throw DomainError.unknown }
     func execute(pinID: PinID) async throws -> [PinComment] { throw DomainError.unknown }
     func execute(pinID: PinID, body: String) async throws -> PinComment { throw DomainError.unknown }
-    func execute(commentID: PinCommentID) async throws { throw DomainError.unknown }
+    func execute(pinID: PinID, commentID: PinCommentID) async throws { throw DomainError.unknown }
     // 현위치만 throw 할 수 없다(유스케이스가 throws 가 아니다) — 못 얻은 것으로 답한다.
     func execute() async -> CurrentLocationResult { .unavailable }
 }

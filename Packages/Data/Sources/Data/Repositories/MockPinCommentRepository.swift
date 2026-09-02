@@ -56,9 +56,9 @@ public final class MockPinCommentRepository: PinCommentRepository {
 
     /// 지울 수 있는 사람인지는 서버가 판정할 몫이라 목은 id 만 보고 지운다.
     /// 화면이 이미 소유를 두 겹으로 막고 있어(케밥 표시 + 리듀서 가드) 남의 줄이 여기 닿지 않는다.
-    public func delete(commentID: PinCommentID) async throws {
+    public func delete(pinID: PinID, commentID: PinCommentID) async throws {
         try? await Task.sleep(for: .milliseconds(300))
-        await store.remove(commentID)
+        await store.remove(commentID, from: pinID)
     }
 
     // MARK: - Mock 합성
@@ -127,9 +127,9 @@ private actor PinCommentStore {
         byPin[comment.pinID.value, default: []].append(comment)
     }
 
-    func remove(_ commentID: PinCommentID) {
-        for pinID in byPin.keys {
-            byPin[pinID]?.removeAll { $0.id == commentID }
-        }
+    /// 핀을 함께 받으므로 그 칸만 훑는다 — 전체 순회하던 시절의 "id 가 겹치면 남의 핀 줄도
+    /// 사라진다" 는 여지가 없어진다.
+    func remove(_ commentID: PinCommentID, from pinID: PinID) {
+        byPin[pinID.value]?.removeAll { $0.id == commentID }
     }
 }
