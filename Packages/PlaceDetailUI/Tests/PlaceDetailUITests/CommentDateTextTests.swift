@@ -82,4 +82,17 @@ struct CommentDateTextTests {
         let createdAt = now.addingTimeInterval(3600)   // now 보다 1시간 뒤
         #expect(text(createdAt, now: now) == "방금 전")
     }
+
+    @Test("기기 캘린더가 비그레고리력이어도 절대 날짜는 그레고리력 연도로 고정된다")
+    func absoluteDateStaysGregorianEvenWithNonGregorianCalendar() {
+        var buddhist = Calendar(identifier: .buddhist)
+        buddhist.timeZone = TimeZone(identifier: "Asia/Seoul")!
+
+        let now = date(2027, 1, 1, 12, 0, 0)
+        let createdAt = calendar.date(byAdding: .day, value: -11, to: now)!   // 2026.12.21
+
+        // 불교력으로 계산해도(일 수·자정 경계는 caller 캘린더를 그대로 쓴다) 표기는
+        // 불교력 연도(2569)가 아니라 그레고리력 연도로 고정돼야 한다.
+        #expect(CommentDateText.text(for: createdAt, now: now, calendar: buddhist) == "2026.12.21")
+    }
 }

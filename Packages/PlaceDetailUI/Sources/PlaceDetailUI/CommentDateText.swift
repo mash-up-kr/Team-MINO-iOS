@@ -30,10 +30,16 @@ enum CommentDateText {
         ).day ?? 0
 
         if days >= 11 {
+            // 일 수 계산은 호출부 캘린더(사용자 표준시)를 쓰지만, 절대 날짜 표기는 역법과
+            // 무관하게 그레고리력 연도로 고정한다 — 기기가 불교력·일본력이면 `calendar` 를 그대로
+            // 넘겼을 때 `yyyy` 가 그 역법 연도(예: 2570)로 나와 기획 예시(`2027.01.01`)와 어긋난다.
+            // 시간대(자정 경계)만 호출부 것을 따르고, 로케일은 POSIX 로 고정해 숫자 포맷이 흔들리지 않게 한다.
+            var gregorian = Calendar(identifier: .gregorian)
+            gregorian.timeZone = calendar.timeZone
             let formatter = DateFormatter()
-            formatter.calendar = calendar
+            formatter.calendar = gregorian
             formatter.timeZone = calendar.timeZone
-            formatter.locale = calendar.locale
+            formatter.locale = Locale(identifier: "en_US_POSIX")
             formatter.dateFormat = "yyyy.MM.dd"
             return formatter.string(from: createdAt)
         }
