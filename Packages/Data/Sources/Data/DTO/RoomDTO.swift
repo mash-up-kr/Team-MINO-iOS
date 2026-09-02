@@ -72,15 +72,9 @@ extension RoomDTO {
     }
 
     /// `thumbnailList` 에서 **사진 URL 만** 골라 낸다. 색상 키는 버린다 — 색은 `color` 로 이미 온다.
-    ///
-    /// `URL(string:)` 만으로는 못 거른다 — `URL(string: "orange")` 는 스킴 없는 상대 URL 로
-    /// **성공**하기 때문에, 색상 키가 사진으로 둔갑한다. 그래서 스킴까지 본다.
+    /// 거르는 규칙과 그 이유는 ``webImageURL(_:)`` 에 있다.
     private func placeThumbnails() -> [URL] {
-        (thumbnailList ?? []).compactMap { raw in
-            guard let url = URL(string: raw), let scheme = url.scheme?.lowercased(),
-                  scheme == "http" || scheme == "https" else { return nil }
-            return url
-        }
+        (thumbnailList ?? []).compactMap { webImageURL($0) }
     }
 }
 

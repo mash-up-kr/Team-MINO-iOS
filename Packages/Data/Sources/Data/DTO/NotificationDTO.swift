@@ -43,7 +43,7 @@ extension NotificationDTO {
             type: notificationType,
             title: Self.trimmed(typeLabel) ?? "",
             targetName: Self.trimmed(targetName) ?? "",
-            thumbnailURL: Self.parseImageURL(thumbnailUrl),
+            thumbnailURL: webImageURL(thumbnailUrl),
             destination: Self.mapDestination(type: notificationType, payload: payload),
             createdAt: createdAt
         )
@@ -90,14 +90,5 @@ extension NotificationDTO {
         guard let raw else { return nil }
         let value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         return value.isEmpty ? nil : value
-    }
-
-    /// http(s) 절대 주소만 남긴다 — 스킴 없는 문자열은 `URL(string:)` 이 상대 URL 로 **성공**시켜
-    /// 엉뚱한 값이 이미지 주소로 둔갑한다(`RoomDTO.placeThumbnails` 와 같은 판단).
-    private static func parseImageURL(_ raw: String?) -> URL? {
-        guard let raw, let url = URL(string: raw),
-              let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https"
-        else { return nil }
-        return url
     }
 }
