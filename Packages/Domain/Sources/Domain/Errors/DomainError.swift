@@ -42,6 +42,20 @@ public enum DomainError: Error, Equatable, Sendable {
     /// 등록 버튼이 이미 잠기지만(화면), 유스케이스도 스스로 막는다. 뷰를 고치면 뚫리는 방어라
     /// 도메인 경계에서 한 번 더 세우고, 그 거절을 오류로 드러낸다.
     case commentBodyEmpty
+    /// 코멘트 목록을 읽지 못했다. 재시도가 의미 있다.
+    ///
+    /// 셋(`commentsFetchFailed`·`commentPostFailed`·`commentDeleteFailed`)을 갈라 둔다.
+    /// 지금 장소 상세는 셋을 같은 결로 처리하지만, 세 실패가 `unknown` 한 값으로 수렴하면
+    /// **번역되지 않은 오류**(`NetworkError.logUntranslated()` 가 잡아내려는 것)와 구분이
+    /// 사라진다 — 리소스별 폴백 어휘를 두는 건 형제 Repository 전부가 지키는 규약이다
+    /// (`pinsFetchFailed`·`roomsFetchFailed`·`pinShareFailed`).
+    case commentsFetchFailed
+    /// 코멘트를 남기지 못했다. 빈 본문 거절(`commentBodyEmpty`)과 갈라 둔다 —
+    /// 그쪽은 보내기 전에 유스케이스가 막은 것이고, 이쪽은 서버까지 갔다가 실패한 것이다.
+    case commentPostFailed
+    /// 코멘트를 지우지 못했다. 서버가 작성자가 아니라고 판정한 경우(403)도 여기로 흡수한다 —
+    /// 화면이 그 거절을 따로 보여 줄 자리가 아직 없다.
+    case commentDeleteFailed
     /// 저장한 장소를 읽지 못했다 — 홈 카드 덱·방 상세 목록·장소 상세 공통. 재시도가 의미 있다.
     case pinsFetchFailed
     /// 이미 저장한 장소를 **다른 방에 담지 못했다**(011-1).
