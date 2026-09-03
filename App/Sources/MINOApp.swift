@@ -44,14 +44,27 @@ struct RootView: View {
             case .onboarding:
                 OnboardingHost(coordinator: coordinator)
             case .main:
-                // 탭이 실제로 뜬 시점 — 보류된 푸시를 소비하고 토큰 업로드를 두드린다.
-                // `.main` 안에서는 identity 가 고정이라 1회만 실행된다.
-                MainTabView(coordinator: coordinator)
+                mainContent
+                    // 보류된 푸시를 소비하고 토큰 업로드를 두드린다. **`mainContent` 바깥**에 건다 —
+                    // 아래 분기가 스플래시를 고르는 동안에도 불려야 보관분을 꺼낼 사람이 있다.
+                    // `.main` 안에서는 identity 가 고정이라 1회만 실행된다.
                     .task { coordinator.mainDidAppear() }
             }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { coordinator.didBecomeActive() }
+        }
+    }
+
+    /// 콜드런치로 들어온 푸시는 도착지를 조회하는 동안 **스플래시를 이어 간다** — 여기서 메인 탭을
+    /// 먼저 그리면 홈 탭이 보였다가 저장 탭으로 튄다. 조회는 보통 수백 ms 라 이미 보고 있던
+    /// 스플래시가 그만큼 길어질 뿐이다.
+    @ViewBuilder
+    private var mainContent: some View {
+        if coordinator.isResolvingPush {
+            LaunchSplashView()
+        } else {
+            MainTabView(coordinator: coordinator)
         }
     }
 }

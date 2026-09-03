@@ -49,7 +49,14 @@ final class AppCoordinator {
     ///
     /// 온보딩 중이면 온보딩을 마친 뒤에 열린다. 그 사이 앱이 죽어 보관분이 사라지는 건 허용한다 —
     /// 알림은 목록에 그대로 남아 있어 다시 누르면 된다.
-    private var pendingPush: PushRoute?
+    private var pendingPush: NotificationDestination?
+
+    /// 콜드런치로 들어온 푸시의 도착지를 아직 조회 중이다. 참인 동안 `RootView` 는 **스플래시를
+    /// 유지한다** — 조회가 끝나기 전에 메인 탭을 그리면 홈 탭이 잠깐 보였다가 저장 탭으로 튄다.
+    ///
+    /// 이미 메인이 떠 있는 상태(백그라운드 복귀)에서는 켜지 않는다. 보고 있던 화면을 스플래시로
+    /// 덮는 게 더 이상하다 — 그 경우엔 보던 탭에 머물다 조회가 끝나면 옮겨 간다.
+    private(set) var isResolvingPush = false
 
     /// 자식 flow 를 만들 때마다 넘겨야 해서 보관한다 — 온보딩은 flow 1회당 새로 만든다.
     private let deps: AppDependencies
@@ -92,23 +99,24 @@ final class AppCoordinator {
     }
 
     /// 푸시를 눌렀을 때의 진입점. 메인이 아직 아니면 들고 있다가 `mainDidAppear()` 가 소비한다.
-    ///
-    /// `open(_:)`(탭 밖 이동)과 갈라 둔 이유는 **아직 목적지가 탭 하나**라서다 — payload 계약이
-    /// 확정되면 아래 `open(push:)` 에서 `open(.place(…))` 로 넘긴다.
-    func handle(push route: PushRoute) {
+    func handle(push destination: NotificationDestination) {
         guard launch.state.phase == .main else {
-            pendingPush = route
+            pendingPush = destination
+            // 메인이 그려지기 **전에** 켜 둔다 — `.main` 에 들어서는 순간 스플래시가 이어지고
+            // 메인 탭은 도착지가 정해진 뒤에 한 번만 그려진다.
+            isResolvingPush = true
             return
         }
-        open(push: route)
+        resolve(destination)
     }
 
-    /// 메인 탭이 실제로 떠 있는 시점(`RootView`)에 부른다.
+    /// 메인 진입 시점(`RootView`)에 부른다. 스플래시를 유지하는 동안에도 불려야 해서
+    /// `MainTabView` 가 아니라 `.main` 분기 자체에 걸린다 — 아니면 보관분을 꺼낼 사람이 없다.
     func mainDidAppear() {
         pushTokenSync.kick()
-        guard let route = pendingPush else { return }
+        guard let destination = pendingPush else { return }
         pendingPush = nil
-        open(push: route)
+        resolve(destination)
     }
 
     /// 포그라운드 복귀. 토큰 업로드의 사실상 재시도 지점이다 — 별도 재시도 타이머를 두지 않는 근거다.
@@ -117,11 +125,50 @@ final class AppCoordinator {
         pushTokenSync.kick()
     }
 
-    private func open(push route: PushRoute) {
-        switch route {
-        case .notificationTab:
-            selectedTabID = MainTab.notification.rawValue
+    /// 알림이 가리키는 곳을 열어 준다.
+    ///
+    /// `open(_:)` 이 완성된 `Pin`·`Room` 을 요구해서(동기여야 하는 이유는 그쪽 주석) 여기서 조회를
+    /// 끝내고 넘긴다 — 알림 셀 탭(`NotificationListStore`)이 하는 것과 같은 흐름이다.
+    private func resolve(_ destination: NotificationDestination) {
+        switch destination {
+        case .place(let pinID):
+            Task { [weak self] in
+                guard let self else { return }
+                do {
+                    let pin = try await deps.fetchPinDetail.execute(pinID: pinID).pin
+                    // 열 방은 알림이 아니라 핀이 정한다(FR-022).
+                    let room = try await deps.fetchRoom.execute(id: pin.roomID)
+                    finishPush { $0.open(.place(pin: pin, room: room)) }
+                } catch {
+                    finishPush { $0.landOnNotificationTab() }
+                }
+            }
+        case .room(let roomID):
+            Task { [weak self] in
+                guard let self else { return }
+                do {
+                    let room = try await deps.fetchRoom.execute(id: roomID)
+                    finishPush { $0.open(.room(room)) }
+                } catch {
+                    finishPush { $0.landOnNotificationTab() }
+                }
+            }
+        // 저장 오류 안내는 알림 탭 안의 화면이다(EC-013). 목록에 그 알림이 있으니 탭까지만 보내면
+        // 사용자가 눌러 들어갈 수 있다 — 밖에서 그 화면을 직접 여는 진입점은 아직 없다.
+        case .saveError, .unresolved:
+            finishPush { $0.landOnNotificationTab() }
         }
+    }
+
+    /// 도착지가 정해졌다 — 이동하고 스플래시를 내린다. **순서가 중요하다**: 먼저 이동해 두지
+    /// 않으면 메인 탭이 한 프레임 동안 홈으로 그려진 뒤 옮겨 간다.
+    private func finishPush(_ move: (AppCoordinator) -> Void) {
+        move(self)
+        isResolvingPush = false
+    }
+
+    private func landOnNotificationTab() {
+        selectedTabID = MainTab.notification.rawValue
     }
 
     /// 온보딩 화면에 들어설 때 호출한다. **flow 1회당 새 인스턴스를 만든다** —
