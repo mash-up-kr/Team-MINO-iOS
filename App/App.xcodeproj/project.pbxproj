@@ -35,6 +35,10 @@
 		AU10000000000000000000B1 /* FirebaseAuthRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = AU10000000000000000000F1 /* FirebaseAuthRepository.swift */; };
 		PE10000000000000000000B1 /* SystemPermissionRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = PE10000000000000000000F1 /* SystemPermissionRepository.swift */; };
 		PE10000000000000000000B2 /* RemoteNotificationRegistrationRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = PE10000000000000000000F2 /* RemoteNotificationRegistrationRepository.swift */; };
+		PU10000000000000000000B1 /* FCMPushTokenProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = PU10000000000000000000F1 /* FCMPushTokenProvider.swift */; };
+		PU10000000000000000000B2 /* PushTokenObserver.swift in Sources */ = {isa = PBXBuildFile; fileRef = PU10000000000000000000F2 /* PushTokenObserver.swift */; };
+		PU10000000000000000000B3 /* PushTokenSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = PU10000000000000000000F3 /* PushTokenSync.swift */; };
+		PU10000000000000000000B6 /* PendingHandoff.swift in Sources */ = {isa = PBXBuildFile; fileRef = PU10000000000000000000F6 /* PendingHandoff.swift */; };
 		LO10000000000000000000B1 /* SystemCurrentLocationRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = LO10000000000000000000F1 /* SystemCurrentLocationRepository.swift */; };
 		AU10000000000000000000B2 /* FirebaseAuthTokenProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = AU10000000000000000000F2 /* FirebaseAuthTokenProvider.swift */; };
 		LA10000000000000000000B1 /* LaunchSplashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = LA10000000000000000000F1 /* LaunchSplashView.swift */; };
@@ -66,6 +70,10 @@
 		AU10000000000000000000F1 /* FirebaseAuthRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirebaseAuthRepository.swift; sourceTree = "<group>"; };
 		PE10000000000000000000F1 /* SystemPermissionRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemPermissionRepository.swift; sourceTree = "<group>"; };
 		PE10000000000000000000F2 /* RemoteNotificationRegistrationRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteNotificationRegistrationRepository.swift; sourceTree = "<group>"; };
+		PU10000000000000000000F1 /* FCMPushTokenProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FCMPushTokenProvider.swift; sourceTree = "<group>"; };
+		PU10000000000000000000F2 /* PushTokenObserver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushTokenObserver.swift; sourceTree = "<group>"; };
+		PU10000000000000000000F3 /* PushTokenSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushTokenSync.swift; sourceTree = "<group>"; };
+		PU10000000000000000000F6 /* PendingHandoff.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingHandoff.swift; sourceTree = "<group>"; };
 		LO10000000000000000000F1 /* SystemCurrentLocationRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemCurrentLocationRepository.swift; sourceTree = "<group>"; };
 		AU10000000000000000000F2 /* FirebaseAuthTokenProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirebaseAuthTokenProvider.swift; sourceTree = "<group>"; };
 		LA10000000000000000000F1 /* LaunchSplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchSplashView.swift; sourceTree = "<group>"; };
@@ -206,6 +214,17 @@
 			path = Permissions;
 			sourceTree = "<group>";
 		};
+		PU10000000000000000000G1 /* Push */ = {
+			isa = PBXGroup;
+			children = (
+				PU10000000000000000000F1 /* FCMPushTokenProvider.swift */,
+				PU10000000000000000000F2 /* PushTokenObserver.swift */,
+				PU10000000000000000000F3 /* PushTokenSync.swift */,
+				PU10000000000000000000F6 /* PendingHandoff.swift */,
+			);
+			path = Push;
+			sourceTree = "<group>";
+		};
 		LO10000000000000000000G1 /* Location */ = {
 			isa = PBXGroup;
 			children = (
@@ -234,6 +253,7 @@
 				AU10000000000000000000G1 /* Auth */,
 				LA10000000000000000000G1 /* Launch */,
 				PE10000000000000000000G1 /* Permissions */,
+				PU10000000000000000000G1 /* Push */,
 				LO10000000000000000000G1 /* Location */,
 			);
 			path = Sources;
@@ -467,6 +487,10 @@
 				AU10000000000000000000B1 /* FirebaseAuthRepository.swift in Sources */,
 				PE10000000000000000000B1 /* SystemPermissionRepository.swift in Sources */,
 				PE10000000000000000000B2 /* RemoteNotificationRegistrationRepository.swift in Sources */,
+				PU10000000000000000000B1 /* FCMPushTokenProvider.swift in Sources */,
+				PU10000000000000000000B2 /* PushTokenObserver.swift in Sources */,
+				PU10000000000000000000B3 /* PushTokenSync.swift in Sources */,
+				PU10000000000000000000B6 /* PendingHandoff.swift in Sources */,
 				LO10000000000000000000B1 /* SystemCurrentLocationRepository.swift in Sources */,
 				AU10000000000000000000B2 /* FirebaseAuthTokenProvider.swift in Sources */,
 				AU10000000000000000000B3 /* FirebaseSession.swift in Sources */,

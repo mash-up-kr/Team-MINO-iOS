@@ -40,11 +40,15 @@ final class AppCoordinator {
     /// 화면의 `@State` 에 두면 진입 게이트가 화면을 갈아끼울 때 함께 버려진다.
     private let pendingDeeplink = PendingDeeplink()
 
+    /// 푸시 토큰을 서버와 맞추는 일. `launch` 와 같은 이유로 여기 있다 — 화면이 아니라 앱 수명이다.
+    let pushTokenSync: PushTokenSync
+
     /// 자식 flow 를 만들 때마다 넘겨야 해서 보관한다 — 온보딩은 flow 1회당 새로 만든다.
     private let deps: AppDependencies
 
     init(deps: AppDependencies) {
         self.deps = deps
+        self.pushTokenSync = deps.pushTokenSync
         self.home = HomeCoordinator(deps: deps)
         self.archive = ArchiveCoordinator(deps: deps)
         self.notification = NotificationCoordinator(deps: deps)
@@ -77,6 +81,18 @@ final class AppCoordinator {
         case .room(let room): archive.open(room: room)
         }
         selectedTabID = MainTab.save.rawValue
+    }
+
+    /// 메인 탭이 실제로 떠 있는 시점(`RootView`)에 부른다. **여기서 두드려야** 하는 이유는
+    /// `PUT push-token` 이 세션 + 회원등록을 요구해서다 — `.main` 이 그 둘이 끝났다는 사실이다.
+    func mainDidAppear() {
+        pushTokenSync.kick()
+    }
+
+    /// 포그라운드 복귀. 토큰 업로드의 사실상 재시도 지점이다 — 별도 재시도 타이머를 두지 않는 근거다.
+    func didBecomeActive() {
+        guard launch.state.phase == .main else { return }
+        pushTokenSync.kick()
     }
 
     /// 온보딩 화면에 들어설 때 호출한다. **flow 1회당 새 인스턴스를 만든다** —
