@@ -2,6 +2,13 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- 푸시 알림(APNs). 이 프로젝트의 pbxproj 에는 SystemCapabilities 블록이 없어
+	     캐퍼빌리티가 이 파일에만 기록된다 — Xcode UI 로 켜도 결국 여기 한 줄이다.
+	     배포 서명 시점에는 프로비저닝 프로파일에 맞춰 production 으로 대체되므로 개발 기준으로 둔다.
+	     ⚠️ Apple Developer Portal 의 App ID(com.mashup.teamMino)에서 Push Notifications 를
+	        켜 두지 않으면 이 키를 넣는 순간 서명이 실패한다. -->
+	<key>aps-environment</key>
+	<string>development</string>
 	<key>keychain-access-groups</key>
 	<array>
 		<string>$(AppIdentifierPrefix)com.mashup.teamMino.shared</string>
