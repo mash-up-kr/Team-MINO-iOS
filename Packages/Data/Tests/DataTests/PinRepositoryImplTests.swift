@@ -8,25 +8,33 @@ import Testing
 /// 인프라 오류가 어떤 도메인 어휘가 되는지.
 @Suite("PinRepositoryImpl")
 struct PinRepositoryImplTests {
+    /// 스웨거(`GET /api/v1/rooms/{roomId}/cards`) 200 응답 그대로 — `data` 는 배열이 아니라
+    /// `{ room, cards }` 객체다. 쓰지 않는 `room` 과 `place.provider` 같은 키도 실제 응답처럼
+    /// 남겨 둔다: 안 읽는 키가 늘어도 덱이 깨지지 않아야 한다.
     private static let cardsJSON = """
-    [
-      {
-        "id": "pin-1", "roomId": "room-1",
-        "place": { "id": "place-1", "name": "레이어스튜디오", "address": "서울 성동구 상원4길 10",
-                   "lat": 37.5443, "lng": 127.0557, "category": "카페",
-                   "mapUrl": "https://map.kakao.com/p/1" },
-        "images": ["https://cdn.example.com/a.jpg", ""],
-        "createdBy": { "userId": "u2", "nickname": "지훈", "avatar": { "color": "red_orange" } },
-        "createdAt": "2026-08-01T09:00:00Z", "labelGroup": "manyComments"
-      },
-      {
-        "id": "pin-2", "roomId": "room-1",
-        "place": { "id": "place-2", "name": "을지다락", "address": "서울 중구 을지로3가",
-                   "lat": 37.5662, "lng": 126.9917, "category": null, "mapUrl": null },
-        "images": [], "createdBy": null,
-        "createdAt": "2026-08-02T09:00:00Z", "labelGroup": "manyViews"
-      }
-    ]
+    {
+      "room": { "id": "room-1", "type": "shared", "name": "맛집 탐방", "color": "red" },
+      "cards": [
+        {
+          "id": "pin-1", "roomId": "room-1",
+          "place": { "id": "place-1", "provider": "kakao", "providerPlaceId": "1",
+                     "name": "레이어스튜디오", "address": "서울 성동구 상원4길 10",
+                     "city": "서울", "district": "성동구",
+                     "lat": 37.5443, "lng": 127.0557, "category": "카페", "phone": null,
+                     "mapUrl": "https://map.kakao.com/p/1" },
+          "images": ["https://cdn.example.com/a.jpg", ""],
+          "createdBy": { "userId": "u2", "nickname": "지훈", "avatar": { "color": "red_orange" } },
+          "createdAt": "2026-08-01T09:00:00Z", "labelGroup": "manyComments"
+        },
+        {
+          "id": "pin-2", "roomId": "room-1",
+          "place": { "id": "place-2", "name": "을지다락", "address": "서울 중구 을지로3가",
+                     "lat": 37.5662, "lng": 126.9917, "category": null, "mapUrl": null },
+          "images": [], "createdBy": null,
+          "createdAt": "2026-08-02T09:00:00Z", "labelGroup": "manyViews"
+        }
+      ]
+    }
     """
 
     @Test("홈 덱은 GET api/v1/rooms/{roomId}/cards 로 나가고 기본 정렬은 ggukPick 이다")
@@ -73,6 +81,39 @@ struct PinRepositoryImplTests {
         #expect(pins[1].createdBy == nil)
         #expect(pins[1].place.mapURL == nil)
         #expect(pins[1].category == .popularAmongFriends)
+    }
+
+    // #196 회귀. 서버가 홈 헤더용 `room` 을 실으면서 카드가 `data.cards` 한 겹 안으로 들어갔는데
+    // 앱은 `data` 를 배열로 읽고 있었다. 디코딩이 던지면 홈은 그 방을 후보 0건으로 삼켜
+    // 사용자에게는 오류가 아니라 "모든 장소를 다 봤어요" 로 보인다 — 조용히 묻히는 실패라
+    // 응답 모양을 여기서 못박는다.
+    @Test("덱은 data 자체가 아니라 data.cards 에서 읽는다")
+    func cards_readDeckFromObjectEnvelope() async throws {
+        let sut = PinRepositoryImpl(client: StubHTTPClient(json: Self.cardsJSON))
+
+        let pins = try await sut.cards(roomID: "room-1", filter: .recommended, origin: nil)
+
+        #expect(pins.map(\.id.value) == ["pin-1", "pin-2"])
+    }
+
+    // `room` 은 ``PinCardDeckDTO`` 가 선언하지 않는다 — 홈 헤더는 방 목록에서 같은 값을 이미 받는다.
+    // 스웨거가 이 응답에 `required` 를 적어 두지 않아 `room` 이 필수인지 확정할 수 없으므로,
+    // 서버가 빼더라도 덱은 그대로 와야 한다.
+    @Test("room 이 빠져도 덱은 디코딩된다 — 헤더용 메타라 덱과 무관하다")
+    func cards_decodeWithoutRoomMeta() async throws {
+        let sut = PinRepositoryImpl(client: StubHTTPClient(json: """
+        { "cards": [
+            { "id": "pin-1", "roomId": "room-1",
+              "place": { "id": "p", "name": "n", "address": "a", "lat": 1, "lng": 2,
+                         "category": null, "mapUrl": null },
+              "images": [], "createdBy": null,
+              "createdAt": "2026-08-01T09:00:00Z", "labelGroup": "worthVisiting" }
+        ] }
+        """))
+
+        let pins = try await sut.cards(roomID: "room-1", filter: .recommended, origin: nil)
+
+        #expect(pins.count == 1)
     }
 
     // 서버 라벨과 카드 뱃지는 이름이 다르고 뜻으로만 대응한다 — 어긋나면 카드에 남의 뱃지가 붙는다.
@@ -147,11 +188,14 @@ struct PinRepositoryImplTests {
 
     private static func card(labelGroup: String) -> String {
         """
-        [{ "id": "pin-1", "roomId": "room-1",
-           "place": { "id": "p", "name": "n", "address": "a", "lat": 1, "lng": 2,
-                      "category": null, "mapUrl": null },
-           "images": [], "createdBy": null,
-           "createdAt": "2026-08-01T09:00:00Z", "labelGroup": "\(labelGroup)" }]
+        { "room": { "id": "room-1", "type": "shared", "name": "맛집 탐방", "color": "red" },
+          "cards": [
+            { "id": "pin-1", "roomId": "room-1",
+              "place": { "id": "p", "name": "n", "address": "a", "lat": 1, "lng": 2,
+                         "category": null, "mapUrl": null },
+              "images": [], "createdBy": null,
+              "createdAt": "2026-08-01T09:00:00Z", "labelGroup": "\(labelGroup)" }
+          ] }
         """
     }
 }
