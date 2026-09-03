@@ -2,7 +2,12 @@ import Domain
 import Foundation
 
 struct RoomDetailLocation: Identifiable, Equatable {
+    /// **핀** id. 같은 장소도 방마다 핀이 따로라 이 값은 방 안에서만 유일하다.
     let id: String
+    /// **장소** id. 「다른 방에 공유」 후보 조회가 이 값으로 나간다
+    /// (`GET /rooms?showHasPlaceId={placeId}` — place-api.md §3). 핀 id 로는 "어느 방에
+    /// 있는지" 를 물을 수 없어 함께 들고 있는다.
+    let placeID: String
     let name: String
     let address: String
     let commentCount: Int
@@ -19,6 +24,7 @@ struct RoomDetailLocation: Identifiable, Equatable {
     /// `saver` 만 기본값을 갖는다 — 저장자를 모르는 자리(공유 시트로 넘어가는 값 등)가 있어서다.
     init(
         id: String,
+        placeID: String,
         name: String,
         address: String,
         commentCount: Int,
@@ -26,6 +32,7 @@ struct RoomDetailLocation: Identifiable, Equatable {
         saver: MemberProfile? = nil
     ) {
         self.id = id
+        self.placeID = placeID
         self.name = name
         self.address = address
         self.commentCount = commentCount
@@ -85,6 +92,7 @@ extension RoomDetailLocation {
     init(from pin: Pin) {
         self.init(
             id: pin.id.value,
+            placeID: pin.place.id.value,
             name: pin.place.name,
             address: pin.place.address,
             commentCount: pin.commentCount,
@@ -204,6 +212,7 @@ extension RoomDetailLocation {
     static let samples: [RoomDetailLocation] = (0..<8).map { index in
         RoomDetailLocation(
             id: "sample-\(index)",
+            placeID: "sample-place-\(index)",
             name: "레이어스튜디오 10",
             address: "서울 성동구 상원4길 10",
             commentCount: 1000,

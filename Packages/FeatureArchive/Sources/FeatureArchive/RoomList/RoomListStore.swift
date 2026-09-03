@@ -186,7 +186,7 @@ public func roomListReducer(
 
         // 003-1 ⑦ — 권한 미결정이면 유스케이스가 그 자리에서 묻고, 이미 거부됐으면 묻지 않고
         // `permissionDenied` 로 돌아온다. 좌표를 못 얻으면 아무것도 하지 않는다: 시안에 실패를
-        // 알리는 UI 가 없고, 지도는 기본 카메라(강남 일대, ``ArchiveMap/defaultCamera``)에 머문다
+        // 알리는 UI 가 없고, 지도는 기본 카메라(강남 일대, ``PlaceMap/defaultCamera``)에 머문다
         // — 003-1 ⑦ "최초 접속 시 거절, 클릭 후 거절 시 사용자 기본 위치는 '강남역'".
         // 장소 상세의 같은 버튼(``PlaceDetailStore`` 의 `.tapMyLocation`)과 같은 규칙이다.
         case .tapMyLocation:

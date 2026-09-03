@@ -11,7 +11,7 @@ import SwiftUI
 ///   맞출 수단이 없다.
 /// - 자리도 `GMSMapView.padding` 으로 간접적으로만 밀린다("safe area insets position map
 ///   controls such as the compass, my location button and floor picker"). 그 padding 은 이미
-///   attribution 을 시트 위로 올리는 데 쓰고 있어(``ArchiveMapLayer/bottomInset``) 버튼 자리를
+///   attribution 을 시트 위로 올리는 데 쓰고 있어(``PlaceMapLayer/bottomInset``) 버튼 자리를
 ///   맞추자고 건드릴 수 없고, 건드리면 Google Maps Platform 약관(attribution 가림 금지)이 깨진다.
 ///   `저장된 방` 과 8pt 간격으로 나란히 세우는 것도 좌표계가 달라 보장할 수 없다.
 /// - 아이콘도 다르다. 시안은 **고리 + 안쪽 4눈금, 가운데 점 없음**이고, SDK 가 쓰는 Material
@@ -31,27 +31,31 @@ import SwiftUI
 /// 그 대가로 DS 의 press 오버레이가 없다(`MHButtonStyle.pressedOpacity` 는 DesignSystem 내부).
 /// 시안의 이 프레임에도 interaction 레이어가 없어 눌림 상태가 정의돼 있지 않다 —
 /// 정해지면 그때 DS 에 테두리 없는 variant 를 추가하고 이 뷰를 걷어낸다.
-struct MyLocationButton: View {
+public struct MyLocationButton: View {
     let action: () -> Void
 
-    var body: some View {
+    public init(action: @escaping () -> Void) {
+        self.action = action
+    }
+
+    public var body: some View {
         Button(action: action) {
             Image(.myLocation)
                 .resizable()
                 .frame(
-                    width: ArchiveMapButtonMetrics.myLocationIconSize,
-                    height: ArchiveMapButtonMetrics.myLocationIconSize
+                    width: PlaceMapButtonMetrics.myLocationIconSize,
+                    height: PlaceMapButtonMetrics.myLocationIconSize
                 )
                 .foregroundStyle(.mhLabelNormal)
                 // 아이콘이 아니라 버튼 전체가 탭 영역이 되도록 프레임을 라벨에 건다.
                 .frame(
-                    width: ArchiveMapButtonMetrics.myLocationSize,
-                    height: ArchiveMapButtonMetrics.myLocationSize
+                    width: PlaceMapButtonMetrics.myLocationSize,
+                    height: PlaceMapButtonMetrics.myLocationSize
                 )
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)   // 기본 스타일의 강조색 틴트를 끈다 — 아이콘 색은 Label/Normal 이다
-        .mapFloatingSurface(cornerRadius: ArchiveMapButtonMetrics.myLocationSize / 2)
+        .mapFloatingSurface(cornerRadius: PlaceMapButtonMetrics.myLocationSize / 2)
         .accessibilityLabel("현위치")
         // 방 리스트(003-1 ⑦)와 장소 상세(005-1)가 같은 버튼을 쓴다 — 화면 이름을 붙이지 않는다.
         .accessibilityIdentifier("Archive.myLocation")

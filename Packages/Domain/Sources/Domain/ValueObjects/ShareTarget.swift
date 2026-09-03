@@ -15,3 +15,11 @@ public struct ShareTarget: Equatable, Sendable {
         self.alreadySaved = alreadySaved
     }
 }
+
+public extension Sequence<ShareTarget> {
+    /// 이 장소가 이미 담긴 방의 id — 시트가 체크·비활성으로 그릴 대상.
+    /// 「다른 방에 공유」와 「게시물 저장」이 같은 조회를 쓰므로 파생도 한 자리에 둔다.
+    var alreadySavedRoomIDs: Set<String> {
+        Set(lazy.filter(\.alreadySaved).map(\.room.id))
+    }
+}

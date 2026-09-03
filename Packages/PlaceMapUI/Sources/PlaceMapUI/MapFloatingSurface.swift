@@ -9,7 +9,7 @@ extension View {
     /// 쓰고 있어 여기 모았다 — 한쪽만 고쳐 둘이 갈라지지 않게 한다.
     ///
     /// - Parameter cornerRadius: 표면과 그림자를 함께 자를 반지름. 원형이면 한 변의 절반.
-    func mapFloatingSurface(cornerRadius: CGFloat) -> some View {
+    public func mapFloatingSurface(cornerRadius: CGFloat) -> some View {
         background(.mhBackgroundNormalNormal, in: RoundedRectangle(cornerRadius: cornerRadius))
             .mhShadow(.medium, cornerRadius: cornerRadius)
     }

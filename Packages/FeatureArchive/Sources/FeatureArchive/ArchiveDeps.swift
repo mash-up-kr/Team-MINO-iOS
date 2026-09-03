@@ -1,6 +1,7 @@
 import Core
 import Domain
 import PlaceDetailUI
+import RoomShareUI
 
 /// ArchiveCoordinator 가 요구하는 좁은 의존성 묶음.
 ///

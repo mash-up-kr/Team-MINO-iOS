@@ -44,5 +44,10 @@ public enum DomainError: Error, Equatable, Sendable {
     case commentBodyEmpty
     /// 저장한 장소를 읽지 못했다 — 홈 카드 덱·방 상세 목록·장소 상세 공통. 재시도가 의미 있다.
     case pinsFetchFailed
+    /// 이미 저장한 장소를 **다른 방에 담지 못했다**(011-1).
+    ///
+    /// 링크 저장(`linkSaveFailed`)과 갈라 둔다 — 그쪽은 익스텐션이 인스타 링크를 처음 담는 경로라
+    /// 실패 스낵바가 따로 있고, 이쪽은 앱 안에서 이미 있는 장소를 복제하는 다른 화면이다.
+    case pinShareFailed
     case unknown
 }

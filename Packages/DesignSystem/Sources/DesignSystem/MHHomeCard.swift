@@ -249,6 +249,10 @@ public extension View {
                         Color.clear
                             .contentShape(Rectangle())
                             .onTapGesture { presentation.dismiss() }   // 카드 밖 어디를 눌러도 닫힘
+                            // 스크림 위에서 끈 드래그도 닫는다 — 스크림이 뒤의 제스처를 삼키므로
+                            // 이게 없으면 카드덱 스와이프가 메뉴를 열어 둔 채 통째로 먹힌다.
+                            // 드래그 자체는 뒤로 넘기지 않는다(메뉴를 닫는 조작으로 끝난다).
+                            .gesture(DragGesture(minimumDistance: 10).onEnded { _ in presentation.dismiss() })
                         MHMenu(presentation.items)
                             .frame(width: MHHomeCardMenuMetrics.width)
                             .padding(.vertical, MHHomeCardMenuMetrics.verticalPadding)

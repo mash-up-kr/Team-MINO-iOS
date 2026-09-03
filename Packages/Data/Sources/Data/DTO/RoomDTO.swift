@@ -16,6 +16,9 @@ struct RoomDTO: Decodable {
     let pinCount: Int?
     let memberCount: Int?
     let users: [RoomMemberDTO]?
+    /// 이 방에 그 장소가 이미 있는지. **`?showHasPlaceId=` 를 붙인 요청에만 실린다** —
+    /// 안 붙이면 서버가 키 자체를 생략하므로 `nil` 이다(계약: place-api.md §3).
+    let hasPlace: Bool?
     /// 스펙: "최근 핀 최대 4개의 장소 대표 이미지 URL(최신순). **저장된 핀이 없으면 방 대표 색상 키 1개**".
     /// 한 배열에 두 의미가 섞여 오므로 `toDomain()` 이 URL 만 남긴다.
     let thumbnailList: [String]?

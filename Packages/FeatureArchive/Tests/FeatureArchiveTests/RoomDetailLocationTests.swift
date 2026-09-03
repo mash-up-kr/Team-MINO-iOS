@@ -36,7 +36,7 @@ struct RoomDetailLocationTests {
 
     private func location(photos: [URL]) -> RoomDetailLocation {
         RoomDetailLocation(
-            id: "p1", name: "레이어스튜디오 10", address: "서울 성동구 상원4길 10",
+            id: "p1", placeID: "place-1", name: "레이어스튜디오 10", address: "서울 성동구 상원4길 10",
             commentCount: 0, photos: photos
         )
     }

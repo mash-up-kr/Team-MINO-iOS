@@ -1,9 +1,7 @@
 import DesignSystem
 import Domain
-import FlowCoordination
 import Foundation
 import MVI
-import RoomCreationUI
 import SwiftUI
 
 /// 장소를 다른 방에 공유하는 바텀시트. Figma `004-2-2_다른 방에 공유 클릭`(`1672:73592`).
@@ -13,27 +11,46 @@ import SwiftUI
 ///
 /// **부모** Coordinator 대신 `makeStore` 클로저를 받는다(`.claude/docs/mvi-coordinator-di.md` 5절) —
 /// 방 목록 로드·저장·저장 중 잠금이 Store 안에 있고, 시트 자신은 누가 띄웠는지 몰라도 된다.
-/// 반면 **자식** flow(``RoomShareCreateRoomCoordinator``)는 시트가 직접 안다 — 커버를 시트 안에
-/// 붙여야 시트를 살려 둔 채 덮을 수 있기 때문이다(`MemberHomeView` 가 `editChild` 를 아는 것과 같다).
-struct RoomShareSheet: View {
-    let location: RoomDetailLocation
-    let makeStore: @MainActor () -> RoomShareStore
-    /// 공동방 만들기 자식 flow. **시트 안에서** 커버로 띄운다 — 시트를 닫고 띄우면
-    /// 고르던 방 선택이 사라지고, 시트 바깥(껍데기)에 붙이면 시트가 위를 덮어 안 보인다.
-    /// 항목 자체가 자식 Coordinator 라 닫힐 때 SwiftUI 가 nil 을 되써 표시 상태와 자식이
-    /// 어긋나지 않는다(`.claude/docs/mvi-coordinator-di-extensions.md` "다중 sheet" 와 같은 이유).
-    @Binding var createRoomChild: RoomShareCreateRoomCoordinator?
-    let onClose: () -> Void
+///
+/// 시트 위에 덮는 「공동방 만들기」도 같은 이유로 **화면을 밖에서 받는다**. 그 flow 는 자식
+/// Coordinator 가 소유하는데 `*UI` 는 Coordinator·FlowFinish 를 갖지 않기 때문이다
+/// (`.claude/docs/mvi-coordinator-di.md` 1절). 커버가 시트 **안**에 붙는다는 점은 그대로다 —
+/// 시트를 닫고 띄우면 고르던 방 선택이 사라지고, 시트 바깥에 붙이면 시트가 위를 덮어 안 보인다.
+public struct RoomShareSheet<CoverItem: Identifiable, Cover: View>: View {
+    public let location: RoomSharePlace
+    public let makeStore: @MainActor () -> RoomShareStore
+    /// 떠 있는 「공동방 만들기」 flow. 항목 자체가 자식 Coordinator 라 닫힐 때 SwiftUI 가 nil 을
+    /// 되써 표시 상태와 자식이 어긋나지 않는다.
+    @Binding public var createRoomItem: CoverItem?
+    /// 그 항목으로 그릴 화면. `onFinished` 를 끝난 자리에서 불러 주면 시트가 목록 재조회까지 잇는다.
+    public let createRoomCover: (CoverItem, @escaping (RoomShareCreateRoomResult) -> Void) -> Cover
+    public let onClose: () -> Void
     /// 커버에서 방이 **실제로 만들어졌을 때** 1회. 시트 밖(방 리스트)도 낡기 때문에 알려야 한다 —
     /// 시트가 떠 있는 동안 껍데기는 사라지지 않아 `.task` 재조회가 걸리지 않는다(``ArchiveShellView``).
     /// 취소로 돌아온 경우에는 부르지 않는다.
-    var onRoomCreated: () -> Void = {}
+    public var onRoomCreated: () -> Void = {}
+
+    public init(
+        location: RoomSharePlace,
+        makeStore: @escaping @MainActor () -> RoomShareStore,
+        createRoomItem: Binding<CoverItem?>,
+        onClose: @escaping () -> Void,
+        onRoomCreated: @escaping () -> Void = {},
+        @ViewBuilder createRoomCover: @escaping (CoverItem, @escaping (RoomShareCreateRoomResult) -> Void) -> Cover
+    ) {
+        self.location = location
+        self.makeStore = makeStore
+        self._createRoomItem = createRoomItem
+        self.createRoomCover = createRoomCover
+        self.onClose = onClose
+        self.onRoomCreated = onRoomCreated
+    }
 
     @State private var store: RoomShareStore?
     /// 시트 단계. 진입은 peek 이다(기획 011-1 ①).
     @State private var detent: PresentationDetent = .height(RoomShareSheetMetrics.peekDetentHeight)
 
-    var body: some View {
+    public var body: some View {
         VStack(spacing: 0) {
             grabber
             locationHeader
@@ -56,16 +73,15 @@ struct RoomShareSheet: View {
             // 같고 다름을 가려 옛 높이를 든 selection 은 집합 밖이 되므로 새 값으로 옮겨 준다.
             if detent == .height(old) { detent = .height(new) }
         }
-        .fullScreenCover(item: $createRoomChild) { child in
-            // 저장 탭 헤더 "+" 와 같은 화면 — 건너뛰기 없음(showsSkip: false).
-            RoomFormView(makeStore: child.makeRoomFormStore, showsSkip: false)
-                // 결과는 reduce 로 한 줄 위임한다(목록을 다시 받을지 말지는 reduce 가 정한다).
+        .fullScreenCover(item: $createRoomItem) { item in
+            // 화면은 띄운 쪽이 준다(flow 소유). 결과만 이 클로저로 돌려받아 시트가 뒤를 잇는다.
+            createRoomCover(item) { [weak store] result in
+                // 목록을 다시 받을지 말지는 reduce 가 정한다.
                 // [weak store]: 자식 → finish 클로저 → 시트 → 부모 → 자식 순환을 끊는다.
-                .flowRoot(child) { [weak store] result in
-                    store?.send(.createRoomFinished(result))
-                    // 한 결과에 소비자가 둘이라 여기서 갈라 준다 — reduce 는 effect 를 하나만 낸다.
-                    if result == .created { onRoomCreated() }
-                }
+                store?.send(.createRoomFinished(result))
+                // 한 결과에 소비자가 둘이라 여기서 갈라 준다 — reduce 는 effect 를 하나만 낸다.
+                if result == .created { onRoomCreated() }
+            }
         }
     }
 
@@ -307,7 +323,7 @@ private struct RoomShareLocationThumbnail: View {
 
 /// 프리뷰용 공유 대상 — 첫 방은 "이미 저장됨"이라 체크된 채 비활성으로 뜬다.
 private struct PreviewShareTargets: FetchShareTargetsUseCase {
-    func execute(pinID: PinID) async throws -> [ShareTarget] {
+    func execute(placeID: PlaceID) async throws -> [ShareTarget] {
         (0..<5).map { index in
             ShareTarget(
                 room: Room(
@@ -325,17 +341,21 @@ private struct PreviewSavePin: SavePinToRoomsUseCase {
     func execute(pinID: PinID, roomIDs: Set<String>) async throws {}
 }
 
+/// 프리뷰에는 띄울 flow 가 없다 — 커버 항목 자리만 채우는 빈 타입.
+private struct PreviewCoverItem: Identifiable { let id = 0 }
+
 #Preview("공유 시트") {
     RoomShareSheet(
-        location: RoomDetailLocation.samples[0],
+        location: RoomSharePlace(name: "레이어스튜디오 10", address: "서울 성동구 상원4길 10", thumbnail: nil),
         makeStore: {
             RoomShareStore(
-                RoomShareState(pinID: PinID("pin-0")),
+                RoomShareState(pinID: PinID("pin-0"), placeID: PlaceID("place-0")),
                 reduce: roomShareReducer(fetchTargets: PreviewShareTargets(), savePin: PreviewSavePin())
             )
         },
-        createRoomChild: .constant(nil),
-        onClose: {}
+        createRoomItem: .constant(PreviewCoverItem?.none),
+        onClose: {},
+        createRoomCover: { _, _ in EmptyView() }
     )
     .frame(height: RoomShareSheetMetrics.peekDetentHeight)
 }

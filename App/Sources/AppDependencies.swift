@@ -40,6 +40,10 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
     /// 앱 진입 분기(`LaunchDeps`)가 등록 여부를 묻는 데 쓴다 — 프로필이 있으면 온보딩을 마친 것이다.
     /// 마이페이지 프로필 설정(`.edit`)도 진입하면서 이걸로 현재 값을 채운다.
     let fetchProfile: FetchProfileUseCase
+    /// 마이페이지가 **첫 프레임에** 그릴 프로필. 서버를 기다리지 않고 이번 실행에서 마지막으로
+    /// 읽은 값을 준다 — 등록·조회·수정 유스케이스가 지나가며 채워 둔다.
+    let lastKnownProfile: LastKnownProfileUseCase
+    let recordPinAccess: RecordPinAccessUseCase
     let updateProfile: UpdateProfileUseCase
     let notificationSetting: NotificationSettingUseCase
     let locationSetting: LocationSettingUseCase
@@ -51,6 +55,9 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
     /// > 스킴 `gguk` 은 `Info.plist` 의 `CFBundleURLTypes` 와도 맞아야 한다 —
     /// > 어긋나면 빌드·테스트는 통과하고 링크만 조용히 안 열린다.
     let deeplink: DeeplinkConfiguration
+    /// 들어온 URL 을 목적지로 번역한다. 링크를 **만드는** 쪽(`DeeplinkBuilder`)과 같은
+    /// 설정을 보도록 조립을 여기 한곳에 둔다 — 갈리면 우리가 만든 링크를 우리가 못 읽는다.
+    let deeplinkParser: DeeplinkParser
     /// 실 API 를 태우는 클라이언트. Repository 구현에 그대로 넘긴다
     /// (절차: Packages/Networking/Docs/AddingAPI.md).
     let httpClient: HTTPClient
@@ -85,6 +92,8 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
         self.fetchHomeCards = DefaultFetchHomeCardsUseCase(repository: pins)
         self.fetchRoomPins = DefaultFetchRoomPinsUseCase(repository: pins)
         self.fetchPinDetail = DefaultFetchPinDetailUseCase(repository: pins)
+        // 「경과일 초기화 확인」(홈 spec FR-007) — 상세를 연 사실을 서버에 남긴다.
+        self.recordPinAccess = DefaultRecordPinAccessUseCase(repository: pins)
         // 삭제만 스텁이다 — 서버에 삭제 엔드포인트가 없다(`StubPinDeletionRepository` 주석).
         self.deletePin = DefaultDeletePinUseCase(repository: StubPinDeletionRepository())
 
@@ -101,14 +110,15 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
         // 홈 사용 가이드 1회 표기 플래그도 같은 이유로 UserDefaults.
         self.homeGuide = DefaultHomeGuideUseCase(repository: UserDefaultsHomeGuideRepository())
 
-        // 다른 방 저장: 저장 API 미연결 → Mock Repository 사용. 어느 방에 담았는지를 메모리에
-        // 들고 있어야 "이미 저장된 방" 표시가 목업에서도 산다. 추후 SavePinRepositoryImpl 로 교체.
-        let savePinRepository = MockSavePinRepository(rooms: rooms, pins: pins)
-        self.savePin = DefaultSavePinToRoomsUseCase(repository: savePinRepository)
-        self.fetchShareTargets = DefaultFetchShareTargetsUseCase(repository: savePinRepository)
-        // 저장된 방(014)도 같은 저장소를 봐야 한다 — 다른 인스턴스로 만들면 방금 공유한 방이
-        // 목록에 없다.
-        self.fetchSavedRooms = DefaultFetchSavedRoomsUseCase(repository: savePinRepository)
+        // 「다른 방에 공유」(011-1) — 저장과 조회가 서로 다른 엔드포인트다(place-api.md §3·§4).
+        // 저장은 핀 id 로 `POST /pins/{pinId}/duplicate`, 후보 조회는 **장소 id** 로
+        // `GET /rooms?showHasPlaceId=` 다. 같은 장소도 방마다 핀 id 가 달라 조회는 장소 기준이다.
+        let shareTargets = ShareTargetRepositoryImpl(client: httpClient)
+        self.savePin = DefaultSavePinToRoomsUseCase(repository: SavePinRepositoryImpl(client: httpClient))
+        self.fetchShareTargets = DefaultFetchShareTargetsUseCase(repository: shareTargets)
+        // 저장된 방(014)도 같은 조회를 쓴다 — "방 목록 + 그 방에 이 장소가 있는지" 가 이미 한
+        // 응답으로 오므로 저장된 방만 따로 물을 API 가 필요 없다.
+        self.fetchSavedRooms = DefaultFetchSavedRoomsUseCase(repository: shareTargets)
 
         // 지금 앱을 쓰는 사람: 프로필 API 미연결 → Mock. MockRoomRepository 의 user-0001 과 같은 사람이다.
         let currentMemberRepository = MockCurrentMemberRepository()
@@ -136,21 +146,29 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
         // 로컬 패키지로 내리지 않기 위해서다 — SDK 어댑터는 컴포지션 루트가 갖는다.
         self.ensureSession = DefaultEnsureSessionUseCase(repository: FirebaseAuthRepository())
 
+        // 세 프로필 유스케이스가 **같은 캐시**를 지난다 — 어느 경로로 프로필을 얻었든(앱 시작의
+        // 등록 여부 판단 포함) 다음 마이페이지 진입의 첫 프레임이 채워진다.
+        let profileCache = InMemoryLastKnownProfileRepository()
+        self.lastKnownProfile = DefaultLastKnownProfileUseCase(cache: profileCache)
+
         // 프로필 등록: 실 API(POST /api/v1/users). 등록은 인증 미들웨어를 부분만 타므로
         // (UserAPI.register 의 .unregisteredUser) 세션만 있으면 최초 진입에서도 통과한다.
         self.registerProfile = DefaultRegisterProfileUseCase(
-            repository: ProfileRepositoryImpl(client: httpClient)
+            repository: ProfileRepositoryImpl(client: httpClient),
+            cache: profileCache
         )
 
         // 온보딩 여부 판단: 실 API(GET /api/v1/users/me). 로컬 플래그를 쓰지 않는 이유는
         // AppLaunchStore.establishSession 주석 참조.
         self.fetchProfile = DefaultFetchProfileUseCase(
-            repository: ProfileRepositoryImpl(client: httpClient)
+            repository: ProfileRepositoryImpl(client: httpClient),
+            cache: profileCache
         )
 
         // 프로필 수정: 실 API(PATCH /api/v1/users/me). 마이페이지 프로필 설정의 저장이다.
         self.updateProfile = DefaultUpdateProfileUseCase(
-            repository: ProfileRepositoryImpl(client: httpClient)
+            repository: ProfileRepositoryImpl(client: httpClient),
+            cache: profileCache
         )
 
         // 권한 어댑터는 플랫폼 프레임워크(UserNotifications·CoreLocation)를 타므로 여기서 만든다
@@ -176,6 +194,7 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
         )
 
         self.deeplink = DeeplinkConfiguration(scheme: "gguk", host: "gguk.org")
+        self.deeplinkParser = DeeplinkParser(configuration: self.deeplink)
     }
 }
 
