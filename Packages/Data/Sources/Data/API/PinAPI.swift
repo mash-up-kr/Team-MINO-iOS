@@ -67,6 +67,38 @@ enum PinAPI {
         )
     }
 
+    // MARK: - 코멘트
+
+    /// 이 장소에 달린 코멘트 한 장 (`GET /api/v1/pins/{pinId}/comments`).
+    ///
+    /// **정렬은 대화창 순서다** — page=0 이 가장 최신 묶음이고 page 가 커질수록 예전 것이며,
+    /// 한 장 안에서는 오래된 것이 앞이다(스펙 본문, 서버 확정 2026-08-31). 화면은 전체를 한 줄로
+    /// 그리므로 장을 잇는 순서는 ``PinCommentRepositoryImpl`` 이 뒤집어 맞춘다.
+    ///
+    /// `PagedEndpoint` 로 돌려준다 — `request` 로 보내 `pagination.hasNext` 를 잃으면
+    /// 첫 장 뒤가 통째로 사라지는데, 그 실수를 컴파일 단계에서 막는다(`Endpoint.paged` 주석).
+    static func comments(pinID: String, page: Int, pageSize: Int) -> PagedEndpoint<PinCommentDTO> {
+        Endpoint<[PinCommentDTO]>(path: "\(base)/\(pinID)/comments")
+            .paged(page: page, pageSize: pageSize)
+    }
+
+    /// 이 장소에 코멘트를 남긴다 (`POST /api/v1/pins/{pinId}/comments`, 201).
+    ///
+    /// 서버가 식별자·작성자·작성 시각을 채워 **항목 하나를** 돌려준다 — 목록의 항목과 같은 모양이다.
+    static func postComment(pinID: String, content: String) -> Endpoint<PinCommentDTO> {
+        Endpoint(
+            path: "\(base)/\(pinID)/comments",
+            method: .post,
+            body: .json(PostPinCommentRequestDTO(content: content))
+        )
+    }
+
+    /// 코멘트 하나를 지운다 (`DELETE /api/v1/pins/{pinId}/comments/{commentId}`).
+    /// **핀이 경로에 필요하다** — 그래서 Domain 프로토콜도 핀을 함께 받는다.
+    static func deleteComment(pinID: String, commentID: String) -> Endpoint<OkResponse> {
+        Endpoint(path: "\(base)/\(pinID)/comments/\(commentID)", method: .delete)
+    }
+
     /// 조회 기준(필터 칩) → 서버 `sort` 값. 두 어휘를 잇는 자리는 여기 하나다.
     private static func sort(for filter: PinFilter) -> String {
         switch filter {

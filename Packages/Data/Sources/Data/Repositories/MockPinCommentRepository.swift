@@ -3,8 +3,8 @@ import Domain
 
 /// 백엔드 미연결 단계용 `PinCommentRepository` 구현.
 ///
-/// 코멘트 API 가 없어 **메모리에 들고 있는다.** 그냥 성공만 돌려주면 등록·삭제가 화면 상태에만
-/// 남아 시트를 닫았다 다시 열면 쓴 코멘트가 사라진다(이슈 #165).
+/// 서버 없이 화면을 돌려 보려고 **메모리에 들고 있다.** 그냥 성공만 돌려주면 등록·삭제가 화면
+/// 상태에만 남아 시트를 닫았다 다시 열면 쓴 코멘트가 사라진다(이슈 #165).
 ///
 /// 디스크까지 영속시키지 않는 이유: 형제 목이 전부 프로세스 수명이다(``MockPinRepository`` 의
 /// 삭제, 「다른 방에 공유」의 저장). 코멘트만 재실행 뒤에도 살아남으면 "지운 장소는
@@ -15,9 +15,8 @@ import Domain
 /// 것이다. 조회에는 지연을 두지 않는다 — 형제 목의 읽기 경로와 같고, 목록이 늦게 오면
 /// "아직 코멘트가 없어요" 가 잠깐 스친다.
 ///
-/// 추후 네트워크 `PinCommentRepositoryImpl`(DTO → `toDomain()` 매핑) 로 교체하면 이 파일만
-/// 지운다. 지금은 직렬화하는 곳이 없어 DTO 도 두지 않는다 — 쓰이지 않는 Codable 타입을 미리
-/// 깔아 두면 실 스키마가 오는 날 어차피 다시 쓴다.
+/// 실 구현(``PinCommentRepositoryImpl``)이 이미 있다 — `AppDependencies` 가 그쪽으로 옮겨
+/// 붙는 순간 이 파일과 짝인 테스트를 함께 지운다. 그때까지는 서버 없이 화면을 확인하는 자리다.
 public final class MockPinCommentRepository: PinCommentRepository {
     private let pins: PinDetailRepository
     private let currentMember: CurrentMemberRepository
@@ -56,9 +55,9 @@ public final class MockPinCommentRepository: PinCommentRepository {
 
     /// 지울 수 있는 사람인지는 서버가 판정할 몫이라 목은 id 만 보고 지운다.
     /// 화면이 이미 소유를 두 겹으로 막고 있어(케밥 표시 + 리듀서 가드) 남의 줄이 여기 닿지 않는다.
-    public func delete(commentID: PinCommentID) async throws {
+    public func delete(pinID: PinID, commentID: PinCommentID) async throws {
         try? await Task.sleep(for: .milliseconds(300))
-        await store.remove(commentID)
+        await store.remove(commentID, from: pinID)
     }
 
     // MARK: - Mock 합성
@@ -127,9 +126,9 @@ private actor PinCommentStore {
         byPin[comment.pinID.value, default: []].append(comment)
     }
 
-    func remove(_ commentID: PinCommentID) {
-        for pinID in byPin.keys {
-            byPin[pinID]?.removeAll { $0.id == commentID }
-        }
+    /// 핀을 함께 받으므로 그 칸만 훑는다 — 전체 순회하던 시절의 "id 가 겹치면 남의 핀 줄도
+    /// 사라진다" 는 여지가 없어진다.
+    func remove(_ commentID: PinCommentID, from pinID: PinID) {
+        byPin[pinID.value]?.removeAll { $0.id == commentID }
     }
 }

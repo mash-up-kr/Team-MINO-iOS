@@ -363,7 +363,7 @@ func placeDetailReducer(
             state.commentDeletion?.isSubmitting = true
             return .run { send in
                 do {
-                    try await deleteComment.execute(commentID: deletion.commentID)
+                    try await deleteComment.execute(pinID: pin.id, commentID: deletion.commentID)
                     send(.commentDeleted(deletion.commentID))
                 } catch is CancellationError {
                     return

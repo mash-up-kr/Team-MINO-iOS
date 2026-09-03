@@ -64,7 +64,7 @@ struct StubDeletePinComment: DeletePinCommentUseCase {
         self.outcome = outcome
     }
 
-    func execute(commentID: PinCommentID) async throws {
+    func execute(pinID: PinID, commentID: PinCommentID) async throws {
         switch outcome {
         case .success: return
         case .failure(let error): throw error

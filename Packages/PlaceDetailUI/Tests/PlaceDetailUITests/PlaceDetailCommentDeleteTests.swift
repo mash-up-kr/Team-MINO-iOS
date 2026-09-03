@@ -44,7 +44,8 @@ struct PlaceDetailCommentDeleteTests {
     private func makeStore(
         comments: [PinComment],
         currentMember: CurrentMemberStub.Outcome = .member(me),
-        delete: StubDeletePinComment.Outcome = .success
+        delete: StubDeletePinComment.Outcome = .success,
+        deleteLog: DeletedCommentLog? = nil
     ) -> TestStore<PlaceDetailState, PlaceDetailAction, PlaceDetailNav> {
         TestStore(
             PlaceDetailState(place: PlaceDetailPlace(from: deletePin, label: nil), comments: comments),
@@ -56,7 +57,7 @@ struct PlaceDetailCommentDeleteTests {
                 postComment: StubPostPinComment(
                     outcome: .posted { PinCommentFixture.comment(id: "c-new", author: me, body: $0) }
                 ),
-                deleteComment: StubDeletePinComment(outcome: delete),
+                deleteComment: StubDeletePinComment(outcome: delete, log: deleteLog),
                 currentLocation: QuietCurrentLocation(),
                 recordPinAccess: SpyRecordPinAccess(),
                 pin: deletePin
@@ -151,6 +152,31 @@ struct PlaceDetailCommentDeleteTests {
             $0.commentDeletion = nil
             $0.comments = [theirs]
         }
+        store.finish()
+    }
+
+    // 삭제 경로가 핀 하위라(`DELETE /api/v1/pins/{pinId}/comments/{commentId}`) 코멘트 id 만으로는
+    // 요청이 만들어지지 않는다 — 리듀서가 지금 보고 있는 장소의 핀을 함께 실어 보내는지 본다.
+    @Test("L2 — 삭제 요청에 지금 보고 있는 장소의 핀이 함께 실린다")
+    func confirmDeleteComment_carriesPinID() async {
+        let log = DeletedCommentLog()
+        let store = makeStore(comments: [mine], deleteLog: log)
+        await loadMe(store)
+        await store.send(.tapDeleteComment(mine.id)) {
+            $0.commentDeletion = PlaceDetailCommentDeletion(commentID: mine.id)
+        }
+        await store.send(.confirmDeleteComment) {
+            $0.commentDeletion = PlaceDetailCommentDeletion(commentID: mine.id, isSubmitting: true)
+        }
+        await store.receive(.commentDeleted(mine.id)) {
+            $0.commentDeletion = nil
+            $0.comments = []
+        }
+
+        let entries = await log.entries
+        #expect(entries.count == 1)
+        #expect(entries.first?.pinID == deletePin.id)
+        #expect(entries.first?.commentID == mine.id)
         store.finish()
     }
 
