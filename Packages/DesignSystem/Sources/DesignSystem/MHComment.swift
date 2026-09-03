@@ -20,10 +20,11 @@ import SwiftUI
 /// > 메뉴가 열린 모습은 ``MHMenu`` 와 동일하게 `ImageRenderer` 로는 렌더되지 않아 **시뮬레이터로만
 /// > 육안 확인**된다.
 ///
-/// > **`dateText`**: 코멘트 작성 시각 표기(예: "3일 전" · "2027.01.01"). 시안(2026-09-03 디자인 확인)은
-/// > **본문 아래 우측 하단**이다 — 이름 행이 아니라 본문 뒤에 캡션 위계의 행을 하나 더 두고 trailing
-/// > 정렬한다. `nil` 이면 그 행 자체를 그리지 않는다. 문자열 계산(상대/절대 표기 규칙)은 DS 몫이
-/// > 아니라 호출부가 만들어 넘긴다(``CommentDateText``, PlaceDetailUI).
+/// > **`dateText`**: 코멘트 작성 시각 표기(예: "3일 전" · "2027.01.01"). Figma `comment`(4942:209197):
+/// > 본문과 **한 컨테이너(gap 4, max-h 140)** 에 담겨 본문 아래 **우측 정렬**, `Caption 2/Regular`(11pt) ·
+/// > `Label/Alternative`. 컨테이너 상한을 본문과 나눠 쓰므로 날짜가 있으면 본문 클립이 그만큼 줄고 전체
+/// > 높이는 같다. `nil` 이면 그 행 자체를 그리지 않는다. 문자열 계산(상대/절대 표기 규칙)은 DS 몫이 아니라
+/// > 호출부가 만들어 넘긴다(``CommentDateText``, PlaceDetailUI).
 ///
 /// ```swift
 /// MHComment(avatar: Image("me"), name: "이름", comment: "친구가 남긴 코멘트입니다.")
@@ -70,6 +71,13 @@ public struct MHComment: View {
 
     private var hasMenu: Bool { !menuItems.isEmpty }
 
+    /// 본문 클립 상한. 날짜가 있으면 `maxBodyHeight` 를 날짜 행(gap 4 + 캡션 한 줄 ≈ 14)과 나눠 쓴다 —
+    /// Figma 가 본문·날짜를 한 컨테이너(max-h 140)에 넣기 때문이다. 없으면 본문이 전부 쓴다.
+    private var bodyMaxHeight: CGFloat {
+        guard dateText != nil else { return maxBodyHeight }
+        return maxBodyHeight - Metric.dateGap - MHTypography.caption2Regular.lineHeight
+    }
+
     // 외부 바인딩이 있으면 그걸, 없으면 내부 상태를 여닫음 소스로 쓴다.
     private var menuPresented: Binding<Bool> {
         externalMenuPresented ?? $internalMenuPresented
@@ -87,19 +95,24 @@ public struct MHComment: View {
                     moreButton
                 }
             }
-            Text(comment)
-                .lineLimit(nil)                        // Text→View + 줄 수 무제한(뒤 .mhTypography 가 행간 박스를 얻게)
-                .mhTypography(.label1NormalRegular)
-                .foregroundStyle(.mhLabelNormal)
-                .fixedSize(horizontal: false, vertical: true)   // 전체 높이로 레이아웃 → 말줄임(…) 대신 하드 클립
-                .frame(maxWidth: .infinity, maxHeight: maxBodyHeight, alignment: .topLeading)
-                .clipped()
-            // 작성 시각 — 시안(2026-09-03 디자인 확인)은 본문 아래 **우측 하단**. 이름 행이 아니다.
-            if let dateText {
-                Text(dateText)
-                    .mhTypography(.caption1Regular)
-                    .foregroundStyle(.mhLabelAssistive)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+            // 본문 + 작성 시각 — Figma `comment`(4942:209197)의 `Component 21`: 둘이 한 컨테이너에
+            // gap 4 로 묶이고 그 컨테이너가 max-h 140 이다. 그래서 날짜가 있으면 본문 클립 상한이
+            // 그만큼(4 + 캡션 한 줄) 줄어들고, 전체 높이는 날짜 유무와 무관하게 같다(full = 182).
+            VStack(spacing: Metric.dateGap) {
+                Text(comment)
+                    .lineLimit(nil)                        // Text→View + 줄 수 무제한(뒤 .mhTypography 가 행간 박스를 얻게)
+                    .mhTypography(.label1NormalRegular)
+                    .foregroundStyle(.mhLabelNormal)
+                    .fixedSize(horizontal: false, vertical: true)   // 전체 높이로 레이아웃 → 말줄임(…) 대신 하드 클립
+                    .frame(maxWidth: .infinity, maxHeight: bodyMaxHeight, alignment: .topLeading)
+                    .clipped()
+                if let dateText {
+                    // 시안: Caption 2/Regular(11pt) · Label/Alternative · 우측 정렬
+                    Text(dateText)
+                        .mhTypography(.caption2Regular)
+                        .foregroundStyle(.mhLabelAlternative)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -167,6 +180,8 @@ public struct MHComment: View {
     }
 
     private enum Metric {
+        /// 본문 → 작성 시각 간격 (Figma `Component 21` gap 4).
+        static let dateGap: CGFloat = 4
         static let iconSize: CGFloat = 18
         static let hitSize: CGFloat = 44
         static let menuWidth: CGFloat = 140
