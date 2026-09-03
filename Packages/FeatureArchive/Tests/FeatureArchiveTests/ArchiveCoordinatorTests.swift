@@ -56,6 +56,11 @@ private struct StubCurrentLocation: CurrentLocationUseCase {
     func execute() async -> CurrentLocationResult { .coordinate(fixtureCoordinate) }
 }
 
+/// 「경과일 초기화 확인」. 배선만 보는 스위트라 아무것도 하지 않는다.
+private struct StubRecordPinAccess: RecordPinAccessUseCase {
+    func execute(pinID: PinID) async throws {}
+}
+
 private struct StubArchiveDeps: ArchiveDeps {
     var fetchRooms: FetchRoomsUseCase = StubFetchRooms()
     var fetchRoomPins: FetchRoomPinsUseCase = StubFetchRoomPins()
@@ -70,6 +75,7 @@ private struct StubArchiveDeps: ArchiveDeps {
     var postComment: PostPinCommentUseCase = StubPostPinComment(outcome: .failure(.unknown))
     var deleteComment: DeletePinCommentUseCase = StubDeletePinComment()
     var currentLocation: CurrentLocationUseCase = StubCurrentLocation()
+    var recordPinAccess: RecordPinAccessUseCase = StubRecordPinAccess()
     var roomCreationPromptSnooze = SnoozeSwitch(
         key: "ArchiveCoordinatorTests.prompt",
         period: .days(14),

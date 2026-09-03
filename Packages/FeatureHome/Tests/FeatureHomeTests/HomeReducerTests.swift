@@ -88,12 +88,6 @@ private func deckPins(_ tag: String, room: String, count: Int) -> [Pin] {
     }
 }
 
-/// 「경과일 초기화 확인」 스파이 — 어느 장소로 몇 번 나갔는지 센다.
-private actor SpyRecordPinAccess: RecordPinAccessUseCase {
-    private(set) var recorded: [PinID] = []
-    func execute(pinID: PinID) async throws { recorded.append(pinID) }
-}
-
 /// 홈 가이드 스파이 — 이미 본 상태를 주입하고, 기록(markSeen) 호출을 센다.
 private actor SpyHomeGuide: HomeGuideUseCase {
     private let seen: Bool
@@ -167,7 +161,6 @@ struct HomeReducerTests {
         lastViewedRoom: LastViewedRoomUseCase = SpyLastViewedRoom(),
         homeGuide: HomeGuideUseCase = SpyHomeGuide(seen: true),   // 기본은 "이미 본" — 가이드 없는 흐름
         savePin: SavePinToRoomsUseCase = SpySavePin(),
-        recordPinAccess: RecordPinAccessUseCase = SpyRecordPinAccess(),
         shareTargets: FetchShareTargetsUseCase = StubShareTargets(),
         state: HomeState = HomeState()
     ) -> TestStore<HomeState, HomeAction, HomeNav> {
@@ -180,7 +173,6 @@ struct HomeReducerTests {
                 lastViewedRoom: lastViewedRoom,
                 homeGuide: homeGuide,
                 savePin: savePin,
-                recordPinAccess: recordPinAccess,
                 fetchShareTargets: shareTargets
             )
         )
@@ -430,38 +422,23 @@ struct HomeReducerTests {
 
     // 002-1-1 「홈 > 장소 상세 진입」 — 카드 탭은 상태를 건드리지 않고 전환만 낸다.
 
-    @Test("L2 — tapCard 는 상세로 이동하면서 「경과일 초기화 확인」을 서버에 보낸다 (FR-007, TS-034)")
-    func tapCard_navigatesAndRecordsAccess() async {
-        let spy = SpyRecordPinAccess()
-        let store = makeStore(recordPinAccess: spy, state: HomeState(pins: fixturePins))
+    @Test("L1 — tapCard 는 상세로 이동만 하고 「경과일 초기화 확인」은 보내지 않는다 (상세가 보낸다)")
+    func tapCard_navigatesToPlaceDetail() async {
+        let store = makeStore(state: HomeState(pins: fixturePins))
         await store.send(.tapCard(PinID("pin-1")))
         // 상세가 사진·저장자·라벨을 그리려면 id 가 아니라 핀이 통째로 필요하다.
-        await store.receive(.openPlaceDetail(fixturePins[1]))
         store.receiveNavigation(.openPlaceDetail(fixturePins[1]))
         store.finish()
-        #expect(await spy.recorded == [PinID("pin-1")])
     }
 
-    @Test("L2 — 카드 탭은 덱의 진행 상태를 바꾸지 않는다 (TS-013 — 「카드 열람 확인」이 아니다)")
+    @Test("L1 — 카드 탭은 덱의 진행 상태를 바꾸지 않는다 (TS-013 — 「카드 열람 확인」이 아니다)")
     func tapCard_doesNotAdvanceDeck() async {
         let store = makeStore(state: HomeState(rooms: fixtureRooms, pins: fixturePins, currentCardIndex: 1))
         await store.send(.tapCard(PinID("pin-1")))
-        await store.receive(.openPlaceDetail(fixturePins[1]))
         store.receiveNavigation(.openPlaceDetail(fixturePins[1]))
         #expect(store.currentState.currentCardIndex == 1)
         #expect(store.currentState.pins.count == fixturePins.count)
         store.finish()
-    }
-
-    @Test("L2 — 넘김은 서버에 알리지 않는다 (TS-035 — 「카드 열람 확인」은 클라이언트 판정용)")
-    func swipeForward_doesNotRecordAccess() async {
-        let spy = SpyRecordPinAccess()
-        let store = makeStore(recordPinAccess: spy, state: HomeState(rooms: fixtureRooms, pins: fixturePins))
-        await store.send(.swipeForward) {
-            $0.currentCardIndex = 1
-        }
-        store.finish()
-        #expect(await spy.recorded.isEmpty)
     }
 
     @Test("L1 — 덱에 없는 카드 탭은 아무 데도 가지 않는다")

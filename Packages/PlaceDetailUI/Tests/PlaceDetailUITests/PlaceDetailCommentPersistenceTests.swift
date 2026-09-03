@@ -59,6 +59,7 @@ struct PlaceDetailCommentPersistenceTests {
                 postComment: StubPostPinComment(outcome: post),
                 deleteComment: StubDeletePinComment(),
                 currentLocation: QuietCurrentLocation(),
+                recordPinAccess: SpyRecordPinAccess(),
                 pin: persistPin
             )
         )
