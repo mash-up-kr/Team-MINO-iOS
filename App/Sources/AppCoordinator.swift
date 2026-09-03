@@ -67,6 +67,9 @@ final class AppCoordinator {
     private var noticeDismissTask: Task<Void, Never>?
     private var acceptTask: Task<Void, Never>?
 
+    /// 지금 확인 중인 초대 코드. 같은 링크가 두 번 도착하는 것을 막는다 — 아래 `resolveInvite` 참조.
+    private var resolvingCode: String?
+
     /// 코드와, 그 코드가 가리키는 방.
     private struct PendingInvite: Equatable {
         let code: String
@@ -153,11 +156,23 @@ final class AppCoordinator {
     /// 무효한 코드로 두 스텝을 건너뛴 뒤 **방이 하나도 없는 채로** 온보딩을 마치게 되는데,
     /// 건너뛴 스텝은 되돌릴 수 없다. 그래서 `isResolvingInvite` 로 진입 화면을 붙잡는다 —
     /// 이 조회도 네트워크 왕복이라 세션 판정보다 늦게 끝날 수 있다.
+    ///
+    /// **같은 코드가 두 번 오면 뒤엣것을 버린다.** `performAccept` 의 "보관분을 먼저 비우는" 방어는
+    /// 여기까지 못 온다 — 이 함수가 `performAccept` 를 부르기 직전에 보관분을 **다시 채우기** 때문에,
+    /// 두 번 돌면 각자 채운 것을 각자 소비해 합류·조회가 한 벌 더 나가고 두 번째 `open` 이 그 사이
+    /// 사용자가 열어 둔 화면을 걷어낸다. 확인이 네트워크 왕복이라 겹칠 창이 넉넉하다(같은 링크를
+    /// 다시 탭하는 것으로 재현된다). 다른 코드로 온 새 링크는 막지 않는다 — 그건 나중 것이 이긴다.
     private func resolveInvite(_ code: String) {
+        guard resolvingCode != code else { return }
+        resolvingCode = code
         isResolvingInvite = true
         Task { [weak self] in
             guard let self else { return }
-            defer { isResolvingInvite = false }
+            defer {
+                isResolvingInvite = false
+                // 다른 코드가 뒤이어 들어와 자리를 차지했으면 그쪽 것을 지우지 않는다.
+                if resolvingCode == code { resolvingCode = nil }
+            }
             do {
                 let preview = try await deps.fetchInvitationPreview.execute(code: code)
                 pendingInvite = PendingInvite(code: code, roomID: preview.roomID)
