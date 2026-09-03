@@ -43,6 +43,14 @@ final class AppCoordinator {
     /// 푸시 토큰을 서버와 맞추는 일. `launch` 와 같은 이유로 여기 있다 — 화면이 아니라 앱 수명이다.
     let pushTokenSync: PushTokenSync
 
+    /// 아직 메인이 아닐 때 도착한 푸시. 콜드런치에서 알림을 누르면 화면은 스플래시고 **탭이 아직
+    /// 없다**(`RootView` 가 `.main` 에서만 `MainTabView` 를 만든다). `.main` 에 들어설 때까지 들고
+    /// 있다가 그때 소비한다 — 바로 위 `pendingDeeplink` 와 같은 문제·같은 해법이다.
+    ///
+    /// 온보딩 중이면 온보딩을 마친 뒤에 열린다. 그 사이 앱이 죽어 보관분이 사라지는 건 허용한다 —
+    /// 알림은 목록에 그대로 남아 있어 다시 누르면 된다.
+    private var pendingPush: PushRoute?
+
     /// 자식 flow 를 만들 때마다 넘겨야 해서 보관한다 — 온보딩은 flow 1회당 새로 만든다.
     private let deps: AppDependencies
 
@@ -83,16 +91,37 @@ final class AppCoordinator {
         selectedTabID = MainTab.save.rawValue
     }
 
-    /// 메인 탭이 실제로 떠 있는 시점(`RootView`)에 부른다. **여기서 두드려야** 하는 이유는
-    /// `PUT push-token` 이 세션 + 회원등록을 요구해서다 — `.main` 이 그 둘이 끝났다는 사실이다.
+    /// 푸시를 눌렀을 때의 진입점. 메인이 아직 아니면 들고 있다가 `mainDidAppear()` 가 소비한다.
+    ///
+    /// `open(_:)`(탭 밖 이동)과 갈라 둔 이유는 **아직 목적지가 탭 하나**라서다 — payload 계약이
+    /// 확정되면 아래 `open(push:)` 에서 `open(.place(…))` 로 넘긴다.
+    func handle(push route: PushRoute) {
+        guard launch.state.phase == .main else {
+            pendingPush = route
+            return
+        }
+        open(push: route)
+    }
+
+    /// 메인 탭이 실제로 떠 있는 시점(`RootView`)에 부른다.
     func mainDidAppear() {
         pushTokenSync.kick()
+        guard let route = pendingPush else { return }
+        pendingPush = nil
+        open(push: route)
     }
 
     /// 포그라운드 복귀. 토큰 업로드의 사실상 재시도 지점이다 — 별도 재시도 타이머를 두지 않는 근거다.
     func didBecomeActive() {
         guard launch.state.phase == .main else { return }
         pushTokenSync.kick()
+    }
+
+    private func open(push route: PushRoute) {
+        switch route {
+        case .notificationTab:
+            selectedTabID = MainTab.notification.rawValue
+        }
     }
 
     /// 온보딩 화면에 들어설 때 호출한다. **flow 1회당 새 인스턴스를 만든다** —

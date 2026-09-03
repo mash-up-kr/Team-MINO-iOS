@@ -6,6 +6,9 @@ import UIKit
 /// SwiftUI App lifecycle 에 `@UIApplicationDelegateAdaptor` 로 부속 연결되는 AppDelegate.
 /// 앱 수준 진입 훅(초기화, scene 구성)을 담당한다.
 final class AppDelegate: NSObject, UIApplicationDelegate {
+    /// 푸시 수신·탭 채널. **프로세스 시작에 붙어야 한다** — 콜드런치에서 알림을 눌러 앱이 켜지면
+    /// `didReceive` 가 launch 직후 한 번 오고, 그때 delegate 가 비어 있으면 그 탭은 사라진다.
+    let pushRouter = PushRouter()
     /// FCM 토큰 채널. 소비자(`PushTokenSync`)는 앱 그래프가 생긴 뒤 `connect(_:)` 로 꽂는다 —
     /// 그 전에 온 첫 토큰은 이 객체가 들고 있다.
     let pushTokenObserver = PushTokenObserver()
@@ -20,6 +23,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         // `Messaging` 을 만지기 전에 `FirebaseApp.configure()` 가 끝나 있어야 한다 — 위 호출이
         // 그 순서를 보장하는 자리다.
         Messaging.messaging().delegate = pushTokenObserver
+        UNUserNotificationCenter.current().delegate = pushRouter
 
         // 로그 백엔드 조립(Composition Root). 개발은 전부, 릴리즈는 warning↑만 남긴다.
         #if DEBUG
@@ -45,9 +49,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 
     /// 푸시 채널의 소비자를 꽂는다. delegate 자체는 이미 프로세스 시작에 붙어 있고, 여기서 잇는 건
     /// **앱 그래프를 아는 쪽**뿐이다(`AppCoordinator` 는 SwiftUI 쪽에서 만들어져 시점이 다르다).
-    /// 그 사이 도착한 토큰은 어댑터가 들고 있다가 이 순간 흘러나온다.
+    /// 그 사이 도착한 토큰·탭은 각 어댑터가 들고 있다가 이 순간 흘러나온다.
     @MainActor
     func connect(_ app: AppCoordinator) {
+        pushRouter.route.onValue = { [weak app] route in app?.handle(push: route) }
         pushTokenObserver.token.onValue = { [weak app] token in app?.pushTokenSync.tokenDidRefresh(token) }
     }
 

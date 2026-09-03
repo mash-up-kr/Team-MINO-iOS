@@ -38,6 +38,8 @@
 		PU10000000000000000000B1 /* FCMPushTokenProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = PU10000000000000000000F1 /* FCMPushTokenProvider.swift */; };
 		PU10000000000000000000B2 /* PushTokenObserver.swift in Sources */ = {isa = PBXBuildFile; fileRef = PU10000000000000000000F2 /* PushTokenObserver.swift */; };
 		PU10000000000000000000B3 /* PushTokenSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = PU10000000000000000000F3 /* PushTokenSync.swift */; };
+		PU10000000000000000000B4 /* PushRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = PU10000000000000000000F4 /* PushRoute.swift */; };
+		PU10000000000000000000B5 /* PushRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = PU10000000000000000000F5 /* PushRouter.swift */; };
 		PU10000000000000000000B6 /* PendingHandoff.swift in Sources */ = {isa = PBXBuildFile; fileRef = PU10000000000000000000F6 /* PendingHandoff.swift */; };
 		LO10000000000000000000B1 /* SystemCurrentLocationRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = LO10000000000000000000F1 /* SystemCurrentLocationRepository.swift */; };
 		AU10000000000000000000B2 /* FirebaseAuthTokenProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = AU10000000000000000000F2 /* FirebaseAuthTokenProvider.swift */; };
@@ -73,6 +75,8 @@
 		PU10000000000000000000F1 /* FCMPushTokenProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FCMPushTokenProvider.swift; sourceTree = "<group>"; };
 		PU10000000000000000000F2 /* PushTokenObserver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushTokenObserver.swift; sourceTree = "<group>"; };
 		PU10000000000000000000F3 /* PushTokenSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushTokenSync.swift; sourceTree = "<group>"; };
+		PU10000000000000000000F4 /* PushRoute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushRoute.swift; sourceTree = "<group>"; };
+		PU10000000000000000000F5 /* PushRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushRouter.swift; sourceTree = "<group>"; };
 		PU10000000000000000000F6 /* PendingHandoff.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingHandoff.swift; sourceTree = "<group>"; };
 		LO10000000000000000000F1 /* SystemCurrentLocationRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemCurrentLocationRepository.swift; sourceTree = "<group>"; };
 		AU10000000000000000000F2 /* FirebaseAuthTokenProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirebaseAuthTokenProvider.swift; sourceTree = "<group>"; };
@@ -220,6 +224,8 @@
 				PU10000000000000000000F1 /* FCMPushTokenProvider.swift */,
 				PU10000000000000000000F2 /* PushTokenObserver.swift */,
 				PU10000000000000000000F3 /* PushTokenSync.swift */,
+				PU10000000000000000000F4 /* PushRoute.swift */,
+				PU10000000000000000000F5 /* PushRouter.swift */,
 				PU10000000000000000000F6 /* PendingHandoff.swift */,
 			);
 			path = Push;
@@ -490,6 +496,8 @@
 				PU10000000000000000000B1 /* FCMPushTokenProvider.swift in Sources */,
 				PU10000000000000000000B2 /* PushTokenObserver.swift in Sources */,
 				PU10000000000000000000B3 /* PushTokenSync.swift in Sources */,
+				PU10000000000000000000B4 /* PushRoute.swift in Sources */,
+				PU10000000000000000000B5 /* PushRouter.swift in Sources */,
 				PU10000000000000000000B6 /* PendingHandoff.swift in Sources */,
 				LO10000000000000000000B1 /* SystemCurrentLocationRepository.swift in Sources */,
 				AU10000000000000000000B2 /* FirebaseAuthTokenProvider.swift in Sources */,
