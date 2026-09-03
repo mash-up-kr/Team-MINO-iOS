@@ -55,7 +55,10 @@ struct SaveRoomRequestDTO: Encodable, Sendable {
 extension RoomDTO {
     /// 경계(Data → Domain) 변환. DTO 를 Entity 로 매핑한다.
     /// 알 수 없는 `type` 은 `shared`, 팔레트에 없는 `color` 는 `nil` 로 보수적 처리한다.
-    func toDomain() -> Room {
+    ///
+    /// - Parameter members: 멤버를 **응답 밖에서** 받아 왔을 때 넘긴다(단건 상세는 `users` 를 주지
+    ///   않아 `RoomAPI.members` 를 따로 부른다). `nil` 이면 응답의 `users` 를 쓴다.
+    func toDomain(members: [RoomMemberDTO]? = nil) -> Room {
         Room(
             id: id,
             type: RoomType(rawValue: type) ?? .shared,
@@ -66,21 +69,15 @@ extension RoomDTO {
             createdAt: createdAt,
             pinCount: pinCount ?? 0,
             memberCount: memberCount ?? 0,
-            users: (users ?? []).map { $0.toDomain() },
+            users: (members ?? users ?? []).map { $0.toDomain() },
             placeThumbnails: placeThumbnails()
         )
     }
 
     /// `thumbnailList` 에서 **사진 URL 만** 골라 낸다. 색상 키는 버린다 — 색은 `color` 로 이미 온다.
-    ///
-    /// `URL(string:)` 만으로는 못 거른다 — `URL(string: "orange")` 는 스킴 없는 상대 URL 로
-    /// **성공**하기 때문에, 색상 키가 사진으로 둔갑한다. 그래서 스킴까지 본다.
+    /// 거르는 규칙과 그 이유는 ``webImageURL(_:)`` 에 있다.
     private func placeThumbnails() -> [URL] {
-        (thumbnailList ?? []).compactMap { raw in
-            guard let url = URL(string: raw), let scheme = url.scheme?.lowercased(),
-                  scheme == "http" || scheme == "https" else { return nil }
-            return url
-        }
+        (thumbnailList ?? []).compactMap { webImageURL($0) }
     }
 }
 

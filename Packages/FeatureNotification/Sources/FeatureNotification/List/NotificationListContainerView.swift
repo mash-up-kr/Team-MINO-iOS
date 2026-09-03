@@ -1,4 +1,6 @@
 import DesignSystem
+import Domain
+import MVI
 import SwiftUI
 
 /// `NotificationListStore` 를 소비해 화면 상태 5종(로딩·목록·빈 상태·전체 실패·추가 로드 실패)을
@@ -98,12 +100,70 @@ struct NotificationListContainerView: View {
     }
 
     private var centeredIllustration: some View {
-        // TODO: 디자이너 에셋 전달 대기. 도착 전까지는 일러스트가 접히고 문구만 보인다.
         MHIllustratedMessage(
             illustration: .mhAssetIfAvailable("notificationEmptyIllustration", bundle: .module),
-            title: "받은 알림이 없어요"
+            // Figma 006-1-2: 일러스트 173x173, bottom(301+173=474) → 문구 top(499) 간격 = 25.
+            illustrationSize: 173,
+            title: "받은 알림이 없어요",
+            illustrationSpacing: 25
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityIdentifier("Notification.empty")
     }
+}
+
+// MARK: - Preview
+
+/// 정해진 페이지 하나만 돌려주는 프리뷰용 UseCase.
+/// `MockNotificationRepository` 가 실 API 로 교체되면서 사라진 자리를 대신한다 — 빈 상태·목록을
+/// 시안과 대조할 수단이 없으면 그 화면들은 아무도 다시 안 본다.
+private struct PreviewFetchNotifications: FetchNotificationsUseCase {
+    let page: Page<AppNotification>
+
+    func execute() async throws -> Page<AppNotification> { page }
+    func execute(next request: PageRequest) async throws -> Page<AppNotification> { page }
+}
+
+/// 프리뷰는 셀을 눌러 이동하지 않는다 — 도착지 조회는 항상 실패시켜 스낵바 경로만 살려 둔다.
+private struct PreviewFailingFetch: FetchPinDetailUseCase, FetchRoomUseCase {
+    func execute(pinID: PinID) async throws -> PinDetail { throw DomainError.pinsFetchFailed }
+    func execute(id: String) async throws -> Room { throw DomainError.roomsFetchFailed }
+}
+
+@MainActor
+private func previewStore(_ items: [AppNotification]) -> NotificationListStore {
+    NotificationListStore(
+        NotificationListState(),
+        reduce: notificationListReducer(
+            useCase: PreviewFetchNotifications(
+                page: Page(items: items, page: 0, pageSize: 20, hasNext: false)
+            ),
+            fetchPinDetail: PreviewFailingFetch(),
+            fetchRoom: PreviewFailingFetch()
+        )
+    )
+}
+
+#Preview("빈 상태") {
+    NotificationListContainerView(store: previewStore([]))
+}
+
+#Preview("목록") {
+    NotificationListContainerView(store: previewStore([
+        AppNotification(
+            id: NotificationID("1"), type: .duplicateSave,
+            title: "이미 저장해둔 곳이에요", targetName: "패스트리 순간", thumbnailURL: nil,
+            destination: .place(pinID: PinID("pin-1")), createdAt: .now.addingTimeInterval(-600)
+        ),
+        AppNotification(
+            id: NotificationID("2"), type: .saveError,
+            title: "장소를 저장하지 못했어요", targetName: "인스타그램 게시물", thumbnailURL: nil,
+            destination: .saveError, createdAt: .now.addingTimeInterval(-7200)
+        ),
+        AppNotification(
+            id: NotificationID("3"), type: .roomJoined,
+            title: "방에 참가했어요", targetName: "맛집 탐방", thumbnailURL: nil,
+            destination: .room(roomID: "room-1"), createdAt: .now.addingTimeInterval(-864_000)
+        ),
+    ]))
 }

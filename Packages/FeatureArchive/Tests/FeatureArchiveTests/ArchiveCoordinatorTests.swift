@@ -492,6 +492,69 @@ struct ArchiveCoordinatorTests {
         #expect(coordinator.savedRooms == presentation)
         #expect(coordinator.selectedRoom == fixtureRoom)
     }
+
+    // MARK: - 탭 밖에서 들어오는 진입점
+
+    @Test("탭 밖에서 방을 열면 방만 서고 장소는 비어 있다")
+    func openRoom_setsRoomAndClearsPin() {
+        let coordinator = makeCoordinator()
+        coordinator.handle(.openRoomDetail(fixtureRoom))
+        coordinator.handle(RoomDetailNav.openPlaceDetail(fixturePin))
+
+        coordinator.open(room: fixtureRoom)
+
+        #expect(coordinator.selectedRoom == fixtureRoom)
+        #expect(coordinator.selectedPin == nil)
+    }
+
+    @Test("탭 밖에서 장소를 열면 방과 장소가 함께 선다")
+    func openPin_setsBothRoomAndPin() {
+        let coordinator = makeCoordinator()
+
+        coordinator.open(pin: fixturePin, in: fixtureRoom)
+
+        #expect(coordinator.selectedRoom == fixtureRoom)
+        #expect(coordinator.selectedPin == fixturePin)
+    }
+
+    // 이 Coordinator 는 앱 수명 내내 살아 있어 탭을 떠나도 push 가 남는다. 걷어내지 않으면
+    // 공동방 만들기 화면이 목적지를 통째로 덮는다.
+    @Test("push 된 화면이 남아 있어도 진입점이 걷어낸다")
+    func open_clearsPushedRoute() {
+        let coordinator = makeCoordinator()
+        coordinator.push(.createRoom)
+
+        coordinator.open(pin: fixturePin, in: fixtureRoom)
+
+        #expect(coordinator.path.isEmpty)
+        #expect(coordinator.selectedPin == fixturePin)
+    }
+
+    // 시트도 같다 — 껍데기가 다시 뜨는 순간 재표시돼 상세 위를 덮는다.
+    @Test("떠 있던 시트도 진입점이 걷어낸다")
+    func open_clearsPresentedSheets() {
+        let coordinator = makeCoordinator()
+        coordinator.handle(.openRoomDetail(fixtureRoom))
+        coordinator.handle(RoomDetailNav.shareLocation(RoomDetailLocation(from: fixturePin)))
+        coordinator.handle(PlaceDetailNav.openSavedRooms(
+            SavedRoomsPresentation(id: fixturePin.id.value, rooms: [fixtureRoom])
+        ))
+
+        coordinator.open(room: fixtureRoom)
+
+        #expect(coordinator.sharingLocation == nil)
+        #expect(coordinator.savedRooms == nil)
+    }
+
+    @Test("진입점은 이전 방의 지도 카메라 요청을 남기지 않는다")
+    func open_clearsMapFocus() {
+        let coordinator = makeCoordinator()
+        coordinator.handle(RoomListNav.focusMyLocation(Coordinate(latitude: 37.5, longitude: 127.0)))
+
+        coordinator.open(room: fixtureRoom)
+
+        #expect(coordinator.mapFocus == nil)
+    }
 }
 
 /// 조건이 참이 될 때까지 짧게 폴링한다(상한 있음 — 무한 hang 금지).

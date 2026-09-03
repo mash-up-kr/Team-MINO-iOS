@@ -233,6 +233,38 @@ public final class ArchiveCoordinator: Coordinator {
         mapFocus = nil
     }
 
+    // MARK: - 탭 밖에서 들어오는 진입점
+
+    /// 저장 탭 밖(알림 탭 · 앞으로는 딥링크·푸시)에서 방 상세를 연다.
+    ///
+    /// **조회는 부르는 쪽이 끝내고 온다** — 여기서 id 를 받아 조회하면 실패·로딩 상태가 이 flow 로
+    /// 흘러들어오고, 방 상세·장소 상세가 "데이터 없는 상태" 를 새로 표현해야 한다.
+    public func open(room: Room) {
+        resetToShell()
+        showRoom(room)
+        selectedPin = nil
+    }
+
+    /// 저장 탭 밖에서 장소 상세를 연다. 배경 지도가 `selectedRoom` 에 의존하므로 **방을 함께 받는다** —
+    /// 장소만 세우면 빈 지도 위에 시트만 뜬다.
+    public func open(pin: Pin, in room: Room) {
+        resetToShell()
+        showRoom(room)
+        selectedPin = pin
+    }
+
+    /// 껍데기(지도 + 방 리스트 시트)로 되돌린다.
+    ///
+    /// 이 Coordinator 는 앱 수명 내내 살아 있어 **탭을 떠나도 push·시트가 남는다.** 공동방 만들기를
+    /// push 한 채 알림 탭으로 갔다가 크로스탭으로 돌아오면 그 화면이 목적지를 통째로 덮는다.
+    /// 공유 시트·저장된 방 시트도 같다 — 껍데기가 다시 뜨는 순간 재표시된다.
+    private func resetToShell() {
+        path = []
+        sharingLocation = nil
+        savedRooms = nil
+        shareCreateRoomChild = nil
+    }
+
     /// 014 ② — 고른 방의 장소 상세로. 시트를 닫고 **방만** 갈아끼운다.
     ///
     /// 보고 있던 장소(`selectedPin`)는 그대로 둔다. 같은 장소라도 방마다 핀이 따로인데 저장 API 가

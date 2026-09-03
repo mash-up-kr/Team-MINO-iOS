@@ -16,6 +16,8 @@ import Networking
 struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, LaunchDeps, OnboardingDeps, ProfileDeps {
     let fetchMember: FetchMemberUseCase
     let fetchRooms: FetchRoomsUseCase
+    /// 방 하나를 id 로 여는 경로(알림 → 방·장소 상세)가 쓴다. 목록 조회와 저장소를 공유한다.
+    let fetchRoom: FetchRoomUseCase
     let fetchHomeCards: FetchHomeCardsUseCase
     let fetchRoomPins: FetchRoomPinsUseCase
     let fetchNotifications: FetchNotificationsUseCase
@@ -85,6 +87,7 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
         let pins = PinRepositoryImpl(client: httpClient)
 
         self.fetchRooms = DefaultFetchRoomsUseCase(repository: rooms)
+        self.fetchRoom = DefaultFetchRoomUseCase(repository: rooms)
 
         self.fetchHomeCards = DefaultFetchHomeCardsUseCase(repository: pins)
         self.fetchRoomPins = DefaultFetchRoomPinsUseCase(repository: pins)
@@ -94,8 +97,10 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
         // 삭제만 스텁이다 — 서버에 삭제 엔드포인트가 없다(`StubPinDeletionRepository` 주석).
         self.deletePin = DefaultDeletePinUseCase(repository: StubPinDeletionRepository())
 
-        // 알림 목록: 실 API 미연결 → Mock Repository(하드코딩 JSON) 사용. 추후 NotificationRepositoryImpl 로 교체.
-        self.fetchNotifications = DefaultFetchNotificationsUseCase(repository: MockNotificationRepository())
+        // 알림 목록: 실 API(`GET /api/v1/notifications`). 페이지네이션은 서버 규약(offset)을 그대로 탄다.
+        self.fetchNotifications = DefaultFetchNotificationsUseCase(
+            repository: NotificationRepositoryImpl(client: httpClient)
+        )
 
         // 마지막으로 본 방: 방 id 하나만 남기면 되는 로컬 기록이라 UserDefaults 구현을 쓴다.
         self.lastViewedRoom = DefaultLastViewedRoomUseCase(
