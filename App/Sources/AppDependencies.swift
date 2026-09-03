@@ -91,8 +91,8 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
         self.fetchPinDetail = DefaultFetchPinDetailUseCase(repository: pins)
         // 「경과일 초기화 확인」(홈 spec FR-007) — 상세를 연 사실을 서버에 남긴다.
         self.recordPinAccess = DefaultRecordPinAccessUseCase(repository: pins)
-        // 삭제만 스텁이다 — 서버에 삭제 엔드포인트가 없다(`StubPinDeletionRepository` 주석).
-        self.deletePin = DefaultDeletePinUseCase(repository: StubPinDeletionRepository())
+        // 장소(핀) 삭제: 실 API (DELETE /api/v1/pins/{pinId})
+        self.deletePin = DefaultDeletePinUseCase(repository: pins)
 
         // 알림 목록: 실 API 미연결 → Mock Repository(하드코딩 JSON) 사용. 추후 NotificationRepositoryImpl 로 교체.
         self.fetchNotifications = DefaultFetchNotificationsUseCase(repository: MockNotificationRepository())

@@ -145,6 +145,37 @@ struct PinRepositoryImplTests {
         await #expect(throws: CancellationError.self) { try await sut.pins(roomID: "r") }
     }
 
+    @Test("핀 삭제는 DELETE api/v1/pins/{pinId} 로 나간다")
+    func delete_pathAndMethod() async throws {
+        let client = StubHTTPClient(json: #"{"ok": true}"#)
+        let sut = PinRepositoryImpl(client: client)
+
+        try await sut.delete(pinID: PinID("pin-123"))
+
+        #expect(await client.lastPath == "api/v1/pins/pin-123")
+        #expect(await client.lastMethod == .delete)
+    }
+
+    @Test("핀 삭제 실패 시 pinDeleteFailed 로 번역된다")
+    func delete_failureMapsToDomainError() async {
+        let client = StubHTTPClient(error: NetworkError.server(statusCode: 500))
+        let sut = PinRepositoryImpl(client: client)
+
+        await #expect(throws: DomainError.pinDeleteFailed) {
+            try await sut.delete(pinID: PinID("pin-123"))
+        }
+    }
+
+    @Test("핀 삭제 중 취소는 CancellationError 로 유지된다")
+    func delete_cancellationStaysCancellation() async {
+        let client = StubHTTPClient(error: NetworkError.cancelled)
+        let sut = PinRepositoryImpl(client: client)
+
+        await #expect(throws: CancellationError.self) {
+            try await sut.delete(pinID: PinID("pin-123"))
+        }
+    }
+
     private static func card(labelGroup: String) -> String {
         """
         [{ "id": "pin-1", "roomId": "room-1",
@@ -162,6 +193,7 @@ private actor StubHTTPClient: HTTPClient {
     private let json: String?
     private let error: Error?
     private(set) var lastPath: String?
+    private(set) var lastMethod: HTTPMethod?
     private var lastQuery: [URLQueryItem] = []
 
     init(json: String? = nil, error: Error? = nil) {
@@ -175,6 +207,7 @@ private actor StubHTTPClient: HTTPClient {
 
     func request<T>(_ endpoint: Endpoint<T>) async throws -> T {
         lastPath = endpoint.path
+        lastMethod = endpoint.method
         lastQuery = endpoint.queryItems
 
         if let error { throw error }

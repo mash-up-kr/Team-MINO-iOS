@@ -63,5 +63,7 @@ public enum DomainError: Error, Equatable, Sendable {
     /// 링크 저장(`linkSaveFailed`)과 갈라 둔다 — 그쪽은 익스텐션이 인스타 링크를 처음 담는 경로라
     /// 실패 스낵바가 따로 있고, 이쪽은 앱 안에서 이미 있는 장소를 복제하는 다른 화면이다.
     case pinShareFailed
+    /// 저장한 장소를 방에서 지우지 못했다.
+    case pinDeleteFailed
     case unknown
 }
