@@ -21,16 +21,17 @@ final class MHCommentTests: XCTestCase {
         XCTAssertEqual(height(long), 182, accuracy: 1.0)   // 본문 140 에서 잘림
     }
 
-    // dateText 는 이름 행(32pt) trailing 에 얹힐 뿐 행을 더 키우지 않는다 — 높이가 그대로인지만 본다
-    // (렌더된 이미지에서 문자열 내용 자체를 검증할 수는 없다).
+    // dateText 는 본문 아래 우측 하단에 한 행을 더한다(시안 2026-09-03) — caption1 = 12 × 1.334 ≈ 16pt.
+    //   normal(1줄) + 날짜 = 62 + gap10 + 16 = 88
+    // (렌더된 이미지에서 문자열 내용·정렬 자체를 검증할 수는 없다 — 높이로 행이 생겼는지만 본다.)
     @MainActor
-    func testHeightUnaffectedByDateText() throws {
+    func testHeightGrowsByDateRow() throws {
         MHFontRegistrar.registerIfNeeded()
         let r = ImageRenderer(content:
             MHComment(avatar: nil, name: "이름", comment: "친구가 남긴 코멘트입니다.", dateText: "3일 전")
                 .frame(width: 335))
         r.scale = 1
-        XCTAssertEqual(r.uiImage?.size.height ?? 0, 62, accuracy: 1.0)
+        XCTAssertEqual(r.uiImage?.size.height ?? 0, 88, accuracy: 1.0)
     }
 
     @MainActor

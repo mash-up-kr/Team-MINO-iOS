@@ -20,10 +20,10 @@ import SwiftUI
 /// > 메뉴가 열린 모습은 ``MHMenu`` 와 동일하게 `ImageRenderer` 로는 렌더되지 않아 **시뮬레이터로만
 /// > 육안 확인**된다.
 ///
-/// > **`dateText`**: 코멘트 작성 시각 표기(예: "3일 전"). Figma 배치 시안이 없어(005 주석10 —
-/// > "런칭 이후" 미구현 항목) 잠정으로 이름 행 trailing 에 캡션 위계로 둔다 — 시안이 나오면 이
-/// > 자리만 옮기면 되도록 `MHComment` 안에 한 곳으로 모았다. `nil` 이면 그리지 않는다. 문자열 계산
-/// > (상대/절대 표기 규칙)은 DS 몫이 아니라 호출부가 만들어 넘긴다(``CommentDateText``, PlaceDetailUI).
+/// > **`dateText`**: 코멘트 작성 시각 표기(예: "3일 전" · "2027.01.01"). 시안(2026-09-03 디자인 확인)은
+/// > **본문 아래 우측 하단**이다 — 이름 행이 아니라 본문 뒤에 캡션 위계의 행을 하나 더 두고 trailing
+/// > 정렬한다. `nil` 이면 그 행 자체를 그리지 않는다. 문자열 계산(상대/절대 표기 규칙)은 DS 몫이
+/// > 아니라 호출부가 만들어 넘긴다(``CommentDateText``, PlaceDetailUI).
 ///
 /// ```swift
 /// MHComment(avatar: Image("me"), name: "이름", comment: "친구가 남긴 코멘트입니다.")
@@ -82,15 +82,8 @@ public struct MHComment: View {
                 Text(name)
                     .mhTypography(.label1NormalMedium)
                     .foregroundStyle(.mhLabelAlternative)
-                if dateText != nil || hasMenu {
-                    Spacer(minLength: 8)
-                }
-                if let dateText {
-                    Text(dateText)
-                        .mhTypography(.caption1Regular)
-                        .foregroundStyle(.mhLabelAssistive)
-                }
                 if hasMenu {
+                    Spacer(minLength: 8)
                     moreButton
                 }
             }
@@ -101,6 +94,13 @@ public struct MHComment: View {
                 .fixedSize(horizontal: false, vertical: true)   // 전체 높이로 레이아웃 → 말줄임(…) 대신 하드 클립
                 .frame(maxWidth: .infinity, maxHeight: maxBodyHeight, alignment: .topLeading)
                 .clipped()
+            // 작성 시각 — 시안(2026-09-03 디자인 확인)은 본문 아래 **우측 하단**. 이름 행이 아니다.
+            if let dateText {
+                Text(dateText)
+                    .mhTypography(.caption1Regular)
+                    .foregroundStyle(.mhLabelAssistive)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .overlay { dismissScrim }                         // 바깥 탭 감지(메뉴 아래 레이어)
