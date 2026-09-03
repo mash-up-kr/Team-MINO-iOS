@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 440" style="font-family: 'JetBrains Mono', SFMono-Regular, Menlo, Consolas, monospace;">
+  <defs>
+    <marker id="arrowhead-mvi" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#64748b" />
+    </marker>
+    <pattern id="grid-mvi" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/>
+    </pattern>
+  </defs>
+
+  <rect width="100%" height="100%" fill="#020617"/>
+  <rect width="100%" height="100%" fill="url(#grid-mvi)"/>
+
+  <text x="80" y="32" fill="white" font-size="13" font-weight="700">MVI — 단방향 데이터 흐름 (순수 reduce + Effect)</text>
+
+  <!-- ============ Arrows ============ -->
+  <!-- View → Store : send(Action) -->
+  <path d="M 260 165 L 378 165" fill="none" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arrowhead-mvi)"/>
+  <text x="319" y="157" fill="#94a3b8" font-size="8" text-anchor="middle">send(Action)</text>
+  <!-- Store → View : @Observable state -->
+  <path d="M 380 210 L 262 210" fill="none" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arrowhead-mvi)"/>
+  <text x="321" y="224" fill="#94a3b8" font-size="8" text-anchor="middle">@Observable state</text>
+  <!-- Store → reduce -->
+  <path d="M 580 165 L 698 165" fill="none" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arrowhead-mvi)"/>
+  <text x="639" y="157" fill="#94a3b8" font-size="8" text-anchor="middle">reduce(&amp;state, action)</text>
+  <!-- reduce → Store : State 갱신 + Effect 반환 -->
+  <path d="M 700 210 L 582 210" fill="none" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrowhead-mvi)"/>
+  <text x="641" y="224" fill="#94a3b8" font-size="8" text-anchor="middle">Effect 반환 (값)</text>
+  <!-- reduce → .run (Store 가 실행) -->
+  <path d="M 810 230 L 810 335 L 742 335" fill="none" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#arrowhead-mvi)"/>
+  <text x="822" y="285" fill="#94a3b8" font-size="8">.run</text>
+  <!-- .run → Store : Response Action 복귀 -->
+  <path d="M 518 335 L 480 335 L 480 232" fill="none" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#arrowhead-mvi)"/>
+  <text x="470" y="290" fill="#94a3b8" font-size="8" text-anchor="end">send(.loaded / .loadFailed)</text>
+  <!-- Store → Coordinator : .navigate -->
+  <path d="M 420 230 L 420 264 L 190 264 L 190 298" fill="none" stroke="#fb7185" stroke-width="1.5" marker-end="url(#arrowhead-mvi)"/>
+  <text x="305" y="256" fill="#94a3b8" font-size="8" text-anchor="middle">.navigate(Nav)</text>
+
+  <!-- ============ View ============ -->
+  <rect x="80" y="140" width="180" height="90" rx="6" fill="#0f172a"/>
+  <rect x="80" y="140" width="180" height="90" rx="6" fill="rgba(8, 51, 68, 0.4)" stroke="#22d3ee" stroke-width="1.5"/>
+  <text x="170" y="165" fill="white" font-size="12" font-weight="600" text-anchor="middle">View</text>
+  <text x="170" y="183" fill="#94a3b8" font-size="9" text-anchor="middle">SwiftUI</text>
+  <text x="170" y="203" fill="#22d3ee" font-size="7" text-anchor="middle">store.state 를 읽어 그린다</text>
+
+  <!-- ============ Store ============ -->
+  <rect x="380" y="140" width="200" height="90" rx="6" fill="#0f172a"/>
+  <rect x="380" y="140" width="200" height="90" rx="6" fill="rgba(76, 29, 149, 0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+  <text x="480" y="165" fill="white" font-size="12" font-weight="600" text-anchor="middle">Store</text>
+  <text x="480" y="183" fill="#94a3b8" font-size="9" text-anchor="middle">@Observable @MainActor</text>
+  <text x="480" y="203" fill="#a78bfa" font-size="7" text-anchor="middle">Effect 실행 엔진 — .run 은 Task 로</text>
+
+  <!-- ============ reduce ============ -->
+  <rect x="700" y="140" width="220" height="90" rx="6" fill="#0f172a"/>
+  <rect x="700" y="140" width="220" height="90" rx="6" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
+  <text x="810" y="165" fill="white" font-size="12" font-weight="600" text-anchor="middle">reduce (순수 함수)</text>
+  <text x="810" y="183" fill="#94a3b8" font-size="8" text-anchor="middle">(inout State, Action) → Effect</text>
+  <text x="810" y="203" fill="#34d399" font-size="7" text-anchor="middle">부수효과를 직접 실행하지 않고 값으로 반환</text>
+
+  <!-- ============ Effect.run ============ -->
+  <rect x="520" y="300" width="220" height="70" rx="6" fill="#0f172a"/>
+  <rect x="520" y="300" width="220" height="70" rx="6" fill="rgba(120, 53, 15, 0.3)" stroke="#fbbf24" stroke-width="1.5"/>
+  <text x="630" y="323" fill="white" font-size="12" font-weight="600" text-anchor="middle">.run — 비동기 작업</text>
+  <text x="630" y="340" fill="#94a3b8" font-size="8" text-anchor="middle">await useCase.execute(...)</text>
+  <text x="630" y="356" fill="#fbbf24" font-size="7" text-anchor="middle">성공·실패 모두 Response Action 으로 복귀</text>
+
+  <!-- ============ Coordinator ============ -->
+  <rect x="80" y="300" width="220" height="70" rx="6" fill="#0f172a"/>
+  <rect x="80" y="300" width="220" height="70" rx="6" fill="rgba(136, 19, 55, 0.4)" stroke="#fb7185" stroke-width="1.5"/>
+  <text x="190" y="323" fill="white" font-size="12" font-weight="600" text-anchor="middle">Coordinator</text>
+  <text x="190" y="340" fill="#94a3b8" font-size="8" text-anchor="middle">observeNavigation → path / sheet</text>
+  <text x="190" y="356" fill="#fb7185" font-size="7" text-anchor="middle">화면 전환은 reduce 밖 — 자식 flow 는 FlowFinish</text>
+
+  <!-- Note -->
+  <text x="80" y="414" fill="#64748b" font-size="8">절제 규칙: 1 effect = 1 작업 = 1 결과 action · merge/flatMap 콤비네이터 금지 · 이 선을 넘는 복잡도가 생기면 TCA 재평가</text>
+</svg>

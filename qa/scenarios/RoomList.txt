@@ -1,0 +1,18 @@
+# RoomList 골든 패스: 방 리스트 표시 → 필터 전환(핵심 사용자 동선).
+# 전제: 앱이 이미 RoomList(저장 탭) 화면에 있다고 가정한다 — MemberHome.txt 와 동일 관례.
+#   저장 탭 진입(`MainTab.tab.save`)은 App(MainTabView) 소유 식별자라 RoomList 매니페스트
+#   (qa/manifests/RoomList.json) 범위 밖이고, 현재 별도 MainTab 매니페스트가 없어
+#   scripts/verify_manifest.py 게이트(시나리오가 쓰는 식별자 선택자는 어느 매니페스트에든
+#   등록돼야 함)를 통과하지 못한다 — 그래서 이 시나리오에 tab 전환 스텝을 넣지 않는다.
+#   build-runner 가 RoomList 로 직행 launch 하지 않았다면 simulator-qa 가 그 사실을 보고해야 한다.
+# 한글 입력 없음: 이 동선에 타이핑 스텝이 없어 AXe 한글 입력 제약과 무관하다.
+#
+# RoomList.addButton("+")·RoomList.card.<id> 카드 탭은 매니페스트 상 액션이 없는 정적 요소라
+# tap 스텝으로 넣지 않는다(탭은 성공하지만 검증 대상이 없음) — 존재 확인은 describe-ui·스크린샷 몫.
+#
+# 필터 칩(전체/최근 저장 순/코멘트 순)은 MHCategory/MHChip 내부 버튼이라 자체 식별자가 없다.
+# AXe는 칩의 기본 accessibility label(칩 텍스트)로 탭한다 — RoomList.filter 컨테이너의
+# accessibilityValue 로 선택 상태를 확인한다(상세는 매니페스트 note 참조).
+
+# 1) 필터를 "최근 저장 순"으로 전환 — 라벨 탭(칩 자체 식별자 없음)
+tap --label '최근 저장 순'

@@ -1,0 +1,286 @@
+import XCTest
+import SwiftUI
+@testable import DesignSystem
+
+/// PR 첨부용 디바이스 스크린샷 생성 테스트. iPhone 16 크기(393pt, @3x) PNG 를 저장한다.
+///
+/// 파일 쓰기는 `PR_SCREENSHOT_DIR` 이 있을 때만 한다 — 이 스위트는 앱 스킴 테스트에 함께
+/// 실려 매 CI 실행마다 도는데, PR 첨부용 산출물을 그때마다 디스크에 뿌릴 이유는 없다.
+/// 렌더 자체는 항상 수행해 컴포넌트가 그려지는지는 계속 검사한다.
+///
+///     PR_SCREENSHOT_DIR=/tmp/pr_screenshots xcodebuild -scheme DesignSystem test
+final class PRScreenshotTests: XCTestCase {
+    private let dir = ProcessInfo.processInfo.environment["PR_SCREENSHOT_DIR"]
+    private let w: CGFloat = 393
+
+    override func setUp() {
+        super.setUp()
+        if let dir {
+            try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        }
+        MHFontRegistrar.registerIfNeeded()
+    }
+
+    // MARK: - 이번 브랜치 신규 컴포넌트
+
+    @MainActor func testRoomThumbnailEmpty() throws {
+        try snap("room_thumbnail_empty") {
+            screen {
+                LazyVGrid(columns: Array(repeating: GridItem(.fixed(70), spacing: 10), count: 4), spacing: 10) {
+                    ForEach(MHRoomThumbnailColor.allCases, id: \.self) { MHRoomThumbnail(color: $0, size: 70) }
+                    MHRoomThumbnail.myRoom(size: 70)
+                }
+            }
+        }
+    }
+
+    @MainActor func testRoomThumbnailFull() throws {
+        let photo = Image(systemName: "photo")
+        try snap("room_thumbnail_full") {
+            screen {
+                LazyVGrid(columns: Array(repeating: GridItem(.fixed(70), spacing: 10), count: 4), spacing: 10) {
+                    MHRoomThumbnail(images: [photo], size: 70)
+                    MHRoomThumbnail(images: [photo, photo], size: 70)
+                    MHRoomThumbnail(images: [photo, photo, photo], size: 70)
+                    MHRoomThumbnail(images: [photo, photo, photo, photo], size: 70)
+                }
+            }
+        }
+    }
+
+    @MainActor func testInvitationCard() throws {
+        try snap("invitation_card") {
+            screen {
+                VStack(spacing: 16) {
+                    MHInvitationCard(thumbnailColor: .pink, title: "5월의 약속 : 우리끼리", description: "우리 모임 장소 픽업 공간.", members: [nil, nil, nil], placeCount: 1200).frame(width: 260)
+                    MHInvitationCard(thumbnailColor: .violet, title: "5월의 약속 : 우리끼리", description: "우리 모임 장소 픽업 공간.", members: [nil, nil, nil, nil, nil, nil, nil], placeCount: 5).frame(width: 200)
+                }
+            }
+        }
+    }
+
+    @MainActor func testInvitation() throws {
+        try snap("invitation") {
+            screen {
+                MHInvitation(thumbnailColor: .pink, title: "5월의 약속 : 우리끼리", description: "우리 모임 장소 픽업 공간.", members: [nil, nil, nil], placeCount: 1200)
+            }
+        }
+    }
+
+    @MainActor func testTabBar() throws {
+        try snap("tab_bar") {
+            VStack {
+                Spacer()
+                MHTabBar(items: [
+                    MHTabBarItem(id: 0, icon: .homeFill, label: "홈"),
+                    MHTabBarItem(id: 1, icon: .folderFill, label: "저장"),
+                    MHTabBarItem(id: 2, icon: .bellFill, label: "알림"),
+                    MHTabBarItem(id: 3, icon: .personCircleFill, label: "마이페이지"),
+                ], selectedID: .constant(0))
+            }.frame(width: w, height: 200).background(Color.white)
+        }
+    }
+
+    // MARK: - 기존 컴포넌트
+
+    @MainActor func testRoomCard() throws {
+        try snap("room_card") {
+            screen {
+                VStack(spacing: 0) {
+                    MHRoomCard(title: "내 방", memo: "내가 꾹 저장한 장소", placeCount: 0, members: [nil])
+                    MHRoomCard(title: "내 방", placeCount: 0, members: [nil])
+                    MHRoomCard(title: "내 방", placeCount: 0, selection: .constant(false))
+                    MHRoomCard(title: "내 방", memo: "내가 꾹 저장한 장소", placeCount: 0, selection: .constant(false))
+                }.frame(width: 375)
+            }
+        }
+    }
+
+    @MainActor func testLocationCard() throws {
+        try snap("location_card") {
+            screen {
+                VStack(alignment: .leading, spacing: 8) {
+                    MHLocationCard(title: "레이어스튜디오 10", address: "서울 성동구 상원4길 10", commentCount: 1200, members: [nil, nil])
+                    MHLocationCard(title: "레이어스튜디오 10", address: "서울 성동구 상원4길 10", commentCount: 8)
+                    MHLocationCard(title: "레이어스튜디오 10", address: "서울 성동구 상원4길 10", commentCount: 8, members: [nil], layout: .expanded)
+                }.frame(width: 335)
+            }
+        }
+    }
+
+    @MainActor func testHomeCard() throws {
+        try snap("home_card") {
+            screen {
+                VStack(spacing: 16) {
+                    homeCard(.mhAccentForegroundLightBlue, "친구들이 많이 본 곳")
+                    homeCard(.mhAccentForegroundPink, "이야기 많은 곳")
+                }.frame(width: 335)
+            }
+        }
+    }
+
+    @MainActor func testComment() throws {
+        let unit = "친구가 남긴 코멘트입니다."
+        try snap("comment") {
+            screen {
+                VStack(alignment: .leading, spacing: 20) {
+                    MHComment(avatar: nil, name: "이름", comment: unit)
+                    MHComment(avatar: nil, name: "이름", comment: String(repeating: unit, count: 7))
+                }.frame(width: 335)
+            }
+        }
+    }
+
+    @MainActor func testChip() throws {
+        try snap("chip") {
+            screen {
+                VStack(alignment: .leading, spacing: 16) {
+                    chipRow(.solid, active: false)
+                    chipRow(.solid, active: true)
+                    chipRow(.outlined, active: false)
+                    chipRow(.outlined, active: true)
+                }
+            }
+        }
+    }
+
+    @MainActor func testFilterBar() throws {
+        try snap("filter_bar") {
+            screen {
+                VStack(alignment: .leading, spacing: 24) {
+                    MHFilterBar(sortOptions: ["거리순", "최신순"], selectedSort: .constant(0),
+                                categories: ["전체", "카페", "맛집", "술집", "놀거리"], selectedCategory: .constant(0))
+                    // 메뉴 열린 상태는 내부 @State 라 ImageRenderer 로 캡처 불가 — Xcode 프리뷰 참고
+                }.frame(width: 375)
+            }
+        }
+    }
+
+    @MainActor func testRoomHeader() throws {
+        try snap("room_header") {
+            screen {
+                VStack(spacing: 30) {
+                    MHRoomHeader(title: "Title", memo: "memo", count: "999+개") { }
+                    MHRoomHeader(title: "Title", count: "999+개") { }
+                }.frame(width: 375)
+            }
+        }
+    }
+
+    @MainActor func testAvatarStack() throws {
+        try snap("avatar_stack") {
+            screen {
+                VStack(alignment: .leading, spacing: 20) {
+                    MHAvatarStack([Image?.none]) { }
+                    MHAvatarStack(Array(repeating: Image?.none, count: 4))
+                    MHAvatarStack(Array(repeating: Image?.none, count: 3), trailing: .overflow(99))
+                    HStack(spacing: 16) {
+                        MHAvatarStack(Array(repeating: Image?.none, count: 2), trailing: .overflow(5))
+                        MHAvatarStack(Array(repeating: Image?.none, count: 3), trailing: .overflow(12))
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - PR3 — 알림 컴포넌트
+
+    @MainActor func testNotificationCellTypes() throws {
+        let photo = Image(systemName: "photo.fill")
+        try snap("notification_cell_types") {
+            screen {
+                VStack(spacing: 0) {
+                    MHNotificationCell(title: "이미 저장해둔 곳이에요", subtitle: "연남동 스탠딩 커피",
+                                        time: "방금", thumbnail: .place(photo))
+                    MHNotificationCell(title: "장소를 저장하지 못했어요.", subtitle: "잠시 후 다시 시도해주세요",
+                                        time: "1시간 전", thumbnail: .icon)
+                    MHNotificationCell(title: "근처에 저장한 장소가 있어요", subtitle: "강남역 스타벅스",
+                                        time: "23시간 전", thumbnail: .place(photo))
+                    MHNotificationCell(title: "코멘트가 제일 많이 달린 장소에요", subtitle: "연남동 스탠딩 커피",
+                                        time: "7일 전", thumbnail: .place(photo))
+                    MHNotificationCell(title: "지은님이 들어왔어요", subtitle: "언젠가 가야지 방",
+                                        time: "8월 10일", thumbnail: .icon)
+                    MHNotificationCell(title: "방에 참가했어요", subtitle: "언젠가 가야지 방",
+                                        time: "11월 30일", thumbnail: .icon)
+                }
+            }
+        }
+    }
+
+    @MainActor func testStatusMessageStates() throws {
+        try snap("status_message_states") {
+            screen {
+                VStack(spacing: 32) {
+                    MHStatusMessage(message: "알림을 불러오는 중이에요")
+                    MHStatusMessage(message: "알림을 불러오지 못했어요",
+                                     kind: .failure(retryTitle: "다시 시도") {})
+                }
+            }
+        }
+    }
+
+    @MainActor func testIllustratedMessageVariants() throws {
+        try snap("illustrated_message_variants") {
+            screen {
+                VStack(spacing: 40) {
+                    MHIllustratedMessage(illustration: Image(systemName: "bell.slash"),
+                                          title: "받은 알림이 없어요")
+                    MHIllustratedMessage(
+                        illustration: Image(systemName: "exclamationmark.triangle"),
+                        title: "확인해주세요",
+                        messages: [
+                            "현재 한국 내 장소만 지원됩니다.",
+                            "사진 속 장소인식은 아직 지원하지 않습니다",
+                            "본문에 주소나 장소명을 포함해주세요",
+                        ],
+                        alignment: .leading, illustrationSpacing: 103
+                    )
+                }
+            }
+        }
+    }
+
+    // MARK: - Helpers
+
+    @MainActor
+    private func screen<C: View>(@ViewBuilder content: () -> C) -> some View {
+        content()
+            .padding(24)
+            .frame(width: w)
+            .background(Color.white)
+    }
+
+    @MainActor
+    private func snap<V: View>(_ name: String, @ViewBuilder content: () -> V) throws {
+        let renderer = ImageRenderer(content: content())
+        renderer.scale = 3
+        let img = try XCTUnwrap(renderer.uiImage, "\(name) 렌더 실패")
+        let data = try XCTUnwrap(img.pngData())
+        guard let dir else { return }
+        try data.write(to: URL(fileURLWithPath: "\(dir)/\(name).png"))
+        print("SCREENSHOT_SAVED: \(dir)/\(name).png")
+    }
+
+    @MainActor
+    private func homeCard(_ color: Color, _ text: String) -> MHHomeCard {
+        MHHomeCard(avatar: nil, badgeText: text, badgeColor: color,
+                   title: "레이어스튜디오 10", address: "서울 성동구 상원4길 10",
+                   images: [solidImage(.systemGray3), solidImage(.systemGray4)]) { }
+    }
+
+    private func solidImage(_ color: UIColor) -> Image {
+        let s = CGSize(width: 120, height: 150)
+        return Image(uiImage: UIGraphicsImageRenderer(size: s).image { ctx in
+            color.setFill(); ctx.fill(CGRect(origin: .zero, size: s))
+        })
+    }
+
+    @MainActor
+    private func chipRow(_ variant: MHChipVariant, active: Bool) -> some View {
+        HStack(spacing: 10) {
+            ForEach([MHChipSize.xsmall, .small, .medium, .large], id: \.self) { size in
+                MHChip("텍스트", variant: variant, size: size, isActive: active) {}
+            }
+        }
+    }
+}

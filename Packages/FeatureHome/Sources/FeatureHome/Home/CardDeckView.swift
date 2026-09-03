@@ -1,0 +1,260 @@
+import DesignSystem
+import Domain
+import ProfileSetupUI
+import SwiftUI
+
+/// 홈 카드 스와이프 덱. 최대 5장을 겹쳐 표시하고 좌우 스와이프로 넘긴다.
+struct CardDeckView: View {
+    let pins: [Pin]
+    let currentIndex: Int
+    let onSwipeForward: () -> Void
+    let onSwipeBackward: () -> Void
+    let onTapCard: (PinID) -> Void
+    /// 카드 더보기 메뉴 "다른 방 저장" 탭 — 게시물 저장 바텀시트로 이어진다.
+    let onSaveToOtherRoom: (PinID) -> Void
+    /// 이 덱이 홈 가이드의 **모형 덱**인지(``HomeGuideMockDeck``). 가이드는 맨 앞 카드만 딤 위에
+    /// 남기고(손 그래픽이 그 위에 얹힌다) 뒷장은 딤 뒤로 물러나게 한다 — 시안에서도 겹쳐 보이던
+    /// 뒷장 테두리가 딤에 묻힌다. 실제 덱은 가이드 중에 화면에 없으므로 언제나 기본값이다.
+    var isGuidePresented: Bool = false
+
+    @State private var dragOffset: CGFloat = 0
+    @State private var isFlingAnimating = false
+    @State private var flingXOffset: CGFloat = 0
+    @State private var flingYOffset: CGFloat = 0
+    @State private var flingRotation: Double = 0
+    @State private var shiftProgress: CGFloat = 0
+    /// 좌스와이프 시 이전 카드 복귀 진행도 (0=우상단, 1=center)
+    @State private var returnProgress: CGFloat = 0
+    /// 컨테이너 실측 폭(스크린 폭). GeometryReader 로 주입받는다 —
+    /// `UIScreen.main.bounds` 는 iOS 16+ deprecated 이고 멀티윈도우/회전/iPad 에서 부정확하다.
+    @State private var containerWidth: CGFloat = 0
+
+    private var baseCardWidth: CGFloat { CardDeckLayout.baseCardWidth(containerWidth: containerWidth) }
+    private var screenWidth: CGFloat { containerWidth }
+
+    // MARK: - 상수 (뷰 전용 애니메이션 값. 레이아웃·제스처 판정 상수·순수 계산은 CardDeckLayout)
+
+    private enum Anim {
+        static let springDuration: TimeInterval = 0.2      // fling·복귀·제자리 스프링
+        static let dragMinimum: CGFloat = 10               // DragGesture 최소 인식 거리
+        static let backwardDragRange: CGFloat = 200        // 좌드래그 → returnProgress(0…1) 정규화 폭
+        static let flingRotation: Double = 20              // 카드가 날아갈 때 회전각(부호는 방향)
+        static let dragRotationDivisor: Double = 30        // 드래그 중 회전 = -dragOffset / 이 값
+        static let verticalDragFactor: CGFloat = 0.4       // 드래그 시 위로 뜨는 정도 = dragOffset × 이 값
+        static let flyUpFactor: CGFloat = 0.4              // 날아갈 때 위로 = screenWidth × 이 값
+    }
+
+    var body: some View {
+        // 앞 카드를 고정 앵커(offset 0)로 두고 뒤 카드가 위로 겹친다. 앞 카드 위치가 카드 수와 무관하게
+        // 고정돼야 넘길 때·재생성할 때 덱 높이가 튀지 않는다. (스택이 얕으면 위쪽이 비는 건 "카드 소진" 표현)
+        ZStack(alignment: .center) {
+            // 일반 카드 스택
+            ForEach(Array(visibleCards.enumerated()), id: \.element.id) { stackIndex, pin in
+                let isTop = stackIndex == visibleCards.count - 1
+                let depth = visibleCards.count - 1 - stackIndex
+                let effectiveDepth = CardDeckLayout.effectiveDepth(depth: depth, isTop: isTop, shiftProgress: shiftProgress, returnProgress: returnProgress)
+                let cardScale = CardDeckLayout.cardScale(containerWidth: containerWidth, effectiveDepth: effectiveDepth)
+
+                cardView(pin: pin)
+                    // 뒤 카드는 좁힌 게 아니라 **비율 그대로 줄인 사본**이다(시안) — 모든 카드를 같은
+                    // 기준 폭으로 레이아웃한 뒤 축소한다. 폭만 좁히면 높이가 비례해 줄지 않아
+                    // 겹침 간격이 20 보다 좁아지고, 뒤 카드 안에서 글자가 다시 줄바꿈된다.
+                    // 상단 앵커라 레이아웃 높이(= 앞 카드 높이)는 그대로 두고 위 여백만 20씩 벌어진다.
+                    .frame(width: baseCardWidth)
+                    .scaleEffect(cardScale, anchor: .top)
+                    .offset(y: effectiveDepth * -CardDeckLayout.depthStep)
+                    .opacity(CardDeckLayout.interpolatedOpacity(depth: depth, isTop: isTop, shiftProgress: shiftProgress) * CardDeckLayout.depthFade(effectiveDepth))
+                    .zIndex(Double(stackIndex))
+                    .offset(x: isTop ? dragOffset + flingXOffset : 0, y: isTop ? dragYOffset + flingYOffset : 0)
+                    .rotationEffect(isTop ? .degrees(topRotation) : .zero)
+                    .homeGuideDimmed(isGuidePresented && !isTop)
+                    .allowsHitTesting(isTop && !isFlingAnimating)
+                    .gesture(isTop ? swipeGesture : nil)
+                    .onTapGesture { onTapCard(pin.id) }
+            }
+
+            // 이전 카드 (좌스와이프 시 우상단에서 돌아옴)
+            if returnProgress > 0, let prevPin = previousPin {
+                cardView(pin: prevPin)
+                    .frame(width: baseCardWidth)
+                    .offset(
+                        x: screenWidth * (1 - returnProgress),
+                        y: -screenWidth * Anim.flyUpFactor * (1 - returnProgress)
+                    )
+                    .rotationEffect(.degrees(-Anim.flingRotation * Double(1 - returnProgress)))
+                    .zIndex(Double(CardDeckLayout.visibleCount + 1))
+                    .allowsHitTesting(false)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        // 스와이프 인식 영역(FR-003)은 **화면 기준**이라 카드가 아니라 덱 컨테이너를 기준자로 삼는다 —
+        // 카드 로컬 좌표로 재면 드래그로 카드가 움직이는 만큼 기준선도 함께 밀린다.
+        .coordinateSpace(.named(Self.deckSpace))
+        .background(widthReader)   // 컨테이너 실측 폭 주입(UIScreen.main 대체)
+    }
+
+    /// 스와이프 시작 지점을 재는 좌표계 이름.
+    private static let deckSpace = "HomeCardDeck"
+
+    /// 컨테이너 폭을 측정해 `containerWidth` 에 넣는 투명 리더. 레이아웃엔 영향 없다.
+    private var widthReader: some View {
+        GeometryReader { geo in
+            Color.clear.onChange(of: geo.size.width, initial: true) { _, width in
+                containerWidth = width
+            }
+        }
+    }
+
+    // MARK: - 카드 데이터
+
+    private var visibleCards: [Pin] {
+        // 폭이 측정되기 전(첫 레이아웃 패스)엔 그리지 않아 0-폭 카드 깜빡임을 막는다.
+        guard containerWidth > 0 else { return [] }
+        return Array(pins[CardDeckLayout.visibleRange(currentIndex: currentIndex, pinCount: pins.count)].reversed())
+    }
+
+    /// 좌스와이프 때 우상단에서 돌아오는 카드 — 덱 안의 바로 앞 카드.
+    /// 첫 카드에는 없다: 되돌리기는 덱 경계를 넘지 않는다(EC-003).
+    private var previousPin: Pin? {
+        currentIndex > 0 ? pins[currentIndex - 1] : nil
+    }
+
+    // MARK: - 개별 카드
+
+    private func cardView(pin: Pin) -> some View {
+        let badge = badgeInfo(for: pin.category)
+        return MHHomeCard(
+            // 저장자를 모르면 nil 로 둬 익명 자리표가 뜬다 — 아무 얼굴이나 넣으면 남의 얼굴이 된다.
+            avatar: pin.createdBy.map { AvatarPalette.image(of: $0.avatarColor) },
+            badgeText: badge.text,
+            badgeColor: badge.color,
+            title: pin.place.name,
+            address: pin.place.address,
+            imageURLs: pin.images,
+            menuItems: moreMenuItems(for: pin)
+        )
+    }
+
+    /// 카드 더보기(⋮) 메뉴 — Figma `Menu/Menu`.
+    ///
+    /// **항목은 `다른 방 저장` 하나뿐이다**(FR-005). 함께 있던 `장소 가리기` 는 기능 자체를
+    /// 제공하지 않기로 확정돼 사라졌다(FR-006 결번, spec §3.2) — 마음에 들지 않는 카드는
+    /// 좌→우로 넘기면 그 덱에서 빠진다.
+    private func moreMenuItems(for pin: Pin) -> [MHMenuItem] {
+        [
+            MHMenuItem("다른 방 저장") { onSaveToOtherRoom(pin.id) },
+        ]
+    }
+
+    // MARK: - 드래그 연동
+
+    private var dragYOffset: CGFloat {
+        guard dragOffset > 0 else { return 0 }
+        return -dragOffset * Anim.verticalDragFactor
+    }
+
+    private var topRotation: Double {
+        guard dragOffset > 0 else { return flingRotation }
+        return -Double(dragOffset) / Anim.dragRotationDivisor + flingRotation
+    }
+
+    // MARK: - 스와이프 제스처
+
+    private var swipeGesture: some Gesture {
+        DragGesture(minimumDistance: Anim.dragMinimum, coordinateSpace: .named(Self.deckSpace))
+            .onChanged { value in
+                // 정책(FR-003): 화면 좌측 영역에서 시작한 드래그는 카드 전환·복구에 반영하지 않는다.
+                // 여기서 걸러지면 dragOffset·returnProgress 가 0 그대로라 onEnded 도 되돌릴 게 없다.
+                guard recognizesSwipe(value) else { return }
+                let dx = value.translation.width
+                if dx >= 0 {
+                    // 우측 드래그 — 현재 카드 따라감
+                    dragOffset = dx
+                    returnProgress = 0
+                } else if CardDeckLayout.allowsBackwardDrag(currentIndex: currentIndex) {
+                    // 좌측 드래그 — 현재 카드 고정, 이전 카드 등장
+                    dragOffset = 0
+                    returnProgress = min(1, abs(dx) / Anim.backwardDragRange)
+                }
+            }
+            .onEnded { value in
+                guard recognizesSwipe(value) else { return }
+                // "무엇을 할지" 판정은 순수 함수(CardDeckLayout)로 분리하고, 여기선 그 결과에 애니메이션만 건다.
+                switch CardDeckLayout.swipeOutcome(
+                    predicted: value.predictedEndTranslation.width,
+                    returnProgress: returnProgress,
+                    currentIndex: currentIndex,
+                    pinCount: pins.count
+                ) {
+                case .forward:
+                    performFlingForward()
+                case .backward:
+                    completeBackward()
+                case .snapBack:
+                    // 충분히 밀지 않음 → 제자리로. (마지막 카드도 넘길 수 있다 — 넘기면 덱이 비고 소진 화면)
+                    withAnimation(.spring(duration: Anim.springDuration)) {
+                        dragOffset = 0
+                        returnProgress = 0
+                    }
+                }
+            }
+    }
+
+    private func recognizesSwipe(_ value: DragGesture.Value) -> Bool {
+        CardDeckLayout.recognizesSwipe(startX: value.startLocation.x, containerWidth: containerWidth)
+    }
+
+    // MARK: - 우스와이프 (다음 카드)
+
+    private func performFlingForward() {
+        isFlingAnimating = true
+
+        // 카드가 날아가는 동안 히트테스트가 꺼져 다음 스와이프가 막힌다(잠금 시간 ≈ 이 애니메이션 길이).
+        // 인덱스 전진이 completion 에서 일어나 그 전엔 잠금을 못 푸므로, 빠른 연속 스와이프 누락을 줄이려
+        // fling·shift 를 하나의 0.2s 로 합쳐 잠금 창을 최대한 짧게 한다.
+        withAnimation(.spring(duration: Anim.springDuration)) {
+            flingXOffset = screenWidth
+            flingYOffset = -screenWidth * Anim.flyUpFactor
+            flingRotation = -Anim.flingRotation
+            shiftProgress = 1.0
+        } completion: {
+            dragOffset = 0
+            flingXOffset = 0
+            flingYOffset = 0
+            flingRotation = 0
+            shiftProgress = 0
+            isFlingAnimating = false
+            onSwipeForward()
+        }
+    }
+
+    // MARK: - 좌스와이프 (이전 카드)
+
+    private func completeBackward() {
+        isFlingAnimating = true
+
+        withAnimation(.spring(duration: Anim.springDuration)) {
+            returnProgress = 1
+        } completion: {
+            // returnProgress=1 시 덱이 이미 1칸 밀린 상태 → 인덱스 변경 후 위치 일치
+            var t = Transaction(animation: nil)
+            t.disablesAnimations = true
+            withTransaction(t) {
+                returnProgress = 0
+                onSwipeBackward()
+            }
+            isFlingAnimating = false
+        }
+    }
+}
+
+// MARK: - 카테고리 → 뱃지 매핑 (Feature 레이어 책임)
+
+private func badgeInfo(for category: PinCategory) -> (text: String, color: Color) {
+    switch category {
+    case .worthVisiting:        return ("가볼 만한 곳", .mhAccentForegroundLime)
+    case .popularAmongFriends:  return ("친구들이 많이 본 곳", .mhAccentForegroundLightBlue)
+    case .savedByMany:          return ("여럿이 저장한 곳", .mhAccentForegroundRedOrange)
+    case .manyStories:          return ("이야기 많은 곳", .mhAccentForegroundPink)
+    }
+}

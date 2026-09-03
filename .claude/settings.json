@@ -1,0 +1,13 @@
+{
+  "extraKnownMarketplaces": {
+    "hooni-workflow": {
+      "source": {
+        "source": "url",
+        "url": "https://github.com/hooni0918/AI-Workflow.git"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "ai-workflow@hooni-workflow": true
+  }
+}

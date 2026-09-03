@@ -1,0 +1,455 @@
+import SwiftUI
+
+/// 검증/상태 표현. `normal`(기본) / `positive`(성공) / `negative`(에러). Figma `status` 축.
+///
+/// `positive`·`negative` 는 trailing 에 상태 아이콘(체크/느낌표)을 자동으로 띄우고,
+/// `negative` 는 테두리·description 색을 에러색으로 바꾼다.
+public enum MHTextFieldStatus: Sendable { case normal, positive, negative }
+
+/// trailing 버튼 강조 위계. `normal`(Bold·Primary/Normal) / `assistive`(Medium·Label/Normal). Figma `variant` 축.
+public enum MHTextFieldButtonVariant: Sendable { case normal, assistive }
+
+/// 입력 박스 오른쪽에 분절되어 붙는 텍스트 버튼(Figma `trailingButton`). 예: "확인"·"인증".
+///
+/// 필드 본체와 별개로 자기 활성 상태(`isEnabled`)를 갖는다(입력은 되지만 버튼만 비활성 등).
+public struct MHTextFieldTrailingButton {
+    let title: String
+    let variant: MHTextFieldButtonVariant
+    let isEnabled: Bool
+    let leadingIcon: MHIcon?
+    let trailingIcon: MHIcon?
+    let action: () -> Void
+
+    public init(
+        _ title: String,
+        variant: MHTextFieldButtonVariant = .normal,
+        isEnabled: Bool = true,
+        leadingIcon: MHIcon? = nil,
+        trailingIcon: MHIcon? = nil,
+        action: @escaping () -> Void
+    ) {
+        self.title = title
+        self.variant = variant
+        self.isEnabled = isEnabled
+        self.leadingIcon = leadingIcon
+        self.trailingIcon = trailingIcon
+        self.action = action
+    }
+
+    // 라벨 색: 비활성=Label/Assistive, normal=Primary/Normal(검정), assistive=Label/Normal (Figma variant 실측).
+    var textColor: Color {
+        guard isEnabled else { return .mhLabelAssistive }
+        return variant == .normal ? .mhPrimaryNormal : .mhLabelNormal
+    }
+    // 타이포: normal=Body1 Bold, assistive=Body1 Medium (라벨이라 SUITE 사용 — 입력이 아님).
+    var typography: MHTypography { variant == .normal ? .body1NormalBold : .body1NormalMedium }
+    // 테두리: 활성=Line/Normal/Neutral, 비활성=Line/Normal/Alternative.
+    var borderColor: Color { isEnabled ? .mhLineNormalNeutral : .mhLineNormalAlternative }
+    // 비활성 배경만 Interaction/Disable(활성은 필드 배경 투과).
+    var backgroundColor: Color { isEnabled ? .clear : .mhInteractionDisable }
+}
+
+/// 한 줄 텍스트 입력 필드. Figma `Textinput/Textfield`.
+///
+/// 세로로 **Heading(라벨) → Input 박스 → Description(도움말)** 이 쌓이며, Heading·Description·
+/// leading 아이콘·required(*) 배지·clear(×) 버튼은 선택 슬롯이다. 상태(``MHTextFieldStatus``)와
+/// 포커스(내부 `@FocusState`)·`.disabled(_:)` 에 따라 테두리·색이 바뀐다.
+///
+/// > 입력 텍스트는 **시스템 폰트**를 쓴다(SUITE 는 한글 조합 중 빈 글리프 이슈 — DesignSystem README 참조).
+/// > 라벨·도움말 등 그 외 텍스트만 ``MHTypography``(SUITE)를 쓴다.
+///
+/// ```swift
+/// MHTextField("텍스트를 입력해 주세요.", text: $name)                       // 기본
+/// MHTextField("닉네임", text: $name, heading: "주제", isRequired: true)     // 라벨 + 필수(*)
+/// MHTextField("검색", text: $q, leadingIcon: .search)                      // leading 아이콘
+/// MHTextField("이메일", text: $email,
+///             description: "에러 메시지를 나타내요.", status: .negative)     // 에러(빨간 테두리·도움말)
+/// MHTextField("코드", text: $code, status: .positive)                     // 성공(체크 아이콘)
+/// MHTextField("고정", text: $v).disabled(true)                            // 표준 .disabled
+/// ```
+public struct MHTextField: View {
+    @Binding private var text: String
+    private let placeholder: String
+    private let heading: String?
+    private let isRequired: Bool
+    private let description: String?
+    private let status: MHTextFieldStatus
+    private let leadingIcon: MHIcon?
+    private let showsClearButton: Bool
+    private let trailingButton: MHTextFieldTrailingButton?
+    private let trailingContent: AnyView?
+    /// 입력 요소(내부 `TextField`)의 접근성 식별자. QA 자동화가 화면 안에서 필드를 특정하는 데 쓴다.
+    private let identifier: String?
+
+    @Environment(\.isEnabled) private var isEnabled
+    @FocusState private var isFocused: Bool
+
+    public init(
+        _ placeholder: String = "",
+        text: Binding<String>,
+        heading: String? = nil,
+        isRequired: Bool = false,
+        description: String? = nil,
+        status: MHTextFieldStatus = .normal,
+        leadingIcon: MHIcon? = nil,
+        showsClearButton: Bool = true,
+        trailingButton: MHTextFieldTrailingButton? = nil,
+        identifier: String? = nil,
+        @ViewBuilder trailingContent: () -> some View = { EmptyView() }
+    ) {
+        self._text = text
+        self.placeholder = placeholder
+        self.heading = heading
+        self.isRequired = isRequired
+        self.description = description
+        self.status = status
+        self.leadingIcon = leadingIcon
+        self.showsClearButton = showsClearButton
+        self.trailingButton = trailingButton
+        self.identifier = identifier
+        let content = trailingContent()
+        self.trailingContent = content is EmptyView ? nil : AnyView(content)
+    }
+
+    public var body: some View {
+        let spec = MHTextFieldSpec(status: status, isEnabled: isEnabled, isFocused: isFocused)
+        VStack(alignment: .leading, spacing: MHTextFieldMetric.stackSpacing) {
+            if let heading { headingRow(heading) }
+            inputBox(spec)
+            if let description {
+                Text(description)
+                    .mhTypography(.caption1Regular)
+                    .foregroundStyle(spec.descriptionColor)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .mhReportFieldFocus(identifier, isFocused: isFocused)
+    }
+
+    // MARK: Heading (라벨 + 필수 배지)
+
+    @ViewBuilder private func headingRow(_ heading: String) -> some View {
+        HStack(spacing: MHTextFieldMetric.headingGap) {
+            Text(heading)
+                .mhTypography(.label1NormalBold)
+                .foregroundStyle(.mhLabelNeutral)
+            if isRequired {
+                Text("*")
+                    .mhTypography(.label1NormalMedium)
+                    .foregroundStyle(.mhStatusNegative)
+            }
+        }
+    }
+
+    // MARK: Input 박스
+
+    // trailingButton 이 있으면 [입력부(좌측만 라운드) | 버튼(우측만 라운드)] 로 분절, 없으면 단일 라운드 박스.
+    @ViewBuilder private func inputBox(_ spec: MHTextFieldSpec) -> some View {
+        if let trailingButton {
+            HStack(spacing: 0) {
+                inputSegment(spec, corners: .left)
+                    .frame(maxWidth: .infinity)
+                trailingButtonSegment(trailingButton)
+            }
+            .mhShadow(.xsmall, cornerRadius: MHTextFieldMetric.cornerRadius)
+        } else {
+            inputSegment(spec, corners: .all)
+                .mhShadow(.xsmall, cornerRadius: MHTextFieldMetric.cornerRadius)
+        }
+    }
+
+    // 입력부 세그먼트: leading 아이콘·텍스트·trailing(clear/상태 아이콘) + 배경·테두리.
+    @ViewBuilder private func inputSegment(_ spec: MHTextFieldSpec, corners: MHTextFieldCorners) -> some View {
+        let shape = MHTextFieldMetric.shape(corners)
+        HStack(spacing: MHTextFieldMetric.contentGap) {
+            if let leadingIcon {
+                Image(leadingIcon)
+                    .resizable()
+                    .frame(width: MHTextFieldMetric.iconSize, height: MHTextFieldMetric.iconSize)
+                    .foregroundStyle(spec.leadingIconColor)
+            }
+            textField(spec)
+                .padding(.horizontal, MHTextFieldMetric.textHPadding)
+            trailingAccessory(spec)
+            if let trailingContent {
+                // 임의 커스텀 뷰 슬롯(단위 라벨·작은 컨트롤 등). 24pt 높이·hug 폭·overflow clip (Figma Trailing Content).
+                trailingContent
+                    .frame(height: MHTextFieldMetric.trailingContentHeight)
+                    .clipped()
+            }
+        }
+        .frame(minHeight: MHTextFieldMetric.contentMinHeight)
+        .padding(MHTextFieldMetric.contentPadding)
+        .frame(minHeight: MHTextFieldMetric.boxHeight)
+        .background {
+            // 불투명 base + 프로스트 틴트. base 가 없으면 inputBox 의 mhShadow(.xsmall) 잉크가
+            // 반투명(8% 흰색) 표면을 통과해 박스 내부를 회색으로 채운다(TextArea 와 동일 이슈).
+            // Figma 는 그림자를 항상 불투명 표면(Background/Normal/Normal)과 함께 쓴다.
+            shape.fill(Color.mhBackgroundNormalNormal)
+            shape.fill(spec.backgroundColor)               // Background/Transparent/Normal(활성) / Interaction/Disable(비활성)
+        }
+        .overlay { shape.strokeBorder(spec.borderColor, lineWidth: spec.borderWidth) }
+    }
+
+    // trailing 버튼 세그먼트: 우측만 라운드, 라벨은 SUITE(입력 아님). variant/disable 로 굵기·색이 갈린다.
+    // leading/trailing 아이콘(20pt)과 pressed 오버레이는 MHTextFieldButtonStyle 이 그린다.
+    @ViewBuilder private func trailingButtonSegment(_ button: MHTextFieldTrailingButton) -> some View {
+        Button(action: button.action) {
+            HStack(spacing: MHTextFieldMetric.buttonIconGap) {
+                if let icon = button.leadingIcon { buttonIcon(icon, color: button.textColor) }
+                Text(button.title)
+                    .mhTypography(button.typography)
+                    .foregroundStyle(button.textColor)
+                if let icon = button.trailingIcon { buttonIcon(icon, color: button.textColor) }
+            }
+        }
+        .buttonStyle(MHTextFieldButtonStyle(button: button))
+        .disabled(!button.isEnabled)
+    }
+
+    private func buttonIcon(_ icon: MHIcon, color: Color) -> some View {
+        Image(icon).resizable()
+            .frame(width: MHTextFieldMetric.buttonIconSize, height: MHTextFieldMetric.buttonIconSize)
+            .foregroundStyle(color)
+    }
+
+    // 입력 텍스트: 시스템 폰트(SUITE 미적용). placeholder 는 빈 값일 때만 겹쳐 그린다(색 정밀 제어).
+    // 색은 활성/비활성으로 갈린다(Figma disabled 행 실측): 값=Normal→Alternative, placeholder=Assistive→Disable.
+    @ViewBuilder private func textField(_ spec: MHTextFieldSpec) -> some View {
+        ZStack(alignment: .leading) {
+            if text.isEmpty {
+                Text(placeholder)
+                    .foregroundStyle(spec.placeholderColor)
+            }
+            TextField("", text: $text)
+                .focused($isFocused)
+                .foregroundStyle(spec.valueTextColor)
+                // 입력 요소에만 붙인다 — 컴포넌트 바깥에서 modifier 로 걸면 heading·description 까지
+                // 같은 식별자를 물려받아 QA 자동화의 선택자가 다중 매치로 실패한다.
+                .accessibilityIdentifier(identifier ?? "MHTextField.input")
+        }
+        .font(.system(size: MHTextFieldMetric.inputFontSize))
+        .lineLimit(1)
+    }
+
+    // trailing: 포커스+입력값이 있으면 clear(×), 아니면 상태 아이콘(positive=체크 / negative=느낌표 / normal=없음).
+    // 같은 슬롯을 공유하며 clear 가 상태 아이콘을 대체한다 — Figma status 매트릭스(포커스 행=clear, 그 외=상태 아이콘) 실측.
+    @ViewBuilder private func trailingAccessory(_ spec: MHTextFieldSpec) -> some View {
+        switch spec.trailing(hasText: !text.isEmpty, showsClearButton: showsClearButton) {
+        case .clear:
+            Button {
+                text = ""
+            } label: {
+                Image(MHIcon.circleClose)
+                    .resizable()
+                    .frame(width: MHTextFieldMetric.iconSize, height: MHTextFieldMetric.iconSize)
+                    .foregroundStyle(.mhLabelAssistive)
+            }
+            .buttonStyle(.plain)
+        case .positiveIcon:
+            statusIcon(.circleCheckFill, color: .mhPrimaryNormal)
+        case .negativeIcon:
+            statusIcon(.circleExclamationFill, color: .mhStatusNegative)
+        case .none:
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder private func statusIcon(_ icon: MHIcon, color: Color) -> some View {
+        Image(icon)
+            .resizable()
+            .frame(width: MHTextFieldMetric.iconSize, height: MHTextFieldMetric.iconSize)
+            .foregroundStyle(color)
+    }
+}
+
+// MARK: - Spec (상태 → Figma 토큰)
+
+struct MHTextFieldSpec {
+    let status: MHTextFieldStatus
+    let isEnabled: Bool
+    let isFocused: Bool
+
+    // 배경: 활성=Background/Transparent/Normal, 비활성=Interaction/Disable.
+    // (Figma 는 Transparent 위에 iOS Chrome 머티리얼 블러를 얹지만, 불투명 화면에선 안 보이고
+    //  per-field backdrop 블러는 비용이 커 MHButton 과 같은 이유로 플랫 채움만 쓴다.)
+    var backgroundColor: Color { isEnabled ? .mhBackgroundTransparentNormal : .mhInteractionDisable }
+
+    // 테두리 색(Figma status 매트릭스 실측): 비활성 > 에러 > 포커스 > 기본.
+    // 포커스는 색은 그대로 두고 불투명도만 43% 로 올린다(에러는 빨강 유지, 그 외는 Primary/Normal).
+    // - 기본(unfocused): 일반/성공=Line/Normal/Neutral, 에러=Status/Negative 28%
+    // - 포커스(focused):  일반/성공=Primary/Normal 43%, 에러=Status/Negative 43%
+    var borderColor: Color {
+        if !isEnabled { return .mhLineNormalAlternative }
+        if status == .negative { return .mhStatusNegative.opacity(isFocused ? 0.43 : 0.28) }
+        if isFocused { return .mhPrimaryNormal.opacity(0.43) }
+        return .mhLineNormalNeutral
+    }
+
+    // 포커스면 2px(상태 무관 — 에러 포커스도 2px), 그 외 1px.
+    var borderWidth: CGFloat {
+        (isEnabled && isFocused) ? 2 : 1
+    }
+
+    // description(도움말) 색: 에러만 빨강, 그 외는 Label/Alternative(성공도 회색 유지 — Figma 실측).
+    var descriptionColor: Color {
+        status == .negative ? .mhStatusNegative : .mhLabelAlternative
+    }
+
+    // 입력 값(비어있지 않을 때) 텍스트 색: 활성=Label/Normal, 비활성=Label/Alternative (Figma disabled 행 실측).
+    var valueTextColor: Color { isEnabled ? .mhLabelNormal : .mhLabelAlternative }
+
+    // placeholder(빈 값) 색: 활성=Label/Assistive, 비활성=Label/Disable (Figma disabled 행 실측).
+    var placeholderColor: Color { isEnabled ? .mhLabelAssistive : .mhLabelDisable }
+
+    // leading 아이콘 색: Figma 스펙은 !Blank 플레이스홀더라 색이 정의되지 않아, 보조 라벨색으로 둔다.
+    var leadingIconColor: Color { isEnabled ? .mhLabelAlternative : .mhLabelDisable }
+
+    // trailing 슬롯 결정(Figma status 매트릭스 실측): 포커스+입력값이 있으면 clear(×), 아니면 상태 아이콘.
+    // clear 는 상태 아이콘과 같은 슬롯을 대체한다(성공·에러 필드도 편집 중엔 clear 를 보여줌).
+    func trailing(hasText: Bool, showsClearButton: Bool) -> MHTextFieldTrailing {
+        if isEnabled, isFocused, showsClearButton, hasText { return .clear }
+        switch status {
+        case .positive: return .positiveIcon
+        case .negative: return .negativeIcon
+        case .normal:   return .none
+        }
+    }
+}
+
+/// Input trailing 슬롯에 무엇을 그릴지. clear(×) 버튼 또는 상태 아이콘(성공/에러) 또는 없음.
+enum MHTextFieldTrailing: Equatable { case none, clear, positiveIcon, negativeIcon }
+
+/// 세그먼트 라운드 위치. `all`=단독 박스, `left`=입력부(좌측만), `right`=trailing 버튼(우측만).
+enum MHTextFieldCorners { case all, left, right }
+
+// MARK: - Metric (Figma 실측 고정값)
+
+enum MHTextFieldMetric {
+    static let stackSpacing: CGFloat = 8      // Heading·Input·Description 세로 간격
+    static let headingGap: CGFloat = 4        // 라벨 ↔ 필수(*) 간격
+    static let contentGap: CGFloat = 8        // 아이콘 ↔ 텍스트 ↔ trailing 간격
+    static let textHPadding: CGFloat = 4      // 텍스트 좌우 내부 패딩(Figma Text Wrapper px)
+    static let contentPadding: CGFloat = 12   // Input 박스 내부 패딩
+    static let contentMinHeight: CGFloat = 24 // 콘텐츠 최소 높이(Figma min-h)
+    static let boxHeight: CGFloat = 48         // Input 박스 고정 높이(24 + 12*2)
+    static let cornerRadius: CGFloat = 12
+    static let iconSize: CGFloat = 22          // leading·상태·clear 아이콘 정사각
+    static let trailingContentHeight: CGFloat = 24  // 커스텀 trailing content 슬롯 높이(Figma h)
+    static let inputFontSize: CGFloat = 16     // 입력 텍스트(시스템 폰트)
+    static let buttonMinWidth: CGFloat = 80    // trailing 버튼 최소 폭(Figma min-w)
+    static let buttonHPadding: CGFloat = 16    // trailing 버튼 좌우 패딩(Figma px)
+    static let buttonIconGap: CGFloat = 6      // 버튼 아이콘 ↔ 텍스트 간격(Figma gap)
+    static let buttonIconSize: CGFloat = 20    // 버튼 leading/trailing 아이콘 정사각(Figma h)
+    static let buttonPressedOpacity: Double = 0.09  // pressed 오버레이(Label/Normal, Figma interaction 실측)
+
+    // 세그먼트별 라운드 모양(입력부=좌측만, 버튼=우측만, 단독=사방).
+    static func shape(_ corners: MHTextFieldCorners) -> UnevenRoundedRectangle {
+        let r = cornerRadius
+        switch corners {
+        case .all:   return UnevenRoundedRectangle(topLeadingRadius: r, bottomLeadingRadius: r, bottomTrailingRadius: r, topTrailingRadius: r)
+        case .left:  return UnevenRoundedRectangle(topLeadingRadius: r, bottomLeadingRadius: r, bottomTrailingRadius: 0, topTrailingRadius: 0)
+        case .right: return UnevenRoundedRectangle(topLeadingRadius: 0, bottomLeadingRadius: 0, bottomTrailingRadius: r, topTrailingRadius: r)
+        }
+    }
+}
+
+// MARK: - Trailing 버튼 ButtonStyle (배경·테두리·pressed 오버레이)
+
+// 우측 라운드 세그먼트로 라벨을 감싸고, pressed 시 Label/Normal 오버레이를 얹는다(Figma interaction 실측).
+struct MHTextFieldButtonStyle: ButtonStyle {
+    let button: MHTextFieldTrailingButton
+
+    func makeBody(configuration: Configuration) -> some View {
+        let shape = MHTextFieldMetric.shape(.right)
+        configuration.label
+            .padding(.horizontal, MHTextFieldMetric.buttonHPadding)
+            .frame(minWidth: MHTextFieldMetric.buttonMinWidth, minHeight: MHTextFieldMetric.boxHeight)
+            .background {
+                shape.fill(Color.mhBackgroundNormalNormal)   // 불투명 base — 공유 mhShadow 가 투명 표면을 통과하는 것 방지
+                shape.fill(button.backgroundColor)
+            }
+            .overlay {
+                if configuration.isPressed {
+                    shape.fill(Color.mhLabelNormal.opacity(MHTextFieldMetric.buttonPressedOpacity))
+                }
+            }
+            .overlay { shape.strokeBorder(button.borderColor, lineWidth: 1) }
+            .contentShape(shape)
+    }
+}
+
+// 한 상태 셀 — Figma 문서 셀과 동일: heading "주제" + Input + description(상태별 문구).
+// 실제 @State 바인딩이라 타이핑하면 placeholder 가 사라지고 지우면 다시 나타난다.
+private struct MHTextFieldStateCell: View {
+    let label: String
+    @State private var text: String
+    let status: MHTextFieldStatus
+    let disabled: Bool
+
+    init(_ label: String, text: String, status: MHTextFieldStatus = .normal, disabled: Bool = false) {
+        self.label = label
+        self._text = State(initialValue: text)
+        self.status = status
+        self.disabled = disabled
+    }
+
+    private var desc: String {
+        switch status {
+        case .normal:   "메시지에 마침표를 찍어요."
+        case .positive: "성공 메시지를 나타내요."
+        case .negative: "에러 메시지를 나타내요."
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label).font(.system(size: 9, weight: .semibold)).foregroundStyle(.secondary)
+            MHTextField("텍스트를 입력해 주세요.", text: $text, heading: "주제", description: desc, status: status)
+                .disabled(disabled)
+        }
+    }
+}
+
+// Figma `Textinput/Textfield` 상태 매트릭스 중 정적으로 고정되는 8종
+// (status(Normal/Positive/Negative) × active × disable). 성공=체크 아이콘, 에러=느낌표 아이콘.
+// focus 상태(테두리 2px + 편집 중 clear(×) 버튼)는 @FocusState 라 정적으로 못 박는다 →
+// 아래 "입력·포커스" 프리뷰에서 탭하면 확인.
+#Preview("MHTextField · 상태") {
+    ScrollView {
+        VStack(alignment: .leading, spacing: 18) {
+            MHTextFieldStateCell("기본 (Inactive)", text: "")
+            MHTextFieldStateCell("입력됨 (Active)", text: "값")
+            MHTextFieldStateCell("성공 (Positive)", text: "값", status: .positive)
+            MHTextFieldStateCell("에러 (Negative)", text: "", status: .negative)
+            MHTextFieldStateCell("에러·입력 (Negative·Active)", text: "값", status: .negative)
+            MHTextFieldStateCell("비활성 (Disabled)", text: "", disabled: true)
+            MHTextFieldStateCell("비활성·입력 (Disabled·Active)", text: "값", disabled: true)
+            MHTextFieldStateCell("성공·비활성 (Positive·Disabled)", text: "값", status: .positive, disabled: true)
+        }
+        .padding()
+    }
+    .frame(width: 367)
+}
+
+// 실제 입력 — 탭하면 focus 테두리(2px), 편집 중 clear(×) 버튼. Figma 의 Focus / *·Focus 상태를 상호작용으로 확인.
+// trailing 버튼 세그먼트(분절 필드)도 함께 시연.
+#Preview("MHTextField · 입력·포커스") {
+    struct Host: View {
+        @State private var normal = ""
+        @State private var positive = "값"
+        @State private var negative = "값"
+        @State private var code = ""
+        var body: some View {
+            VStack(spacing: 20) {
+                MHTextField("텍스트를 입력해 주세요.", text: $normal, heading: "주제", description: "메시지에 마침표를 찍어요.")
+                MHTextField("텍스트를 입력해 주세요.", text: $positive, heading: "주제", description: "성공 메시지를 나타내요.", status: .positive)
+                MHTextField("텍스트를 입력해 주세요.", text: $negative, heading: "주제", description: "에러 메시지를 나타내요.", status: .negative)
+                MHTextField("인증번호", text: $code, heading: "주제",
+                            trailingButton: .init("인증") {})
+            }
+            .padding()
+        }
+    }
+    return Host()
+}

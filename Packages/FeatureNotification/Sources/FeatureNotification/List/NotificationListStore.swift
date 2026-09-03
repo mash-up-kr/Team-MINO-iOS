@@ -1,0 +1,296 @@
+import Domain
+import Foundation
+import MVI
+
+/// 알림 목록 화면 상태. `phase`(초기 로딩/로드 완료/전체 실패) + 추가 로드 플래그 조합.
+/// [Convention] .claude/docs/mvi-coordinator-di.md §2 — "에러를 State 에 담는 모양은 화면마다 결정,
+/// 강제 규칙 아님". `phase` 는 초기 로딩·목록·전체 실패 3종을 배타적으로 나누고, "추가 로드 실패"는
+/// 기존 목록을 유지한 채 얹히는 오버레이 상태라 별도 플래그로 둔다.
+public struct NotificationListState: Equatable {
+    public enum Phase: Equatable {
+        case loading
+        case loaded
+        case failed(DomainError)
+    }
+
+    public var phase: Phase
+    public var items: [NotificationListItem]
+    /// 다음 페이지 요청. `Page.next` 를 그대로 저장 — nil 이면 더 불러올 장이 없다(EC-018).
+    public var nextRequest: PageRequest?
+    /// 스크롤 바운스로 `.loadNext` 가 짧은 시간에 여러 번 불려도 중복 요청을 막는 가드.
+    public var isLoadingNext: Bool
+    public var loadNextFailed: Bool
+    /// 자동 이어받기가 연속으로 헛돈 횟수 — 화면에 보탤 항목이 0개인 장을 몇 번 내리 받았는가.
+    /// 사용자 조작 없이 요청이 반복되는 유일한 경로라 상한이 필요하다(`maxConsecutiveEmptyPages`).
+    public var consecutiveEmptyPages: Int
+    /// 이동 대상을 조회 중인 알림 id. `nil` 이 아니면 **어떤 셀도 눌리지 않는다** — 조회가 끝나면
+    /// 탭이 바뀌므로, 그 사이에 다른 셀을 눌러 두 번째 목적지가 뒤따라 열리면 안 된다.
+    /// 저장 오류 셀도 함께 막는다: 알림 탭 스택에 화면이 쌓인 채 저장 탭으로 넘어가면, 나중에
+    /// 알림 탭으로 돌아왔을 때 목록이 아니라 그 화면이 떠 있다.
+    public var openingNotificationID: String?
+    /// 이동 대상 조회에 실패한 횟수 — 스낵바를 띄우는 트리거다(``HomeState/savedToastID`` 선례).
+    /// 같은 실패가 반복돼도 값이 달라져 스낵바가 다시 뜬다.
+    public var openFailureToken: Int
+
+    public init(
+        phase: Phase = .loading,
+        items: [NotificationListItem] = [],
+        nextRequest: PageRequest? = nil,
+        isLoadingNext: Bool = false,
+        loadNextFailed: Bool = false,
+        consecutiveEmptyPages: Int = 0,
+        openingNotificationID: String? = nil,
+        openFailureToken: Int = 0
+    ) {
+        self.phase = phase
+        self.items = items
+        self.nextRequest = nextRequest
+        self.isLoadingNext = isLoadingNext
+        self.loadNextFailed = loadNextFailed
+        self.consecutiveEmptyPages = consecutiveEmptyPages
+        self.openingNotificationID = openingNotificationID
+        self.openFailureToken = openFailureToken
+    }
+}
+
+public enum NotificationListAction: Equatable {
+    case load
+    case loaded(Page<AppNotification>)
+    case loadFailed(DomainError)
+    case loadNext
+    /// 실패 배너의 "다시 시도" — 스크롤 트리거(`loadNext`)와 갈라 둔다(아래 `loadNext` 주석).
+    case retryLoadNext
+    case loadedNext(Page<AppNotification>)
+    case loadNextFailed(DomainError)
+    case tapNotification(NotificationListItem.ID)
+    /// 이동 대상 조회가 끝났다. **어느 알림의 응답인지 `id` 로 확인한다** — 늦게 온 응답이
+    /// 그 사이에 시작된 다른 이동을 덮어쓰지 않게.
+    case openResolved(id: String, destination: NotificationCrossTabDestination)
+    case openFailed(id: String)
+    case dismissOpenFailureToast(Int)
+}
+
+public enum NotificationListNav: Equatable, Sendable {
+    /// 저장 오류 알림 카드를 탭했을 때(FR-010) — 어느 카드를 눌러도 같은 화면이라 연관값이 없다(EC-013).
+    case pushSaveError
+    /// 알림 탭 밖(저장 탭)으로 나가는 이동. **완성된 객체를 싣는다** — 도착지 화면들이
+    /// `Pin`·`Room` 을 필수로 받아서, 조회를 여기서 끝내지 않으면 그 화면들이 "데이터 없는 상태" 를
+    /// 새로 표현해야 한다(`ArchiveCoordinator.open` 주석).
+    case openCrossTab(NotificationCrossTabDestination)
+}
+
+public typealias NotificationListStore = Store<NotificationListState, NotificationListAction, NotificationListNav>
+
+/// 순수 reduce. 의존성(UseCase)은 `Effect.run` 안에서만 사용하고 시그니처는 순수하게 유지한다.
+/// [Convention] .claude/docs/mvi-coordinator-di.md §5 — reduce 는 UseCase 를 받는다.
+public func notificationListReducer(
+    useCase: FetchNotificationsUseCase,
+    fetchPinDetail: FetchPinDetailUseCase,
+    fetchRoom: FetchRoomUseCase,
+    now: @escaping () -> Date = Date.init
+) -> (inout NotificationListState, NotificationListAction) -> Effect<NotificationListAction, NotificationListNav> {
+    { state, action in
+        switch action {
+        case .load:
+            // 재진입 방어: phase 를 즉시 .loading 으로 바꿔 재시도 버튼을 화면에서 없앤다
+            // (버튼이 사라지므로 응답 오기 전 중복 탭 자체가 불가능해진다).
+            state.phase = .loading
+            state.consecutiveEmptyPages = 0
+            return .run { send in
+                do {
+                    let page = try await useCase.execute()
+                    send(.loaded(page))
+                } catch is CancellationError {
+                    // 취소는 결과가 없는 것이지 실패가 아니다 — 화면을 떠나 store 가 사라졌거나
+                    // 새 요청이 이 요청을 밀어냈다. 실패 화면을 띄우면 정상 조작에 오류가 뜬다.
+                    return
+                } catch let error as DomainError {
+                    send(.loadFailed(error))
+                } catch {
+                    send(.loadFailed(.unknown))
+                }
+            }
+
+        case .loaded(let page):
+            state.phase = .loaded
+            state.items = mapItems(page.items, now: now())
+            state.nextRequest = page.next
+            // 재조회이므로 이전 추가 로드 상태는 무의미해진 값 — 남아있으면 방금 받은 새 목록 아래에
+            // 근거 없는 재시도 배너가 붙는다.
+            state.isLoadingNext = false
+            state.loadNextFailed = false
+            return continueIfNothingNew(&state, newItems: state.items)
+
+        case .loadFailed(let error):
+            state.phase = .failed(error)
+            return .none
+
+        case .loadNext:
+            // 실패 배너가 떠 있는 동안은 스크롤 트리거를 무시한다. LazyVStack 은 셀을 recycle 하므로
+            // 바닥에서 위아래로 움직이기만 해도 마지막 셀의 onAppear 가 반복 발화하는데, 그대로
+            // 두면 죽은 서버에 스크롤할 때마다 요청이 나가고 배너도 깜빡인다. 재시도는 사용자가
+            // 버튼을 누를 때(`retryLoadNext`)만 나간다.
+            guard !state.loadNextFailed else { return .none }
+            return startLoadNext(&state, useCase: useCase)
+
+        case .retryLoadNext:
+            state.loadNextFailed = false
+            return startLoadNext(&state, useCase: useCase)
+
+        case .loadedNext(let page):
+            // id 기준 중복 제거 — 서버 오프셋 페이징 중 새 알림이 앞에 끼어들면 경계가 밀려
+            // 같은 항목이 두 장에 걸쳐 올 수 있다(Domain.Page 문서가 명시한 소비자 책임).
+            let existingIDs = Set(state.items.map(\.id))
+            let newItems = mapItems(page.items, now: now()).filter { !existingIDs.contains($0.id) }
+            state.isLoadingNext = false
+            state.loadNextFailed = false
+            state.items += newItems
+            state.nextRequest = page.next
+            return continueIfNothingNew(&state, newItems: newItems)
+
+        case .loadNextFailed:
+            // 기존 목록은 그대로 두고 목록 끝의 재시도 표시만 세운다(EC-016 · TS-039).
+            state.isLoadingNext = false
+            state.loadNextFailed = true
+            return .none
+
+        case .tapNotification(let id):
+            // 조회 중에는 어떤 셀도 받지 않는다(`openingNotificationID` 주석).
+            guard state.openingNotificationID == nil else { return .none }
+            guard let item = state.items.first(where: { $0.id == id }) else { return .none }
+
+            switch item.destination {
+            case .saveError:
+                return .navigate(.pushSaveError)
+
+            case .unresolved:
+                // 서버가 이동 대상을 주지 않았다. 셀은 그렸지만 갈 곳이 없다.
+                return .none
+
+            case .place(let pinID):
+                return startOpen(&state, id: id) {
+                    // 장소 상세는 시트의 한 단계이고 배경 지도가 방에 의존한다 — 핀이 속한
+                    // 방까지 세워야 빈 지도 위에 시트만 뜨지 않는다.
+                    let pin = try await fetchPinDetail.execute(pinID: pinID).pin
+                    return .place(pin: pin, room: try await fetchRoom.execute(id: pin.roomID))
+                }
+
+            case .room(let roomID):
+                return startOpen(&state, id: id) {
+                    .room(try await fetchRoom.execute(id: roomID))
+                }
+            }
+
+        case .openResolved(let id, let destination):
+            guard state.openingNotificationID == id else { return .none }   // 늦게 온 응답
+            // 성공해도 잠금을 푼다. 안 풀면 크로스탭 배선이 빠졌을 때 목록이 아무 피드백도 없이
+            // 영구히 잠긴다 — 화면은 어차피 곧 사라지므로 푸는 쪽의 실패 모드가 훨씬 부드럽다.
+            state.openingNotificationID = nil
+            return .navigate(.openCrossTab(destination))
+
+        case .openFailed(let id):
+            guard state.openingNotificationID == id else { return .none }
+            state.openingNotificationID = nil
+            state.openFailureToken += 1
+            return .none
+
+        case .dismissOpenFailureToast(let token):
+            // 뒤이어 뜬 스낵바를 앞선 타이머가 지우지 않게 토큰이 그대로일 때만 내린다.
+            guard state.openFailureToken == token else { return .none }
+            state.openFailureToken = 0
+            return .none
+        }
+    }
+}
+
+/// 이동 대상 조회를 띄운다. 잠금·취소·실패 처리가 목적지 종류와 무관해 한 곳에 모은다 —
+/// 갈래마다 흩어 두면 한쪽에만 `CancellationError` 처리를 빠뜨리는 식으로 어긋난다.
+///
+/// `resolve` 만 갈래별로 다르다. 결과는 항상 `openResolved`/`openFailed` 로 되돌아온다.
+private func startOpen(
+    _ state: inout NotificationListState,
+    id: String,
+    resolve: @escaping @Sendable () async throws -> NotificationCrossTabDestination
+) -> Effect<NotificationListAction, NotificationListNav> {
+    state.openingNotificationID = id
+    return .run { send in
+        do {
+            send(.openResolved(id: id, destination: try await resolve()))
+        } catch is CancellationError {
+            return   // 취소는 실패가 아니다(`.load` 주석 참조)
+        } catch {
+            send(.openFailed(id: id))
+        }
+    }
+}
+
+/// 다음 장 요청을 띄운다. 이미 진행 중이거나(스크롤 바운스 방어) 더 불러올 장이 없으면(EC-018)
+/// 아무 일도 하지 않는다.
+private func startLoadNext(
+    _ state: inout NotificationListState,
+    useCase: FetchNotificationsUseCase
+) -> Effect<NotificationListAction, NotificationListNav> {
+    guard let request = state.nextRequest, !state.isLoadingNext else { return .none }
+    state.isLoadingNext = true
+    state.loadNextFailed = false
+    return .run { send in
+        do {
+            let page = try await useCase.execute(next: request)
+            send(.loadedNext(page))
+        } catch is CancellationError {
+            return   // 취소는 실패가 아니다(`.load` 주석 참조)
+        } catch let error as DomainError {
+            send(.loadNextFailed(error))
+        } catch {
+            send(.loadNextFailed(.unknown))
+        }
+    }
+}
+
+/// 자동 이어받기 연속 상한. 한 장이 20건이므로, 이만큼 내리 받아도 화면에 보탤 항목이 하나도
+/// 없다면 데이터가 아니라 계약이 어긋난 상황으로 본다.
+private let maxConsecutiveEmptyPages = 5
+
+/// 방금 받은 장에서 화면에 보탤 항목이 0개인데 다음 장이 남아 있으면 `.loadNext` 를 한 번 더 보낸다.
+/// 그대로 두면 목록 마지막 셀의 `onAppear` 트리거가 새로 생기지 않아 무한스크롤이 조용히 멈춘다
+/// (첫 장이면 빈 화면에 영구 고착). 필터로 전부 빠진 경우와 중복 제거로 전부 빠진 경우 둘 다다.
+///
+/// **상한이 여기에만 필요하다.** 다른 요청은 사용자 조작이 하나씩 일으키지만 이 경로는 응답이
+/// 다음 요청을 스스로 부른다. 서버가 요청한 장을 무시하거나 마지막 장으로 clamp 한 채 `hasNext` 를
+/// 계속 true 로 주면(계약이 잠정이라 배제할 수 없다) 매번 0건이 되어 요청이 끝없이 반복된다.
+/// `Page.page` 를 요청값으로 바꾸는 걸로는 부족하다 — 번호만 올라갈 뿐 종료 조건은 서버가 쥔다.
+///
+/// 상한에 걸리면 조용히 멈추지 않고 `loadNextFailed` 를 세워 화면이 재시도를 내밀게 한다.
+/// 재시도는 누를 때마다 한 번씩만 나간다(상한이 이미 차 있어 곧바로 다시 걸린다).
+private func continueIfNothingNew(
+    _ state: inout NotificationListState,
+    newItems: [NotificationListItem]
+) -> Effect<NotificationListAction, NotificationListNav> {
+    guard newItems.isEmpty else {
+        state.consecutiveEmptyPages = 0
+        return .none
+    }
+    guard state.nextRequest != nil else { return .none }   // 더 볼 장이 없다 — 빈 상태 화면이 받는다
+
+    state.consecutiveEmptyPages += 1
+    guard state.consecutiveEmptyPages < maxConsecutiveEmptyPages else {
+        state.loadNextFailed = true
+        return .none
+    }
+    return .run { send in send(.loadNext) }
+}
+
+/// **앱이 모르는 유형만** 목록에서 뺀다. 서버에 유형이 늘었는데 앱이 아직 모르는 상황이라
+/// 셀을 어떻게 그려야 할지 알 수 없다.
+///
+/// 이동 대상 식별자가 없는 것(`.unresolved`)은 **거르지 않는다** — 문구는 서버가 완성해서 주므로
+/// 셀 내용은 멀쩡하고, 탭만 아무 일도 하지 않는다. 여기서 걸러 내면 서버가 보낸 알림이 이유 없이
+/// 사라진다.
+private func mapItems(_ notifications: [AppNotification], now: Date) -> [NotificationListItem] {
+    notifications
+        .filter {
+            if case .unknown = $0.type { return false }
+            return true
+        }
+        .map { NotificationListItem(from: $0, now: now) }
+}

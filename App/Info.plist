@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>GGUK</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<!-- 초대 링크가 앱을 직접 여는 custom scheme. 웹 랜딩 페이지의 "앱 열기" 버튼이 이걸 쏜다
+	     (같은 도메인 안에서는 Safari 가 Universal Link 처리를 건너뛰어 https 로는 앱이 안 열린다).
+	     ⚠️ 스킴 문자열은 `AppDependencies` 의 `DeeplinkConfiguration(scheme:)` 과 같아야 한다 —
+	     어긋나면 빌드·테스트는 전부 통과하고 링크만 조용히 안 열린다. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.mashup.teamMino</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>gguk</string>
+			</array>
+		</dict>
+	</array>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<!-- 푸시를 아직 붙이지 않았다(코드도 aps-environment 엔타이틀먼트도 없다).
+	     켜두면 FirebaseApp.configure() 가 콜드런치마다 쓰지도 않을 FCM 등록 토큰을
+	     네트워크로 받아온다. 푸시를 붙이는 PR 에서 이 키를 지운다. -->
+	<key>FirebaseMessagingAutoInitEnabled</key>
+	<false/>
+	<key>GMSApiKey</key>
+	<string>$(GOOGLE_MAPS_API_KEY)</string>
+	<!-- 이 앱은 HTTPS(TLS) 표준 암호화만 쓰고 자체 암호화는 넣지 않았다 — 수출 규정 면제 대상이다.
+	     이 키가 없으면 App Store Connect 가 업로드마다 수출 규정 질문을 걸고, 답하기 전까지
+	     빌드를 테스터에게 풀어주지 않아 TestFlight 에 "사용할 수 있는 빌드 없음" 으로 뜬다.
+	     자체 암호화(독자 알고리즘·비표준 키 교환 등)를 넣게 되면 이 값을 다시 판단해야 한다. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<!-- 마이페이지 '위치 설정' 스위치가 위치 권한을 요청한다(FR-008). 이 문구가 없으면
+	     requestWhenInUseAuthorization 이 조용히 무시돼 팝업 자체가 뜨지 않는다. -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>주변 장소를 찾고 저장한 장소를 지도에 보여주기 위해 위치를 사용해요.</string>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<!-- 앱을 라이트 모드로 고정한다. DesignSystem 의 시맨틱 컬러는 에셋 카탈로그가 라이트/다크를
+	     자동 전환하지만, 시안이 라이트 하나로만 그려져 있어 다크에서는 검증된 적 없는 색 조합이
+	     나온다(예: `MHDialog` 주석의 흰 배경 위 흰 글씨). 다크를 지원하기로 하면 이 키를 지운다.
+	     Apple: "force the light user interface style, even when the systemwide style is set to
+	     dark. Your app will ignore any changes to the systemwide style." -->
+	<key>UIUserInterfaceStyle</key>
+	<string>Light</string>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+</dict>
+</plist>
