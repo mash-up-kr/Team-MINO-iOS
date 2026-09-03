@@ -16,7 +16,7 @@ public struct PinRepositoryImpl: PinRepository, PinDetailRepository, PinAccessRe
     public func cards(roomID: String, filter: PinFilter, origin: Coordinate?) async throws -> [Pin] {
         do {
             return try await client.request(PinAPI.cards(roomID: roomID, filter: filter, origin: origin))
-                .map { $0.toDomain() }
+                .cards.map { $0.toDomain() }
         } catch let error as NetworkError {
             throw Self.mapToDomain(error)
         }
