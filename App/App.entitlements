@@ -2,6 +2,16 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- Universal Link. 서버가 https://gguk.org/.well-known/apple-app-site-association 에
+	     이 앱을 실어야 동작한다 — 파일이 없거나 appID 가 다르면 OS 가 링크를 앱으로 보내지 않고
+	     조용히 사파리로 연다(에러가 나지 않는다).
+	     ⚠️ 호스트는 `AppDependencies` 의 `DeeplinkConfiguration(host:)` 와 같아야 한다. 어긋나면
+	     OS 는 앱을 열어주고 파서는 nil 을 내, 앱이 뜬 채 아무 일도 일어나지 않는다(브라우저 폴백도
+	     못 한다). AASA 에 www 를 함께 거는지는 아직 정해지지 않았다 — 걸기로 하면 양쪽에 더한다. -->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:gguk.org</string>
+	</array>
 	<key>keychain-access-groups</key>
 	<array>
 		<string>$(AppIdentifierPrefix)com.mashup.teamMino.shared</string>
