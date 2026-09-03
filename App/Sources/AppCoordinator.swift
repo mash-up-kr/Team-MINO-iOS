@@ -16,6 +16,22 @@ enum AppDestination: Equatable {
     case room(Room)
 }
 
+/// 초대 진입이 실패했을 때 띄우는 스낵바. **초대를 없던 것으로 치고 평소 진입으로 보내면서**
+/// 이유만 알린다(Flow 6 협의) — 전용 실패 화면을 두지 않는다.
+///
+/// 뒤 둘을 나누는 기준은 `AppLaunchState.Notice` 와 같다 — 기기가 네트워크에 닿지 못한 것과
+/// 서버까지 갔다가 실패한 것은 사용자가 할 일이 다르다.
+enum InviteNotice: Equatable {
+    /// 초대가 없거나 만료됐다.
+    case expired
+    /// 개인방이라 합류할 수 없다.
+    case notAllowed
+    /// 네트워크에 닿지 못해 초대를 확인하지 못했다. **초대가 무효라는 뜻이 아니다.**
+    case connectionLost
+    /// 그 밖의 실패.
+    case temporary
+}
+
 /// 앱 최상위 Coordinator. 탭별 flow Coordinator 와 진입 게이트를 소유한다.
 @Observable
 @MainActor
@@ -36,9 +52,26 @@ final class AppCoordinator {
     /// 온보딩 완료 보고를 여기로 밀어넣어야 해서 View 의 `@State` 에 둘 수 없다.
     let launch: AppLaunchStore
 
-    /// 도착했지만 아직 쓸 수 없는 딥링크. `launch` 와 같은 이유로 여기 있다 — 앱 수명과 같은 상태라
+    /// 확인이 끝나 합류만 남은 초대. `launch` 와 같은 이유로 여기 있다 — 앱 수명과 같은 상태라
     /// 화면의 `@State` 에 두면 진입 게이트가 화면을 갈아끼울 때 함께 버려진다.
-    private let pendingDeeplink = PendingDeeplink()
+    ///
+    /// **목적지 값이 아니라 조회 결과를 든다.** 합류 API 가 방 id 를 path 로 받는데 코드에서 그걸
+    /// 푸는 수단이 미리보기 조회뿐이라, 코드만 들고 있으면 합류 시점에 왕복이 한 번 더 생긴다.
+    private var pendingInvite: PendingInvite?
+
+    /// 초대를 확인·합류하는 중. 그동안 진입 화면(스플래시)을 유지한다 — 아래 `resolveInvite` 참조.
+    private(set) var isResolvingInvite = false
+
+    /// 초대 진입 실패 안내. 화면이 갈려도 살아남도록 phase 가 아니라 여기 둔다.
+    private(set) var inviteNotice: InviteNotice?
+    private var noticeDismissTask: Task<Void, Never>?
+    private var acceptTask: Task<Void, Never>?
+
+    /// 코드와, 그 코드가 가리키는 방.
+    private struct PendingInvite: Equatable {
+        let code: String
+        let roomID: String
+    }
 
     /// 자식 flow 를 만들 때마다 넘겨야 해서 보관한다 — 온보딩은 flow 1회당 새로 만든다.
     private let deps: AppDependencies
@@ -84,23 +117,24 @@ final class AppCoordinator {
     /// (`OnboardingCoordinator` 타입 주석). 인스턴스는 화면(`OnboardingHost`)이 소유하고,
     /// `.main` 으로 넘어가면 그 화면과 함께 버려진다.
     func makeOnboarding() -> OnboardingCoordinator {
-        let child = OnboardingCoordinator(deps: deps, inviteCode: consumePendingInviteCode())
+        // 보관분을 **꺼내지 않고 본다** — 방 id 를 합류할 때까지 들고 있어야 한다.
+        let child = OnboardingCoordinator(deps: deps, inviteCode: pendingInvite?.code)
         child.finish.bind { [weak self] result in
+            guard let self else { return }
             switch result {
-            // 초대 착지(Flow 6 의 방 상세)는 후속이다 — 이 브랜치는 진입점까지만 잇는다.
-            // case 를 나열해 둬 결과가 늘면 컴파일이 여기서 깨진다.
-            case .completed, .completedWithInvite:
+            case .completed:
                 break
+            // 합류는 유저 등록 뒤에만 된다(서버가 미등록을 401 로 막는다). 온보딩을 마친 지금이
+            // 첫 기회다. 결과가 실어 온 코드는 쓰지 않는다 — 방 id 가 붙은 보관분이 이미 있다.
+            case .completedWithInvite:
+                acceptPendingInvite()
             }
-            self?.launch.send(.onboardingFinished)
+            self.launch.send(.onboardingFinished)
         }
         return child
     }
 
     /// 외부에서 들어온 URL 의 유일한 진입점(`MINOApp` 의 `.onOpenURL`).
-    ///
-    /// 지금은 **보관만 한다.** 꺼내 가는 곳은 온보딩(`makeOnboarding`) 하나뿐이고,
-    /// 온보딩을 마친 사용자용 착지는 후속에서 붙는다.
     func handle(_ url: URL) {
         guard let deeplink = deps.deeplinkParser.parse(url) else {
             // 파서가 앱의 신뢰 경계다 — 해석되지 않는 링크는 되살리지 않고 버린다.
@@ -108,16 +142,96 @@ final class AppCoordinator {
             Log.notice("해석하지 못한 딥링크를 버린다", metadata: ["scheme": url.scheme ?? "-"])
             return
         }
-        Log.info("딥링크 보관")
-        pendingDeeplink.store(deeplink)
+        switch deeplink {
+        case .invite(let code): resolveInvite(code)
+        }
     }
 
-    /// 대기 중인 딥링크가 초대면 그 코드를 꺼낸다.
-    /// 목적지가 늘면 이 switch 가 컴파일에서 걸려 "온보딩에 뭘 넘길지" 를 다시 정하게 만든다.
-    private func consumePendingInviteCode() -> String? {
-        switch pendingDeeplink.consume() {
-        case .invite(let code)?: code
-        case nil: nil
+    /// 초대 코드가 가리키는 방을 확인한다. **합류보다 먼저, 진입 화면을 잡아 둔 채로** 한다.
+    ///
+    /// 초대 유무가 온보딩 경로를 바꾸기 때문이다(공동방 생성·친구초대 스킵). 확인을 미루면
+    /// 무효한 코드로 두 스텝을 건너뛴 뒤 **방이 하나도 없는 채로** 온보딩을 마치게 되는데,
+    /// 건너뛴 스텝은 되돌릴 수 없다. 그래서 `isResolvingInvite` 로 진입 화면을 붙잡는다 —
+    /// 이 조회도 네트워크 왕복이라 세션 판정보다 늦게 끝날 수 있다.
+    private func resolveInvite(_ code: String) {
+        isResolvingInvite = true
+        Task { [weak self] in
+            guard let self else { return }
+            defer { isResolvingInvite = false }
+            do {
+                let preview = try await deps.fetchInvitationPreview.execute(code: code)
+                pendingInvite = PendingInvite(code: code, roomID: preview.roomID)
+                Log.info("초대를 확인했다")
+                // 온보딩을 이미 마친 사용자는 앱 진입이 곧 초대 수락이다(Flow 6 협의).
+                if launch.state.phase == .main { await performAccept() }
+            } catch is CancellationError {
+                // 취소는 결과가 없어진 것이지 초대가 무효인 게 아니다.
+            } catch {
+                discardInvite(error)
+            }
+        }
+    }
+
+    /// 화면이 부르는 합류 진입점. 보관 중인 초대가 없으면 아무 일도 하지 않는다.
+    ///
+    /// **작업을 Coordinator 가 소유한다.** 뷰의 `.task` 에 매달면 합류가 시작되는 순간
+    /// `isResolvingInvite` 가 그 뷰를 진입 화면으로 갈아치우고, 사라진 뷰와 함께 요청이 취소돼
+    /// 조용히 아무 일도 일어나지 않는다.
+    func acceptPendingInvite() {
+        guard pendingInvite != nil, acceptTask == nil else { return }
+        acceptTask = Task { [weak self] in
+            await self?.performAccept()
+            self?.acceptTask = nil
+        }
+    }
+
+    /// 확인된 초대로 방에 합류하고 그 방을 연다.
+    ///
+    /// 부르는 곳이 셋이라(온보딩 완주 · 진입 시점 `MainTabView` · 이미 `.main` 인 웜 스타트)
+    /// **보관분을 먼저 비워** 두 번 도는 것을 막는다. 서버 합류가 멱등이라 겹쳐도 안전하지만
+    /// 방 상세가 두 번 열리면 화면이 튄다.
+    private func performAccept() async {
+        guard let invite = pendingInvite else { return }
+        pendingInvite = nil
+        isResolvingInvite = true
+        defer { isResolvingInvite = false }
+
+        do {
+            try await deps.joinRoom.execute(roomID: invite.roomID, inviteCode: invite.code)
+            let room = try await deps.fetchRoom.execute(id: invite.roomID)
+            Log.info("초대로 방에 합류했다")
+            open(.room(room))
+        } catch is CancellationError {
+        } catch {
+            discardInvite(error)
+        }
+    }
+
+    /// 초대를 없던 것으로 치고 평소 진입으로 보낸다. 실패 이유만 스낵바로 알린다(Flow 6 협의).
+    private func discardInvite(_ error: Error) {
+        pendingInvite = nil
+        let notice = Self.notice(for: error)
+        Log.notice("초대를 폐기한다", metadata: ["reason": "\(notice)"])
+        showInviteNotice(notice)
+    }
+
+    private static func notice(for error: Error) -> InviteNotice {
+        switch error as? DomainError {
+        case .invitationNotFound: .expired
+        case .personalRoomNotAllowed: .notAllowed
+        case .networkUnavailable: .connectionLost
+        default: .temporary
+        }
+    }
+
+    /// 잠깐 띄우고 스스로 내린다 — 진입을 막지 않는 안내라 사용자가 닫을 필요가 없다.
+    private func showInviteNotice(_ notice: InviteNotice) {
+        inviteNotice = notice
+        noticeDismissTask?.cancel()
+        noticeDismissTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(3))
+            guard !Task.isCancelled else { return }
+            self?.inviteNotice = nil
         }
     }
 }

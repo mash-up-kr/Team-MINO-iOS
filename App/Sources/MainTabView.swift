@@ -106,6 +106,11 @@ struct MainTabView: View {
                 }
             }
             .animation(.easeInOut(duration: 0.2), value: coordinator.home.isGuidePresented)
+            // 온보딩을 마친 사용자로 판정돼 여기 도착한 경우의 초대 수락 자리.
+            // 온보딩 쪽(`OnboardingHost.task` → `makeOnboarding`)과 대칭이다.
+            // 앱이 이미 떠 있는 채로 링크를 받은 경우는 이 `.task` 가 다시 돌지 않아
+            // `AppCoordinator.resolveInvite` 가 직접 수락한다.
+            .task { coordinator.acceptPendingInvite() }
     }
 
     @ViewBuilder private var content: some View {
