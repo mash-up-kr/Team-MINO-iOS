@@ -46,8 +46,8 @@ struct RoomInviteSheetContent: View {
                 }
             }
         }
-        .frame(maxHeight: RoomInviteSheetMetrics.memberListMaxHeight)
-        .padding(.top, 12)
+        .frame(height: RoomInviteSheetMetrics.memberScrollHeight(count: members.count))
+        .padding(.top, RoomInviteSheetMetrics.memberListTopPadding)
         .padding(.horizontal, 20)
         .accessibilityIdentifier("RoomInvite.memberList")
     }
@@ -141,14 +141,14 @@ private extension [RoomInviteMember] {
 
 #Preview("004-4-2 친구 초대") {
     RoomInviteSheetContent(members: .sample, state: InviteFriendsState(roomId: "r1"), send: { _ in })
-        .frame(height: RoomInviteSheetMetrics.detentHeight)
+        .frame(height: RoomInviteSheetMetrics.detentHeight(memberCount: 5))
 }
 
 #Preview("링크 복사 완료") {
     var state = InviteFriendsState(roomId: "r1")
     state.didCopyLink = true
     return RoomInviteSheetContent(members: .sample, state: state, send: { _ in })
-        .frame(height: RoomInviteSheetMetrics.detentHeight)
+        .frame(height: RoomInviteSheetMetrics.detentHeight(memberCount: 5))
 }
 
 // 참여자가 상한(176)을 안 채우는 방 — 목록만 짧아지고 액션 영역이 따라 올라온다.
@@ -163,5 +163,5 @@ private extension [RoomInviteMember] {
 // 방 id 가 비어 오면 두 버튼이 잠긴다(잘못된 방으로 초대하는 대신 아무 요청도 보내지 않는다).
 #Preview("초대 비활성") {
     RoomInviteSheetContent(members: .sample, state: InviteFriendsState(), send: { _ in })
-        .frame(height: RoomInviteSheetMetrics.detentHeight)
+        .frame(height: RoomInviteSheetMetrics.detentHeight(memberCount: 5))
 }
