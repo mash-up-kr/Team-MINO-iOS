@@ -97,7 +97,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         Log.info("APNs 토큰 수신", metadata: [
             "bytes": String(deviceToken.count),
             "applied": String(Messaging.messaging().apnsToken != nil),
-            "autoInit": String(Messaging.messaging().isAutoInitEnabled),
+            "autoInit": String(Messaging.messaging().isAutoInitEnabled)
         ])
 
         // FCM 토큰을 **처음으로 받을 수 있게 된** 시점이다. 여기서 두드리지 않으면 다음 앱 진입까지
