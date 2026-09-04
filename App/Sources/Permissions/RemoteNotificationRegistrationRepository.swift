@@ -18,6 +18,9 @@ import UIKit
 @MainActor
 struct RemoteNotificationRegistrationRepository: PushRegistrationRepository {
     func register() async {
+        // [진단] 이 호출이 실제로 나갔는지 확인할 길이 없었다 — 등록이 안 된 것과 등록은 됐는데
+        // 도착 콜백이 안 오는 것이 밖에서 똑같아 보인다. 원인이 잡히면 걷어낸다.
+        Log.info("APNs 등록 요청")
         UIApplication.shared.registerForRemoteNotifications()
         // 이 값은 SDK 가 UserDefaults 에 남겨 **다음 실행에도 유지**되고 Info.plist 의 false 를
         // 덮는다 — 한 번 켠 사용자는 콜드런치마다 토큰을 자동으로 받는다.

@@ -78,13 +78,12 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         Log.warning("APNs 등록 실패", metadata: ["reason": String(describing: error)])
     }
 
-    /// APNs 토큰 도착. **Firebase 스위즐링에 맡기지 않고 직접 대입한다.**
+    /// APNs 토큰 도착. **`Messaging.apnsToken` 을 채우는 유일한 경로다.**
     ///
-    /// 스위즐링(`FirebaseAppDelegateProxyEnabled` 미설정 = 켜짐)이 이걸 가로채 주는 게 원칙이지만,
-    /// SwiftUI 의 `@UIApplicationDelegateAdaptor` 조합에서 걸리지 않으면 `Messaging.apnsToken` 이
-    /// 빈 채로 남는다. 그러면 FCM 이 토큰 발급을 거부하고(`No APNS token specified`), 등록 실패
-    /// 콜백도 오지 않아 **아무 에러 없이 푸시만 안 오는** 상태가 된다 — 실제로 재현했다.
-    /// 스위즐링이 정상 동작하는 경우 같은 값을 두 번 넣는 것뿐이라 무해하다.
+    /// `Info.plist` 에서 `FirebaseAppDelegateProxyEnabled` 를 껐기 때문에 SDK 가 대신 채워 주지
+    /// 않는다(끈 이유는 그 키의 주석 참조 — 켜 두면 이 콜백을 가로챈 뒤 우리 구현으로 넘기지도,
+    /// 자기 쪽 대입을 하지도 않았다). 이 메서드를 지우면 FCM 이 토큰 발급을 거부하고
+    /// (`No APNS token specified`) **아무 에러 없이 푸시만 안 온다.**
     func application(
         _ application: UIApplication,
         didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
