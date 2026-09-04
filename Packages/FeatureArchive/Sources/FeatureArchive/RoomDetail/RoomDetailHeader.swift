@@ -25,10 +25,9 @@ struct RoomDetailHeader: View {
 
     private var actionRow: some View {
         HStack(spacing: 0) {
+            // `+` 의 식별자·라벨은 `MHAvatarStack` 이 버튼 자신에 붙인다(`MHAvatarStack.add`) —
+            // pill 에 걸면 아바타까지 전파돼 자동화가 `+` 를 지목할 수 없다.
             MHAvatarStack(AvatarPalette.images(of: room.memberAvatarColors), onAdd: onAddMember)
-                // pill 통째가 아니라 `+` 만 눌리는 자리라 식별자를 pill 에 건다 — AXe 는 이 자리를
-                // 탭한다(더보기·닫기와 달리 여기만 식별자가 없어 자동화가 004-4-2 미배선을 못 잡았다).
-                .accessibilityIdentifier("RoomDetail.addMember")
             Spacer(minLength: 8)
             HStack(spacing: 8) {
                 MHCircleIconButton(icon: .moreVertical, accessibilityLabel: "더보기", action: onMore)

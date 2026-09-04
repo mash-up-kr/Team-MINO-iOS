@@ -86,6 +86,12 @@ public struct MHAvatarStack: View {
                 .clipShape(shape)
         }
         .buttonStyle(MHAvatarStackAddStyle(shape: shape))
+        // 라벨을 주지 않으면 에셋 이름("plus")이 그대로 읽힌다.
+        .accessibilityLabel("멤버 초대")
+        // 식별자는 **버튼이 자기 이름을 갖는다**(`MHActionArea.main` 과 같은 규칙). 쓰는 화면이
+        // pill 에 걸면 SwiftUI 가 자식 전체로 전파해 아바타까지 같은 이름이 되고, 자동화가
+        // "+ 를 눌러라" 를 지목할 수 없다(시뮬레이터에서 2개 매칭 확인).
+        .accessibilityIdentifier("MHAvatarStack.add")
     }
 
     /// 오버플로 배지에 표시할 텍스트. 99 이하는 그대로, 초과 시 "99+" 로 캡.
