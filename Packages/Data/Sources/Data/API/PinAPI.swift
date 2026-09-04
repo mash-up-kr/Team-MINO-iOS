@@ -34,6 +34,13 @@ enum PinAPI {
         Endpoint(path: "\(base)/\(pinID)")
     }
 
+    /// 방에서 핀을 삭제한다 (`DELETE /api/v1/pins/{pinId}`).
+    ///
+    /// 해당 방에서만 핀과 관련 코멘트가 함께 soft delete 된다.
+    static func delete(pinID: String) -> Endpoint<OkResponse> {
+        Endpoint(path: "\(base)/\(pinID)", method: .delete)
+    }
+
     /// 장소를 **열어 봤다**고 기록한다 (`POST /api/v1/pins/{pinId}/accesses`).
     ///
     /// append-only 로그라 같은 장소를 여러 번 보내도 된다. 서버는 이 기록을 홈 카드 덱의

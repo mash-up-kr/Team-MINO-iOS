@@ -6,7 +6,7 @@ import Networking
 ///
 /// 목록과 상세를 **한 타입이 겸한다** — 상세가 목록에 없는 값을 지어내지 않게 같은 매핑 규칙을
 /// 공유하려는 것이다(목 시절 `MockPinRepository` 가 한 판단을 그대로 잇는다).
-public struct PinRepositoryImpl: PinRepository, PinDetailRepository, PinAccessRepository {
+public struct PinRepositoryImpl: PinRepository, PinDetailRepository, PinAccessRepository, PinDeletionRepository {
     private let client: HTTPClient
 
     public init(client: HTTPClient) {
@@ -46,22 +46,30 @@ public struct PinRepositoryImpl: PinRepository, PinDetailRepository, PinAccessRe
         }
     }
 
+    public func delete(pinID: PinID) async throws {
+        do {
+            _ = try await client.request(PinAPI.delete(pinID: pinID.value))
+        } catch let error as NetworkError {
+            throw Self.mapToDomain(error, fallback: .pinDeleteFailed)
+        }
+    }
+
     /// 반부패 계층: 인프라 오류를 도메인 어휘로 번역한다.
     ///
     /// **케이스가 아니라 `statusCode` 로 분기한다** — 같은 404 가 본문 모양에 따라 `.notFound` 로도
     /// `.unexpectedErrorFormat(404, _)` 로도 오기 때문이다(`RoomRepositoryImpl` 과 같은 이유).
     ///
-    /// 403(`NOT_ROOM_MEMBER`)도 조회 실패로 흡수한다 — 이미 나간 방의 덱을 마저 부르는 정도라
+    /// 403(`NOT_ROOM_MEMBER`)도 실패로 흡수한다 — 이미 나간 방의 덱을 마저 부르는 정도라
     /// 화면에 따로 보여 줄 자리가 없다. 문구가 생기면 그때 `DomainError` 케이스를 추가한다.
-    private static func mapToDomain(_ error: NetworkError) -> Error {
+    private static func mapToDomain(_ error: NetworkError, fallback: DomainError = .pinsFetchFailed) -> Error {
         if case .cancelled = error { return CancellationError() }   // 취소는 실패가 아니다
 
         switch error.statusCode {
         case 401: return DomainError.unauthorized
-        case 400, 403, 404: return DomainError.pinsFetchFailed
+        case 400, 403, 404: return fallback
         default:
             error.logUntranslated()
-            return DomainError.pinsFetchFailed
+            return fallback
         }
     }
 }
