@@ -31,6 +31,18 @@ struct PinDetailDTO: Decodable {
     let sourceUrl: String?
 }
 
+/// 홈 카드 덱 응답 (`GET /api/v1/rooms/{roomId}/cards`). **`data` 가 배열이 아니라 객체다** —
+/// 서버가 홈 헤더용 방 메타(`room`)를 함께 실으면서 카드가 `cards` 한 겹 안으로 들어갔다.
+///
+/// 그 `room`(id·type·name·color)은 **받지 않는다**. 홈은 방 우선 순회와 방 선택 시트 때문에
+/// 어차피 방 목록(`GET /api/v1/rooms`)을 먼저 받고 그 네 필드를 이미 들고 있어서
+/// (헤더 뱃지·마스코트가 읽는 `HomeState.currentRoom` 이 그것이다), 여기서 또 읽어도
+/// 줄일 수 있는 요청이 없다. 선언하지 않으면 서버가 `room` 을 빼도 덱이 깨지지 않는다 —
+/// 스웨거가 이 응답에는 `required` 를 적어 두지 않아 필수인지 아닌지도 알 수 없다.
+struct PinCardDeckDTO: Decodable {
+    let cards: [PinCardDTO]
+}
+
 /// 홈 카드 한 장 (`GET /api/v1/rooms/{roomId}/cards`). 서버가 붙여 준 큐레이션 라벨이 함께 온다.
 struct PinCardDTO: Decodable {
     let id: String

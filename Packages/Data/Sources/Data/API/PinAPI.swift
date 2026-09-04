@@ -10,9 +10,11 @@ enum PinAPI {
     /// 홈 카드 피드. 서버가 `sort` 로 후보를 좁힌 뒤 라벨 4종으로 **최대 10장**의 덱을 만든다 —
     /// 정원이 미달인 라벨은 채우지 않으므로 10장보다 짧게 온다. 페이지 파라미터는 없다.
     ///
+    /// 응답의 `data` 는 카드 배열이 아니라 ``PinCardDeckDTO`` 객체다 — 왜 한 겹인지는 그 타입 주석.
+    ///
     /// - Parameter origin: `sort=nearby` 는 좌표가 없으면 400 이다(`VALIDATION_ERROR`).
     ///   다른 기준에서는 좌표를 실어도 무시되므로, 있으면 그냥 함께 보낸다.
-    static func cards(roomID: String, filter: PinFilter, origin: Coordinate?) -> Endpoint<[PinCardDTO]> {
+    static func cards(roomID: String, filter: PinFilter, origin: Coordinate?) -> Endpoint<PinCardDeckDTO> {
         var query = [URLQueryItem(name: "sort", value: sort(for: filter))]
         if let origin {
             query.append(URLQueryItem(name: "lat", value: String(origin.latitude)))

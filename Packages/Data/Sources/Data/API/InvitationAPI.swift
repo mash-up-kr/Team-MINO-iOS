@@ -9,4 +9,15 @@ enum InvitationAPI {
     static func create(roomId: String) -> Endpoint<InviteCodeDTO> {
         Endpoint(path: "api/v1/rooms/\(roomId)/invitations", method: .post)
     }
+
+    /// 초대 코드로 방 미리보기. **인증이 필요 없다**(`auth: .none`) — 앱 설치 전·온보딩 전 진입을
+    /// 위해 서버가 열어 둔 경로다. 합류에 필요한 `roomId` 를 얻는 유일한 수단이기도 하다.
+    static func preview(code: String) -> Endpoint<InvitationPreviewDTO> {
+        Endpoint(path: "api/v1/invitations/\(code)", auth: .none)
+    }
+
+    /// 방 합류. 코드가 이 방의 것인지는 서버가 검증하고, **이미 멤버면 오류 대신 멱등 응답**을 준다.
+    static func join(roomId: String, body: JoinRoomRequestDTO) -> Endpoint<JoinRoomResponseDTO> {
+        Endpoint(path: "api/v1/rooms/\(roomId)/members", method: .post, body: .json(body))
+    }
 }

@@ -50,6 +50,9 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
     /// 방 상세 거리순 정렬(004-1 ⑥)의 기준점 — "내 기준 3km" 를 재려면 내 위치가 있어야 한다.
     let currentLocation: CurrentLocationUseCase
     let fetchInviteCode: FetchInviteCodeUseCase
+    /// 초대 코드가 가리키는 방. 합류에 필요한 방 id 를 여기서 얻는다.
+    let fetchInvitationPreview: FetchInvitationPreviewUseCase
+    let joinRoom: JoinRoomUseCase
     /// 초대 링크의 스킴·호스트. 서버는 코드만 주고 링크는 앱이 조립한다(`Core.DeeplinkBuilder`).
     ///
     /// > 스킴 `gguk` 은 `Info.plist` 의 `CFBundleURLTypes` 와도 맞아야 한다 —
@@ -205,10 +208,11 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
             location: SystemCurrentLocationRepository()
         )
 
-        // 초대 코드: 실 API(POST /api/v1/rooms/{roomId}/invitations).
-        self.fetchInviteCode = DefaultFetchInviteCodeUseCase(
-            repository: InvitationRepositoryImpl(client: httpClient)
-        )
+        // 초대: 발급·미리보기·합류가 한 Repository 를 공유한다.
+        let invitations = InvitationRepositoryImpl(client: httpClient)
+        self.fetchInviteCode = DefaultFetchInviteCodeUseCase(repository: invitations)
+        self.fetchInvitationPreview = DefaultFetchInvitationPreviewUseCase(repository: invitations)
+        self.joinRoom = DefaultJoinRoomUseCase(repository: invitations)
 
         self.deeplink = DeeplinkConfiguration(scheme: "gguk", host: "gguk.org")
         self.deeplinkParser = DeeplinkParser(configuration: self.deeplink)
