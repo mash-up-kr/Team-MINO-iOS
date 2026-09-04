@@ -11,18 +11,17 @@ import UIKit
 ///
 /// FCM 자동 초기화(AutoInit)도 여기서 스위치에 묶는다. Domain 에 `setAutoInit(_:)` 같은 구멍을
 /// 뚫지 않는 건 그게 이 어댑터의 내부 사정이기 때문이다 — Domain 이 FCM 을 알게 된다.
+///
+/// `register()` 는 **프로세스마다 한 번은 불려야 한다.** 스위치를 켜는 순간뿐 아니라 앱 진입에서도
+/// `SyncPushTokenUseCase` 가 토큰을 묻기 전에 부른다 — 등록 없이는 APNs 토큰이 없어 FCM 이
+/// 발급을 거부한다. 멱등이라 두 경로가 각자 불러도 무해하다.
 @MainActor
 struct RemoteNotificationRegistrationRepository: PushRegistrationRepository {
-    /// 등록 직후 토큰 업로드를 두드린다. **기다리지 않는다** — 이걸 `await` 로 만들면 마이페이지
-    /// 스위치가 FCM 토큰 발급(APNs 왕복)을 기다리며 몇 초 서 있게 된다.
-    let onRegistered: @MainActor () -> Void
-
     func register() async {
         UIApplication.shared.registerForRemoteNotifications()
         // 이 값은 SDK 가 UserDefaults 에 남겨 **다음 실행에도 유지**되고 Info.plist 의 false 를
         // 덮는다 — 한 번 켠 사용자는 콜드런치마다 토큰을 자동으로 받는다.
         Messaging.messaging().isAutoInitEnabled = true
-        onRegistered()
     }
 
     func unregister() async {
