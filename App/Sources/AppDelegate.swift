@@ -25,15 +25,11 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         Messaging.messaging().delegate = pushTokenObserver
         UNUserNotificationCenter.current().delegate = pushRouter
 
-        // 로그 백엔드 조립(Composition Root). 개발은 전부, 릴리즈는 info↑만 남긴다.
-        //
-        // ⚠️ 릴리즈 기준을 **UT 기간 한정으로** warning → info 로 낮춰 둔 상태다. 푸시 경로가
-        // 실패해도 흔적을 남기지 않아 TestFlight 빌드로는 판정이 불가능했다. 원인이 잡히면
-        // warning 으로 되돌린다. 요청·응답 본문을 찍는 `NetworkLogger` 는 debug 라 여전히 꺼져 있다.
+        // 로그 백엔드 조립(Composition Root). 개발은 전부, 릴리즈는 warning↑만 남긴다.
         #if DEBUG
         Log.bootstrap(OSLogger(minimumLevel: .debug))
         #else
-        Log.bootstrap(OSLogger(minimumLevel: .info))
+        Log.bootstrap(OSLogger(minimumLevel: .warning))
         #endif
 
         MapService.configure(apiKey: Bundle.main.object(forInfoDictionaryKey: "GMSApiKey") as? String ?? "")
@@ -89,16 +85,6 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
     ) {
         Messaging.messaging().apnsToken = deviceToken
-
-        // [진단] 이 경로는 실패해도 아무 흔적이 없어 관측 없이는 판정이 안 된다 —
-        // "콜백이 안 온 것"과 "대입이 먹지 않은 것"이 밖에서 똑같아 보인다.
-        // 토큰 값 자체는 찍지 않는다(길이만). `applied`·`autoInit` 은 원인이 잡히면 걷어낸다.
-        Log.info("APNs 토큰 수신", metadata: [
-            "bytes": String(deviceToken.count),
-            "applied": String(Messaging.messaging().apnsToken != nil),
-            "autoInit": String(Messaging.messaging().isAutoInitEnabled)
-        ])
-
         // FCM 토큰을 **처음으로 받을 수 있게 된** 시점이다. 여기서 두드리지 않으면 다음 앱 진입까지
         // 서버에 토큰이 없다.
         apnsTokenDidArrive?()
