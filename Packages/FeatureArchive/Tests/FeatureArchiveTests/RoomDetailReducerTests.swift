@@ -202,6 +202,16 @@ struct RoomDetailReducerTests {
         store.finish()
     }
 
+    // 004-1 ② 2-1 — 헤더 아바타 옆 `+`. 표시 모델이 아니라 도메인 방을 실어 보내야 시트가
+    // 참여자 닉네임과 방 색을 쓸 수 있다.
+    @Test("L1 — tapAddMember 는 그 방을 실어 친구 초대로 navigate 한다")
+    func tapAddMember() async {
+        let store = makeStore(state: loadedState())
+        await store.send(.tapAddMember)
+        store.receiveNavigation(.inviteFriends(fixtureRoom))
+        store.finish()
+    }
+
     @Test("L1 — tapLocation 은 그 장소의 핀을 실어 navigate 한다")
     func tapLocation() async {
         let store = makeStore(state: loadedState())
