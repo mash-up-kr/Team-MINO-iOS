@@ -47,6 +47,14 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         return configuration
     }
 
+    /// APNs 토큰이 도착했을 때 토큰 업로드를 다시 두드린다. `connect(_:)` 가 꽂는다.
+    ///
+    /// 옆의 두 채널과 달리 `PendingHandoff` 를 쓰지 않는다 — 그건 **값을** 나르는 도구인데 여기엔
+    /// 나를 값이 없다. 늦게 꽂혀 신호를 놓칠 일도 없다: 도착 콜백은 `registerForRemoteNotifications()`
+    /// 뒤에만 오고, 그 호출은 `SyncPushTokenUseCase.execute()` 안에 있어 앱 그래프가 생긴
+    /// 뒤(= `connect(_:)` 이후)에야 나간다.
+    private var apnsTokenDidArrive: (@MainActor () -> Void)?
+
     /// 푸시 채널의 소비자를 꽂는다. delegate 자체는 이미 프로세스 시작에 붙어 있고, 여기서 잇는 건
     /// **앱 그래프를 아는 쪽**뿐이다(`AppCoordinator` 는 SwiftUI 쪽에서 만들어져 시점이 다르다).
     /// 그 사이 도착한 토큰·탭은 각 어댑터가 들고 있다가 이 순간 흘러나온다.
@@ -54,6 +62,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     func connect(_ app: AppCoordinator) {
         pushRouter.route.onValue = { [weak app] route in app?.handle(push: route) }
         pushTokenObserver.token.onValue = { [weak app] token in app?.pushTokenSync.tokenDidRefresh(token) }
+        apnsTokenDidArrive = { [weak app] in app?.pushTokenSync.kick() }
     }
 
     /// APNs 등록 실패는 조용하다 — 이 로그가 없으면 "토큰이 안 온다"는 사실만 남는다.
@@ -65,8 +74,20 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         Log.warning("APNs 등록 실패", metadata: ["reason": String(describing: error)])
     }
 
-    // `didRegisterForRemoteNotificationsWithDeviceToken` 은 두지 않는다 — Firebase 스위즐링
-    // (`FirebaseAppDelegateProxyEnabled` 미설정 = 켜짐)이 이걸 가로채 `Messaging.apnsToken` 을
-    // 대신 채운다. 끄고 손으로 대입하는 걸 빠뜨리면 FCM 토큰은 정상 발급되는데 발송만 조용히
-    // 실패한다 — 코드·빌드·테스트 어디에도 흔적이 안 남는 실패다.
+    /// APNs 토큰 도착. **Firebase 스위즐링에 맡기지 않고 직접 대입한다.**
+    ///
+    /// 스위즐링(`FirebaseAppDelegateProxyEnabled` 미설정 = 켜짐)이 이걸 가로채 주는 게 원칙이지만,
+    /// SwiftUI 의 `@UIApplicationDelegateAdaptor` 조합에서 걸리지 않으면 `Messaging.apnsToken` 이
+    /// 빈 채로 남는다. 그러면 FCM 이 토큰 발급을 거부하고(`No APNS token specified`), 등록 실패
+    /// 콜백도 오지 않아 **아무 에러 없이 푸시만 안 오는** 상태가 된다 — 실제로 재현했다.
+    /// 스위즐링이 정상 동작하는 경우 같은 값을 두 번 넣는 것뿐이라 무해하다.
+    func application(
+        _ application: UIApplication,
+        didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
+    ) {
+        Messaging.messaging().apnsToken = deviceToken
+        // FCM 토큰을 **처음으로 받을 수 있게 된** 시점이다. 여기서 두드리지 않으면 다음 앱 진입까지
+        // 서버에 토큰이 없다.
+        apnsTokenDidArrive?()
+    }
 }

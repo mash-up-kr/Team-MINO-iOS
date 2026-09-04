@@ -21,14 +21,31 @@ private final class InMemoryAppSettingsRepository: AppSettingsRepository, @unche
     func setNotificationDeliveryEnabled(_ value: Bool) { enabled = value }
 }
 
+/// APNs 등록 요청과 토큰 조회의 **순서**를 본다 — 등록보다 먼저 물으면 FCM 이 발급을 거부한다.
+private actor SpyCallLog {
+    private(set) var events: [String] = []
+    func record(_ event: String) { events.append(event) }
+}
+
+private struct SpyPushRegistrationRepository: PushRegistrationRepository {
+    let log: SpyCallLog
+    func register() async { await log.record("register") }
+    func unregister() async { await log.record("unregister") }
+}
+
 /// 토큰을 돌려주면서 **몇 번 물었는지** 센다 — 꺼져 있을 때 조회조차 하지 않는 것이 계약이다.
 private actor SpyPushTokenProvider: PushTokenProvider {
     private let token: String?
+    private let log: SpyCallLog?
     private(set) var callCount = 0
-    init(token: String?) { self.token = token }
+    init(token: String?, log: SpyCallLog? = nil) {
+        self.token = token
+        self.log = log
+    }
 
     func currentToken() async -> String? {
         callCount += 1
+        await log?.record("currentToken")
         return token
     }
 }
@@ -61,12 +78,14 @@ struct SyncPushTokenUseCaseTests {
     private func make(
         notification: PermissionStatus = .granted,
         deliveryEnabled: Bool = true,
+        log: SpyCallLog = SpyCallLog(),
         provider: SpyPushTokenProvider = SpyPushTokenProvider(token: "fcm-token-1"),
         repository: SpyPushTokenRepository = SpyPushTokenRepository()
     ) -> DefaultSyncPushTokenUseCase {
         DefaultSyncPushTokenUseCase(
             permissions: StubPermissionRepository(notification: notification),
             settings: InMemoryAppSettingsRepository(enabled: deliveryEnabled),
+            registration: SpyPushRegistrationRepository(log: log),
             provider: provider,
             repository: repository
         )
@@ -178,5 +197,50 @@ struct SyncPushTokenUseCaseTests {
         await sut.execute(token: "fcm-token-3")
 
         #expect(await repository.uploaded == ["fcm-token-2", "fcm-token-3"])
+    }
+
+    // APNs 등록은 프로세스마다 필요하다. 스위치를 켠 세션에서만 등록하면 다음 콜드런치에 APNs
+    // 토큰이 없어 FCM 이 발급을 거부하고(`No APNS token specified`), 알림함에는 쌓이는데 푸시만
+    // 오지 않는다.
+    @Test("켜져 있으면 토큰을 묻기 전에 APNs 등록을 요청한다")
+    func execute_whenOn_registersBeforeAskingForToken() async {
+        let log = SpyCallLog()
+
+        await make(log: log, provider: SpyPushTokenProvider(token: "fcm-token-1", log: log)).execute()
+
+        #expect(await log.events == ["register", "currentToken"])
+    }
+
+    // 등록은 시스템 팝업을 띄우지 않지만, 켠 적 없는 사용자의 기기를 APNs 에 붙여 둘 이유가 없다.
+    @Test("게이트를 통과하지 못하면 등록도 요청하지 않는다")
+    func execute_whenOff_doesNotRegister() async {
+        let log = SpyCallLog()
+
+        await make(deliveryEnabled: false, log: log).execute()
+
+        #expect(await log.events.isEmpty)
+    }
+
+    // 등록은 캐시된 토큰으로 곧바로 도착 콜백을 부르고, 그 콜백이 다시 이 UseCase 를 두드린다
+    // (`AppDelegate.didRegisterForRemoteNotifications…`) — 매번 요청하면 그대로 무한 루프다.
+    @Test("등록은 프로세스당 한 번만 요청한다")
+    func execute_twice_registersOnce() async {
+        let log = SpyCallLog()
+        let sut = make(log: log, provider: SpyPushTokenProvider(token: "fcm-token-1", log: log))
+
+        await sut.execute()
+        await sut.execute()
+
+        #expect(await log.events == ["register", "currentToken", "currentToken"])
+    }
+
+    // SDK 가 토큰을 통보했다는 건 APNs 토큰이 이미 도착했다는 뜻이다.
+    @Test("갱신 콜백 경로는 등록을 다시 요청하지 않는다")
+    func executeWithToken_doesNotRegister() async {
+        let log = SpyCallLog()
+
+        await make(log: log).execute(token: "fcm-token-9")
+
+        #expect(await log.events.isEmpty)
     }
 }
