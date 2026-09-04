@@ -49,8 +49,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 
     /// APNs 토큰이 도착했을 때 토큰 업로드를 다시 두드린다. `connect(_:)` 가 꽂는다.
     ///
-    /// 옆의 두 채널과 달리 `PendingHandoff` 를 쓰지 않는다 — 그건 **값을** 나르는 도구인데 여기엔
-    /// 나를 값이 없다. 늦게 꽂혀 신호를 놓칠 일도 없다: 도착 콜백은 `registerForRemoteNotifications()`
+    /// 옆의 두 채널과 달리 `PendingHandoff` 를 쓰지 않는다 — 그건 **값을** 전달하는 도구인데 여기엔
+    /// 전달할 값이 없다. 늦게 꽂혀 신호를 놓칠 일도 없다: 도착 콜백은 `registerForRemoteNotifications()`
     /// 뒤에만 오고, 그 호출은 `SyncPushTokenUseCase.execute()` 안에 있어 앱 그래프가 생긴
     /// 뒤(= `connect(_:)` 이후)에야 나간다.
     private var apnsTokenDidArrive: (@MainActor () -> Void)?
