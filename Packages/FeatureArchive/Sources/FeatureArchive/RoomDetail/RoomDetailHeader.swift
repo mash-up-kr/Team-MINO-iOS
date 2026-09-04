@@ -25,6 +25,8 @@ struct RoomDetailHeader: View {
 
     private var actionRow: some View {
         HStack(spacing: 0) {
+            // `+` 의 식별자·라벨은 `MHAvatarStack` 이 버튼 자신에 붙인다(`MHAvatarStack.add`) —
+            // pill 에 걸면 아바타까지 전파돼 자동화가 `+` 를 지목할 수 없다.
             MHAvatarStack(AvatarPalette.images(of: room.memberAvatarColors), onAdd: onAddMember)
             Spacer(minLength: 8)
             HStack(spacing: 8) {
