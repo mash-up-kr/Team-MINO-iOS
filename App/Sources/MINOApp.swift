@@ -16,7 +16,12 @@ struct MINOApp: App {
             RootView(coordinator: app)
                 // RootView 는 WindowGroup 안에서 identity 가 고정이라 1회만 실행된다
                 // (reduce 의 `.idle` 가드가 2차 방어).
-                .task { app.launch.send(.start) }
+                .task {
+                    // 푸시 delegate 는 프로세스 시작에 이미 붙어 있고 여기서는 **소비자만** 꽂는다.
+                    // (`@UIApplicationDelegateAdaptor` 프로퍼티는 body 안에서 읽는다 — init 에선 이르다)
+                    appDelegate.connect(app)
+                    app.launch.send(.start)
+                }
                 // 콜드 런치로 들어온 URL 도 SwiftUI 가 여기로 넘겨준다.
                 // ⚠️ `SceneDelegate` 에 `scene(_:openURLContexts:)` 를 구현하면 이 modifier 가
                 //    조용히 안 불린다 — SwiftUI 가 URL 전달을 그쪽에 넘기기 때문.
@@ -28,6 +33,7 @@ struct MINOApp: App {
 /// 앱 루트 View. 세션과 온보딩 완료 여부로 진입을 가른다.
 struct RootView: View {
     let coordinator: AppCoordinator
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         content
@@ -35,12 +41,17 @@ struct RootView: View {
             // 화면이 갈려도 살아남아야 한다(`AppLaunchState.notice` 는 스플래시에서만 그려진다).
             .overlay(alignment: .bottom) { inviteNotice }
             .animation(.easeInOut(duration: 0.2), value: coordinator.inviteNotice)
+            // 진입 단계와 무관하게 관찰한다 — `didBecomeActive` 가 스스로 `.main` 을 가드한다.
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active { coordinator.didBecomeActive() }
+            }
     }
 
     @ViewBuilder private var content: some View {
         let launch = coordinator.launch.state
         // 초대를 확인·합류하는 동안은 진입 화면을 유지한다(Flow 6 협의). 온보딩 경로가 그 결과에
         // 달려 있고, 합류 뒤 열 방이 정해지기 전에 탭을 보여주면 화면이 두 번 바뀐다.
+        // (푸시도 같은 이유로 도착지가 정해질 때까지 스플래시를 이어 간다 — 아래 `mainContent`)
         if coordinator.isResolvingInvite {
             LaunchSplashView(isSlow: true)
         } else {
@@ -51,8 +62,27 @@ struct RootView: View {
             case .onboarding:
                 OnboardingHost(coordinator: coordinator)
             case .main:
-                MainTabView(coordinator: coordinator)
+                mainContent
+                    // 보류된 푸시를 소비하고 토큰 업로드를 두드린다. **`mainContent` 바깥**에 건다 —
+                    // 그 안이 스플래시를 고르는 동안에도 불려야 보관분을 꺼낼 사람이 있다.
+                    // `.main` 안에서는 identity 가 고정이라 1회만 실행된다.
+                    .task { coordinator.mainDidAppear() }
             }
+        }
+    }
+
+    /// 콜드런치로 들어온 푸시는 도착지를 조회하는 동안 **스플래시를 이어 간다** — 여기서 메인 탭을
+    /// 먼저 그리면 홈 탭이 보였다가 저장 탭으로 튄다. 조회는 보통 수백 ms 라 이미 보고 있던
+    /// 스플래시가 그만큼 길어질 뿐이다.
+    ///
+    /// 초대(`isResolvingInvite`)와 같은 해법이다. 다른 점은 걸리는 자리 — 초대는 진입 단계 자체를
+    /// 붙잡고(온보딩 경로가 결과에 달려 있다), 푸시는 `.main` 안에서만 붙잡는다.
+    @ViewBuilder
+    private var mainContent: some View {
+        if coordinator.isResolvingPush {
+            LaunchSplashView()
+        } else {
+            MainTabView(coordinator: coordinator)
         }
     }
 

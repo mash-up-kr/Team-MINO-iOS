@@ -61,6 +61,9 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
     /// 들어온 URL 을 목적지로 번역한다. 링크를 **만드는** 쪽(`DeeplinkBuilder`)과 같은
     /// 설정을 보도록 조립을 여기 한곳에 둔다 — 갈리면 우리가 만든 링크를 우리가 못 읽는다.
     let deeplinkParser: DeeplinkParser
+    /// 푸시 토큰을 서버와 맞추는 일. 화면이 아니라 **앱 수명**에 묶여 있어 deps 프로토콜이 아니라
+    /// `AppCoordinator` 가 직접 받아 든다(`launch` 와 같은 성격).
+    let pushTokenSync: PushTokenSync
     /// 실 API 를 태우는 클라이언트. Repository 구현에 그대로 넘긴다
     /// (절차: Packages/Networking/Docs/AddingAPI.md).
     let httpClient: HTTPClient
@@ -177,10 +180,24 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
         // 권한 어댑터는 플랫폼 프레임워크(UserNotifications·CoreLocation)를 타므로 여기서 만든다
         // — `FirebaseAuthRepository` 와 같은 이유로 Data 가 아니라 컴포지션 루트가 갖는다.
         let permissions = SystemPermissionRepository()
+        let appSettings = UserDefaultsAppSettingsRepository()
+
+        // 푸시 토큰 업로드. **두 UseCase 는 서로를 주입받지 않는다** — 켜짐 판정만 같은 함수를
+        // 공유하고(`isNotificationDeliveryOn`), 스위치가 켜졌다는 사실은 아래 클로저로 전해진다.
+        let pushTokenSync = PushTokenSync(useCase: DefaultSyncPushTokenUseCase(
+            permissions: permissions,
+            settings: appSettings,
+            provider: FCMPushTokenProvider(),
+            repository: PushTokenRepositoryImpl(client: httpClient)
+        ))
+        self.pushTokenSync = pushTokenSync
+
         self.notificationSetting = DefaultNotificationSettingUseCase(
             permissions: permissions,
-            settings: UserDefaultsAppSettingsRepository(),
-            push: RemoteNotificationRegistrationRepository()
+            settings: appSettings,
+            // 스위치를 켠 직후가 토큰이 처음 생기는 시점이다. 여기서 두드리지 않으면 다음 콜드런치나
+            // 포그라운드 복귀까지 서버에 토큰이 없다.
+            push: RemoteNotificationRegistrationRepository(onRegistered: { pushTokenSync.kick() })
         )
         self.locationSetting = DefaultLocationSettingUseCase(permissions: permissions)
 

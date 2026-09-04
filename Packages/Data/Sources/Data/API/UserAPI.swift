@@ -20,4 +20,13 @@ enum UserAPI {
     static func updateMe(_ body: UpdateProfileRequestDTO) -> Endpoint<ProfileDTO> {
         Endpoint(path: "\(base)/me", method: .patch, body: .json(body))
     }
+
+    /// 디바이스 푸시 토큰 등록·갱신(등록과 갱신이 같은 요청이다).
+    ///
+    /// 재설치로 새 유저가 생기면 **서버가 이전 유저 행의 토큰을 회수한다**(스펙 description) —
+    /// 클라이언트가 옛 토큰을 지울 필요가 없다. **삭제 엔드포인트는 없다** — 알림을 끄는 건
+    /// 기기에서 토큰을 무효화하는 방식이다(`PushRegistrationRepository`).
+    static func updatePushToken(_ body: UpdatePushTokenRequestDTO) -> Endpoint<OkResponse> {
+        Endpoint(path: "\(base)/me/push-token", method: .put, body: .json(body))
+    }
 }
