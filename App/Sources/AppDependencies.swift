@@ -182,11 +182,13 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
         let permissions = SystemPermissionRepository()
         let appSettings = UserDefaultsAppSettingsRepository()
 
-        // 푸시 토큰 업로드. **두 UseCase 는 서로를 주입받지 않는다** — 켜짐 판정만 같은 함수를
-        // 공유하고(`isNotificationDeliveryOn`), 스위치가 켜졌다는 사실은 아래 클로저로 전해진다.
+        // 푸시 토큰 업로드. **두 UseCase 는 서로를 주입받지 않는다** — 켜짐 판정(`isNotificationDeliveryOn`)과
+        // APNs 등록 어댑터를 함께 볼 뿐이다. 등록은 멱등이라 두 쪽이 각자 불러도 무해하다.
+        let pushRegistration = RemoteNotificationRegistrationRepository()
         let pushTokenSync = PushTokenSync(useCase: DefaultSyncPushTokenUseCase(
             permissions: permissions,
             settings: appSettings,
+            registration: pushRegistration,
             provider: FCMPushTokenProvider(),
             repository: PushTokenRepositoryImpl(client: httpClient)
         ))
@@ -195,9 +197,7 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
         self.notificationSetting = DefaultNotificationSettingUseCase(
             permissions: permissions,
             settings: appSettings,
-            // 스위치를 켠 직후가 토큰이 처음 생기는 시점이다. 여기서 두드리지 않으면 다음 콜드런치나
-            // 포그라운드 복귀까지 서버에 토큰이 없다.
-            push: RemoteNotificationRegistrationRepository(onRegistered: { pushTokenSync.kick() })
+            push: pushRegistration
         )
         self.locationSetting = DefaultLocationSettingUseCase(permissions: permissions)
 

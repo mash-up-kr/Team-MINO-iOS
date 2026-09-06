@@ -43,6 +43,20 @@
 	     이 키를 지우면 알림을 켠 적 없는 사용자도 콜드런치마다 FCM 등록 토큰을 네트워크로 받아온다. -->
 	<key>FirebaseMessagingAutoInitEnabled</key>
 	<false/>
+	<!-- AppDelegate 프록시(메서드 스위즐링)를 끈다.
+	     켜 두면 SDK 가 `didRegisterForRemoteNotificationsWithDeviceToken` 을 가로채는데,
+	     이 앱(SwiftUI `@UIApplicationDelegateAdaptor`)에서는 우리 구현으로 호출이 넘어오지 않고
+	     SDK 쪽 `Messaging.apnsToken` 설정도 되지 않았다. 등록 실패 콜백도 오지 않아 **아무 에러 없이
+	     APNs 토큰만 사라지고** FCM 이 토큰 발급을 거부한다(`No APNS token specified`).
+	     실기기 로그로 확인: apsd 는 토큰을 앱에 넘기는데 AppDelegate 콜백이 한 번도 불리지 않았다.
+
+	     ⚠️ 끈 대신 아래 셋을 **직접** 해야 한다. 지우면 조용히 깨진다.
+	       - `Messaging.apnsToken` 대입 (AppDelegate.didRegisterForRemoteNotifications…)
+	       - `UNUserNotificationCenter.delegate` 지정 (AppDelegate, PushRouter)
+	       - `Messaging.delegate` 지정 (AppDelegate, PushTokenObserver)
+	     FCM 데이터 메시지는 쓰지 않는다(알림은 APNs 표준 + NotificationService extension). -->
+	<key>FirebaseAppDelegateProxyEnabled</key>
+	<false/>
 	<key>GMSApiKey</key>
 	<string>$(GOOGLE_MAPS_API_KEY)</string>
 	<!-- 이 앱은 HTTPS(TLS) 표준 암호화만 쓰고 자체 암호화는 넣지 않았다 — 수출 규정 면제 대상이다.
