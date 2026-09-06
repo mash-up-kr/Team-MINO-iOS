@@ -1,6 +1,8 @@
 import DesignSystem
+import Domain
 import PlaceDetailUI
 import PlaceMapUI
+import ProfileSetupUI
 import RoomCreationUI
 import RoomShareUI
 import SwiftUI
@@ -35,6 +37,10 @@ struct ArchiveShellView: View {
                 selectedPinID: coordinator.selectedPin?.id.value,
                 onSelectPin: { detailStore?.send(.tapLocation($0)) }
             )
+            // 루트·지도버튼·방리스트시트에 이미 `.sheet` 가 하나씩 붙어 있다(같은 뷰에 둘 달면 하나만
+            // 뜬다). 지도 레이어는 `if` 밖이라 시트가 떠 있는 동안 사라지지 않는 유일한 빈 자리다 —
+            // `filterBar` 는 `placeStore == nil`, `toast` 는 `toastMessage != nil` 일 때만 존재한다.
+            .sheet(item: $coordinator.invitingRoom, content: inviteSheet)
 
             if let roomListStore {
                 mapButtons(roomList: roomListStore)
@@ -175,6 +181,41 @@ struct ArchiveShellView: View {
         .presentationCornerRadius(20)
         .presentationDragIndicator(.hidden)   // 그래버는 시트가 직접 그린다
         .presentationBackground(.mhBackgroundElevatedNormal)
+    }
+
+    /// 친구 초대 시트(004-4-2). 도메인 `Room` 을 그릴 값으로 옮기는 자리다 — 시트가 있는
+    /// `RoomCreationUI` 는 `ProfileSetupUI`(아바타 그림)를 의존하지 않으므로 매핑을 여기서 한다.
+    private func inviteSheet(_ room: Room) -> some View {
+        RoomInviteSheetView(
+            roomName: room.name,
+            thumbnail: thumbnailKind(of: room),
+            members: room.users.map {
+                RoomInviteMember(
+                    id: $0.userId,
+                    name: $0.nickname,
+                    // 목록 전체를 그리므로 `images(of:)` 를 쓰지 않는다 — 그건 헤더 pill 용이라
+                    // `displayLimit`(5)에서 잘린다.
+                    avatar: AvatarPalette.image(of: $0.avatarColor)
+                )
+            },
+            makeStore: { coordinator.makeInviteFriendsStore(room: room) },
+            onClose: { coordinator.invitingRoom = nil }
+        )
+        // `presentationDetents` 는 시트가 직접 단다(높이가 시안 값 하나로 고정).
+        .presentationCornerRadius(20)
+        .presentationDragIndicator(.hidden)   // 그래버는 시트가 직접 그린다
+        .presentationBackground(.mhBackgroundElevatedNormal)
+    }
+
+    /// 방 리스트 카드(003-2 ③)와 같은 규칙 — 서버가 주는 색 이름을 팔레트 12색에 매핑하고, 모르는
+    /// 이름이나 색 미선택이면 my-room 썸네일로 폴백한다.
+    private func thumbnailKind(of room: Room) -> MHRoomThumbnailKind {
+        switch room.type {
+        case .personal:
+            .myRoom
+        case .shared:
+            room.color.flatMap(RoomColorPalette.thumbnail(for:)).map { .color($0) } ?? .myRoom
+        }
     }
 
     /// 스와이프 dismiss 도 reducer 를 거치게 한다 — state 와 실제 표시가 갈라지면 시트가 다시 안 뜬다.

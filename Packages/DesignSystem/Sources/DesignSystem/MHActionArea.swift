@@ -16,6 +16,9 @@ public struct MHAction {
     public let isEnabled: Bool
     public let variant: MHButtonVariant?
     public let color: MHButtonColor?
+    /// 라벨 왼쪽 아이콘. 시안이 라벨만 쓰는 자리가 대부분이라 기본은 없음이다
+    /// (예외: 004-4-2 친구 초대 시트의 「링크 복사하기」 = `link`).
+    public let leadingIcon: MHIcon?
     public let action: () -> Void
 
     public init(
@@ -23,12 +26,14 @@ public struct MHAction {
         isEnabled: Bool = true,
         variant: MHButtonVariant? = nil,
         color: MHButtonColor? = nil,
+        leadingIcon: MHIcon? = nil,
         action: @escaping () -> Void
     ) {
         self.title = title
         self.isEnabled = isEnabled
         self.variant = variant
         self.color = color
+        self.leadingIcon = leadingIcon
         self.action = action
     }
 }
@@ -191,6 +196,7 @@ public struct MHActionArea<Extra: View>: View {
             variant: action.variant ?? defaultVariant,
             color: action.color ?? defaultColor,
             size: .large,
+            leadingIcon: action.leadingIcon,
             action: action.action
         )
         .disabled(!action.isEnabled)
@@ -273,6 +279,12 @@ private struct MHSubLinkStyle: ButtonStyle {
             variant: .strong,
             main: .init("메인 액션", variant: .outlinedStrong) {},
             alternative: .init("대체 액션") {}
+        )
+        // 대체 액션에 leading 아이콘 — 004-4-2 친구 초대 시트의 「링크 복사하기」.
+        MHActionArea(
+            variant: .strong,
+            main: .init("초대하기") {},
+            alternative: .init("링크 복사하기", leadingIcon: .link) {}
         )
         MHActionArea(variant: .cancel, main: .init("확인") {})
     }

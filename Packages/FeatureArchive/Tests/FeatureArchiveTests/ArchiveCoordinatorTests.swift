@@ -61,6 +61,10 @@ private struct StubRecordPinAccess: RecordPinAccessUseCase {
     func execute(pinID: PinID) async throws {}
 }
 
+private struct StubFetchInviteCode: FetchInviteCodeUseCase {
+    func execute(roomId: String) async throws -> String { "code-\(roomId)" }
+}
+
 private struct StubArchiveDeps: ArchiveDeps {
     var fetchRooms: FetchRoomsUseCase = StubFetchRooms()
     var fetchRoomPins: FetchRoomPinsUseCase = StubFetchRoomPins()
@@ -81,6 +85,8 @@ private struct StubArchiveDeps: ArchiveDeps {
         period: .days(14),
         defaults: UserDefaults(suiteName: "ArchiveCoordinatorTests")!
     )
+    var fetchInviteCode: FetchInviteCodeUseCase = StubFetchInviteCode()
+    var deeplink = DeeplinkConfiguration(scheme: "gguk", host: "gguk.org")
 }
 
 private let fixtureRoom = Room(
@@ -172,6 +178,44 @@ struct ArchiveCoordinatorTests {
         )
         coordinator.handle(RoomDetailNav.shareLocation(location))
         #expect(coordinator.sharingLocation == location)
+    }
+
+    // MARK: - 친구 초대 시트 (004-4-2)
+
+    @Test("inviteFriends 는 초대할 방을 껍데기에 넘긴다")
+    func inviteFriends() {
+        let coordinator = makeCoordinator()
+
+        coordinator.handle(RoomDetailNav.inviteFriends(fixtureRoom))
+
+        #expect(coordinator.invitingRoom == fixtureRoom)
+    }
+
+    // 방 상세는 시트만 닫고 그 자리에 머문다 — 온보딩처럼 다음 화면으로 밀지 않는다.
+    @Test("초대 시트를 마치면 시트만 닫고 방 상세는 그대로 둔다")
+    func inviteFriendsComplete_closesOnlyTheSheet() {
+        let coordinator = makeCoordinator()
+        coordinator.handle(.openRoomDetail(fixtureRoom))
+        coordinator.handle(RoomDetailNav.inviteFriends(fixtureRoom))
+
+        coordinator.handle(InviteFriendsNav.complete)
+
+        #expect(coordinator.invitingRoom == nil)
+        #expect(coordinator.isRoomDetailPresented)
+        #expect(coordinator.selectedRoom == fixtureRoom)
+    }
+
+    @Test("배선 — 초대 Store 의 닫기가 시트를 닫는다")
+    @MainActor
+    func inviteStore_completeClosesSheet() async {
+        let coordinator = makeCoordinator()
+        coordinator.handle(RoomDetailNav.inviteFriends(fixtureRoom))
+        let store = coordinator.makeInviteFriendsStore(room: fixtureRoom)
+
+        store.send(.tapComplete)
+
+        await waitUntil { coordinator.invitingRoom == nil }
+        #expect(coordinator.invitingRoom == nil)
     }
 
     @Test("공유 저장이 끝나면 시트를 닫고 완료 신호를 1회만 남긴다")
@@ -539,11 +583,13 @@ struct ArchiveCoordinatorTests {
         coordinator.handle(PlaceDetailNav.openSavedRooms(
             SavedRoomsPresentation(id: fixturePin.id.value, rooms: [fixtureRoom])
         ))
+        coordinator.handle(RoomDetailNav.inviteFriends(fixtureRoom))
 
         coordinator.open(room: fixtureRoom)
 
         #expect(coordinator.sharingLocation == nil)
         #expect(coordinator.savedRooms == nil)
+        #expect(coordinator.invitingRoom == nil)
     }
 
     @Test("진입점은 이전 방의 지도 카메라 요청을 남기지 않는다")

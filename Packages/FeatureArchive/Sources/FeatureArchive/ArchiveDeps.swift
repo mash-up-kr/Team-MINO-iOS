@@ -26,4 +26,9 @@ public protocol ArchiveDeps: RoomShareCreateRoomDeps, PlaceDetailDeps {
     /// 공동방 생성 유도 시트를 "나중에 만들래요" 로 미뤄 둔 상태(2주). 서버가 모르는 기기 로컬
     /// 표시 정책이라 UseCase 가 아니라 ``SnoozeSwitch`` 를 그대로 받는다.
     var roomCreationPromptSnooze: SnoozeSwitch { get }
+    /// 방 상세 헤더 `+` → 친구 초대 시트(004-4-2)가 발급받는 초대 코드.
+    var fetchInviteCode: FetchInviteCodeUseCase { get }
+    /// 초대 링크의 스킴·호스트. **서버는 코드만 준다** — 링크 조립은 클라이언트 몫이라 읽기
+    /// (`DeeplinkParser`)와 같은 설정을 써서 "우리가 만든 링크를 우리가 못 읽는" 상태를 막는다.
+    var deeplink: DeeplinkConfiguration { get }
 }

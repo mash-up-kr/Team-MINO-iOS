@@ -43,6 +43,7 @@ enum RoomDetailAction: Equatable {
     case loadCurrentMember
     case currentMemberLoaded(MemberProfile)
     case currentMemberLoadFailed(DomainError)
+    case tapAddMember
     case tapMore
     case dismissMoreMenu
     case selectMoreMenuItem(RoomDetailMoreMenuItemID)
@@ -64,6 +65,11 @@ enum RoomDetailNav: Equatable, Sendable {
     case close
     case shareLocation(RoomDetailLocation)
     case openPlaceDetail(Pin)
+    /// 헤더 아바타 옆 `+`(004-1 ② 2-1) → `004-4-2_친구 초대 클릭` 시트.
+    ///
+    /// 표시 모델(`RoomDetailRoom`)이 아니라 도메인 `Room` 을 싣는다 — 시트가 참여자 닉네임과 방 색을
+    /// 함께 쓰는데 표시 모델은 아바타 색만 남기고 나머지를 버린다(``RoomDetailRoom/init(from:)``).
+    case inviteFriends(Room)
     /// 헤더 케밥 "방 편집" (방장만). 도착 화면은 아직 없다 — `ArchiveCoordinator.handle(_: RoomDetailNav)` 참조.
     case editRoom(Room)
     /// 헤더 케밥 "방 나가기". 도착 화면은 아직 없다 — 위와 같다.
@@ -128,6 +134,9 @@ func roomDetailReducer(
             // 신원을 모르면 방장이 아닌 쪽으로 남는다 — 오류 UI 없이 "방 편집" 만 안 붙는다.
             state.isLoadingCurrentMember = false
             return .none
+
+        case .tapAddMember:
+            return .navigate(.inviteFriends(room))
 
         case .tapMore:
             state.isMoreMenuPresented.toggle()

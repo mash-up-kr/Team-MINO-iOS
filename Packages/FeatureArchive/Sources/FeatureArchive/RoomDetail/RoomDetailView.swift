@@ -23,10 +23,7 @@ struct RoomDetailView: View {
             VStack(spacing: 0) {
                 RoomDetailHeader(
                     room: store.state.room,
-                    // 004-1 ② 2-1 은 여기서 `004-4-2_친구 초대 클릭`(참여자 목록 + 초대하기 · 링크
-                    // 복사하기 바텀시트)을 연다. 그 시트는 별도 스펙(3225:91793, 담당 유빈·윤지)이라
-                    // 이 PR 범위 밖이다 — 그 화면이 생기는 PR 에서 여기에 연결한다.
-                    onAddMember: {},
+                    onAddMember: { store.send(.tapAddMember) },
                     onMore: { store.send(.tapMore) },
                     onClose: { store.send(.tapClose) }
                 )

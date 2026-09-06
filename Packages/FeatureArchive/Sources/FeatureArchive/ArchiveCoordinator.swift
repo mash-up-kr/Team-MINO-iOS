@@ -80,6 +80,12 @@ public final class ArchiveCoordinator: Coordinator {
     /// 않는다 — 두면 플래그와 목록이 어긋날 짝이 생긴다.
     var savedRooms: SavedRoomsPresentation?
 
+    /// 친구 초대 시트(004-4-2)를 띄울 방. 방 자체가 표시 항목이다(`Room` 이 `Identifiable`).
+    ///
+    /// 래퍼 타입을 두지 않는 건 시트가 방 하나로 완결되기 때문이다 — 방 이름·색·참여자가 모두
+    /// `Room` 안에 있어 ``SavedRoomsPresentation`` 처럼 "어느 장소의 목록인가" 를 덧붙일 게 없다.
+    var invitingRoom: Room?
+
     /// 방 목록이 바뀐 횟수. 껍데기가 이 값의 변화를 보고 방 리스트를 다시 받는다(``ArchiveShellView``).
     ///
     /// 껍데기가 사라졌다 돌아오는 전환(공동방 만들기 push→pop · 탭 복귀)은 `.task` 가 이미 재조회하므로
@@ -155,6 +161,18 @@ public final class ArchiveCoordinator: Coordinator {
         )
     }
 
+    /// 친구 초대 시트(004-4-2) Store 팩토리.
+    ///
+    /// 온보딩(009-1)과 **같은 Store 를 쓴다** — 초대 코드 발급·링크 조립·복사는 진입점과 무관하고,
+    /// 다른 건 시안(껍데기)뿐이다.
+    func makeInviteFriendsStore(room: Room) -> InviteFriendsStore {
+        RoomCreationUI.makeInviteFriendsStore(
+            roomId: room.id,
+            deps: InviteFriendsDeps(fetchInviteCode: deps.fetchInviteCode, deeplink: deps.deeplink),
+            handle: { [weak self] in self?.handle($0) }
+        )
+    }
+
     // MARK: - Effect Routing
 
     func handle(_ nav: RoomListNav) {
@@ -196,6 +214,8 @@ public final class ArchiveCoordinator: Coordinator {
             sharingLocation = location
         case .openPlaceDetail(let pin):
             selectedPin = pin
+        case .inviteFriends(let room):
+            invitingRoom = room
         case .editRoom, .leaveRoom:
             // 아직 갈 곳이 없다 — 비워 둔 것이 아니라 도착 화면이 이 PR 범위 밖이다.
             // 방 편집(시안 004-5 방편집_방장)·방 나가기(004-5 나가기_방장 / 나가기_방멤버)는
@@ -263,6 +283,7 @@ public final class ArchiveCoordinator: Coordinator {
         sharingLocation = nil
         savedRooms = nil
         shareCreateRoomChild = nil
+        invitingRoom = nil
     }
 
     /// 014 ② — 고른 방의 장소 상세로. 시트를 닫고 **방만** 갈아끼운다.
@@ -284,6 +305,15 @@ public final class ArchiveCoordinator: Coordinator {
         case .goToCreateRoom:
             // 시트를 닫지 않는다 — 자식이 시트 위를 덮고, 끝나면 시트가 그 자리에 그대로 있다.
             shareCreateRoomChild = RoomShareCreateRoomCoordinator(deps: deps)
+        }
+    }
+
+    /// 친구 초대 시트가 끝났다(우상단 X). 온보딩은 여기서 튜토리얼로 밀지만 방 상세에서는
+    /// 시트를 닫고 방 상세로 돌아가는 것이 전부다(004-4-2 ②).
+    func handle(_ nav: InviteFriendsNav) {
+        switch nav {
+        case .complete:
+            invitingRoom = nil
         }
     }
 
