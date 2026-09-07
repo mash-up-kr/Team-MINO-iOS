@@ -138,28 +138,33 @@ struct ArchiveShellView: View {
     /// 않아도 된다. 시트를 손으로 끌어 올리는 동안 버튼이 따라 움직이지 않는 건 필터바와 같은 한계다.
     ///
     /// 자리 값의 근거는 ``PlaceMapButtonMetrics``.
-    @ViewBuilder
     private func mapButtons(roomList: RoomListStore) -> some View {
-        // 방 상세(장소 상세를 열지 않은 상태)에는 시안에 버튼이 없다 — 줄 자체를 그리지 않는다.
-        if placeStore != nil || detailStore == nil {
-            VStack(spacing: 0) {
+        // 지도를 쓰는 세 화면(방 리스트·방 상세·장소 상세) 모두에 현위치 버튼이 선다 —
+        // PRD 「현재 위치 버튼」이 "[SYS-004]가 제공하며, **지도를 쓰는 화면에서 공통으로
+        // 노출된다**" 로 못박았고, 방 상세 시안(`2542:125383`)에도 지도 우측에 그려져 있다.
+        // `full` 에서는 시트가 화면을 다 덮어 자연히 가려진다(PRD "`Full`로 승격되면 숨긴다").
+        VStack(spacing: 0) {
+            Spacer(minLength: 0)
+            HStack(spacing: PlaceMapButtonMetrics.spacing) {
                 Spacer(minLength: 0)
-                HStack(spacing: PlaceMapButtonMetrics.spacing) {
-                    Spacer(minLength: 0)
-                    if let placeStore {
-                        SavedRoomsButton { placeStore.send(.tapSavedRooms) }
-                            .disabled(!placeStore.state.canOpenSavedRooms)
-                    }
-                    MyLocationButton {
-                        if let placeStore { placeStore.send(.tapMyLocation) } else { roomList.send(.tapMyLocation) }
-                    }
+                // 「저장된 방」은 장소 상세 전용이다 — 여러 방에 담긴 장소에서만 서는 버튼이라
+                // 방 리스트·방 상세에는 판정할 장소가 없다(PRD 「저장된 방 시트」).
+                if let placeStore {
+                    SavedRoomsButton { placeStore.send(.tapSavedRooms) }
+                        .disabled(!placeStore.state.canOpenSavedRooms)
                 }
-                .padding(.trailing, PlaceMapButtonMetrics.trailing)
-                // 시트 윗끝에서 18 — 드러난 높이가 단계마다 다르므로 지금 단계의 것을 쓴다
-                // (peek·half 둘 다 버튼이 보인다). 탭바가 시트를 덮는 만큼은 `mapBottomInset` 과
-                // 같은 이유로 함께 되돌려 준다.
-                .padding(.bottom, visiblePeek + tabBarCoverage + PlaceMapButtonMetrics.bottomGap)
+                // 방 상세에서는 방 리스트 쪽으로 보낸다 — 카메라를 옮기는 일은 화면과 무관하고
+                // (`RoomListNav.focusMyLocation` → `ArchiveCoordinator.focusMap`), 방 상세
+                // Store 의 좌표는 거리순 정렬 기준점이라 쓰임이 다르다.
+                MyLocationButton {
+                    if let placeStore { placeStore.send(.tapMyLocation) } else { roomList.send(.tapMyLocation) }
+                }
             }
+            .padding(.trailing, PlaceMapButtonMetrics.trailing)
+            // 시트 윗끝에서 18 — 드러난 높이가 단계마다 다르므로 지금 단계의 것을 쓴다
+            // (peek·half 둘 다 버튼이 보인다). 탭바가 시트를 덮는 만큼은 `mapBottomInset` 과
+            // 같은 이유로 함께 되돌려 준다.
+            .padding(.bottom, visiblePeek + tabBarCoverage + PlaceMapButtonMetrics.bottomGap)
         }
     }
 
