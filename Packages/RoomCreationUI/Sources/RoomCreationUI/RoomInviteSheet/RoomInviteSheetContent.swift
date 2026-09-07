@@ -38,6 +38,10 @@ struct RoomInviteSheetContent: View {
 
     // 네이티브 `.sheet` 안이라 `MHBottomSheetScrollView` 가 아니라 일반 `ScrollView` 다
     // (그건 `MHBottomSheet` 의 detent 드래그와 맞물리는 컴포넌트다 — `RoomShareSheet` 와 같은 판단).
+    //
+    // 높이는 인원과 무관하게 고정이다 — PRD [SYS-006] Flow B 가 시트를 424dp **고정값**으로
+    // 못박았고, 시안도 목록을 176 고정 프레임 + 스크롤바로 그렸다(``RoomInviteSheetMetrics``).
+    // 인원이 적으면 마지막 행 아래가 비지만, 시트가 인원마다 높이를 바꾸지 않는 쪽이 스펙이다.
     private var memberList: some View {
         ScrollView {
             LazyVStack(spacing: 0) {
@@ -46,7 +50,7 @@ struct RoomInviteSheetContent: View {
                 }
             }
         }
-        .frame(height: RoomInviteSheetMetrics.memberScrollHeight(count: members.count))
+        .frame(height: RoomInviteSheetMetrics.memberScrollHeight)
         .padding(.top, RoomInviteSheetMetrics.memberListTopPadding)
         .padding(.horizontal, 20)
         .accessibilityIdentifier("RoomInvite.memberList")
@@ -141,27 +145,28 @@ private extension [RoomInviteMember] {
 
 #Preview("004-4-2 친구 초대") {
     RoomInviteSheetContent(members: .sample, state: InviteFriendsState(roomId: "r1"), send: { _ in })
-        .frame(height: RoomInviteSheetMetrics.detentHeight(memberCount: 5))
+        .frame(height: RoomInviteSheetMetrics.detentHeight)
 }
 
 #Preview("링크 복사 완료") {
     var state = InviteFriendsState(roomId: "r1")
     state.didCopyLink = true
     return RoomInviteSheetContent(members: .sample, state: state, send: { _ in })
-        .frame(height: RoomInviteSheetMetrics.detentHeight(memberCount: 5))
+        .frame(height: RoomInviteSheetMetrics.detentHeight)
 }
 
-// 참여자가 상한(176)을 안 채우는 방 — 목록만 짧아지고 액션 영역이 따라 올라온다.
+// 참여자가 상한(176)을 안 채우는 방 — 목록 아래가 비고 시트 높이는 그대로다(PRD 424 고정).
 #Preview("참여자 1명") {
     RoomInviteSheetContent(
         members: [RoomInviteMember(id: "u1", name: "나", avatar: nil)],
         state: InviteFriendsState(roomId: "r1"),
         send: { _ in }
     )
+    .frame(height: RoomInviteSheetMetrics.detentHeight)
 }
 
 // 방 id 가 비어 오면 두 버튼이 잠긴다(잘못된 방으로 초대하는 대신 아무 요청도 보내지 않는다).
 #Preview("초대 비활성") {
     RoomInviteSheetContent(members: .sample, state: InviteFriendsState(), send: { _ in })
-        .frame(height: RoomInviteSheetMetrics.detentHeight(memberCount: 5))
+        .frame(height: RoomInviteSheetMetrics.detentHeight)
 }
