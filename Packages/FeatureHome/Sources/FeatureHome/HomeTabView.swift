@@ -69,6 +69,13 @@ public struct HomeTabView: View {
     }
 
     /// 장소 상세 뒤에 깔리는 지도 (005-1 과 같은 그림). 카드 덱은 이 **아래에 그대로 살아 있어**
+    /// 지금 보는 방 하나만 담은 색 표. 홈은 탭한 장소 한 곳만 그리므로 그 방 색만 있으면 된다 —
+    /// 여러 방의 핀이 한 지도에 뜨는 방 리스트 탭과 달리 표가 한 칸이다.
+    private var roomColors: [String: RoomColor] {
+        guard let room = store?.state.currentRoom, let color = room.color else { return [:] }
+        return [room.id: color]
+    }
+
     /// 시트를 닫으면 보던 카드·커서가 그대로 돌아온다 — 조회를 다시 하지 않는다.
     @ViewBuilder
     private var placeDetailMap: some View {
@@ -77,7 +84,7 @@ public struct HomeTabView: View {
                 bottomInset: mapBottomInset,
                 pins: [pin],
                 myLocation: coordinator.mapFocus?.coordinate,
-                roomColor: store?.state.currentRoom?.color,
+                roomColors: roomColors,
                 selectedPinID: pin.id.value,
                 // 마커가 하나뿐이라 갈아탈 곳이 없다 — 눌러도 지금 보고 있는 그 장소다.
                 onSelectPin: { _ in },
