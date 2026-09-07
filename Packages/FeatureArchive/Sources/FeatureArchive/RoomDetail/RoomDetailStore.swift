@@ -136,9 +136,15 @@ func roomDetailReducer(
             return .none
 
         case .tapAddMember:
+            // 개인방은 초대 불가(PRD 「개인방」 · [SYS-006] "공동방에 타인을 초대할 때").
+            // 헤더가 `+` 를 그리지 않으므로 평소엔 오지 않는 길이지만, 오더라도 열지 않는다 —
+            // 개인방 초대 링크가 나가면 "혼자만의 공간" 이라는 방 종류의 정의가 깨진다.
+            guard room.type == .shared else { return .none }
             return .navigate(.inviteFriends(room))
 
         case .tapMore:
+            // 개인방은 더보기 자체가 없다(시안 `004-5` Case 3) — 위와 같은 이유로 방어한다.
+            guard room.type == .shared else { return .none }
             state.isMoreMenuPresented.toggle()
             return .none
 
