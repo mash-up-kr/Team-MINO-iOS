@@ -392,10 +392,16 @@ struct ArchiveShellView: View {
     ///   헤더·칩을 고치면 여기도 따라가야 한다.
     /// - 장소 상세 335 (005-1 ⑫) — 시안의 369 는 **화면 끝까지** 잰 값이다(375×812 프레임에서 실측
     ///   367pt). 그 화면은 탭바가 없어 하단 safe-area 가 홈 인디케이터 34pt 뿐이므로 369 − 34 다.
-    /// - 방 상세 156·405 — 시안에 숫자가 없어 그대로 둔다. 확정되면 그때 맞춘다.
+    /// - 방 상세 88·410 — PRD 「3단 바텀시트」가 `Peek` 88 · `Half` 444 로 확정했다(2026-09-04 정정,
+    ///   "디자인 정책 보드 확인 결과 256dp는 오기였다"). 두 값의 기준이 다르다:
+    ///   **88 은 콘텐츠 높이**라 방 리스트의 88 처럼 그대로 주고(그래버 30 + 액션 줄 60 = 90 중 아래
+    ///   2 가 잘리는 값이라, peek 에서도 더보기·닫기가 온전히 보인다), **444 는 화면 끝까지** 잰
+    ///   값이라(시안 `2542:125383` 의 시트 아래끝이 812) 장소 상세의 369 처럼 홈 인디케이터 34 를
+    ///   뺀다. 방 상세도 탭바가 없어 하단 safe-area 가 34 뿐이다.
+    ///   410 이면 시안처럼 장소 카드 1장 + 2장째가 걸쳐 보인다(444 를 그대로 주면 2장이 딱 맞아 어긋난다).
     private var peek: (low: CGFloat?, medium: CGFloat) {
         if placeStore != nil { return (nil, 335) }
-        guard detailStore == nil else { return (156, 405) }
+        guard detailStore == nil else { return (88, 410) }
         let roomCount = roomListStore?.state.rooms.count ?? 0
         return (RoomListContentView.Metric.peek, RoomListContentView.Metric.half(roomCount: roomCount))
     }
