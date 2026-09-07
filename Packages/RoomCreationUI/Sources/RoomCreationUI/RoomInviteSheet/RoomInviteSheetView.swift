@@ -48,9 +48,9 @@ public struct RoomInviteSheetView: View {
         // 자기 이름을 갖고도 자식의 이름을 남긴다.
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("RoomInvite.sheet")
-        // 높이는 시트가 직접 단다 — 참여자 수로 갈리는데 그 수는 이 시트만 안다
-        // (``RoomShareSheet`` 가 방 개수로 갈리는 것과 같은 이유).
-        .presentationDetents([.height(RoomInviteSheetMetrics.detentHeight(memberCount: members.count))])
+        // 높이는 시트가 직접 단다 — 띄우는 쪽(껍데기)이 아니라 이 시트의 시안 값이다
+        // (``RoomShareSheet`` 와 같은 소유 규칙). PRD [SYS-006] Flow B 의 424dp 고정값.
+        .presentationDetents([.height(RoomInviteSheetMetrics.detentHeight)])
     }
 
     // 그래버 — h30(py12) 안에 38×4 바. 시스템 인디케이터는 띄우는 쪽이 껐다.
