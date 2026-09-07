@@ -49,6 +49,7 @@ struct ArchiveShellView: View {
                     mapZoom = zoom
                     // 요청이 반영된 시점이다 — 지우지 않으면 다음 이동에서 카메라가 되돌아간다.
                     zoomRequest = nil
+                    coordinator.mapCameraSettled()
                 },
                 onZoomIn: { coordinate in
                     // 한 단계로는 셀이 안 갈리는 경우가 있어 두 단계 확대한다 — 격자 셀 크기가

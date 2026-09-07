@@ -63,6 +63,11 @@ public struct MapView: UIViewRepresentable {
         /// 이미 적용한 마커/카메라 — 매 update 마다 불필요한 재적용(및 카메라 되먹임 루프)을 막는다.
         private var appliedMarkers: [MapMarker] = []
         private var appliedCamera: MapCamera?
+        /// 마지막으로 적용한 `.fit`. `appliedCamera` 와 별도여야 한다 — 한 번 `.position` 을
+        /// 적용하면(클러스터 확대) `appliedCamera` 가 그 값으로 덮여, **직전과 같은 `.fit` 이
+        /// 다시 들어올 때 "다른 값" 으로 보여 재적용**된다. 그러면 확대해 둔 화면이 핀 전체를
+        /// 담는 자리로 튕겨 돌아간다. 같은 fit 은 한 번만 적용한다.
+        private var appliedFit: MapCamera?
         /// 카메라와 별도 필드여야 한다 — `appliedCamera` 는 idle 델리게이트가 되먹임 방지용으로
         /// 덮어쓰므로, 여기에 얹으면 지도를 움직일 때마다 padding 판정이 오염된다.
         private var appliedPadding: EdgeInsets?
@@ -131,10 +136,14 @@ public struct MapView: UIViewRepresentable {
                 mapView.animate(to: position.gmsCameraPosition)
 
             case .fit(let coordinates, let padding):
+                // 이미 이 fit 으로 맞춘 적이 있으면 카메라를 건드리지 않는다 — 핀이 그대로인데
+                // 다시 맞추면 그 사이 사용자가 옮기거나 확대해 둔 화면을 뺏는다.
+                guard camera != appliedFit else { return }
                 // 크기가 0 이면 SDK 가 맞출 화면이 없어 계산이 무의미하다. appliedCamera 를
                 // 기록하지 않고 넘겨 레이아웃이 잡힌 다음 업데이트에서 다시 시도하게 둔다.
                 guard let bounds = coordinates.gmsBounds, mapView.bounds.size != .zero else { return }
                 appliedCamera = camera
+                appliedFit = camera
                 mapView.animate(with: GMSCameraUpdate.fit(bounds, withPadding: padding))
             }
         }

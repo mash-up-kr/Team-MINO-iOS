@@ -41,9 +41,11 @@ public final class ArchiveCoordinator: Coordinator {
 
     /// 지도가 핀 맞춤(``PlaceMap/camera(for:focusing:)``) 대신 비출 자리. 현위치 버튼이 세운다.
     ///
-    /// 보고 있는 방이 바뀌면 비운다(``showRoom(_:)``) — 새 방의 핀에 다시 맞춰야 하기 때문이다.
-    /// 장소 상세를 닫는 것만으로는 비우지 않는다: 사용자가 옮겨 둔 지도를 시트를 닫았다고
-    /// 되돌리면 되레 놀란다.
+    /// **카메라가 그 자리에 닿으면 비운다**(``mapCameraSettled()``) — 남겨 두면 이후 화면이
+    /// 다시 그려질 때마다(장소 상세 열기·칩 변경 등) 같은 요청이 카메라에 재적용되어, 사용자가
+    /// 옮겨 둔 지도가 내 위치로 튕겨 돌아간다.
+    ///
+    /// 보고 있는 방이 바뀌어도 비운다(``showRoom(_:)``) — 새 방의 핀에 다시 맞춰야 하기 때문이다.
     private(set) var mapFocus: ArchiveMapFocus?
 
     /// ``ArchiveMapFocus/ordinal`` 에 찍을 다음 번호. 표시에 쓰이지 않아 관찰 대상이 아니다.
@@ -248,6 +250,15 @@ public final class ArchiveCoordinator: Coordinator {
     private func focusMap(on coordinate: Coordinate) {
         mapFocusCount += 1
         mapFocus = ArchiveMapFocus(coordinate: coordinate, ordinal: mapFocusCount)
+    }
+
+    /// 카메라가 멈췄다 — 요청(``mapFocus``)은 여기서 수명을 끝낸다.
+    ///
+    /// 요청을 세운 뒤 첫 idle 이 곧 "닿았다" 이므로 도달 여부를 따로 견주지 않는다. 사용자가
+    /// 지도를 만지던 중이면 그 idle 이 요청을 먹을 수 있지만, 그때 결과는 "아무 일도 안 일어남"
+    /// 이라 한 번 더 누르면 된다 — 카메라를 계속 붙잡아 두는 쪽이 훨씬 나쁘다.
+    func mapCameraSettled() {
+        mapFocus = nil
     }
 
     /// 보고 있는 방을 바꾼다. 지도 카메라 요청(``mapFocus``)은 방과 수명을 같이한다 —

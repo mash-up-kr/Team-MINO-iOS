@@ -458,6 +458,27 @@ struct ArchiveCoordinatorTests {
         #expect(coordinator.mapFocus?.coordinate == fixtureCoordinate)
     }
 
+    @Test("카메라가 멈추면 요청을 비운다 — 남겨 두면 다시 그릴 때마다 카메라가 내 위치로 튕긴다")
+    func mapCameraSettled_clearsFocus() {
+        let coordinator = makeCoordinator()
+        coordinator.handle(PlaceDetailNav.focusMyLocation(fixtureCoordinate))
+
+        coordinator.mapCameraSettled()
+
+        #expect(coordinator.mapFocus == nil)
+    }
+
+    @Test("멈춘 뒤 다시 누르면 또 움직인다 — 1회성이라고 버튼이 한 번만 듣는 건 아니다")
+    func mapCameraSettled_thenRequestAgain() {
+        let coordinator = makeCoordinator()
+        coordinator.handle(PlaceDetailNav.focusMyLocation(fixtureCoordinate))
+        coordinator.mapCameraSettled()
+
+        coordinator.handle(PlaceDetailNav.focusMyLocation(fixtureCoordinate))
+
+        #expect(coordinator.mapFocus?.coordinate == fixtureCoordinate)
+    }
+
     @Test("같은 자리를 다시 요청해도 값이 달라진다 — 지도를 옮긴 뒤 다시 눌러도 돌아와야 한다")
     func focusMyLocation_repeatRequestIsANewValue() {
         let coordinator = makeCoordinator()
