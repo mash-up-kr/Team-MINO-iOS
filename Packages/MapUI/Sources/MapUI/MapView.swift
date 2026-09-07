@@ -266,7 +266,7 @@ private enum MarkerIcon {
         )
         let pinOrigin = CGPoint(x: (canvas.width - pin.size.width) / 2, y: 0)
 
-        let image = UIGraphicsImageRenderer(size: canvas).image { _ in
+        let composite = UIGraphicsImageRenderer(size: canvas).image { _ in
             pin.draw(in: CGRect(origin: pinOrigin, size: pin.size))
 
             for (index, line) in label.enumerated() {
@@ -289,15 +289,23 @@ private enum MarkerIcon {
             }
         }
 
-        // 끝점은 **핀 그림 안**에 있다. 캔버스가 아래로 커졌으므로 비율을 다시 센다.
-        let tip = pinTipRatio(for: style)
-        return MarkerArt(
-            image: image,
-            groundAnchor: CGPoint(
-                x: (pinOrigin.x + pin.size.width * tip.x) / canvas.width,
-                y: (pin.size.height * tip.y) / canvas.height
+        // **정렬 사각형을 핀 글리프로 좁힌다.** SDK 문서(`GMSMarker.icon`): "Supports the use of
+        // alignmentRectInsets to specify a reduced tap area. **This also redefines how anchors are
+        // specified.**"
+        //
+        // 이걸 안 하면 두 가지가 깨진다. 라벨이 핀보다 넓어 **투명한 라벨 자리가 옆 핀의 탭을
+        // 훔치고**(이름이 긴 장소일수록 심하다), 앵커도 캔버스 전체 기준이 되어 라벨 줄 수마다
+        // 다시 계산해야 한다. 정렬 사각형을 핀 그림에 맞추면 탭 영역이 핀만 남고 앵커는 라벨이
+        // 없을 때와 **같은 비율**이 된다 — 그래서 아래가 `pinTipRatio` 그대로다.
+        let image = composite.withAlignmentRectInsets(
+            UIEdgeInsets(
+                top: 0,
+                left: pinOrigin.x,
+                bottom: canvas.height - pin.size.height,
+                right: canvas.width - pin.size.width - pinOrigin.x
             )
         )
+        return MarkerArt(image: image, groundAnchor: pinTipRatio(for: style))
     }
 
 
