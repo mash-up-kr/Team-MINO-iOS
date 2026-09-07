@@ -17,6 +17,9 @@ public struct MHRoomCard: View {
     private let placeCount: Int
     private let thumbnail: MHRoomThumbnailKind
     private let members: [Image?]
+    /// 아바타로 보이지 않는 나머지 인원. `nil` 이면 카운터를 붙이지 않는다(4명 이하) —
+    /// PRD 「방 멤버 아바타」의 두 갈래를 그대로 옮긴 것이다.
+    private let memberOverflow: Int?
     private let selection: Binding<Bool>?
 
     public init(
@@ -25,6 +28,7 @@ public struct MHRoomCard: View {
         placeCount: Int,
         thumbnail: MHRoomThumbnailKind = .color(.pink),
         members: [Image?] = [],
+        memberOverflow: Int? = nil,
         selection: Binding<Bool>? = nil
     ) {
         self.title = title
@@ -32,6 +36,7 @@ public struct MHRoomCard: View {
         self.placeCount = placeCount
         self.thumbnail = thumbnail
         self.members = members
+        self.memberOverflow = memberOverflow
         self.selection = selection
     }
 
@@ -70,7 +75,11 @@ public struct MHRoomCard: View {
                 .mhTypography(.label2Bold)
                 .frame(maxWidth: .infinity, alignment: .leading)
             if selection == nil, !members.isEmpty {
-                MHAvatarGroup(members, variant: .person, size: .xSmall)
+                if let memberOverflow {
+                    MHAvatarGroup(members, variant: .person, size: .xSmall, counter: memberOverflow)
+                } else {
+                    MHAvatarGroup(members, variant: .person, size: .xSmall)
+                }
             }
         }
     }

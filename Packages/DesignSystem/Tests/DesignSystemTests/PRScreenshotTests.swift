@@ -171,12 +171,12 @@ final class PRScreenshotTests: XCTestCase {
         try snap("avatar_stack") {
             screen {
                 VStack(alignment: .leading, spacing: 20) {
-                    MHAvatarStack([Image?.none]) { }
+                    MHAvatarStack([Image?.none], onAdd: { })
                     MHAvatarStack(Array(repeating: Image?.none, count: 4))
-                    MHAvatarStack(Array(repeating: Image?.none, count: 3), trailing: .overflow(99))
+                    MHAvatarStack(Array(repeating: Image?.none, count: 3), overflow: 99)
                     HStack(spacing: 16) {
-                        MHAvatarStack(Array(repeating: Image?.none, count: 2), trailing: .overflow(5))
-                        MHAvatarStack(Array(repeating: Image?.none, count: 3), trailing: .overflow(12))
+                        MHAvatarStack(Array(repeating: Image?.none, count: 2), overflow: 5)
+                        MHAvatarStack(Array(repeating: Image?.none, count: 3), overflow: 12)
                     }
                 }
             }

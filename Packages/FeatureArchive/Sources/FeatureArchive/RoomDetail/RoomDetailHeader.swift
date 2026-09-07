@@ -27,7 +27,7 @@ struct RoomDetailHeader: View {
         HStack(spacing: 0) {
             // `+` 의 식별자·라벨은 `MHAvatarStack` 이 버튼 자신에 붙인다(`MHAvatarStack.add`) —
             // pill 에 걸면 아바타까지 전파돼 자동화가 `+` 를 지목할 수 없다.
-            MHAvatarStack(AvatarPalette.images(of: room.memberAvatarColors), onAdd: onAddMember)
+            memberPill
             Spacer(minLength: 8)
             HStack(spacing: 8) {
                 MHCircleIconButton(icon: .moreVertical, accessibilityLabel: "더보기", action: onMore)
@@ -42,6 +42,14 @@ struct RoomDetailHeader: View {
         .frame(height: 60)
     }
 
+    /// 멤버 아바타 pill. 개수·순서·카운터는 ``AvatarPalette/overlapped(_:)`` 가 정한다 — 방 카드와
+    /// 같은 규칙이다(PRD 「방 멤버 아바타」가 "방 카드·방 상세 헤더" 를 함께 묶는다).
+    /// 5명 이상이면 아바타 3개 + 카운터 칩이 서고, 그 오른쪽에 `+` 가 붙는다.
+    private var memberPill: some View {
+        let avatars = AvatarPalette.overlapped(room.memberAvatarColors)
+        return MHAvatarStack(avatars.images, overflow: avatars.overflow, onAdd: onAddMember)
+    }
+
     private var roomInfo: some View {
         MHRoomHeader(
             title: room.title,
@@ -52,6 +60,11 @@ struct RoomDetailHeader: View {
     }
 }
 
-#Preview {
+#Preview("멤버 4명 — 카운터 없음") {
     RoomDetailHeader(room: .sample, onAddMember: {}, onMore: {}, onClose: {})
+}
+
+// PRD 「방 멤버 아바타」 — 5명 이상은 아바타 3개 + 카운터 칩. 그 오른쪽에 `+` 가 붙는다.
+#Preview("멤버 7명 — 아바타 3개 + 카운터 4") {
+    RoomDetailHeader(room: .crowdedSample, onAddMember: {}, onMore: {}, onClose: {})
 }
