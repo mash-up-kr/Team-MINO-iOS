@@ -182,27 +182,29 @@ enum RoomDetailMoreMenuItemID: String, CaseIterable {
     }
 }
 
-/// 헤더 아래 카테고리 칩 목록.
+/// 지도 위 카테고리 칩 목록.
 ///
-/// 시안 004-1 ⑨ — "인스타에서 가져 온 저장 값에서 추가되는 형식(전시회 관련된 것을 저장 →
-/// 전시회 필터 생성 / 음식점 관련 → 음식점 필터 생성)". 즉 **고정 집합이 아니라 방에 담긴
-/// 장소들의 업종에서 만들어진다.** 목업의 "전체·카페·음식점" 3개는 그 방이 마침 그랬을 뿐이다.
+/// **`전체`/`카페`/`음식점` 3종 고정이다.** PRD 「카테고리 필터」가 "3종 고정이며 기본값은
+/// `전체`" 로 못박고, **비목표**에도 "저장 값 기반 동적 카테고리 생성 — 카테고리 필터는
+/// `전체`/`카페`/`음식점` 3종 고정으로 한정한다" 로 다시 적었다.
+///
+/// 시안 004-1 주석 ⑨ 의 "인스타에서 가져 온 저장 값에서 추가되는 형식(전시회 저장 → 전시회 필터
+/// 생성)" 은 확정 이전의 동적 생성안이다 — PRD 가 3종 고정 유지를 재확인하며 그 주석을 구버전
+/// 메모로 정리했고, 최신 목업도 칩 3개만 그린다.
+///
+/// 이름은 `RoomDetail*` 이지만 방 상세 전용이 아니다 — 방 리스트도 같은 칩을 쓴다
+/// (``RoomDetailSort`` 와 같은 사정). 두 화면이 한 상수를 보게 두어 갈릴 자리를 없앤다.
 enum RoomDetailCategoryList {
     /// 어떤 방에도 항상 있는 첫 칩. 기본 선택값이기도 하다.
     static let all = "전체"
 
-    /// 방에 담긴 장소들의 업종을 **처음 나온 순서대로** 모은다.
-    /// 알파벳/가나다 정렬을 하지 않는 건, 서버가 주는 순서가 곧 노출 우선순위이기 때문이다.
-    static func make(from pins: [Pin]) -> [String] {
-        var seen: Set<String> = []
-        var result = [all]
-        for category in pins.compactMap(\.place.category) where seen.insert(category).inserted {
-            result.append(category)
-        }
-        return result
-    }
+    /// 칩 목록 — 선언 순서가 곧 노출 순서다.
+    static let items = [all, "카페", "음식점"]
 
     /// 선택한 칩에 해당하는 장소만 남긴다. "전체"면 그대로 둔다.
+    ///
+    /// 고른 칩에 장소가 하나도 없으면 **빈 목록이 그대로 보인다** — 칩이 고정이라 되돌릴 곳이
+    /// 없고, 스펙(EC-003)도 "해당 카테고리 필터 적용 상태에서 장소 목록이 빈 상태로 표시된다" 다.
     static func filter(_ pins: [Pin], by category: String) -> [Pin] {
         guard category != all else { return pins }
         return pins.filter { $0.place.category == category }

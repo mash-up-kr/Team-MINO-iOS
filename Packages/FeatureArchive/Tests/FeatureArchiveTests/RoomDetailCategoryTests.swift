@@ -3,7 +3,7 @@ import Testing
 import Domain
 @testable import FeatureArchive
 
-@Suite("방 상세 업종 칩")
+@Suite("카테고리 칩")
 struct RoomDetailCategoryTests {
     private let now = Date(timeIntervalSince1970: 1_700_000_000)
 
@@ -20,23 +20,25 @@ struct RoomDetailCategoryTests {
         )
     }
 
-    @Test("칩 목록은 담긴 장소의 업종에서 만들어진다 — 고정 3개가 아니다")
-    func make_derivesFromPins() {
-        let pins = [pin("a", category: "카페"), pin("b", category: "전시회"), pin("c", category: "카페")]
-
-        #expect(RoomDetailCategoryList.make(from: pins) == ["전체", "카페", "전시회"])
+    // PRD 「카테고리 필터」 = 3종 고정, 기본값 `전체`. 비목표에도 "저장 값 기반 동적 카테고리
+    // 생성" 이 명시돼 있어, 방에 무엇이 담겼든 칩은 이 셋이다.
+    @Test("칩은 전체·카페·음식점 3종 고정이다 — 담긴 장소와 무관하다")
+    func items_areFixedThree() {
+        #expect(RoomDetailCategoryList.items == ["전체", "카페", "음식점"])
     }
 
-    @Test("업종이 없는 장소만 있으면 칩은 '전체' 하나다")
-    func make_noCategory() {
-        #expect(RoomDetailCategoryList.make(from: [pin("a", category: nil)]) == ["전체"])
+    @Test("첫 칩이 기본 선택값 '전체' 다")
+    func items_startWithAll() {
+        #expect(RoomDetailCategoryList.items.first == RoomDetailCategoryList.all)
     }
 
-    @Test("칩은 처음 나온 순서를 지킨다 — 가나다 정렬하지 않는다")
-    func make_keepsFirstSeenOrder() {
-        let pins = [pin("a", category: "음식점"), pin("b", category: "카페")]
+    // 칩에 없는 업종("전시회")의 장소는 `전체` 에서만 보인다 — 걸러 낼 칩 자체가 없다.
+    @Test("칩에 없는 업종의 장소는 전체에서만 보인다")
+    func filter_categoryOutsideChips() {
+        let pins = [pin("a", category: "카페"), pin("b", category: "전시회")]
 
-        #expect(RoomDetailCategoryList.make(from: pins) == ["전체", "음식점", "카페"])
+        #expect(RoomDetailCategoryList.filter(pins, by: "전체").count == 2)
+        #expect(RoomDetailCategoryList.filter(pins, by: "음식점").isEmpty)
     }
 
     @Test("'전체' 는 거르지 않는다")
