@@ -84,6 +84,11 @@ public enum RoomListAction: Equatable {
     case sortLocationResolved(CurrentLocationResult)
     /// 지도 마커 탭(핀 id).
     case tapPin(String)
+    /// 저장 탭 최초 진입 — 지도가 실제로 그려지는 시점의 위치 권한 요청(003-1 ⑦).
+    case requestLocationOnEntry
+    /// 진입 시 요청의 결과. 버튼(`.myLocationResolved`)·정렬(`.sortLocationResolved`)과
+    /// 하는 일이 또 다르다 — 카메라도 옮기지 않고 정렬도 세우지 않는다.
+    case entryLocationResolved(CurrentLocationResult)
     case loadFailed(DomainError)   // Response Action (실패)
     case selectFilter(Int)
     case selectRoomSort(PinSort)
@@ -251,6 +256,31 @@ public func roomListReducer(
             // 늦게 온 응답은 버린다 — 그사이 다른 기준을 골랐다면 지금 화면과 다른 마커다.
             guard query == state.query else { return .none }
             state.pins = pins
+            return .none
+        // PRD 「지연 권한 요청」 — "위치 권한을 묻는 맥락은 세 곳이다 — **지도가 실제로 그려지는
+        // 시점(저장 탭 최초 진입)**, 홈 탭 `가까운순` 전환, 마이페이지 `위치 설정` 스위치" /
+        // "탭 진입 ➔ 지도 초기화(**위치 권한이 아직 없을 때만 이 시점에 요청** — 이미 허용됐다면
+        // 묻지 않는다)".
+        //
+        // 좌표를 이미 들고 있으면 물어본 적이 있다는 뜻이라 넘어간다. `CurrentLocationUseCase` 가
+        // 이미 거부된 상태면 팝업 없이 `permissionDenied` 로 돌아오므로, 거부한 사용자를 탭마다
+        // 다시 괴롭히지도 않는다.
+        case .requestLocationOnEntry:
+            guard state.myCoordinate == nil, !state.isLocating, !state.isLocatingForSort else {
+                return .none
+            }
+            return .run { send in
+                let result = await currentLocation.execute()
+                guard !Task.isCancelled else { return }
+                send(.entryLocationResolved(result))
+            }
+        case .entryLocationResolved(let result):
+            // **카메라를 옮기지 않는다.** 진입 시 하는 일은 권한 확보와 좌표 확보까지다 —
+            // 지도를 내 위치로 끌어가는 것은 사용자가 현위치 버튼을 눌렀을 때의 동작이다.
+            // 거부·측위 실패도 조용히 지나간다: PRD "거부: 기본 디폴트 좌표를 중심점으로 세팅"
+            // 이고 그 기본 카메라(`PlaceMap.defaultCamera`, 강남)가 이미 기본값이다.
+            guard case .coordinate(let coordinate) = result else { return .none }
+            state.myCoordinate = coordinate
             return .none
         case .tapPin(let pinID):
             // 목록에 없는 id 는 무시한다 — 마커를 지우는 사이 들어온 탭이다.
