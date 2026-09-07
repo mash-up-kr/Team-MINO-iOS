@@ -31,11 +31,11 @@ struct ArchiveShellView: View {
         ZStack {
             PlaceMapLayer(
                 bottomInset: mapBottomInset,
-                pins: detailStore?.state.pins ?? [],
+                pins: mapPins,
                 myLocation: coordinator.mapFocus?.coordinate,
-                roomColor: coordinator.selectedRoom?.color,
+                roomColors: roomColors,
                 selectedPinID: coordinator.selectedPin?.id.value,
-                onSelectPin: { detailStore?.send(.tapLocation($0)) }
+                onSelectPin: selectPin
             )
             // 루트·지도버튼·방리스트시트에 이미 `.sheet` 가 하나씩 붙어 있다(같은 뷰에 둘 달면 하나만
             // 뜬다). 지도 레이어는 `if` 밖이라 시트가 떠 있는 동안 사라지지 않는 유일한 빈 자리다 —
@@ -359,6 +359,31 @@ struct ArchiveShellView: View {
         return detailStore == nil ? "RoomList.sheet" : "RoomDetail.sheet"
     }
 
+    /// 지도에 그릴 핀 — 방을 열었으면 그 방의 것, 방 리스트를 보는 중이면 **내 모든 방의 것**이다
+    /// (PRD [SYS-004]: "[SCR-004] 방 리스트 탭: 내 모든 방의 장소 마커를 한 지도에 표시").
+    private var mapPins: [Pin] {
+        detailStore?.state.pins ?? roomListStore?.state.pins ?? []
+    }
+
+    /// 방 id → 대표 색. 마커가 소속 방 색을 따르려면(같은 PRD 항목) 목록 전체의 색이 필요하다.
+    /// 색을 안 고른 방은 담지 않는다 — 표에 없으면 `PlaceMap` 이 기본 회색으로 떨어뜨린다.
+    private var roomColors: [String: RoomColor] {
+        guard let rooms = roomListStore?.state.rooms else { return [:] }
+        return rooms.reduce(into: [:]) { table, room in
+            if let color = room.color { table[room.id] = color }
+        }
+    }
+
+    /// 마커 탭 — 방 상세를 열었으면 그 화면이 받고(목록 스크롤·선택 상태가 그쪽에 있다),
+    /// 방 리스트를 보는 중이면 방 리스트가 받아 곧장 장소 상세를 띄운다.
+    private func selectPin(_ pinID: String) {
+        if let detailStore {
+            detailStore.send(.tapLocation(pinID))
+        } else {
+            roomListStore?.send(.tapPin(pinID))
+        }
+    }
+
     /// 시트가 지도를 가리는 높이. 구글 로고가 시트 위로 올라오도록 지도 padding 으로 넘긴다.
     /// `MapView` 가 safe-area 를 더해 적용하므로(`paddingAdjustmentBehavior = .always`)
     /// safe-area 를 뺀 값을 준다 — `MHBottomSheet` 에 주는 값과 기준이 같아, 탭바 보정도
@@ -405,8 +430,12 @@ struct ArchiveShellView: View {
 
     private func roomCategoryBinding(_ store: RoomListStore) -> Binding<Int> {
         Binding(
-            get: { store.state.categoryFilter },
-            set: { store.send(.selectCategory($0)) }
+            get: { PlaceCategoryFilter.allCases.firstIndex(of: store.state.category) ?? 0 },
+            // 칩은 고정이라 정상 경로에서 범위를 벗어날 일이 없지만, 들어오면 무시한다.
+            set: { index in
+                guard PlaceCategoryFilter.allCases.indices.contains(index) else { return }
+                store.send(.selectCategory(PlaceCategoryFilter.allCases[index]))
+            }
         )
     }
 

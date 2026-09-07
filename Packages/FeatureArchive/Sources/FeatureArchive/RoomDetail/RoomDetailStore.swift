@@ -2,14 +2,6 @@ import Domain
 import Foundation
 import MVI
 
-/// 서버에 낸 조회 조건. 응답에 함께 실어 **늦게 온 응답을 버리는** 데 쓴다 — 정렬을 연달아
-/// 바꾸면 먼저 낸 요청이 나중에 도착할 수 있고, 그러면 사용자가 마지막에 고른 것과 다른 목록이
-/// 화면에 남는다.
-struct RoomDetailQuery: Equatable {
-    var sort: PinSort = .all
-    var category: PlaceCategoryFilter = .all
-}
-
 struct RoomDetailState: Equatable {
     var room: RoomDetailRoom
     var pins: [Pin] = []
@@ -45,13 +37,13 @@ struct RoomDetailState: Equatable {
 
     /// 지금 화면이 고른 조회 조건. 요청을 낼 때와 응답을 받아들일지 판단할 때 같은 값을 봐야 해서
     /// 한자리에서 만든다.
-    var query: RoomDetailQuery { RoomDetailQuery(sort: sort, category: category) }
+    var query: PinQuery { PinQuery(sort: sort, category: category) }
 }
 
 enum RoomDetailAction: Equatable {
     case load
     /// 조회 결과. **어떤 조건으로 낸 요청인지 함께 실어** 늦게 온 응답을 버릴 수 있게 한다.
-    case loaded([Pin], for: RoomDetailQuery)
+    case loaded([Pin], for: PinQuery)
     case loadFailed(DomainError)
     case loadCurrentMember
     case currentMemberLoaded(MemberProfile)

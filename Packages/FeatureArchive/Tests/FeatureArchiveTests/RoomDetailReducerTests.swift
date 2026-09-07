@@ -145,7 +145,7 @@ struct RoomDetailReducerTests {
     func load_success() async {
         let store = makeStore()
         await store.send(.load)
-        await store.receive(.loaded(fixturePins, for: RoomDetailQuery())) {
+        await store.receive(.loaded(fixturePins, for: PinQuery())) {
             $0.pins = fixturePins
             $0.locations = locations()
         }
@@ -177,7 +177,7 @@ struct RoomDetailReducerTests {
         )
 
         await store.send(.selectSort(.latest)) { $0.sort = .latest }
-        await store.receive(.loaded(reordered, for: RoomDetailQuery(sort: .latest))) {
+        await store.receive(.loaded(reordered, for: PinQuery(sort: .latest))) {
             $0.pins = reordered
             $0.locations = locations(reordered)
         }
@@ -200,7 +200,7 @@ struct RoomDetailReducerTests {
         let stale = [fixturePins[0]]
         let store = makeStore(state: loadedState(sort: .latest))
 
-        await store.send(.loaded(stale, for: RoomDetailQuery(sort: .comment)))
+        await store.send(.loaded(stale, for: PinQuery(sort: .comment)))
 
         #expect(store.currentState.pins == fixturePins)
         #expect(store.currentState.locations == locations())
@@ -217,7 +217,7 @@ struct RoomDetailReducerTests {
         )
 
         await store.send(.selectCategory(.restaurant)) { $0.category = .restaurant }
-        await store.receive(.loaded(onlyRestaurant, for: RoomDetailQuery(category: .restaurant))) {
+        await store.receive(.loaded(onlyRestaurant, for: PinQuery(category: .restaurant))) {
             $0.pins = onlyRestaurant
             $0.locations = locations(onlyRestaurant)
         }
@@ -229,7 +229,7 @@ struct RoomDetailReducerTests {
         let store = makeStore(state: loadedState(pins: [fixturePins[1]], category: .restaurant))
 
         await store.send(.selectCategory(.all)) { $0.category = .all }
-        await store.receive(.loaded(fixturePins, for: RoomDetailQuery())) {
+        await store.receive(.loaded(fixturePins, for: PinQuery())) {
             $0.pins = fixturePins
             $0.locations = locations()
         }
@@ -314,7 +314,7 @@ struct RoomDetailReducerTests {
             $0.sort = .distance
         }
         // 좌표를 얻은 뒤에야 거리순 조회가 나간다.
-        await store.receive(.loaded(nearby, for: RoomDetailQuery(sort: .distance))) {
+        await store.receive(.loaded(nearby, for: PinQuery(sort: .distance))) {
             $0.pins = nearby
             $0.locations = locations(nearby)
         }
@@ -362,7 +362,7 @@ struct RoomDetailReducerTests {
         let store = makeStore(StubFetchPins(resultsBySort: [.distance: nearby]), state: state)
 
         await store.send(.selectSort(.distance)) { $0.sort = .distance }
-        await store.receive(.loaded(nearby, for: RoomDetailQuery(sort: .distance))) {
+        await store.receive(.loaded(nearby, for: PinQuery(sort: .distance))) {
             $0.pins = nearby
             $0.locations = locations(nearby)
         }
@@ -390,7 +390,7 @@ struct RoomDetailReducerTests {
             $0.isLocating = false
             $0.sort = .latest
         }
-        await store.receive(.loaded(fixturePins, for: RoomDetailQuery(sort: .latest)))
+        await store.receive(.loaded(fixturePins, for: PinQuery(sort: .latest)))
         await store.receive(.locationResolved(.coordinate(fixtureOrigin)))
 
         #expect(store.currentState.sort == .latest)

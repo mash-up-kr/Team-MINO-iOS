@@ -15,8 +15,10 @@ public struct PlaceMapLayer: View {
     /// 현위치 버튼(005-1)이 잡아 둔 내 위치. 서 있으면 핀 맞춤 대신 여기를 비춘다.
     let myLocation: Coordinate?
 
-    /// 방 대표 색 — 마커 색이 방 색을 따른다(005-1 ①). 색을 안 고른 방(`nil`·`gray`)은 기본색.
-    let roomColor: RoomColor?
+    /// 방 id → 대표 색. 마커 색이 **소속 방의 색**을 따른다(005-1 ① · PRD [SYS-004]).
+    /// 방 리스트 탭은 여러 방의 핀이 한 지도에 뜨므로 방 하나가 아니라 표를 받는다.
+    /// 색을 안 고른 방(`nil`·`gray`)이나 표에 없는 방은 기본색으로 떨어진다.
+    let roomColors: [String: RoomColor]
 
     /// 지금 장소 상세로 열려 있는 핀. 그 마커만 선택 상태로 그린다(005-1 ①).
     /// 선택 상태는 지도가 들지 않는다 — 어느 장소를 보고 있는지는 이미 화면이 아는 값이라
@@ -34,7 +36,7 @@ public struct PlaceMapLayer: View {
         bottomInset: CGFloat,
         pins: [Pin],
         myLocation: Coordinate?,
-        roomColor: RoomColor?,
+        roomColors: [String: RoomColor],
         selectedPinID: String?,
         onSelectPin: @escaping (String) -> Void,
         cameraMode: PlaceMapCameraMode = .fitPins
@@ -42,7 +44,7 @@ public struct PlaceMapLayer: View {
         self.bottomInset = bottomInset
         self.pins = pins
         self.myLocation = myLocation
-        self.roomColor = roomColor
+        self.roomColors = roomColors
         self.selectedPinID = selectedPinID
         self.onSelectPin = onSelectPin
         self.cameraMode = cameraMode
@@ -55,7 +57,11 @@ public struct PlaceMapLayer: View {
             if MapService.isConfigured {
                 MapView(
                     camera: PlaceMap.camera(cameraMode, pins: pins, focusing: myLocation),
-                    markers: PlaceMap.markers(pins: pins, roomColor: roomColor, selectedPinID: selectedPinID),
+                    markers: PlaceMap.markers(
+                        pins: pins,
+                        roomColors: roomColors,
+                        selectedPinID: selectedPinID
+                    ),
                     padding: EdgeInsets(top: 0, leading: 0, bottom: bottomInset, trailing: 0),
                     onEvent: { event in
                         if let id = PlaceMap.tappedPinID(in: event) { onSelectPin(id) }
@@ -100,11 +106,22 @@ public enum PlaceMap {
     /// 그 상태를 들일 이유가 없다.
     public static var myLocationZoom: Float { defaultCamera.zoom }
 
-    /// 방의 핀을 지도 마커로 옮긴다. 마커 `id` 는 핀 id — 탭 이벤트가 이 값으로 되돌아온다.
-    /// 색은 방 하나에 하나라 전부 같고, 지금 열려 있는 핀만 선택 상태가 된다(005-1 ①).
-    public static func markers(pins: [Pin], roomColor: RoomColor?, selectedPinID: String?) -> [MapMarker] {
-        let roomTint = tint(for: roomColor)
-        return pins.map { pin in
+    /// 핀을 지도 마커로 옮긴다. 마커 `id` 는 핀 id — 탭 이벤트가 이 값으로 되돌아온다.
+    /// 지금 열려 있는 핀만 선택 상태가 된다(005-1 ①).
+    ///
+    /// **색은 마커마다 다르다** — PRD [SYS-004] 가 "[SCR-004] 방 리스트 탭: 내 모든 방의 장소
+    /// 마커를 한 지도에 표시하며, **각 마커는 소속 방의 대표 색상을 따른다**" 로 못박았다.
+    /// 방 상세는 방이 하나라 결과적으로 다 같은 색이 된다 — 같은 함수로 두 화면을 덮는다.
+    ///
+    /// - Parameter roomColors: 방 id → 대표 색. 색을 안 고른 방(`nil`)이나 목록에 없는 방 id 는
+    ///   기본 회색으로 떨어진다(``tint(for:)``) — 방 목록보다 핀이 먼저 도착해도 마커가 사라지지
+    ///   않고 회색으로 선다.
+    public static func markers(
+        pins: [Pin],
+        roomColors: [String: RoomColor],
+        selectedPinID: String?
+    ) -> [MapMarker] {
+        pins.map { pin in
             MapMarker(
                 id: pin.id.value,
                 coordinate: MapCoordinate(
@@ -112,7 +129,10 @@ public enum PlaceMap {
                     longitude: pin.place.coordinate.longitude
                 ),
                 title: pin.place.name,
-                style: MapMarkerStyle(tint: roomTint, isSelected: pin.id.value == selectedPinID)
+                style: MapMarkerStyle(
+                    tint: tint(for: roomColors[pin.roomID]),
+                    isSelected: pin.id.value == selectedPinID
+                )
             )
         }
     }
