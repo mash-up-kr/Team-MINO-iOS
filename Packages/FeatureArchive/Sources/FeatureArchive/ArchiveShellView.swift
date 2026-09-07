@@ -20,6 +20,9 @@ struct ArchiveShellView: View {
     @State private var sortMenuOpen = false
 
     @State private var toastMessage: String?
+    /// 지금 지도 줌. 핀 아래 장소명을 그릴지 가른다(``PlaceMap/showsLabels(atZoom:)``) —
+    /// 멀리서는 이름끼리 겹쳐 읽히지 않는다. `nil` 이면 아직 카메라 idle 을 못 받은 상태다.
+    @State private var mapZoom: Float?
     @State private var toastToken = 0
 
     init(coordinator: ArchiveCoordinator) {
@@ -35,7 +38,9 @@ struct ArchiveShellView: View {
                 myLocation: coordinator.mapFocus?.coordinate,
                 roomColors: roomColors,
                 selectedPinID: coordinator.selectedPin?.id.value,
-                onSelectPin: selectPin
+                onSelectPin: selectPin,
+                zoom: mapZoom,
+                onCameraIdle: { mapZoom = $0 }
             )
             // 루트·지도버튼·방리스트시트에 이미 `.sheet` 가 하나씩 붙어 있다(같은 뷰에 둘 달면 하나만
             // 뜬다). 지도 레이어는 `if` 밖이라 시트가 떠 있는 동안 사라지지 않는 유일한 빈 자리다 —
