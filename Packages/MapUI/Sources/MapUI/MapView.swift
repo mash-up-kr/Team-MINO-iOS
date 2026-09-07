@@ -222,11 +222,27 @@ private enum MarkerIcon {
     private static let labelTopGap: CGFloat = 2
     private static let labelLineHeight: CGFloat = 14
 
+    /// 클러스터 지름(시안에 지정이 없어 플래그). 핀 폭 48 과 비슷하게 잡아 두 형태가 같은
+    /// 무게로 보이게 했다.
+    private static let clusterSide: CGFloat = 44
+    private static let clusterFont = UIFont.systemFont(ofSize: 14, weight: .bold)
+    private static let clusterTextColor = UIColor(white: 0.15, alpha: 1)
+    private static let clusterBorderColor = UIColor.white
+    private static let clusterBorderWidth: CGFloat = 2
+
     static func art(
         for style: MapMarkerStyle,
         label: [String],
         cache: inout [MapMarkerStyle: UIImage]
     ) -> MarkerArt? {
+        // 클러스터는 라벨을 달지 않는다(어느 장소의 이름인지 정할 수 없다) — 원 하나로 끝난다.
+        if case .cluster(let count) = style.kind {
+            guard let image = clusterImage(count: count, tint: UIColor(style.tint), cache: &cache, style: style) else {
+                return nil
+            }
+            // 원의 가운데가 좌표를 가리킨다 — 핀처럼 아래로 뾰족한 끝이 없다.
+            return MarkerArt(image: image, groundAnchor: CGPoint(x: 0.5, y: 0.5))
+        }
         guard let pin = pinImage(for: style, cache: &cache) else { return nil }
         guard !label.isEmpty else {
             return MarkerArt(image: pin, groundAnchor: pinTipRatio(for: style))
@@ -243,6 +259,52 @@ private enum MarkerIcon {
         if let cached = cache[style] { return cached }
         let image = style.isSelected ? asset("mapPinSelected") : unselected(tint: UIColor(style.tint))
         if let image { cache[style] = image }
+        return image
+    }
+
+    /// 클러스터 그림 — 방 색 원 + 흰 테두리 + 카운트.
+    ///
+    /// **시안 에셋이 없어 근사했다(플래그).** PRD 는 `클러스터 1~99`·`클러스터 100+` 를 핀의 네
+    /// 형태 중 둘로 적었지만 디자인 라이브러리에 그 컴포넌트가 없다. 값이 나오면 이 함수를
+    /// 에셋 로드로 갈아끼우면 된다 — 카운트 표기 규칙은 `PlaceMap.clusterCountText` 가 갖는다.
+    private static func clusterImage(
+        count: Int,
+        tint: UIColor,
+        cache: inout [MapMarkerStyle: UIImage],
+        style: MapMarkerStyle
+    ) -> UIImage? {
+        if let cached = cache[style] { return cached }
+
+        let text = MapMarkerKind.clusterCountText(count) as NSString
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: clusterFont,
+            .foregroundColor: clusterTextColor,
+        ]
+        // 카운트가 길면(`100+`) 원을 가로로 늘려 글자가 넘치지 않게 한다.
+        let textSize = text.size(withAttributes: attributes)
+        let side = max(clusterSide, textSize.width + clusterFont.pointSize)
+        let canvas = CGSize(width: side.rounded(.up), height: clusterSide)
+
+        let image = UIGraphicsImageRenderer(size: canvas).image { context in
+            let rect = CGRect(origin: .zero, size: canvas)
+                .insetBy(dx: clusterBorderWidth / 2, dy: clusterBorderWidth / 2)
+            let path = UIBezierPath(roundedRect: rect, cornerRadius: rect.height / 2)
+            tint.setFill()
+            path.fill()
+            clusterBorderColor.setStroke()
+            path.lineWidth = clusterBorderWidth
+            path.stroke()
+
+            text.draw(
+                at: CGPoint(
+                    x: (canvas.width - textSize.width) / 2,
+                    y: (canvas.height - textSize.height) / 2
+                ),
+                withAttributes: attributes
+            )
+            _ = context
+        }
+        cache[style] = image
         return image
     }
 

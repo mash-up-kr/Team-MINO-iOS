@@ -40,6 +40,9 @@ public struct PlaceMapLayer: View {
     /// 들지 않는 것은 선택 상태와 같은 이유다(화면이 아는 값과 어긋날 수 있다).
     let onCameraIdle: ((Float) -> Void)?
 
+    /// 클러스터를 눌렀다(그 클러스터의 좌표) — 그 자리를 한 단계 확대해 묶음이 풀리게 한다.
+    let onZoomIn: ((MapCoordinate) -> Void)?
+
     public init(
         bottomInset: CGFloat,
         pins: [Pin],
@@ -49,7 +52,8 @@ public struct PlaceMapLayer: View {
         onSelectPin: @escaping (String) -> Void,
         cameraMode: PlaceMapCameraMode = .fitPins,
         zoom: Float? = nil,
-        onCameraIdle: ((Float) -> Void)? = nil
+        onCameraIdle: ((Float) -> Void)? = nil,
+        onZoomIn: ((MapCoordinate) -> Void)? = nil
     ) {
         self.bottomInset = bottomInset
         self.pins = pins
@@ -60,6 +64,18 @@ public struct PlaceMapLayer: View {
         self.cameraMode = cameraMode
         self.zoom = zoom
         self.onCameraIdle = onCameraIdle
+        self.onZoomIn = onZoomIn
+    }
+
+    /// 지금 그릴 마커. 탭 조회(어느 클러스터를 눌렀는지)에도 같은 값을 써야 해서 한 번만 만든다.
+    private var currentMarkers: [MapMarker] {
+        PlaceMap.clustered(
+            pins: pins,
+            zoom: zoom,
+            roomColors: roomColors,
+            selectedPinID: selectedPinID,
+            showsLabels: PlaceMap.showsLabels(atZoom: zoom)
+        )
     }
 
     public var body: some View {
@@ -67,17 +83,21 @@ public struct PlaceMapLayer: View {
             Color.mhBackgroundNormalAlternative
             #if canImport(GoogleMaps)
             if MapService.isConfigured {
+                let markers = currentMarkers
                 MapView(
                     camera: PlaceMap.camera(cameraMode, pins: pins, focusing: myLocation),
-                    markers: PlaceMap.markers(
-                        pins: pins,
-                        roomColors: roomColors,
-                        selectedPinID: selectedPinID,
-                        showsLabels: PlaceMap.showsLabels(atZoom: zoom)
-                    ),
+                    markers: markers,
                     padding: EdgeInsets(top: 0, leading: 0, bottom: bottomInset, trailing: 0),
                     onEvent: { event in
-                        if let id = PlaceMap.tappedPinID(in: event) { onSelectPin(id) }
+                        if let id = PlaceMap.tappedPinID(in: event) {
+                            // 클러스터 탭은 장소를 지목하지 않는다 — 어느 장소인지 정해지지 않아
+                            // 상세를 열 수 없다. **확대로 응한다**(PRD 에 이 동작 지정이 없어 플래그).
+                            if PlaceMap.isClusterID(id) {
+                                markers.first { $0.id == id }.map { onZoomIn?($0.coordinate) }
+                            } else {
+                                onSelectPin(id)
+                            }
+                        }
                         if let zoom = PlaceMap.idleZoom(in: event) { onCameraIdle?(zoom) }
                     }
                 )
@@ -96,6 +116,10 @@ public enum PlaceMapCameraMode: Equatable, Sendable {
     /// 한 장소를 고정 줌으로 가운데 둔다(홈 카드덱에서 연 장소 상세).
     /// 마커가 하나뿐이라 맞출 범위가 없어 `fitPins` 로는 줌이 정해지지 않는다.
     case centered(Coordinate)
+
+    /// 한 지점을 **지정한 줌**으로 가운데 둔다. 클러스터를 눌러 확대할 때 쓴다 —
+    /// `centered` 는 기본 줌으로 고정이라 "지금보다 더 확대" 를 표현할 수 없다.
+    case zoomed(MapCoordinate, zoom: Float)
 }
 
 /// 지도에 **무엇을** 그릴지 정하는 순수 계산부. 뷰에서 떼어 둔 이유는 두 가지다:
@@ -218,6 +242,9 @@ public enum PlaceMap {
                     zoom: defaultCamera.zoom
                 )
             )
+        case .zoomed(let coordinate, let zoom):
+            // 현위치 요청보다 뒤에 온 조작이라 이쪽이 이긴다 — 사용자가 방금 누른 클러스터다.
+            return .position(MapCameraPosition(coordinate: coordinate, zoom: zoom))
         }
     }
 
