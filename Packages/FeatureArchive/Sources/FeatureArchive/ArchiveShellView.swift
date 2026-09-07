@@ -110,6 +110,10 @@ struct ArchiveShellView: View {
                 roomListStore = store
             }
             store.send(.load)                             // 조회는 다시 보일 때마다
+            // 지도가 실제로 그려지는 시점의 위치 권한 요청(003-1 ⑦ · PRD 「지연 권한 요청」).
+            // 조회와 같은 자리에서 매번 보내도 되는 이유는 reduce 가 "좌표를 이미 들고 있으면
+            // 넘어간다" 로 1회를 보장하기 때문이다 — 여기서 플래그를 따로 들지 않는다.
+            store.send(.requestLocationOnEntry)
         }
         // 껍데기가 **사라지지 않는** 사이에 방이 늘어난 경우(공유 시트 위 커버에서 방 생성).
         // 위 `.task` 는 시트가 떠도 돌지 않으므로 그 경로는 이 신호로만 갱신된다.

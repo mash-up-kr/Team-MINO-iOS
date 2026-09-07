@@ -504,6 +504,60 @@ struct RoomListReducerTests {
         store.finish()   // navigate 가 나갔다면 미처리 nav 로 여기서 걸린다
     }
 
+    // MARK: - 진입 시 위치 권한 (003-1 ⑦ · PRD 「지연 권한 요청」)
+
+    // "지도가 실제로 그려지는 시점(저장 탭 최초 진입)" 에 묻는다. 좌표만 확보하고 **카메라는
+    // 옮기지 않는다** — 지도를 내 위치로 끌어가는 건 현위치 버튼의 동작이다.
+    @Test("L2 — 진입 시 좌표를 받아 두지만 카메라는 옮기지 않는다")
+    func requestLocationOnEntry() async {
+        let origin = Coordinate(latitude: 37.4966, longitude: 127.0530)
+        let store = makeStore(state: RoomListState(rooms: fixtureRooms))
+
+        await store.send(.requestLocationOnEntry)
+        await store.receive(.entryLocationResolved(.coordinate(origin))) { $0.myCoordinate = origin }
+
+        store.finish()   // focusMyLocation 이 나갔다면 미처리 nav 로 여기서 걸린다
+    }
+
+    // 껍데기의 `.task` 는 화면이 다시 보일 때마다 도는데(탭 복귀·pop) 그때마다 물으면 안 된다.
+    @Test("L1 — 좌표를 이미 들고 있으면 다시 묻지 않는다")
+    func requestLocationOnEntry_skipsWhenKnown() async {
+        var state = RoomListState(rooms: fixtureRooms)
+        state.myCoordinate = Coordinate(latitude: 37.5, longitude: 127.0)
+        let store = makeStore(state: state)
+
+        await store.send(.requestLocationOnEntry)
+
+        store.finish()   // 요청이 나갔다면 미처리 effect 로 여기서 걸린다
+    }
+
+    @Test("L1 — 현위치 버튼이 이미 묻고 있으면 겹쳐 묻지 않는다")
+    func requestLocationOnEntry_skipsWhileLocating() async {
+        var state = RoomListState(rooms: fixtureRooms)
+        state.isLocating = true
+        let store = makeStore(state: state)
+
+        await store.send(.requestLocationOnEntry)
+
+        store.finish()
+    }
+
+    // 거부는 조용히 지나간다 — 시안에 이 실패를 알리는 UI 가 없고, PRD 도 "거부: 기본 디폴트
+    // 좌표를 중심점으로 세팅" 이라 기본 카메라(강남)가 그대로 답이다.
+    @Test("L2 — 거부되면 아무것도 바꾸지 않는다")
+    func requestLocationOnEntry_permissionDenied() async {
+        let store = makeStore(
+            state: RoomListState(rooms: fixtureRooms),
+            location: StubCurrentLocation(result: .permissionDenied)
+        )
+
+        await store.send(.requestLocationOnEntry)
+        await store.receive(.entryLocationResolved(.permissionDenied))
+
+        #expect(store.currentState.myCoordinate == nil)
+        store.finish()
+    }
+
     @Test("L1 — tapRoom 은 고른 방을 실어 방 상세로 navigate 한다")
     func tapRoom() async {
         let store = makeStore(state: RoomListState(rooms: fixtureRooms))
