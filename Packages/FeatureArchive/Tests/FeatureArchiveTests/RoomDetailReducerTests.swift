@@ -12,6 +12,14 @@ private let fixtureRoom = Room(
     pinCount: 3, memberCount: 2, users: []
 )
 
+/// 개인방(`내 장소`) — `+`(초대)·`⋮`(더보기)가 없어야 하는 방이다. 다른 값은 위와 같게 두고
+/// `type` 만 갈라, 갈리는 원인이 방 종류 하나임을 분명히 한다.
+private let fixturePersonalRoom = Room(
+    id: "r1", type: .personal, name: Room.personalDisplayName, description: nil, color: nil,
+    ownerId: "u1", createdAt: Date(timeIntervalSince1970: 0),
+    pinCount: 3, memberCount: 1, users: []
+)
+
 /// 업종을 카페 2 · 음식점 1 로 섞는다 — 칩을 눌렀을 때 실제로 걸러지는지 보려면 섞여 있어야 한다.
 private let fixtureCategories = ["카페", "음식점", "카페"]
 
@@ -86,6 +94,7 @@ struct RoomDetailReducerTests {
         deletePin: DeletePinUseCase = StubDeletePin(),
         currentMember: CurrentMemberUseCase = StubCurrentMember(),
         currentLocation: CurrentLocationUseCase = StubCurrentLocation(),
+        room: Room = fixtureRoom,
         state: RoomDetailState = RoomDetailState(room: RoomDetailRoom(from: fixtureRoom))
     ) -> TestStore<RoomDetailState, RoomDetailAction, RoomDetailNav> {
         TestStore(
@@ -95,7 +104,7 @@ struct RoomDetailReducerTests {
                 deletePin: deletePin,
                 fetchCurrentMember: currentMember,
                 currentLocation: currentLocation,
-                room: fixtureRoom,
+                room: room,
                 now: { fixtureNow }
             )
         )
@@ -210,6 +219,20 @@ struct RoomDetailReducerTests {
         await store.send(.tapAddMember)
         store.receiveNavigation(.inviteFriends(fixtureRoom))
         store.finish()
+    }
+
+    // PRD 「개인방」 = **초대 불가**, [SYS-006] = "공동방에 타인을 초대할 때". 헤더가 `+` 를
+    // 그리지 않으므로 평소엔 오지 않는 길이지만, 와도 시트를 열지 않아야 한다 — 개인방 초대
+    // 링크가 나가면 "혼자만의 공간" 이라는 방 종류의 정의가 깨진다.
+    @Test("L1 — 개인방에서는 tapAddMember 가 아무것도 하지 않는다")
+    func tapAddMember_personalRoom() async {
+        let store = makeStore(
+            room: fixturePersonalRoom,
+            state: RoomDetailState(room: RoomDetailRoom(from: fixturePersonalRoom))
+        )
+
+        await store.send(.tapAddMember)
+        store.finish()   // navigate 가 나갔다면 미처리 nav 로 여기서 걸린다
     }
 
     @Test("L1 — tapLocation 은 그 장소의 핀을 실어 navigate 한다")
@@ -517,6 +540,19 @@ struct RoomDetailReducerTests {
 
         await store.send(.tapMore) { $0.isMoreMenuPresented = true }
         await store.send(.tapMore) { $0.isMoreMenuPresented = false }
+        store.finish()
+    }
+
+    // 시안 `004-5` Case 3(내 장소)에는 더보기 버튼 자체가 없다 — 편집은 방장 전용이고 나가기는
+    // 개인방 금지라 열어도 항목이 하나도 없다.
+    @Test("L1 — 개인방에서는 tapMore 가 케밥을 열지 않는다")
+    func tapMore_personalRoom() async {
+        let store = makeStore(
+            room: fixturePersonalRoom,
+            state: RoomDetailState(room: RoomDetailRoom(from: fixturePersonalRoom))
+        )
+
+        await store.send(.tapMore)   // 상태 변화 없음 — 변했다면 exhaustive 단언이 걸린다
         store.finish()
     }
 

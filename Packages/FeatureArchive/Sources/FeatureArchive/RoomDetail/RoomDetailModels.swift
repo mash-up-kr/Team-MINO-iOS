@@ -58,6 +58,16 @@ struct RoomDetailRoom: Equatable {
     /// 방 참여자들의 아바타 프리셋 번호. 헤더 아바타 pill 이 이 순서대로 얼굴을 늘어놓는다.
     /// 수가 아니라 목록으로 드는 건, 그리려면 몇 명인지가 아니라 **누구인지**를 알아야 하기 때문이다.
     let memberAvatarColors: [AvatarColor?]
+    /// 개인방(`내 장소`)인가 — 헤더 액션 줄에서 `+`(초대)와 `⋮`(더보기)를 **뺄지**의 기준이다.
+    ///
+    /// 둘 다 개인방에는 놓을 것이 없다. PRD 「개인방」이 **초대 불가**·**삭제/나가기 금지**로
+    /// 못박았고([SYS-006]도 "공동방에 타인을 초대할 때"로 한정한다), 더보기 메뉴는 편집(방장 전용)
+    /// 과 나가기 둘뿐이라 개인방에서는 항목이 하나도 남지 않는다(시안 `004-5` Case 3 = 더보기
+    /// 버튼 자체가 없음).
+    ///
+    /// 방 종류(`RoomType`)를 그대로 들지 않고 Bool 로 좁힌 건 표시 모델이 필요한 것이 "종류" 가
+    /// 아니라 "이 두 버튼을 그리는가" 하나이기 때문이다.
+    let isPersonal: Bool
 
     var locationCountText: String {
         locationCount > Self.countCap ? "\(Self.countCap)+개" : "\(locationCount)개"
@@ -70,7 +80,8 @@ struct RoomDetailRoom: Equatable {
             title: title,
             memo: memo,
             locationCount: max(0, locationCount - 1),
-            memberAvatarColors: memberAvatarColors
+            memberAvatarColors: memberAvatarColors,
+            isPersonal: isPersonal
         )
     }
 }
@@ -108,7 +119,8 @@ extension RoomDetailRoom {
             title: room.name,
             memo: room.description ?? "",
             locationCount: room.pinCount,
-            memberAvatarColors: room.users.map(\.avatarColor)
+            memberAvatarColors: room.users.map(\.avatarColor),
+            isPersonal: room.type == .personal
         )
     }
 }
@@ -204,7 +216,17 @@ extension RoomDetailRoom {
         title: "가나다라마바사아자차카타파하다",
         memo: "memo",
         locationCount: 1_000,   // 상한(999) 을 넘겨 "999+개" 표기를 프리뷰에서 확인한다
-        memberAvatarColors: [.red, .redOrange, .orange, .green]
+        memberAvatarColors: [.red, .redOrange, .orange, .green],
+        isPersonal: false
+    )
+
+    /// 개인방(`내 장소`) — 헤더에 `+`·`⋮` 가 빠진 모양을 프리뷰에서 확인한다.
+    static let personalSample = RoomDetailRoom(
+        title: Room.personalDisplayName,
+        memo: "",
+        locationCount: 3,
+        memberAvatarColors: [.red],
+        isPersonal: true
     )
 }
 
