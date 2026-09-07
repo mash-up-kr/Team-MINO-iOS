@@ -90,32 +90,36 @@ public struct MapView: UIViewRepresentable {
                 guard let existing = gmsMarkersByID[marker.id] else { continue }
                 existing.position = marker.coordinate.clCoordinate
                 existing.title = marker.title
-                apply(marker.style, to: existing)
+                apply(marker, to: existing)
             }
             for marker in diff.inserted {
                 let gmsMarker = GMSMarker(position: marker.coordinate.clCoordinate)
                 gmsMarker.title = marker.title
                 gmsMarker.userData = marker.id   // 델리게이트에서 id 회수용
-                apply(marker.style, to: gmsMarker)
+                apply(marker, to: gmsMarker)
                 gmsMarker.map = mapView
                 gmsMarkersByID[marker.id] = gmsMarker
             }
         }
 
         /// 선택 마커는 다른 마커보다 위에 그린다 — 핀이 겹쳐 있을 때 방금 고른 것이 뒤로 숨으면 안 된다.
-        private func apply(_ style: MapMarkerStyle, to gmsMarker: GMSMarker) {
-            gmsMarker.icon = icon(for: style)
-            // 그림마다 뾰족한 끝의 위치가 달라 앵커도 함께 바꾼다 — 안 바꾸면 선택할 때 핀이 튄다.
-            gmsMarker.groundAnchor = MarkerIcon.groundAnchor(for: style)
-            gmsMarker.zIndex = style.isSelected ? 1 : 0
+        ///
+        /// 아이콘과 앵커를 **한 값(`MarkerArt`)으로 함께** 받는다 — 라벨이 붙으면 그림이 아래로
+        /// 커져 핀 끝점의 비율이 달라지므로, 둘을 따로 구하면 어긋나 핀이 좌표에서 떠 보인다.
+        private func apply(_ marker: MapMarker, to gmsMarker: GMSMarker) {
+            let art = MarkerIcon.art(for: marker.style, label: labelLines(of: marker), cache: &iconCache)
+            gmsMarker.icon = art?.image
+            gmsMarker.groundAnchor = art?.groundAnchor ?? MarkerIcon.pinTipRatio(for: marker.style)
+            gmsMarker.zIndex = marker.style.isSelected ? 1 : 0
         }
 
-        /// 같은 스타일이면 그림을 재사용한다 — 핀이 수십 개면 마커마다 래스터라이즈가 반복된다.
-        private func icon(for style: MapMarkerStyle) -> UIImage? {
-            if let cached = iconCache[style] { return cached }
-            let image = MarkerIcon.image(for: style)
-            iconCache[style] = image
-            return image
+        /// 마커에 그릴 라벨 줄. `title` 이 비면 라벨을 그리지 않는다 — 라벨을 보일 줌인지는
+        /// 순수 계산부(`PlaceMap`)가 `title` 을 채우거나 비우는 것으로 정한다.
+        ///
+        /// `title` 은 GoogleMaps 기본 info window 용 값이기도 하지만 이 지도는 그것을 억제하므로
+        /// (`mapView(_:didTap:)` 이 `true` 를 돌려준다) 이 값의 유일한 쓰임이 라벨이다.
+        private func labelLines(of marker: MapMarker) -> [String] {
+            marker.title.map(MarkerLabel.lines(for:)) ?? []
         }
 
         func apply(camera: MapCamera, to mapView: GMSMapView) {
@@ -195,16 +199,107 @@ private enum MarkerIcon {
     private static let shadows: [(dy: CGFloat, blur: CGFloat)] = [(4, 6), (2, 4)]
     private static let shadowColor = UIColor(white: 0.0901961, alpha: 0.06).cgColor
 
-    static func image(for style: MapMarkerStyle) -> UIImage? {
-        style.isSelected ? asset("mapPinSelected") : unselected(tint: UIColor(style.tint))
+    /// 그림과 앵커를 **함께** 돌려준다. 라벨이 붙으면 캔버스가 아래로 커져 핀 끝점의 비율이
+    /// 달라지므로 둘을 따로 구하면 어긋나 핀이 좌표에서 떠 보인다.
+    struct MarkerArt {
+        let image: UIImage
+        let groundAnchor: CGPoint
+    }
+
+    /// 라벨 글꼴. **시스템 폰트를 쓴다.**
+    ///
+    /// 두 가지 이유다. `MapUI` 는 macOS 테스트 호스트를 지원해 iOS 전용인 `DesignSystem`(SUITE)에
+    /// 의존할 수 없고(`Package.swift` 주석), 장소명은 사용자가 고른 임의의 한글이라 SUITE 의 빈
+    /// 글리프(~8,500 음절)를 만나면 **이름이 빈칸으로 렌더된다**(`DesignSystem/README.md` 폰트 규칙과
+    /// 같은 사정 — 그 규칙이 입력 필드만 예외로 둔 것은 그때까지 임의 한글이 거기에만 있었기 때문이다).
+    private static let labelFont = UIFont.systemFont(ofSize: 12, weight: .semibold)
+    private static let labelColor = UIColor(white: 0.15, alpha: 1)
+    /// 지도 위 어떤 색에서도 읽히도록 글자 뒤에 흰 후광을 깐다. 시안에 지정이 없어(플래그) 지도
+    /// 라벨의 일반 관례를 따랐다.
+    private static let labelHaloColor = UIColor.white
+    private static let labelHaloWidth: CGFloat = 2
+    /// 핀 아래끝과 라벨 첫 줄 사이 간격.
+    private static let labelTopGap: CGFloat = 2
+    private static let labelLineHeight: CGFloat = 14
+
+    static func art(
+        for style: MapMarkerStyle,
+        label: [String],
+        cache: inout [MapMarkerStyle: UIImage]
+    ) -> MarkerArt? {
+        guard let pin = pinImage(for: style, cache: &cache) else { return nil }
+        guard !label.isEmpty else {
+            return MarkerArt(image: pin, groundAnchor: pinTipRatio(for: style))
+        }
+        return composed(pin: pin, style: style, label: label)
+    }
+
+    /// 핀 그림만. **스타일이 같으면 재사용한다** — 핀이 수백 개면 마커마다 래스터라이즈가 반복된다.
+    /// 라벨은 이름마다 달라 캐시 키에 넣지 않는다(넣으면 캐시가 이름 수만큼 늘어난다).
+    private static func pinImage(
+        for style: MapMarkerStyle,
+        cache: inout [MapMarkerStyle: UIImage]
+    ) -> UIImage? {
+        if let cached = cache[style] { return cached }
+        let image = style.isSelected ? asset("mapPinSelected") : unselected(tint: UIColor(style.tint))
+        if let image { cache[style] = image }
+        return image
     }
 
     /// 핀의 뾰족한 끝이 좌표를 가리키게 하는 앵커(그림 안에서 끝점이 놓인 비율).
     /// 두 그림의 끝점 위치가 달라 선택 전환 때 함께 바꿔 줘야 핀이 제자리에 선다.
-    static func groundAnchor(for style: MapMarkerStyle) -> CGPoint {
+    static func pinTipRatio(for style: MapMarkerStyle) -> CGPoint {
         // 비선택: (24, 43.58) / 48 × 52.5755, 선택: (27.36, 60.18) / 55.8 × 60.8 (테두리 절반 포함)
         style.isSelected ? CGPoint(x: 0.490, y: 0.990) : CGPoint(x: 0.5, y: 0.829)
     }
+
+    /// 핀 아래에 라벨을 붙인 그림. 핀은 가로 가운데에 두고 라벨은 그 아래 가운데 정렬한다.
+    private static func composed(pin: UIImage, style: MapMarkerStyle, label: [String]) -> MarkerArt? {
+        let attributes: [NSAttributedString.Key: Any] = [.font: labelFont]
+        let lineWidths = label.map { ($0 as NSString).size(withAttributes: attributes).width }
+        let labelWidth = (lineWidths.max() ?? 0) + labelHaloWidth * 2
+        let labelHeight = labelLineHeight * CGFloat(label.count)
+
+        let canvas = CGSize(
+            width: max(pin.size.width, labelWidth).rounded(.up),
+            height: (pin.size.height + labelTopGap + labelHeight).rounded(.up)
+        )
+        let pinOrigin = CGPoint(x: (canvas.width - pin.size.width) / 2, y: 0)
+
+        let image = UIGraphicsImageRenderer(size: canvas).image { _ in
+            pin.draw(in: CGRect(origin: pinOrigin, size: pin.size))
+
+            for (index, line) in label.enumerated() {
+                let text = line as NSString
+                let width = text.size(withAttributes: attributes).width
+                let origin = CGPoint(
+                    x: (canvas.width - width) / 2,
+                    y: pin.size.height + labelTopGap + labelLineHeight * CGFloat(index)
+                )
+                // 후광을 먼저 깔고 그 위에 글자를 얹는다 — 획을 두껍게 그린 뒤 덮는 방식.
+                var halo = attributes
+                halo[.strokeColor] = labelHaloColor
+                halo[.strokeWidth] = labelHaloWidth
+                halo[.foregroundColor] = labelHaloColor
+                text.draw(at: origin, withAttributes: halo)
+
+                var fill = attributes
+                fill[.foregroundColor] = labelColor
+                text.draw(at: origin, withAttributes: fill)
+            }
+        }
+
+        // 끝점은 **핀 그림 안**에 있다. 캔버스가 아래로 커졌으므로 비율을 다시 센다.
+        let tip = pinTipRatio(for: style)
+        return MarkerArt(
+            image: image,
+            groundAnchor: CGPoint(
+                x: (pinOrigin.x + pin.size.width * tip.x) / canvas.width,
+                y: (pin.size.height * tip.y) / canvas.height
+            )
+        )
+    }
+
 
     private static func unselected(tint: UIColor) -> UIImage? {
         guard let body = asset("mapPinBody"), let mascot = asset("mapPinMascot") else { return nil }
