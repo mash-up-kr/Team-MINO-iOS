@@ -120,8 +120,7 @@ struct RoomDetailReducerTests {
         RoomDetailState(
             room: RoomDetailRoom(from: fixtureRoom),
             pins: fixturePins,
-            locations: locations(.all),
-            categories: RoomDetailCategoryList.make(from: fixturePins)
+            locations: locations(.all)
         )
     }
 
@@ -132,7 +131,6 @@ struct RoomDetailReducerTests {
         await store.receive(.loaded(fixturePins)) {
             $0.pins = fixturePins
             $0.locations = locations(.all)
-            $0.categories = ["전체", "카페", "음식점"]   // 담긴 장소의 업종에서 생성(004-1 ⑨)
         }
         store.finish()
     }
@@ -341,7 +339,6 @@ struct RoomDetailReducerTests {
 
         await store.send(.deleted(fixturePins[2].id)) {
             $0.pins = [fixturePins[0], fixturePins[1]]
-            $0.categories = ["전체", "카페", "음식점"]
             $0.locations = [RoomDetailLocation(from: fixturePins[1])]   // p0 는 5km 밖이라 남지 않는다
             $0.room = RoomDetailRoom(from: fixtureRoom).removingOneLocation()
         }
@@ -384,7 +381,6 @@ struct RoomDetailReducerTests {
         await store.receive(.deleted(fixturePins[1].id)) {
             $0.deletion = nil
             $0.pins = remaining
-            $0.categories = ["전체", "카페"]   // 음식점은 그 장소 하나뿐이었다
             $0.locations = remaining.map(RoomDetailLocation.init(from:))
             $0.room = RoomDetailRoom(from: fixtureRoom).removingOneLocation()
         }
@@ -416,7 +412,6 @@ struct RoomDetailReducerTests {
         await store.receive(.deleted(fixturePins[0].id)) {
             $0.deletion = nil
             $0.pins = remaining
-            $0.categories = ["전체", "음식점", "카페"]   // 남은 핀의 등장 순서
             $0.locations = [RoomDetailLocation(from: fixturePins[2])]
             $0.room = RoomDetailRoom(from: fixtureRoom).removingOneLocation()
         }
@@ -425,8 +420,10 @@ struct RoomDetailReducerTests {
         store.finish()
     }
 
-    @Test("L2 — 고른 업종의 마지막 장소를 지우면 빈 목록 대신 '전체' 로 되돌아간다")
-    func confirmDelete_resetsCategoryWhenItDisappears() async {
+    // 칩이 고정 3종이라 되돌릴 곳이 없다 — 고른 칩을 그대로 두고 목록만 빈다(스펙 EC-003:
+    // "해당 카테고리 필터 적용 상태에서 장소 목록이 빈 상태로 표시된다").
+    @Test("L2 — 고른 업종의 마지막 장소를 지우면 선택은 남고 목록만 빈다")
+    func confirmDelete_keepsCategoryWhenItEmpties() async {
         let store = makeStore(state: deletingState(1, category: "음식점"))
         let remaining = [fixturePins[0], fixturePins[2]]
 
@@ -434,11 +431,11 @@ struct RoomDetailReducerTests {
         await store.receive(.deleted(fixturePins[1].id)) {
             $0.deletion = nil
             $0.pins = remaining
-            $0.category = "전체"
-            $0.categories = ["전체", "카페"]
-            $0.locations = remaining.map(RoomDetailLocation.init(from:))
+            $0.locations = []
             $0.room = RoomDetailRoom(from: fixtureRoom).removingOneLocation()
         }
+
+        #expect(store.currentState.category == "음식점")
         store.finish()
     }
 

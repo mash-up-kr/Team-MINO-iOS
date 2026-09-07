@@ -305,7 +305,7 @@ struct ArchiveShellView: View {
                         get: { detailStore.state.sort },
                         set: { detailStore.send(.selectSort($0)) }
                     ),
-                    categories: detailStore.state.categories,
+                    categories: RoomDetailCategoryList.items,
                     selectedCategory: categoryBinding(detailStore),
                     sortMenuPresented: $sortMenuOpen
                 )
@@ -317,7 +317,7 @@ struct ArchiveShellView: View {
                         get: { roomList.state.roomSort },
                         set: { roomList.send(.selectRoomSort($0)) }
                     ),
-                    categories: Self.roomListCategories,
+                    categories: RoomDetailCategoryList.items,
                     selectedCategory: roomCategoryBinding(roomList),
                     sortMenuPresented: $sortMenuOpen
                 )
@@ -403,8 +403,6 @@ struct ArchiveShellView: View {
     /// 003-1 ① · 004-1 ⑥ — 두 화면이 같은 5가지를 같은 순서로 그린다.
     private static let sortOptions = RoomDetailSort.allCases.map(\.rawValue)
 
-    private static let roomListCategories = ["전체", "카페", "음식점"]
-
     private func roomCategoryBinding(_ store: RoomListStore) -> Binding<Int> {
         Binding(
             get: { store.state.categoryFilter },
@@ -434,11 +432,11 @@ struct ArchiveShellView: View {
 
     private func categoryBinding(_ store: RoomDetailStore) -> Binding<Int> {
         Binding(
-            get: { store.state.categories.firstIndex(of: store.state.category) ?? 0 },
-            // 목록이 재조회로 줄어드는 사이 옛 인덱스가 들어올 수 있다 — 범위를 벗어나면 무시한다.
+            get: { RoomDetailCategoryList.items.firstIndex(of: store.state.category) ?? 0 },
+            // 칩은 고정이라 정상 경로에서 범위를 벗어날 일이 없지만, 들어오면 무시한다.
             set: { index in
-                guard store.state.categories.indices.contains(index) else { return }
-                store.send(.selectCategory(store.state.categories[index]))
+                guard RoomDetailCategoryList.items.indices.contains(index) else { return }
+                store.send(.selectCategory(RoomDetailCategoryList.items[index]))
             }
         )
     }

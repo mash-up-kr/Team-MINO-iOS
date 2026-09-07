@@ -7,8 +7,7 @@ struct RoomDetailState: Equatable {
     var pins: [Pin] = []
     var locations: [RoomDetailLocation] = []
     var sort: RoomDetailSort = .all
-    /// 방에 담긴 장소들의 업종에서 만들어진다(004-1 ⑨). 첫 칸은 항상 "전체".
-    var categories: [String] = [RoomDetailCategoryList.all]
+    /// 고른 카테고리 칩. 목록은 고정 3종이라 state 가 들지 않는다(``RoomDetailCategoryList/items``).
     var category: String = RoomDetailCategoryList.all
     var viewMode: RoomDetailViewMode = .list
     /// 장소 삭제 확인 다이얼로그(004-1-3-1). nil 이면 닫혀 있다.
@@ -261,16 +260,13 @@ func roomDetailReducer(
     }
 }
 
-/// 원본(`pins`)이 바뀌면 칩 목록과 표시 목록을 함께 다시 맞춘다.
+/// 원본(`pins`)이 바뀌면 표시 목록을 다시 맞춘다.
 ///
-/// 조회와 삭제가 같은 자리를 쓴다. 삭제만 `locations` 를 직접 손보면 방금 지운 장소가
-/// 업종 칩에는 남고, 그 칩을 누르면 빈 목록이 뜬다 — 원본에서 다시 파생시켜 어긋날 자리를 없앤다.
+/// 조회와 삭제가 같은 자리를 쓴다 — 삭제만 `locations` 를 직접 손보면 정렬·필터를 거치지 않은
+/// 목록이 남으므로, 원본에서 매번 다시 파생시켜 어긋날 자리를 없앤다.
+///
+/// 칩 목록은 여기서 손대지 않는다 — 고정 3종이라 담긴 장소에 따라 바뀌지 않는다.
 private func applyPins(_ state: inout RoomDetailState, now: Date) {
-    state.categories = RoomDetailCategoryList.make(from: state.pins)
-    // 고르고 있던 업종이 사라지면(재조회·마지막 장소 삭제) 빈 목록이 남는다 — "전체" 로 되돌린다.
-    if !state.categories.contains(state.category) {
-        state.category = RoomDetailCategoryList.all
-    }
     applyFilters(&state, now: now)
 }
 
