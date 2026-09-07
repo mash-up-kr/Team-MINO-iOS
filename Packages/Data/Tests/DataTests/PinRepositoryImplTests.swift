@@ -139,12 +139,93 @@ struct PinRepositoryImplTests {
         let client = StubHTTPClient(json: "[]")
         let sut = PinRepositoryImpl(client: client)
 
-        _ = try await sut.pins(roomID: "room-7")
+        _ = try await sut.pins(roomID: "room-7", sort: .all, category: .all, origin: nil)
 
         #expect(await client.lastPath == "api/v1/pins")
         #expect(await client.query("roomId") == "room-7")
+        #expect(await client.query("sort") == "all")
+        #expect(await client.query("category") == "all")
         #expect(await client.query("page") == nil)
         #expect(await client.query("pageSize") == nil)
+    }
+
+    // 방을 지목하지 않으면 서버가 "내가 속한 모든 활성 방" 을 준다 — 방 리스트 탭 지도가 쓰는 길이다.
+    @Test("방을 지목하지 않으면 roomId 를 싣지 않는다")
+    func pins_withoutRoomID() async throws {
+        let client = StubHTTPClient(json: "[]")
+        let sut = PinRepositoryImpl(client: client)
+
+        _ = try await sut.pins(roomID: nil, sort: .all, category: .all, origin: nil)
+
+        #expect(await client.query("roomId") == nil)
+        #expect(await client.query("sort") == "all")
+    }
+
+    // 정렬·필터를 서버가 하므로 이 매핑이 어긋나면 화면이 조용히 엉뚱한 목록을 받는다.
+    @Test("정렬 기준은 서버 sort 값으로 옮겨진다")
+    func pins_sortWireValues() async throws {
+        let expected: [(PinSort, String)] = [
+            (.recommended, "ggukPick"),
+            (.all, "all"),
+            (.latest, "latest"),
+            (.distance, "distance"),
+            (.comment, "commented"),
+        ]
+
+        for (sort, wire) in expected {
+            let client = StubHTTPClient(json: "[]")
+            let sut = PinRepositoryImpl(client: client)
+
+            _ = try await sut.pins(roomID: "r", sort: sort, category: .all, origin: Coordinate(latitude: 1, longitude: 2))
+
+            #expect(await client.query("sort") == wire, "\(sort)")
+        }
+    }
+
+    @Test("카테고리 칩은 서버 category 값으로 옮겨진다")
+    func pins_categoryWireValues() async throws {
+        let expected: [(PlaceCategoryFilter, String)] = [
+            (.all, "all"),
+            (.cafe, "cafe"),
+            (.restaurant, "restaurant"),
+        ]
+
+        for (category, wire) in expected {
+            let client = StubHTTPClient(json: "[]")
+            let sut = PinRepositoryImpl(client: client)
+
+            _ = try await sut.pins(roomID: "r", sort: .all, category: category, origin: nil)
+
+            #expect(await client.query("category") == wire, "\(category)")
+        }
+    }
+
+    // `sort=distance` 는 좌표가 없으면 서버가 400 이다 — 좌표를 받았으면 반드시 실려야 한다.
+    @Test("좌표가 있으면 lat·lng 를 함께 싣는다")
+    func pins_attachesOrigin() async throws {
+        let client = StubHTTPClient(json: "[]")
+        let sut = PinRepositoryImpl(client: client)
+
+        _ = try await sut.pins(
+            roomID: "r",
+            sort: .distance,
+            category: .all,
+            origin: Coordinate(latitude: 37.5, longitude: 127.0)
+        )
+
+        #expect(await client.query("lat") == "37.5")
+        #expect(await client.query("lng") == "127.0")
+    }
+
+    @Test("좌표가 없으면 lat·lng 를 싣지 않는다")
+    func pins_withoutOrigin() async throws {
+        let client = StubHTTPClient(json: "[]")
+        let sut = PinRepositoryImpl(client: client)
+
+        _ = try await sut.pins(roomID: "r", sort: .all, category: .all, origin: nil)
+
+        #expect(await client.query("lat") == nil)
+        #expect(await client.query("lng") == nil)
     }
 
     @Test("상세는 출처 링크를 함께 준다 — 없으면 nil")
@@ -176,14 +257,18 @@ struct PinRepositoryImplTests {
     func untranslatedStatusFallsBack() async {
         let sut = PinRepositoryImpl(client: StubHTTPClient(error: NetworkError.server(statusCode: 500)))
 
-        await #expect(throws: DomainError.pinsFetchFailed) { try await sut.pins(roomID: "r") }
+        await #expect(throws: DomainError.pinsFetchFailed) {
+            try await sut.pins(roomID: "r", sort: .all, category: .all, origin: nil)
+        }
     }
 
     @Test("취소는 CancellationError 로 되돌아온다")
     func cancellationStaysCancellation() async {
         let sut = PinRepositoryImpl(client: StubHTTPClient(error: NetworkError.cancelled))
 
-        await #expect(throws: CancellationError.self) { try await sut.pins(roomID: "r") }
+        await #expect(throws: CancellationError.self) {
+            try await sut.pins(roomID: "r", sort: .all, category: .all, origin: nil)
+        }
     }
 
     @Test("핀 삭제는 DELETE api/v1/pins/{pinId} 로 나간다")

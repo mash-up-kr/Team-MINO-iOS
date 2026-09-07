@@ -310,7 +310,7 @@ struct ArchiveShellView: View {
                         get: { detailStore.state.sort },
                         set: { detailStore.send(.selectSort($0)) }
                     ),
-                    categories: RoomDetailCategoryList.items,
+                    categories: PlaceCategoryFilter.allCases.map(\.chipTitle),
                     selectedCategory: categoryBinding(detailStore),
                     sortMenuPresented: $sortMenuOpen
                 )
@@ -322,7 +322,7 @@ struct ArchiveShellView: View {
                         get: { roomList.state.roomSort },
                         set: { roomList.send(.selectRoomSort($0)) }
                     ),
-                    categories: RoomDetailCategoryList.items,
+                    categories: PlaceCategoryFilter.allCases.map(\.chipTitle),
                     selectedCategory: roomCategoryBinding(roomList),
                     sortMenuPresented: $sortMenuOpen
                 )
@@ -412,7 +412,7 @@ struct ArchiveShellView: View {
     }
 
     /// 003-1 ① · 004-1 ⑥ — 두 화면이 같은 5가지를 같은 순서로 그린다.
-    private static let sortOptions = RoomDetailSort.allCases.map(\.rawValue)
+    private static let sortOptions = PinSort.allCases.map(\.menuTitle)
 
     private func roomCategoryBinding(_ store: RoomListStore) -> Binding<Int> {
         Binding(
@@ -421,7 +421,7 @@ struct ArchiveShellView: View {
         )
     }
 
-    /// 인덱스 ↔ ``RoomDetailSort`` 변환. `MHFilterBar` 가 인덱스로만 말하기 때문에 필요하다.
+    /// 인덱스 ↔ ``PinSort`` 변환. `MHFilterBar` 가 인덱스로만 말하기 때문에 필요하다.
     ///
     /// 방 리스트(003-1 ①)와 방 상세(004-1 ⑥)가 **같은 5가지를 같은 순서로** 그리므로 변환 규칙도
     /// 하나다 — 무엇을 읽고 어느 액션으로 보낼지만 화면마다 다르다.
@@ -429,25 +429,25 @@ struct ArchiveShellView: View {
     /// 범위 밖 인덱스는 무시한다. `MHFilterBar` 가 같은 배열을 그려 정상 경로에서는 오지 않지만,
     /// 옆의 `categoryBinding` 이 같은 이유로 이미 막고 있어 규칙을 맞춘다.
     private func sortIndexBinding(
-        get: @escaping () -> RoomDetailSort,
-        set: @escaping (RoomDetailSort) -> Void
+        get: @escaping () -> PinSort,
+        set: @escaping (PinSort) -> Void
     ) -> Binding<Int> {
         Binding(
-            get: { RoomDetailSort.allCases.firstIndex(of: get()) ?? 0 },
+            get: { PinSort.allCases.firstIndex(of: get()) ?? 0 },
             set: { index in
-                guard RoomDetailSort.allCases.indices.contains(index) else { return }
-                set(RoomDetailSort.allCases[index])
+                guard PinSort.allCases.indices.contains(index) else { return }
+                set(PinSort.allCases[index])
             }
         )
     }
 
     private func categoryBinding(_ store: RoomDetailStore) -> Binding<Int> {
         Binding(
-            get: { RoomDetailCategoryList.items.firstIndex(of: store.state.category) ?? 0 },
+            get: { PlaceCategoryFilter.allCases.firstIndex(of: store.state.category) ?? 0 },
             // 칩은 고정이라 정상 경로에서 범위를 벗어날 일이 없지만, 들어오면 무시한다.
             set: { index in
-                guard RoomDetailCategoryList.items.indices.contains(index) else { return }
-                store.send(.selectCategory(RoomDetailCategoryList.items[index]))
+                guard PlaceCategoryFilter.allCases.indices.contains(index) else { return }
+                store.send(.selectCategory(PlaceCategoryFilter.allCases[index]))
             }
         )
     }

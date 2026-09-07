@@ -235,7 +235,7 @@ struct RoomListReducerTests {
     @Test("003-1 ① — 드롭다운 기본값은 '전체' 이고 항목은 5가지다")
     func roomSort_defaultIsAll() {
         #expect(RoomListState().roomSort == .all)
-        #expect(RoomDetailSort.allCases.count == 5)
+        #expect(PinSort.allCases.count == 5)
     }
 
     @Test("L1 — loaded 는 방이 줄어도 드롭다운 선택을 건드리지 않는다")

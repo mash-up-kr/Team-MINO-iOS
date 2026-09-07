@@ -125,23 +125,36 @@ extension RoomDetailRoom {
     }
 }
 
-/// 지도 위 필터 드롭다운의 정렬 기준.
+/// 정렬 드롭다운의 한글 표기. 기준 자체는 Domain ``PinSort`` 가 들고 **라벨만 화면이 붙인다** —
+/// 홈이 `PinFilter.chipTitle` 로 같은 일을 한다(`HomeContentView.swift:421`).
 ///
-/// **방 상세(004-1 ⑥)와 방 리스트(003-1 ①)가 같은 5가지를 쓴다** — 003-1 ① 이 "필터 drop down :
-/// 5가지로 필터링하여 볼 수 있다 / '전체'로 기본 선택되어있다" 로 못박아 두 화면의 항목이 같다.
-/// 그래서 이름은 `RoomDetail*` 이지만 방 상세 전용 타입이 아니다(두 화면이 한 개념을 공유한다).
+/// **선언 순서가 곧 노출 순서다** — ``RoomDetailSortMenu`` 와 peek 의 `MHFilterBar` 가
+/// `PinSort.allCases` 를 그대로 그린다. 순서는 시안 `2542:125333` 의 열린 드롭다운과 맞췄다.
+/// 첫 항목이 기본 선택은 아니다 — 기본은 `.all` 이다(PRD "5종이며 기본값은 `전체`다").
 ///
-/// **선언 순서가 곧 드롭다운 노출 순서다** — ``RoomDetailSortMenu`` 와 peek 의 `MHFilterBar` 가
-/// `allCases` 를 그대로 그린다. 순서는 시안 `004-1-3_방 상세 full_리스트형` 의 열린 드롭다운과 맞췄다.
-/// 첫 항목이 기본 선택은 아니다 — 기본은 `.all` 이다(003-1 ① · 004-1 ① "'전체'로 기본 선택되어있다").
-public enum RoomDetailSort: String, CaseIterable, Identifiable {
-    case pick = "꾹 Pick"
-    case all = "전체"
-    case latest = "최신순"
-    case distance = "거리순"
-    case comment = "코멘트순"
+/// **방 상세와 방 리스트가 같은 5가지를 쓴다** — 003-1 ① 이 "필터 drop down : 5가지로 필터링하여
+/// 볼 수 있다 / '전체'로 기본 선택되어있다" 로 못박아 두 화면의 항목이 같다.
+extension PinSort {
+    var menuTitle: String {
+        switch self {
+        case .recommended: "꾹 Pick"
+        case .all: "전체"
+        case .latest: "최신순"
+        case .distance: "거리순"
+        case .comment: "코멘트순"
+        }
+    }
+}
 
-    public var id: String { rawValue }
+/// 카테고리 칩의 한글 표기. 값 집합(3종 고정)은 Domain ``PlaceCategoryFilter`` 가 든다.
+extension PlaceCategoryFilter {
+    var chipTitle: String {
+        switch self {
+        case .all: "전체"
+        case .cafe: "카페"
+        case .restaurant: "음식점"
+        }
+    }
 }
 
 /// 툴바 우측 토글의 목록 표시 방식.
@@ -179,35 +192,6 @@ enum RoomDetailMoreMenuItemID: String, CaseIterable {
         case .editRoom: "방 편집"
         case .leaveRoom: "방 나가기"
         }
-    }
-}
-
-/// 지도 위 카테고리 칩 목록.
-///
-/// **`전체`/`카페`/`음식점` 3종 고정이다.** PRD 「카테고리 필터」가 "3종 고정이며 기본값은
-/// `전체`" 로 못박고, **비목표**에도 "저장 값 기반 동적 카테고리 생성 — 카테고리 필터는
-/// `전체`/`카페`/`음식점` 3종 고정으로 한정한다" 로 다시 적었다.
-///
-/// 시안 004-1 주석 ⑨ 의 "인스타에서 가져 온 저장 값에서 추가되는 형식(전시회 저장 → 전시회 필터
-/// 생성)" 은 확정 이전의 동적 생성안이다 — PRD 가 3종 고정 유지를 재확인하며 그 주석을 구버전
-/// 메모로 정리했고, 최신 목업도 칩 3개만 그린다.
-///
-/// 이름은 `RoomDetail*` 이지만 방 상세 전용이 아니다 — 방 리스트도 같은 칩을 쓴다
-/// (``RoomDetailSort`` 와 같은 사정). 두 화면이 한 상수를 보게 두어 갈릴 자리를 없앤다.
-enum RoomDetailCategoryList {
-    /// 어떤 방에도 항상 있는 첫 칩. 기본 선택값이기도 하다.
-    static let all = "전체"
-
-    /// 칩 목록 — 선언 순서가 곧 노출 순서다.
-    static let items = [all, "카페", "음식점"]
-
-    /// 선택한 칩에 해당하는 장소만 남긴다. "전체"면 그대로 둔다.
-    ///
-    /// 고른 칩에 장소가 하나도 없으면 **빈 목록이 그대로 보인다** — 칩이 고정이라 되돌릴 곳이
-    /// 없고, 스펙(EC-003)도 "해당 카테고리 필터 적용 상태에서 장소 목록이 빈 상태로 표시된다" 다.
-    static func filter(_ pins: [Pin], by category: String) -> [Pin] {
-        guard category != all else { return pins }
-        return pins.filter { $0.place.category == category }
     }
 }
 

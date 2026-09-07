@@ -22,9 +22,15 @@ public struct PinRepositoryImpl: PinRepository, PinDetailRepository, PinAccessRe
         }
     }
 
-    public func pins(roomID: String) async throws -> [Pin] {
+    public func pins(
+        roomID: String?,
+        sort: PinSort,
+        category: PlaceCategoryFilter,
+        origin: Coordinate?
+    ) async throws -> [Pin] {
         do {
-            return try await client.request(PinAPI.list(roomID: roomID)).map { $0.toDomain() }
+            let endpoint = PinAPI.list(roomID: roomID, sort: sort, category: category, origin: origin)
+            return try await client.request(endpoint).map { $0.toDomain() }
         } catch let error as NetworkError {
             throw Self.mapToDomain(error)
         }

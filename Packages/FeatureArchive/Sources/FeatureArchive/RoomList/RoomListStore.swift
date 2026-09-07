@@ -10,7 +10,7 @@ public struct RoomListState: Equatable {
     public var filter: Int
     /// 지도 위 필터 드롭다운(003-1 ①). 방 상세(004-1 ⑥)와 **같은 5가지**이고 기본은 `.all` 이다.
     /// 정렬 로직은 아직 없다 — 지도에 그릴 "내 모든 장소"가 없기 때문(`ArchiveShellView` 참조).
-    public var roomSort: RoomDetailSort
+    public var roomSort: PinSort
     public var categoryFilter: Int
     /// 공동방 생성 유도 시트(001-2-1)가 떠 있는가.
     public var isCreatePromptPresented: Bool
@@ -30,7 +30,7 @@ public struct RoomListState: Equatable {
     public init(
         rooms: [Room] = [],
         filter: Int = 0,
-        roomSort: RoomDetailSort = .all,
+        roomSort: PinSort = .all,
         categoryFilter: Int = 0,
         isCreatePromptPresented: Bool = false
     ) {
@@ -66,7 +66,7 @@ public enum RoomListAction: Equatable {
     case loaded([Room], isPromptSnoozed: Bool)
     case loadFailed(DomainError)   // Response Action (실패)
     case selectFilter(Int)
-    case selectRoomSort(RoomDetailSort)
+    case selectRoomSort(PinSort)
     case selectCategory(Int)
     /// 지도 우하단 현위치 버튼(003-1 ⑦).
     case tapMyLocation

@@ -23,10 +23,33 @@ enum PinAPI {
         return Endpoint(path: "api/v1/rooms/\(roomID)/cards", queryItems: query)
     }
 
-    /// 방에 저장된 장소 전부. **`page`·`pageSize` 를 둘 다 생략하면 서버가 전체를 준다** —
-    /// 방 상세는 클라이언트에서 정렬·필터하므로 전부 받아야 한다(스펙: 지도 전체 보기 보장).
-    static func list(roomID: String) -> Endpoint<[PinDTO]> {
-        Endpoint(path: base, queryItems: [URLQueryItem(name: "roomId", value: roomID)])
+    /// 저장된 장소 목록. **`page`·`pageSize` 를 둘 다 생략하면 서버가 전체를 준다** —
+    /// 지도가 이 방(또는 내 모든 방)의 마커를 다 그려야 해서 잘라 받지 않는다.
+    ///
+    /// 정렬·카테고리는 **서버가 적용한다**(PRD 「목록 정렬 기준」). 예전에는 전부 받아 화면에서
+    /// 걸렀는데, 서버도 같은 상한(목록 상위 30%)을 적용하므로 그대로 두면 30%의 30% 만 남는다.
+    ///
+    /// - Parameters:
+    ///   - roomID: `nil` 이면 `roomId` 를 싣지 않는다 — 서버가 내가 속한 모든 활성 방을 준다.
+    ///   - origin: `sort=distance` 는 좌표가 없으면 400 이다. 다른 기준에서는 무시되므로
+    ///     있으면 그냥 함께 보낸다(``cards(roomID:filter:origin:)`` 와 같은 규약).
+    static func list(
+        roomID: String?,
+        sort: PinSort = .all,
+        category: PlaceCategoryFilter = .all,
+        origin: Coordinate? = nil
+    ) -> Endpoint<[PinDTO]> {
+        var query: [URLQueryItem] = []
+        if let roomID {
+            query.append(URLQueryItem(name: "roomId", value: roomID))
+        }
+        query.append(URLQueryItem(name: "sort", value: wire(for: sort)))
+        query.append(URLQueryItem(name: "category", value: wire(for: category)))
+        if let origin {
+            query.append(URLQueryItem(name: "lat", value: String(origin.latitude)))
+            query.append(URLQueryItem(name: "lng", value: String(origin.longitude)))
+        }
+        return Endpoint(path: base, queryItems: query)
     }
 
     /// 장소(핀) 상세 — 목록에 없는 출처 링크(`sourceUrl`)가 여기서만 온다.
@@ -114,6 +137,27 @@ enum PinAPI {
         case .recommended: "ggukPick"
         case .latest: "latest"
         case .nearby: "nearby"
+        }
+    }
+
+    /// 목록 정렬 기준 → 서버 `sort` 값. 홈 덱(``sort(for:)``)과 **엔드포인트가 달라 값 집합도
+    /// 다르다** — 이쪽에만 `all`·`commented` 가 있고 `nearby` 대신 `distance` 다.
+    private static func wire(for sort: PinSort) -> String {
+        switch sort {
+        case .recommended: "ggukPick"
+        case .all: "all"
+        case .latest: "latest"
+        case .distance: "distance"
+        case .comment: "commented"
+        }
+    }
+
+    /// 카테고리 칩 → 서버 `category` 값.
+    private static func wire(for category: PlaceCategoryFilter) -> String {
+        switch category {
+        case .all: "all"
+        case .cafe: "cafe"
+        case .restaurant: "restaurant"
         }
     }
 }
