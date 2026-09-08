@@ -502,6 +502,66 @@ struct RoomListReducerTests {
         store.finish()
     }
 
+
+    // PRD [SYS-004] Flow A — 저장 탭 진입 시의 위치 권한 요청. 버튼(⑦)과 달리 카메라를 옮기지
+    // 않고 기준점만 세운다 — 그 좌표를 진입 카메라가 읽는다.
+    @Test("L2 — 진입 요청이 좌표를 받으면 기준점만 세우고 카메라는 옮기지 않는다")
+    func requestLocationOnEntry_setsCoordinateWithoutMovingCamera() async {
+        let coordinate = Coordinate(latitude: 37.5443, longitude: 127.0557)
+        let store = makeStore(location: StubCurrentLocation(result: .coordinate(coordinate)))
+
+        await store.send(.requestLocationOnEntry)
+        await store.receive(.entryLocationResolved(.coordinate(coordinate))) {
+            $0.myCoordinate = coordinate
+        }
+        // navigation 이 하나도 없어야 한다 — `focusMyLocation` 은 버튼 전용이다.
+        // 잔여 검사(`finish`)가 이걸 대신 단언한다.
+        #expect(!store.currentState.isLocating)
+        store.finish()
+    }
+
+    @Test("L1 — 좌표를 이미 들고 있으면 다시 묻지 않는다")
+    func requestLocationOnEntry_skipsWhenCoordinateKnown() async {
+        var state = RoomListState()
+        state.myCoordinate = Coordinate(latitude: 37.4979, longitude: 127.0276)
+        let store = makeStore(state: state)
+
+        await store.send(.requestLocationOnEntry)
+        store.finish()
+    }
+
+    // 거부는 조용히 지나간다 — 그때 카메라가 기본 좌표(강남역)로 떨어지는 것이 곧 PRD 의
+    // "거부: 기본 디폴트 좌표를 중심점으로 세팅" 이다.
+    @Test("L2 — 진입 요청이 거부되면 기준점은 비어 있는 채로 남는다")
+    func requestLocationOnEntry_deniedKeepsCoordinateNil() async {
+        let store = makeStore(location: StubCurrentLocation(result: .permissionDenied))
+
+        await store.send(.requestLocationOnEntry)
+        await store.receive(.entryLocationResolved(.permissionDenied))
+        #expect(store.currentState.myCoordinate == nil)
+        store.finish()
+    }
+
+    // 진입 `.task` 와 버튼 연타가 겹치면 권한 팝업이 두 번 뜬다.
+    @Test("L1 — 버튼 요청이 진행 중이면 진입 요청을 내지 않는다")
+    func requestLocationOnEntry_whileLocating_ignored() async {
+        var state = RoomListState()
+        state.isLocating = true
+        let store = makeStore(state: state)
+
+        await store.send(.requestLocationOnEntry)
+        store.finish()
+    }
+
+    @Test("L1 — 거리순 정렬의 측위가 진행 중이어도 진입 요청을 내지 않는다")
+    func requestLocationOnEntry_whileLocatingForSort_ignored() async {
+        var state = RoomListState()
+        state.isLocatingForSort = true
+        let store = makeStore(state: state)
+
+        await store.send(.requestLocationOnEntry)
+        store.finish()
+    }
     @Test("L2 — selectCategory 는 그 칩으로 마커를 다시 받는다")
     func selectCategory() async {
         let onlyOne = [fixturePins[1]]
