@@ -36,6 +36,15 @@ struct MHBottomSheetLayout: Equatable {
         } ?? .medium
     }
 
+    /// 콘텐츠 상자를 하단 safe area 로 늘릴 양(`extendsContentBelowSafeArea`).
+    ///
+    /// **full 도 늘린다.** full 의 높이(``height(of:)``)는 safe area 안의 컨테이너 높이라 상자
+    /// 바닥이 홈 인디케이터 위에서 끝난다 — 늘리지 않으면 리스트가 거기서 잘리고, 그 아래
+    /// 인디케이터 몫은 흰 표면만 남는다(방 상세 full 에서 실기기·시뮬레이터 재현).
+    static func contentBottomExtension(extendsBelowSafeArea: Bool, safeAreaBottom: CGFloat) -> CGFloat {
+        extendsBelowSafeArea ? max(0, safeAreaBottom) : 0
+    }
+
     /// peek(노출 pt) → 컨테이너 높이 대비 비율.
     ///
     /// 시트의 레이아웃 상자는 **safe area 안에서 끝난다** — 402×874 기기에서 시트가 받는
@@ -203,8 +212,10 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
             let height = layout.clampedHeight(layout.height(of: detent) - dragTranslation)
             let isFull = height >= layout.height(of: .full)
 
-            // full 은 이미 화면을 다 덮어 늘릴 것이 없다.
-            let bottomExtension = extendsContentBelowSafeArea && !isFull ? geometry.safeAreaInsets.bottom : 0
+            let bottomExtension = MHBottomSheetLayout.contentBottomExtension(
+                extendsBelowSafeArea: extendsContentBelowSafeArea,
+                safeAreaBottom: geometry.safeAreaInsets.bottom
+            )
 
             sheet(height: height, isFull: isFull, bottomExtension: bottomExtension)
                 .offset(y: isTransitioningDown ? height + geometry.safeAreaInsets.bottom : 0)

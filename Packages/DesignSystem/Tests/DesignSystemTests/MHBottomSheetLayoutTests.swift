@@ -104,4 +104,25 @@ final class MHBottomSheetLayoutTests: XCTestCase {
         )
         XCTAssertEqual(fraction, 0.05, accuracy: 0.0001)
     }
+
+    // MARK: - 콘텐츠 상자 하단 확장
+
+    func testContentBottomExtensionCoversHomeIndicatorAtEveryDetent() {
+        // full 의 높이도 safe area 안 컨테이너 높이라 full 에서만 빼면 리스트 바닥에 흰 띠가 남는다.
+        XCTAssertEqual(
+            MHBottomSheetLayout.contentBottomExtension(extendsBelowSafeArea: true, safeAreaBottom: 34), 34
+        )
+    }
+
+    func testContentBottomExtensionIsZeroWhenDisabled() {
+        XCTAssertEqual(
+            MHBottomSheetLayout.contentBottomExtension(extendsBelowSafeArea: false, safeAreaBottom: 34), 0
+        )
+    }
+
+    func testContentBottomExtensionIgnoresNegativeInset() {
+        XCTAssertEqual(
+            MHBottomSheetLayout.contentBottomExtension(extendsBelowSafeArea: true, safeAreaBottom: -1), 0
+        )
+    }
 }
