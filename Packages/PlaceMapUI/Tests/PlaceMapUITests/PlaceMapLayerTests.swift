@@ -321,14 +321,14 @@ struct PlaceMapButtonMetricsTests {
     func myLocationHorizontalPlacement() {
         let right = designWidth - PlaceMapButtonMetrics.trailing
         #expect(right == 355)
-        #expect(right - PlaceMapButtonMetrics.myLocationSize == 315)
+        #expect(right - PlaceMapButtonMetrics.placeDetail.myLocationSize == 315)
     }
 
     @Test("'저장된 방' 은 현위치 왼쪽으로 물러난다 — 오른쪽 끝 307(시안), 화면 끝에서 68")
     func savedRoomsHorizontalPlacement() {
         let right = designWidth
             - PlaceMapButtonMetrics.trailing
-            - PlaceMapButtonMetrics.myLocationSize
+            - PlaceMapButtonMetrics.placeDetail.myLocationSize
             - PlaceMapButtonMetrics.spacing
 
         #expect(right == 307)
@@ -339,7 +339,28 @@ struct PlaceMapButtonMetricsTests {
     func bottomGapFromSheetTop() {
         let designSheetTop: CGFloat = 441
         let designSavedRoomsBottom: CGFloat = 423
-        #expect(PlaceMapButtonMetrics.bottomGap == designSheetTop - designSavedRoomsBottom)
+        #expect(PlaceMapButtonMetrics.placeDetail.bottomGap == designSheetTop - designSavedRoomsBottom)
+    }
+
+    // MARK: - 방 리스트·방 상세 (`004-1-1 방 상세 peek`, `2542:125409`)
+
+    // 375×812 PNG 픽셀 실측: 흰 원판 y 549..584, 오른쪽 끝에서 21, 시트 윗끝(604)에서 20.
+    // 장소 상세의 40 을 세 화면에 돌려 쓰던 것이 어긋남의 원인이었다.
+    @Test("방 지도 버튼은 장소 상세보다 작고 더 띄운다 — 36×36 · 시트에서 20")
+    func roomMapPresetMatchesDesign() {
+        #expect(PlaceMapButtonMetrics.roomMap.myLocationSize == 36)
+        #expect(PlaceMapButtonMetrics.roomMap.bottomGap == 20)
+    }
+
+    @Test("두 프리셋은 서로 다르다 — 한 벌을 세 화면에 돌려 쓰면 다시 어긋난다")
+    func presetsDiffer() {
+        #expect(PlaceMapButtonMetrics.roomMap != PlaceMapButtonMetrics.placeDetail)
+    }
+
+    @Test("아이콘 크기와 오른쪽 여백은 두 화면이 같다")
+    func sharedValues() {
+        #expect(PlaceMapButtonMetrics.myLocationIconSize == 20)
+        #expect(PlaceMapButtonMetrics.trailing == 20)
     }
 }
 

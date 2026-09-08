@@ -163,6 +163,13 @@ struct ArchiveShellView: View {
     /// 않아도 된다. 시트를 손으로 끌어 올리는 동안 버튼이 따라 움직이지 않는 건 필터바와 같은 한계다.
     ///
     /// 자리 값의 근거는 ``PlaceMapButtonMetrics``.
+    ///
+    /// 버튼 크기·간격은 **화면마다 다르다** — 장소 상세 시안은 40×40 / 시트에서 18 이고, 방
+    /// 리스트·방 상세 시안은 36×36 / 20 이다(``PlaceMapButtonMetrics/Preset``).
+    private var buttonMetrics: PlaceMapButtonMetrics.Preset {
+        placeStore != nil ? .placeDetail : .roomMap
+    }
+
     private func mapButtons(roomList: RoomListStore) -> some View {
         // 지도를 쓰는 세 화면(방 리스트·방 상세·장소 상세) 모두에 현위치 버튼이 선다 —
         // PRD 「현재 위치 버튼」이 "[SYS-004]가 제공하며, **지도를 쓰는 화면에서 공통으로
@@ -181,15 +188,15 @@ struct ArchiveShellView: View {
                 // 방 상세에서는 방 리스트 쪽으로 보낸다 — 카메라를 옮기는 일은 화면과 무관하고
                 // (`RoomListNav.focusMyLocation` → `ArchiveCoordinator.focusMap`), 방 상세
                 // Store 의 좌표는 거리순 정렬 기준점이라 쓰임이 다르다.
-                MyLocationButton {
+                MyLocationButton(size: buttonMetrics.myLocationSize) {
                     if let placeStore { placeStore.send(.tapMyLocation) } else { roomList.send(.tapMyLocation) }
                 }
             }
             .padding(.trailing, PlaceMapButtonMetrics.trailing)
-            // 시트 윗끝에서 18 — 드러난 높이가 단계마다 다르므로 지금 단계의 것을 쓴다
+            // 시트 윗끝에서 띄우는 값 — 드러난 높이가 단계마다 다르므로 지금 단계의 것을 쓴다
             // (peek·half 둘 다 버튼이 보인다). 탭바가 시트를 덮는 만큼은 `mapBottomInset` 과
             // 같은 이유로 함께 되돌려 준다.
-            .padding(.bottom, visiblePeek + tabBarCoverage + PlaceMapButtonMetrics.bottomGap)
+            .padding(.bottom, visiblePeek + tabBarCoverage + buttonMetrics.bottomGap)
         }
     }
 

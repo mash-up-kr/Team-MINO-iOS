@@ -20,24 +20,47 @@ import CoreGraphics
 /// 거친 `저장된 방` 쪽(아래끝 423 = 시트 윗끝 441 에서 18)을 택했다. 그래서 현위치만 시안보다
 /// 2 위에 선다(시안 16 → 18).
 public enum PlaceMapButtonMetrics {
-    /// 화면 오른쪽 끝에서 현위치 버튼까지 — 시안 375 − 355.
+    /// 화면 오른쪽 끝에서 현위치 버튼까지 — 두 화면 모두 20.
     public static let trailing: CGFloat = 20
 
-    /// 두 버튼 사이 — 시안 315 − 307.
+    /// 두 버튼 사이 — 시안 315 − 307. `저장된 방` 이 함께 서는 장소 상세에만 쓰인다.
     public static let spacing: CGFloat = 8
 
-    /// 시트 윗끝에서 버튼 줄 아래끝까지 — 시안 441 − 423.
+    /// 현위치 버튼 안 아이콘 — 두 화면 모두 20×20.
     ///
-    /// 시트가 드러낸 높이(`peek`)에 이만큼 더해 띄운다. `peek` 은 시트가 안전영역 **위로**
-    /// 드러내는 높이라 시안의 "시트 윗끝" 과 기준이 같다.
-    public static let bottomGap: CGFloat = 18
-
-    /// 현위치 버튼 한 변 — 시안 40×40 (`size-[40px]`).
-    public static let myLocationSize: CGFloat = 40
-
-    /// 현위치 버튼 안 아이콘 — 시안 20×20.
-    ///
-    /// 시안의 padding 은 8 이라 8 + 20 + 8 = 36 으로 프레임 40 과 맞지 않는다. 프레임 크기가
-    /// 40 으로 고정돼 있으므로 padding 이 아니라 **가운데 정렬**로 놓는다(실질 padding 10).
+    /// 장소 상세 시안의 padding 은 8 이라 8 + 20 + 8 = 36 으로 프레임 40 과 맞지 않는다. 프레임
+    /// 크기가 고정돼 있으므로 padding 이 아니라 **가운데 정렬**로 놓는다.
     public static let myLocationIconSize: CGFloat = 20
+
+    /// 화면마다 다른 값. **한 벌로 묶어 두는 이유**는 크기와 간격이 같은 시안 노드에서 함께
+    /// 나오기 때문이다 — 따로 두면 한쪽만 갈아 끼워 어긋난 조합이 생긴다.
+    public struct Preset: Equatable, Sendable {
+        /// 현위치 버튼 한 변.
+        public let myLocationSize: CGFloat
+        /// 시트 윗끝에서 버튼 줄 아래끝까지. 시트가 드러낸 높이(`peek`)에 이만큼 더해 띄운다 —
+        /// `peek` 은 시트가 안전영역 **위로** 드러내는 높이라 시안의 "시트 윗끝" 과 기준이 같다.
+        public let bottomGap: CGFloat
+
+        /// 장소 상세(`005-1 half`, node `2792:142415`) — 현위치 `3276:209987` 이 40×40 이고
+        /// `저장된 방` `4170:125471` 과 한 줄로 선다.
+        ///
+        /// 시안의 두 버튼은 높이가 40 으로 같은데 y 만 2 어긋나 있다(383 / 385). 크기가 같은
+        /// 이웃 버튼을 2 어긋나게 두는 건 정렬 의도로 보기 어려워 한 줄로 맞췄고, 기준은 이미
+        /// 구현·리뷰를 거친 `저장된 방` 쪽(아래끝 423 = 시트 윗끝 441 에서 18)을 택했다.
+        /// 그래서 현위치만 시안보다 2 위에 선다(시안 16 → 18).
+        public static let placeDetail = Preset(myLocationSize: 40, bottomGap: 18)
+
+        /// 방 리스트·방 상세 — 현위치 버튼이 **36×36** 이고 시트 윗끝에서 20 뜬다.
+        ///
+        /// 방 상세 시안(`004-1-1 방 상세 peek`, `2542:125409`)을 375×812 PNG 로 받아 픽셀로 쟀다:
+        /// 흰 원판이 y 549..584(**지름 36**), 오른쪽 끝에서 21, 시트 윗끝(y 604)에서 20.
+        /// 장소 상세의 40 을 세 화면에 돌려 쓰던 것이 어긋남의 원인이었다 — 두 시안이 실제로 다르다.
+        /// Android 도 화면별로 따로 재서 같은 결론(`Size = 36.dp` · `GapAboveSheet = 20.dp`)에 왔다.
+        public static let roomMap = Preset(myLocationSize: 36, bottomGap: 20)
+    }
+
+    /// ``Preset/placeDetail`` 을 타입 이름으로도 부를 수 있게 둔다 — 호출부가 어느 쪽으로 써도
+    /// 같은 값이다.
+    public static let placeDetail = Preset.placeDetail
+    public static let roomMap = Preset.roomMap
 }
