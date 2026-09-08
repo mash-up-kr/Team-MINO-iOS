@@ -18,12 +18,6 @@ struct RoomDetailLocationTests {
         #expect(location(photos: []).thumbnail == nil)
     }
 
-    @Test("사진 수는 배열에서 센다 — 따로 든 개수와 어긋나지 않는다")
-    func photoCountFollowsPhotos() {
-        #expect(location(photos: photos).photoCount == 3)
-        #expect(location(photos: []).photoCount == 0)
-    }
-
     @Test("Pin 의 사진이 그대로 실려 온다")
     func mapsPinImages() {
         let pin = PinFixture.pin(

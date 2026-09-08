@@ -1,4 +1,5 @@
 import DesignSystem
+import Domain
 import SwiftUI
 
 /// full 단계 목록 위 줄 — 좌측 정렬 드롭다운 트리거, 우측 리스트/카드 보기 전환.
@@ -6,7 +7,7 @@ struct RoomDetailToolbar<SortMenu: View>: View {
     /// Figma `Frame 419` 높이. 드롭다운을 트리거 바로 아래에 붙이는 기준이다.
     private static var triggerHeight: CGFloat { 26 }
 
-    let sort: RoomDetailSort
+    let sort: PinSort
     let viewMode: RoomDetailViewMode
     let isSortExpanded: Bool
     let onToggleSort: () -> Void
@@ -27,7 +28,7 @@ struct RoomDetailToolbar<SortMenu: View>: View {
     private var sortTrigger: some View {
         Button(action: onToggleSort) {
             HStack(spacing: 0) {
-                Text(sort.rawValue)
+                Text(sort.menuTitle)
                     .mhTypography(.body1ReadingMedium)
                     .foregroundStyle(.mhPrimaryNormal)
                 Image(.caretDown)
@@ -40,7 +41,7 @@ struct RoomDetailToolbar<SortMenu: View>: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("정렬 기준: \(sort.rawValue)")
+        .accessibilityLabel("정렬 기준: \(sort.menuTitle)")
         .accessibilityIdentifier("RoomDetail.sortTrigger")
         .overlay(alignment: .topLeading) {
             if isSortExpanded {

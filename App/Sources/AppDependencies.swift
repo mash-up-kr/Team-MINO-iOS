@@ -50,6 +50,9 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
     /// 방 상세 거리순 정렬(004-1 ⑥)의 기준점 — "내 기준 3km" 를 재려면 내 위치가 있어야 한다.
     let currentLocation: CurrentLocationUseCase
     let fetchInviteCode: FetchInviteCodeUseCase
+    /// 초대 코드가 가리키는 방. 합류에 필요한 방 id 를 여기서 얻는다.
+    let fetchInvitationPreview: FetchInvitationPreviewUseCase
+    let joinRoom: JoinRoomUseCase
     /// 초대 링크의 스킴·호스트. 서버는 코드만 주고 링크는 앱이 조립한다(`Core.DeeplinkBuilder`).
     ///
     /// > 스킴 `gguk` 은 `Info.plist` 의 `CFBundleURLTypes` 와도 맞아야 한다 —
@@ -58,6 +61,9 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
     /// 들어온 URL 을 목적지로 번역한다. 링크를 **만드는** 쪽(`DeeplinkBuilder`)과 같은
     /// 설정을 보도록 조립을 여기 한곳에 둔다 — 갈리면 우리가 만든 링크를 우리가 못 읽는다.
     let deeplinkParser: DeeplinkParser
+    /// 푸시 토큰을 서버와 맞추는 일. 화면이 아니라 **앱 수명**에 묶여 있어 deps 프로토콜이 아니라
+    /// `AppCoordinator` 가 직접 받아 든다(`launch` 와 같은 성격).
+    let pushTokenSync: PushTokenSync
     /// 실 API 를 태우는 클라이언트. Repository 구현에 그대로 넘긴다
     /// (절차: Packages/Networking/Docs/AddingAPI.md).
     let httpClient: HTTPClient
@@ -94,8 +100,8 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
         self.fetchPinDetail = DefaultFetchPinDetailUseCase(repository: pins)
         // 「경과일 초기화 확인」(홈 spec FR-007) — 상세를 연 사실을 서버에 남긴다.
         self.recordPinAccess = DefaultRecordPinAccessUseCase(repository: pins)
-        // 삭제만 스텁이다 — 서버에 삭제 엔드포인트가 없다(`StubPinDeletionRepository` 주석).
-        self.deletePin = DefaultDeletePinUseCase(repository: StubPinDeletionRepository())
+        // 장소(핀) 삭제: 실 API (DELETE /api/v1/pins/{pinId})
+        self.deletePin = DefaultDeletePinUseCase(repository: pins)
 
         // 알림 목록: 실 API(`GET /api/v1/notifications`). 페이지네이션은 서버 규약(offset)을 그대로 탄다.
         self.fetchNotifications = DefaultFetchNotificationsUseCase(
@@ -174,10 +180,24 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
         // 권한 어댑터는 플랫폼 프레임워크(UserNotifications·CoreLocation)를 타므로 여기서 만든다
         // — `FirebaseAuthRepository` 와 같은 이유로 Data 가 아니라 컴포지션 루트가 갖는다.
         let permissions = SystemPermissionRepository()
+        let appSettings = UserDefaultsAppSettingsRepository()
+
+        // 푸시 토큰 업로드. **두 UseCase 는 서로를 주입받지 않는다** — 켜짐 판정(`isNotificationDeliveryOn`)과
+        // APNs 등록 어댑터를 함께 볼 뿐이다. 등록은 멱등이라 두 쪽이 각자 불러도 무해하다.
+        let pushRegistration = RemoteNotificationRegistrationRepository()
+        let pushTokenSync = PushTokenSync(useCase: DefaultSyncPushTokenUseCase(
+            permissions: permissions,
+            settings: appSettings,
+            registration: pushRegistration,
+            provider: FCMPushTokenProvider(),
+            repository: PushTokenRepositoryImpl(client: httpClient)
+        ))
+        self.pushTokenSync = pushTokenSync
+
         self.notificationSetting = DefaultNotificationSettingUseCase(
             permissions: permissions,
-            settings: UserDefaultsAppSettingsRepository(),
-            push: RemoteNotificationRegistrationRepository()
+            settings: appSettings,
+            push: pushRegistration
         )
         self.locationSetting = DefaultLocationSettingUseCase(permissions: permissions)
 
@@ -188,10 +208,11 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
             location: SystemCurrentLocationRepository()
         )
 
-        // 초대 코드: 실 API(POST /api/v1/rooms/{roomId}/invitations).
-        self.fetchInviteCode = DefaultFetchInviteCodeUseCase(
-            repository: InvitationRepositoryImpl(client: httpClient)
-        )
+        // 초대: 발급·미리보기·합류가 한 Repository 를 공유한다.
+        let invitations = InvitationRepositoryImpl(client: httpClient)
+        self.fetchInviteCode = DefaultFetchInviteCodeUseCase(repository: invitations)
+        self.fetchInvitationPreview = DefaultFetchInvitationPreviewUseCase(repository: invitations)
+        self.joinRoom = DefaultJoinRoomUseCase(repository: invitations)
 
         self.deeplink = DeeplinkConfiguration(scheme: "gguk", host: "gguk.org")
         self.deeplinkParser = DeeplinkParser(configuration: self.deeplink)

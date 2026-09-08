@@ -48,12 +48,17 @@ extension NotificationDTO {
             title: Self.trimmed(typeLabel) ?? "",
             targetName: Self.trimmed(targetName) ?? "",
             thumbnailURL: webImageURL(thumbnailUrl),
-            destination: Self.mapDestination(type: notificationType, payload: payload),
+            destination: Self.mapDestination(type: notificationType, pinId: payload?.pinId, roomId: payload?.roomId),
             createdAt: createdAt
         )
     }
 
-    /// 서버 유형 문자열 ↔ 도메인 유형의 **유일한 대응표**.
+    /// 서버 유형 문자열 ↔ 도메인 유형의 **유일한 대응표**. 목록 API 와 푸시(`PushNotificationPayload`)가
+    /// 같은 어휘를 쓰므로 둘 다 이 표를 지난다.
+    ///
+    /// > `NEARBY_PLACE_SUMMARY`(주변 장소가 여러 곳일 때의 대표 푸시)는 **일부러 여기 없다.**
+    /// > 푸시로만 오고 목록에는 남지 않으며(FR-019), 식별자도 없어 이동할 곳이 없다 —
+    /// > `.unknown` → `.unresolved` 로 떨어지는 게 맞는 결과다. 계약 누락이 아니니 채우지 말 것.
     static func mapType(_ raw: String) -> NotificationType {
         switch raw {
         case "PIN_DUPLICATED": .duplicateSave
@@ -66,31 +71,34 @@ extension NotificationDTO {
         }
     }
 
-    /// 유형이 요구하는 식별자를 payload 에서 뽑는다. **유형을 먼저 보고 그에 맞는 키만 읽는다** —
+    /// 유형이 요구하는 식별자를 뽑는다. **유형을 먼저 보고 그에 맞는 키만 읽는다** —
     /// 유형과 무관한 키가 섞여 와도 엉뚱한 곳으로 가지 않는다.
+    ///
+    /// 값을 담는 **모양이 아니라 값 자체**를 받는 이유: 목록 API 는 `payload` 객체 안에 중첩해서
+    /// 주고 푸시는 평평하게 준다. 모양은 각자 풀고 이 표만 공유한다.
     ///
     /// `.unknown` 은 반드시 `.unresolved` 로 떨어진다(`NotificationType` 주석의 불변식) —
     /// 목록에서 걸러질 알림이 이동 경로를 갖고 있으면 안 된다.
-    static func mapDestination(type: NotificationType, payload: NotificationPayloadDTO?) -> NotificationDestination {
+    static func mapDestination(type: NotificationType, pinId: String?, roomId: String?) -> NotificationDestination {
         switch type {
         case .duplicateSave, .nearbyReminder, .commentReminder:
             // `placeId` 로 폴백하지 않는다 — 그건 장소 마스터 id 라 `GET /pins/{id}` 에 넣으면
             // 404 가 난다. 없으면 `.unresolved` 로 두는 편이(셀은 그리되 탭 무반응) 잘못된
             // 요청을 보내는 것보다 낫다.
-            guard let id = Self.trimmed(payload?.pinId) else { return .unresolved }
+            guard let id = Self.trimmed(pinId) else { return .unresolved }
             return .place(pinID: PinID(id))
         case .saveError:
             return .saveError
         case .memberJoined, .roomJoined:
-            guard let id = Self.trimmed(payload?.roomId) else { return .unresolved }
+            guard let id = Self.trimmed(roomId) else { return .unresolved }
             return .room(roomID: id)
         case .unknown:
             return .unresolved
         }
     }
 
-    /// 공백뿐인 값도 "없는 것" 으로 본다
-    private static func trimmed(_ raw: String?) -> String? {
+    /// 공백뿐인 값도 "없는 것" 으로 본다. 푸시 파서(`PushNotificationPayload`)도 같은 판정을 쓴다.
+    static func trimmed(_ raw: String?) -> String? {
         guard let raw else { return nil }
         let value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         return value.isEmpty ? nil : value

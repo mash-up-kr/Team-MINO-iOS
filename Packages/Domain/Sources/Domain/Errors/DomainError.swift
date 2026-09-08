@@ -37,6 +37,16 @@ public enum DomainError: Error, Equatable, Sendable {
     case profileSaveFailed
     /// 초대 코드를 얻지 못했다. 재시도가 의미 있다.
     case inviteCodeFetchFailed
+    /// 초대가 없거나 이미 만료됐다(서버 `INVITATION_NOT_FOUND`).
+    ///
+    /// 초대 진입은 이 값 하나로 "초대를 없던 것으로 치고 평소 진입" 을 결정한다 —
+    /// 재시도해도 결과가 같으므로 `inviteCodeFetchFailed` 와 갈라 둔다.
+    case invitationNotFound
+    /// 개인방에는 합류할 수 없다(서버 `PERSONAL_ROOM_NOT_ALLOWED`).
+    ///
+    /// 만료(`invitationNotFound`)와 나누는 건 사용자에게 보여줄 문구가 달라서다 —
+    /// 링크가 낡은 것과 애초에 들어갈 수 없는 방인 것은 다른 안내가 필요하다.
+    case personalRoomNotAllowed
     /// 빈 코멘트를 등록하려 했다 — 공백만 친 경우를 포함한다.
     ///
     /// 등록 버튼이 이미 잠기지만(화면), 유스케이스도 스스로 막는다. 뷰를 고치면 뚫리는 방어라
@@ -63,5 +73,7 @@ public enum DomainError: Error, Equatable, Sendable {
     /// 링크 저장(`linkSaveFailed`)과 갈라 둔다 — 그쪽은 익스텐션이 인스타 링크를 처음 담는 경로라
     /// 실패 스낵바가 따로 있고, 이쪽은 앱 안에서 이미 있는 장소를 복제하는 다른 화면이다.
     case pinShareFailed
+    /// 저장한 장소를 방에서 지우지 못했다.
+    case pinDeleteFailed
     case unknown
 }

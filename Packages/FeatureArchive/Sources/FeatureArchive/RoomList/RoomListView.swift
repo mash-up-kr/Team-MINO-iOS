@@ -166,7 +166,8 @@ struct RoomListContentView: View {
                         memo: room.memo,
                         placeCount: room.placeCount,
                         thumbnail: room.thumbnail,
-                        members: room.members
+                        members: room.members,
+                        memberOverflow: room.memberOverflow
                     )
                     .contentShape(Rectangle())
                     .onTapGesture { onSelectRoom?(room.id) }
@@ -216,6 +217,8 @@ struct RoomListItem: Identifiable, Equatable {
     let placeCount: Int
     let thumbnail: MHRoomThumbnailKind
     let members: [Image?]
+    /// 아바타로 보이지 않는 나머지 인원(4명 이하면 `nil`) — ``AvatarPalette/overlapped(_:)`` 가 정한다.
+    let memberOverflow: Int?
 
     init(
         id: String,
@@ -223,7 +226,8 @@ struct RoomListItem: Identifiable, Equatable {
         memo: String? = nil,
         placeCount: Int,
         thumbnail: MHRoomThumbnailKind,
-        members: [Image?] = []
+        members: [Image?] = [],
+        memberOverflow: Int? = nil
     ) {
         self.id = id
         self.title = title
@@ -231,6 +235,7 @@ struct RoomListItem: Identifiable, Equatable {
         self.placeCount = placeCount
         self.thumbnail = thumbnail
         self.members = members
+        self.memberOverflow = memberOverflow
     }
 
     // members 는 [Image?] 라 Equatable 이 아니다(Image 가 값 비교를 지원하지 않음) — 개수만 비교해
@@ -238,7 +243,7 @@ struct RoomListItem: Identifiable, Equatable {
     static func == (lhs: RoomListItem, rhs: RoomListItem) -> Bool {
         lhs.id == rhs.id && lhs.title == rhs.title && lhs.memo == rhs.memo
             && lhs.placeCount == rhs.placeCount && lhs.thumbnail == rhs.thumbnail
-            && lhs.members.count == rhs.members.count
+            && lhs.members.count == rhs.members.count && lhs.memberOverflow == rhs.memberOverflow
     }
 }
 
@@ -246,29 +251,21 @@ struct RoomListItem: Identifiable, Equatable {
 
 extension RoomListItem {
     /// 도메인 `Room` → 카드 표시 모델.
+    ///
+    /// 멤버 아바타의 개수·순서·카운터는 ``AvatarPalette/overlapped(_:)`` 가 정한다 — 방 상세
+    /// 헤더와 같은 규칙을 봐야 해서(PRD 「방 멤버 아바타」가 두 화면을 함께 묶는다) 여기서 자르거나
+    /// 뒤집지 않는다. 서버가 이미 "최근에 장소를 저장한 멤버가 먼저" 로 주므로 그 순서를 그대로 넘긴다.
     init(from room: Room) {
+        let avatars = AvatarPalette.overlapped(room.users.map(\.avatarColor))
         self.init(
             id: room.id,
             title: room.name,
             memo: room.description,
             placeCount: room.pinCount,
             thumbnail: Self.thumbnail(for: room),
-            members: AvatarPalette.images(of: Self.memberAvatarColors(of: room))
+            members: avatars.images,
+            memberOverflow: avatars.overflow
         )
-    }
-
-    /// 카드에 그릴 멤버 아바타 색 — 003-2 ⑤ "최대 5개 이상 표시하지 않는다 / 정렬(오른쪽 부터)
-    /// 기준은 가장 최근에 위치를 저장한 사람 기준으로 우에서 좌로".
-    ///
-    /// 정렬 기준은 **서버가 이미 맞춰서 준다** — `GET /api/v1/rooms?showUsers=true` 스펙이
-    /// "최근에 장소를 저장한 멤버가 먼저, 핀 없는 멤버는 가입순으로 뒤" 다. 여기서 할 일은 그 순서를
-    /// 화면 방향에 맞추는 것뿐이다: ``MHAvatarGroup`` 은 배열 앞을 왼쪽에 놓으므로, 뒤집어야 최신이
-    /// 오른쪽 끝에 선다.
-    ///
-    /// **자르기가 먼저, 뒤집기가 나중이다.** 순서를 바꾸면 최신 5명이 아니라 가장 오래된 5명이 남는다
-    /// (``AvatarPalette/images(of:)`` 도 앞에서 자르므로 뒤집은 뒤 맡기면 그렇게 된다).
-    static func memberAvatarColors(of room: Room) -> [AvatarColor?] {
-        room.users.prefix(AvatarPalette.displayLimit).reversed().map(\.avatarColor)
     }
 
     private static func thumbnail(for room: Room) -> MHRoomThumbnailKind {

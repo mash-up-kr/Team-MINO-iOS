@@ -92,6 +92,26 @@ public extension MHAvatarGroup where Trailing == MHAvatarGroupCountLabel {
     }
 }
 
+// MARK: - 편의 이니셜라이저 (카운터 칩)
+
+public extension MHAvatarGroup where Trailing == MHAvatarCountBadge {
+    /// 아바타 묶음 뒤에 **"+N" 카운터 칩**을 붙인 그룹. PRD 「방 멤버 아바타」의 "5명 이상:
+    /// 아바타 3개 + 카운터 칩" 이 이 모양이다 — "외 N명" 라벨(``init(_:variant:size:remaining:)``)과
+    /// 달리 숫자 배지라 방 카드처럼 자리가 좁은 곳에 쓴다.
+    ///
+    /// 칩은 아바타와 같은 지름이라 겹침 체인에 자연히 얹힌다.
+    init(
+        _ images: [Image?],
+        variant: MHAvatarVariant = .person,
+        size: MHAvatarGroupSize = .small,
+        counter: Int
+    ) {
+        self.init(images, variant: variant, size: size) {
+            MHAvatarCountBadge(remaining: counter, variant: variant, side: size.pt)
+        }
+    }
+}
+
 /// Avatar Group 의 기본 trailing 라벨 "외 N명". Figma `Trailing Content/Text`(SUITE Bold 14, Label/Alternative).
 public struct MHAvatarGroupCountLabel: View {
     private let remaining: Int
@@ -110,6 +130,8 @@ public struct MHAvatarGroupCountLabel: View {
         MHAvatarGroup(Array(repeating: Image?.none, count: 4), size: .xSmall)
         MHAvatarGroup(Array(repeating: Image?.none, count: 5), size: .small)
         MHAvatarGroup(Array(repeating: Image?.none, count: 5), size: .small, remaining: 12)
+        MHAvatarGroup(Array(repeating: Image?.none, count: 3), size: .xSmall, counter: 4)
+        MHAvatarGroup(Array(repeating: Image?.none, count: 3), size: .xSmall, counter: 100)
     }
     .padding()
 }
