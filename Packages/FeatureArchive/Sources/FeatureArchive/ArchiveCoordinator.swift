@@ -110,6 +110,7 @@ public final class ArchiveCoordinator: Coordinator {
             RoomListState(),
             reduce: roomListReducer(
                 useCase: deps.fetchRooms,
+                fetchPins: deps.fetchRoomPins,
                 promptSnooze: deps.roomCreationPromptSnooze,
                 currentLocation: deps.currentLocation
             ),
@@ -179,6 +180,9 @@ public final class ArchiveCoordinator: Coordinator {
         switch nav {
         case .openRoomDetail(let room):
             showRoom(room)
+        case .openPlaceDetail(let pin):
+            // 방 상세를 거치지 않고 곧장 장소 상세를 띄운다 — 방 리스트 지도에서 누른 마커다.
+            selectedPin = pin
         case .goToCreateRoom:
             push(.createRoom)
         case .focusMyLocation(let coordinate):
