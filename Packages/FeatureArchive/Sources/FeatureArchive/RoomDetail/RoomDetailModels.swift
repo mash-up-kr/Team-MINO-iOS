@@ -221,7 +221,8 @@ extension RoomDetailRoom {
         title: "사람 많은 방",
         memo: "멤버 7명",
         locationCount: 12,
-        memberAvatarColors: [.red, .redOrange, .orange, .green, .cyan, .blue, .purple]
+        memberAvatarColors: [.red, .redOrange, .orange, .green, .cyan, .blue, .purple],
+        isPersonal: false
     )
 }
 
