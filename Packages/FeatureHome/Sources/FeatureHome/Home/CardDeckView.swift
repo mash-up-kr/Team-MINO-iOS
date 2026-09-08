@@ -47,15 +47,15 @@ struct CardDeckView: View {
     var body: some View {
         // 앞 카드를 고정 앵커(offset 0)로 두고 뒤 카드가 위로 겹친다. 앞 카드 위치가 카드 수와 무관하게
         // 고정돼야 넘길 때·재생성할 때 덱 높이가 튀지 않는다. (스택이 얕으면 위쪽이 비는 건 "카드 소진" 표현)
+        //
+        // 되돌리기용 이전 카드도 **같은 ForEach 안**에 있다(depth -1) — 따로 그리면 되돌리기가 끝날 때
+        // 뷰가 갈아끼워져 사진이 다시 로드된다(``CardDeckLayout/renderedIndices(currentIndex:pinCount:)``).
         ZStack(alignment: .center) {
-            // 일반 카드 스택
-            ForEach(Array(visibleCards.enumerated()), id: \.element.id) { stackIndex, pin in
-                let isTop = stackIndex == visibleCards.count - 1
-                let depth = visibleCards.count - 1 - stackIndex
-                let effectiveDepth = CardDeckLayout.effectiveDepth(depth: depth, isTop: isTop, shiftProgress: shiftProgress, returnProgress: returnProgress)
+            ForEach(deckCards) { card in
+                let effectiveDepth = effectiveDepth(of: card)
                 let cardScale = CardDeckLayout.cardScale(containerWidth: containerWidth, effectiveDepth: effectiveDepth)
 
-                cardView(pin: pin)
+                cardView(pin: card.pin)
                     // 뒤 카드는 좁힌 게 아니라 **비율 그대로 줄인 사본**이다(시안) — 모든 카드를 같은
                     // 기준 폭으로 레이아웃한 뒤 축소한다. 폭만 좁히면 높이가 비례해 줄지 않아
                     // 겹침 간격이 20 보다 좁아지고, 뒤 카드 안에서 글자가 다시 줄바꿈된다.
@@ -63,27 +63,14 @@ struct CardDeckView: View {
                     .frame(width: baseCardWidth)
                     .scaleEffect(cardScale, anchor: .top)
                     .offset(y: effectiveDepth * -CardDeckLayout.depthStep)
-                    .opacity(CardDeckLayout.interpolatedOpacity(depth: depth, isTop: isTop, shiftProgress: shiftProgress) * CardDeckLayout.depthFade(effectiveDepth))
-                    .zIndex(Double(stackIndex))
-                    .offset(x: isTop ? dragOffset + flingXOffset : 0, y: isTop ? dragYOffset + flingYOffset : 0)
-                    .rotationEffect(isTop ? .degrees(topRotation) : .zero)
-                    .homeGuideDimmed(isGuidePresented && !isTop)
-                    .allowsHitTesting(isTop && !isFlingAnimating)
-                    .gesture(isTop ? swipeGesture : nil)
-                    .onTapGesture { onTapCard(pin.id) }
-            }
-
-            // 이전 카드 (좌스와이프 시 우상단에서 돌아옴)
-            if returnProgress > 0, let prevPin = previousPin {
-                cardView(pin: prevPin)
-                    .frame(width: baseCardWidth)
-                    .offset(
-                        x: screenWidth * (1 - returnProgress),
-                        y: -screenWidth * Anim.flyUpFactor * (1 - returnProgress)
-                    )
-                    .rotationEffect(.degrees(-Anim.flingRotation * Double(1 - returnProgress)))
-                    .zIndex(Double(CardDeckLayout.visibleCount + 1))
-                    .allowsHitTesting(false)
+                    .opacity(opacity(of: card, effectiveDepth: effectiveDepth))
+                    .zIndex(Double(CardDeckLayout.visibleCount - card.depth))
+                    .offset(x: xOffset(of: card), y: yOffset(of: card))
+                    .rotationEffect(rotation(of: card))
+                    .homeGuideDimmed(isGuidePresented && !card.isTop)
+                    .allowsHitTesting(card.isTop && !isFlingAnimating)
+                    .gesture(card.isTop ? swipeGesture : nil)
+                    .onTapGesture { onTapCard(card.pin.id) }
             }
         }
         .frame(maxWidth: .infinity)
@@ -107,16 +94,58 @@ struct CardDeckView: View {
 
     // MARK: - 카드 데이터
 
-    private var visibleCards: [Pin] {
-        // 폭이 측정되기 전(첫 레이아웃 패스)엔 그리지 않아 0-폭 카드 깜빡임을 막는다.
-        guard containerWidth > 0 else { return [] }
-        return Array(pins[CardDeckLayout.visibleRange(currentIndex: currentIndex, pinCount: pins.count)].reversed())
+    /// ForEach 한 항목. 스택 카드와 되돌리기 카드를 **하나의 목록**으로 합치기 위한 표현이다.
+    private struct DeckCard: Identifiable {
+        let pin: Pin
+        /// 맨 앞 카드로부터의 거리(0 = 맨 앞). 되돌리기 카드는 앞 카드보다 한 칸 더 앞이라 -1.
+        let depth: Int
+
+        var id: PinID { pin.id }
+        var isTop: Bool { depth == 0 }
+        /// 되돌리기(좌스와이프)로 우상단에서 돌아오는 카드. 첫 카드에는 없다 — 되돌리기는 덱 경계를 넘지 않는다(EC-003).
+        var isReturning: Bool { depth < 0 }
     }
 
-    /// 좌스와이프 때 우상단에서 돌아오는 카드 — 덱 안의 바로 앞 카드.
-    /// 첫 카드에는 없다: 되돌리기는 덱 경계를 넘지 않는다(EC-003).
-    private var previousPin: Pin? {
-        currentIndex > 0 ? pins[currentIndex - 1] : nil
+    private var deckCards: [DeckCard] {
+        // 폭이 측정되기 전(첫 레이아웃 패스)엔 그리지 않아 0-폭 카드 깜빡임을 막는다.
+        guard containerWidth > 0 else { return [] }
+        return CardDeckLayout.renderedIndices(currentIndex: currentIndex, pinCount: pins.count)
+            .map { DeckCard(pin: pins[$0], depth: $0 - currentIndex) }
+    }
+
+    // MARK: - 카드별 변형 (되돌리기 카드는 진행도만큼 우상단에서 돌아온다)
+
+    private func effectiveDepth(of card: DeckCard) -> CGFloat {
+        // 되돌리기 카드는 언제나 앞 카드 자리(깊이 0)의 크기다 — 돌아오는 경로는 offset·rotation 이 그린다.
+        guard !card.isReturning else { return 0 }
+        return CardDeckLayout.effectiveDepth(
+            depth: card.depth, isTop: card.isTop,
+            shiftProgress: shiftProgress, returnProgress: returnProgress
+        )
+    }
+
+    private func opacity(of card: DeckCard, effectiveDepth: CGFloat) -> Double {
+        // 되돌리기 카드는 진행 전엔 감춘다. 화면 밖(x = 컨테이너 폭)에 둬도 −20° 회전이 모서리를
+        // 다시 화면 안(≈100pt)으로 밀어 넣기 때문 — 진행도 0 에서 아예 그리지 않던 예전과 같은 그림이다.
+        // 뷰 자체는 남겨 둔다: 그래야 스와이프를 시작하기 전에 사진을 받아 두고, 되돌리기가 끝나
+        // 이 카드가 맨 앞이 될 때도 같은 뷰가 이어져 사진이 다시 로드되지 않는다.
+        guard !card.isReturning else { return returnProgress > 0 ? 1 : 0 }
+        return CardDeckLayout.interpolatedOpacity(effectiveDepth: effectiveDepth) * CardDeckLayout.depthFade(effectiveDepth)
+    }
+
+    private func xOffset(of card: DeckCard) -> CGFloat {
+        if card.isReturning { return screenWidth * (1 - returnProgress) }
+        return card.isTop ? dragOffset + flingXOffset : 0
+    }
+
+    private func yOffset(of card: DeckCard) -> CGFloat {
+        if card.isReturning { return -screenWidth * Anim.flyUpFactor * (1 - returnProgress) }
+        return card.isTop ? dragYOffset + flingYOffset : 0
+    }
+
+    private func rotation(of card: DeckCard) -> Angle {
+        if card.isReturning { return .degrees(-Anim.flingRotation * Double(1 - returnProgress)) }
+        return card.isTop ? .degrees(topRotation) : .zero
     }
 
     // MARK: - 개별 카드

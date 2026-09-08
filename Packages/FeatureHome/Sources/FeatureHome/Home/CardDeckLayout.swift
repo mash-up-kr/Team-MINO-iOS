@@ -97,6 +97,24 @@ enum CardDeckLayout {
         return start..<end
     }
 
+    /// 렌더할 카드들의 **덱 인덱스**를 뒤 → 앞 순서로. 맨 끝에 되돌리기 예비 카드(`currentIndex - 1`)가 붙는다.
+    ///
+    /// 이전 카드를 스택과 **같은 목록**에 담는 게 핵심이다. 따로 그리면 되돌리기가 끝나 인덱스가 줄어드는
+    /// 순간 그 카드가 스택의 새 뷰로 갈아끼워져 뷰 정체성이 끊긴다 — `MHHomeCard` 가 새로 만들어지면서
+    /// `AsyncImage` 가 처음부터 다시 로드돼 사진이 한 프레임 빈다(되돌릴 때만 사진이 깜빡이던 원인).
+    /// 같은 목록에 있으면 `ForEach` 가 id 로 뷰를 이어받아 이미 받아 둔 사진이 그대로 남는다.
+    ///
+    /// 되돌리기 진행 전(진행도 0)에도 목록에 둔다 — 그래야 스와이프를 시작하기 전에 사진을 받아 둔다.
+    /// 그때는 화면 밖(우상단)에 있어 보이지 않는다.
+    static func renderedIndices(currentIndex: Int, pinCount: Int) -> [Int] {
+        var indices = Array(visibleRange(currentIndex: currentIndex, pinCount: pinCount).reversed())
+        let previous = currentIndex - 1
+        if previous >= 0, previous < pinCount {
+            indices.append(previous)
+        }
+        return indices
+    }
+
     // MARK: - 겹침 기하
 
     /// 카드 기준 폭(컨테이너 폭 − 좌우 인셋). 음수는 0 으로 clamp.
@@ -134,13 +152,18 @@ enum CardDeckLayout {
             : max(0, CGFloat(depth) - shiftProgress + returnProgress)
     }
 
-    /// 깊이별 불투명도(넘김 진행 중이면 한 단계 앞 값으로 보간). 앞 카드는 항상 불투명(1).
-    static func interpolatedOpacity(depth: Int, isTop: Bool, shiftProgress: CGFloat) -> Double {
-        guard !isTop else { return opacityValues[0] }
-        let from = opacityValues[min(depth, opacityValues.count - 1)]
-        let targetDepth = max(0, depth - 1)
-        let to = opacityValues[min(targetDepth, opacityValues.count - 1)]
-        return from + (to - from) * Double(shiftProgress)
+    /// 유효 깊이의 불투명도(정수 깊이 사이는 선형 보간).
+    ///
+    /// 넘김·복귀 진행도가 **둘 다 녹아 있는** `effectiveDepth` 를 그대로 받는다. 정수 `depth` + `shiftProgress`
+    /// 로만 계산하던 시절엔 복귀(`returnProgress`)가 빠져 있어, 되돌리기가 끝나 인덱스가 줄어드는 순간
+    /// 뒷장들의 불투명도가 한 단계씩 통째로 튀었다(1.00→0.98, 0.98→0.90 …) — 덱 전체가 한 프레임 깜빡였다.
+    /// 기하(`effectiveDepth`)는 이미 연속이었으므로 불투명도만 같은 기준으로 옮기면 이어진다.
+    static func interpolatedOpacity(effectiveDepth: CGFloat) -> Double {
+        let clamped = max(0, min(effectiveDepth, CGFloat(opacityValues.count - 1)))
+        let lower = Int(clamped.rounded(.down))
+        let upper = min(lower + 1, opacityValues.count - 1)
+        let t = Double(clamped) - Double(lower)
+        return opacityValues[lower] + (opacityValues[upper] - opacityValues[lower]) * t
     }
 
     /// 최대 visible 깊이를 넘어가는 카드는 페이드 아웃(1 → 0).

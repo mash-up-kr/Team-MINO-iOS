@@ -128,14 +128,71 @@ struct CardDeckLayoutTests {
         #expect(Layout.effectiveDepth(depth: 0, isTop: true, shiftProgress: 0, returnProgress: 1) == 1)    // 앞카드는 복귀만큼 밀림
     }
 
-    @Test("interpolatedOpacity — 앞카드는 항상 1, 뒤카드는 넘김 진행에 따라 한 단계 앞으로 단조 증가")
+    @Test("interpolatedOpacity — 앞카드는 1, 깊어질수록 옅어지고 그 사이는 선형 보간")
     func interpolatedOpacity_interpolatesMonotonically() {
-        #expect(Layout.interpolatedOpacity(depth: 0, isTop: true, shiftProgress: 0.5) == 1.0)
-        let at0 = Layout.interpolatedOpacity(depth: 2, isTop: false, shiftProgress: 0)
-        let at1 = Layout.interpolatedOpacity(depth: 2, isTop: false, shiftProgress: 1)
-        let mid = Layout.interpolatedOpacity(depth: 2, isTop: false, shiftProgress: 0.5)
-        #expect(at1 > at0)            // 앞으로 당겨질수록 불투명
-        #expect(mid > at0 && mid < at1)
+        #expect(Layout.interpolatedOpacity(effectiveDepth: 0) == 1.0)
+        let at2 = Layout.interpolatedOpacity(effectiveDepth: 2)
+        let at1 = Layout.interpolatedOpacity(effectiveDepth: 1)
+        let mid = Layout.interpolatedOpacity(effectiveDepth: 1.5)
+        #expect(at1 > at2)                  // 앞으로 당겨질수록 불투명
+        #expect(mid > at2 && mid < at1)
+        #expect(abs(mid - (at1 + at2) / 2) < 0.0001)   // 정수 깊이 사이는 선형
+    }
+
+    @Test("깊이가 최대를 넘어도 불투명도는 마지막 값에서 멈춘다(범위 밖 인덱스 방어)")
+    func interpolatedOpacity_clampsBeyondLastDepth() {
+        let last = Layout.interpolatedOpacity(effectiveDepth: CGFloat(Layout.visibleCount - 1))
+        #expect(Layout.interpolatedOpacity(effectiveDepth: 12) == last)
+        #expect(Layout.interpolatedOpacity(effectiveDepth: -3) == 1.0)
+    }
+
+    /// 회귀 방지 — 불투명도가 정수 `depth` + `shiftProgress` 로만 계산되던 시절, 되돌리기가 끝나
+    /// 인덱스가 줄어드는 순간 **뒷장 전체**의 불투명도가 한 단계씩 튀어(1.00→0.98, 0.98→0.90 …)
+    /// 덱이 통째로 한 프레임 깜빡였다. 기하(effectiveDepth)는 이미 이어져 있었다.
+    @Test("되돌리기가 끝나는 순간 덱 전체의 불투명도가 튀지 않는다")
+    func opacity_continuousAcrossBackwardCommit() {
+        for depth in 0..<Layout.visibleCount {
+            // 커밋 직전 — 인덱스는 그대로고 복귀 진행도만 1
+            let before = Layout.interpolatedOpacity(
+                effectiveDepth: Layout.effectiveDepth(
+                    depth: depth, isTop: depth == 0, shiftProgress: 0, returnProgress: 1
+                )
+            )
+            // 커밋 직후 — 인덱스가 1 줄어 같은 카드의 깊이가 한 단계 깊어진다
+            let after = Layout.interpolatedOpacity(
+                effectiveDepth: Layout.effectiveDepth(
+                    depth: depth + 1, isTop: false, shiftProgress: 0, returnProgress: 0
+                )
+            )
+            #expect(before == after)
+        }
+    }
+
+    // MARK: - renderedIndices (되돌리기 예비 카드 포함 렌더 목록)
+
+    /// 회귀 방지 — 이전 카드를 스택과 따로 그리던 시절, 되돌리기가 끝나 인덱스가 줄면 그 카드가
+    /// 스택의 **새 뷰**로 갈아끼워져 `AsyncImage` 가 처음부터 다시 로드됐다(사진이 한 번 빔).
+    /// 같은 목록에 있어야 `ForEach` 가 id 로 뷰를 이어받는다.
+    @Test("renderedIndices 는 이전 카드(currentIndex-1)를 맨 끝에 포함한다")
+    func renderedIndices_includesPreviousCard() {
+        let indices = Layout.renderedIndices(currentIndex: 3, pinCount: 10)
+        #expect(indices.last == 2)
+        #expect(Set(indices) == Set(Array(3..<(3 + Layout.visibleCount + 1)) + [2]))
+    }
+
+    @Test("renderedIndices 는 뒤 → 앞 순서다 (마지막 스택 카드가 맨 앞)")
+    func renderedIndices_backToFront() {
+        let indices = Layout.renderedIndices(currentIndex: 0, pinCount: 10)
+        #expect(indices == Array((0..<(Layout.visibleCount + 1)).reversed()))   // 첫 카드엔 이전 카드가 없다
+    }
+
+    @Test("renderedIndices 는 덱 밖 인덱스를 만들지 않는다 — pins 슬라이싱이 안전하다")
+    func renderedIndices_staysInBounds() {
+        for currentIndex in 0...11 {
+            for index in Layout.renderedIndices(currentIndex: currentIndex, pinCount: 10) {
+                #expect(index >= 0 && index < 10)
+            }
+        }
     }
 
     @Test("baseCardWidth 는 컨테이너 폭에서 좌우 인셋을 뺀 값, 인셋보다 좁으면 0 으로 clamp")
