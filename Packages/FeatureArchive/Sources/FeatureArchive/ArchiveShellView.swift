@@ -20,9 +20,13 @@ struct ArchiveShellView: View {
     @State private var sortMenuOpen = false
 
     @State private var toastMessage: String?
-    /// 지금 지도 줌. 핀 아래 장소명을 그릴지 가른다(``PlaceMap/showsLabels(atZoom:)``) —
-    /// 멀리서는 이름끼리 겹쳐 읽히지 않는다. `nil` 이면 아직 카메라 idle 을 못 받은 상태다.
+    /// 지금 지도 줌. 핀 아래 장소명을 그릴지, 핀을 클러스터로 묶을지 가른다
+    /// (``PlaceMap/showsLabels(atZoom:)``·``PlaceMap/clustered(pins:zoom:roomColors:selectedPinID:showsLabels:)``).
+    /// `nil` 이면 아직 카메라 idle 을 못 받은 상태다.
     @State private var mapZoom: Float?
+    /// 클러스터를 눌러 확대해 달라고 낸 요청. **한 번 적용되면 지운다** — 남겨 두면 사용자가
+    /// 지도를 움직인 뒤 카메라가 이 자리로 다시 튕긴다.
+    @State private var zoomRequest: ArchiveZoomRequest?
     @State private var toastToken = 0
 
     init(coordinator: ArchiveCoordinator) {
@@ -39,8 +43,20 @@ struct ArchiveShellView: View {
                 roomColors: roomColors,
                 selectedPinID: coordinator.selectedPin?.id.value,
                 onSelectPin: selectPin,
+                cameraMode: zoomRequest.map { .zoomed($0.coordinate, zoom: $0.zoom) } ?? .fitPins,
                 zoom: mapZoom,
-                onCameraIdle: { mapZoom = $0 }
+                onCameraIdle: { zoom in
+                    mapZoom = zoom
+                    // 요청이 반영된 시점이다 — 지우지 않으면 다음 이동에서 카메라가 되돌아간다.
+                    zoomRequest = nil
+                    coordinator.mapCameraSettled()
+                },
+                onZoomIn: { coordinate in
+                    // 한 단계로는 셀이 안 갈리는 경우가 있어 두 단계 확대한다 — 격자 셀 크기가
+                    // 줌 1 단계에 2배로 변해, 바로 옆에 붙은 핀은 두 단계에서 갈린다.
+                    let base = mapZoom ?? PlaceMap.defaultCamera.zoom
+                    zoomRequest = ArchiveZoomRequest(coordinate: coordinate, zoom: base + 2)
+                }
             )
             // 루트·지도버튼·방리스트시트에 이미 `.sheet` 가 하나씩 붙어 있다(같은 뷰에 둘 달면 하나만
             // 뜬다). 지도 레이어는 `if` 밖이라 시트가 떠 있는 동안 사라지지 않는 유일한 빈 자리다 —
