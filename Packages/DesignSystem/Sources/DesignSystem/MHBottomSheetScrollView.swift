@@ -6,20 +6,32 @@ struct MHSheetScrollEnabledKey: EnvironmentKey {
     static let defaultValue = true   // 시트 밖에서 쓰이면 일반 스크롤로 동작
 }
 
-/// 래퍼가 시트로 올려 보내는 "스크롤이 맨 위인가". 연속 오프셋이 아니라 Bool 인 이유:
-/// 시트가 쓰는 건 맨 위 여부뿐인데 연속 값을 흘리면 스크롤 매 프레임 시트 전체가 재평가된다.
-/// 기본값 true — 래퍼 없는(스크롤 없는) 콘텐츠에서 시트 드래그가 항상 통해야 한다.
-struct MHSheetScrollAtTopKey: PreferenceKey {
-    static var defaultValue: Bool { true }
-    static func reduce(value: inout Bool, nextValue: () -> Bool) {
-        value = nextValue()
-    }
+/// 시트가 래퍼에 내려주는 "스크롤이 맨 위인가" 상자. 래퍼가 쓰고, 시트의 드래그 판정이 읽는다.
+///
+/// `@State` 로 받아 preference 로 올려 보내지 않는 이유: 오프셋은 UIScrollView KVO 로 들어오는데
+/// 그 콜백은 SwiftUI 의 뷰 갱신 도중(스크롤 뷰 레이아웃 안)에 불려, **거기서 한 `@State` 쓰기가
+/// 버려진다**("Modifying state during view update"). 래퍼는 false 로 바꿨다고 믿는데 시트는 끝까지
+/// true 를 보고 있어, 리스트 중간에서 아래로 드래그해도 시트가 내려갔다(iOS 18·26 재현).
+/// 참조 상자에 바로 쓰면 뷰 갱신에 얽히지 않고, 드래그 판정에만 쓰여 뷰 무효화도 일으키지 않는다.
+/// 기본 true — 래퍼 없는(스크롤 없는) 콘텐츠에서 시트 드래그가 항상 통해야 한다.
+@MainActor
+final class MHSheetScrollState {
+    var isAtTop = true
+}
+
+struct MHSheetScrollStateKey: EnvironmentKey {
+    static let defaultValue: MHSheetScrollState? = nil   // 시트 밖에서 쓰이면 보고할 곳이 없다
 }
 
 extension EnvironmentValues {
     var mhSheetScrollEnabled: Bool {
         get { self[MHSheetScrollEnabledKey.self] }
         set { self[MHSheetScrollEnabledKey.self] = newValue }
+    }
+
+    var mhSheetScrollState: MHSheetScrollState? {
+        get { self[MHSheetScrollStateKey.self] }
+        set { self[MHSheetScrollStateKey.self] = newValue }
     }
 }
 
@@ -34,12 +46,9 @@ extension EnvironmentValues {
 /// 스크롤이 없는 고정 콘텐츠는 이 래퍼 없이 일반 뷰로 넣으면 된다(시트 드래그가 그대로 동작).
 public struct MHBottomSheetScrollView<Inner: View>: View {
     @Environment(\.mhSheetScrollEnabled) private var scrollEnabled
+    @Environment(\.mhSheetScrollState) private var scrollState
     private let inner: Inner
     private let onOffsetChange: (@MainActor (CGFloat) -> Void)?
-
-    /// 스크롤이 맨 위인가. 임계값(0.5pt) 교차 시점에만 갱신 — 연속 오프셋을 state 로 받으면
-    /// 스크롤 매 프레임 이 뷰와 preference 하류(시트)가 재평가된다.
-    @State private var isAtTop = true
 
     public init(
         onOffsetChange: (@MainActor (CGFloat) -> Void)? = nil,
@@ -50,16 +59,21 @@ public struct MHBottomSheetScrollView<Inner: View>: View {
     }
 
     public var body: some View {
+        // 클로저는 첫 makeUIView 때 한 번만 붙잡히므로 상자를 지역에 떠서 넘긴다 — 뷰 복사본의
+        // 환경을 나중에 읽는 것보다 캡처가 분명하다.
+        let scrollState = self.scrollState
         ScrollView {
             inner
                 .background(ScrollViewIntrospector { offset in
-                    let atTop = offset <= 0.5
-                    if atTop != isAtTop { isAtTop = atTop }
+                    // 맨 위 판정(0.5pt 임계). 뷰 상태가 아니라 상자에 쓰므로 매 오프셋마다 써도 재평가가 없다.
+                    scrollState?.isAtTop = offset <= 0.5
                     onOffsetChange?(offset)
                 })
         }
         .scrollDisabled(!scrollEnabled)
-        .preference(key: MHSheetScrollAtTopKey.self, value: isAtTop)
+        // 래퍼가 빠지면(콘텐츠 교체) 기본값으로 되돌린다 — 뒤이어 오는 스크롤 없는 콘텐츠에서도
+        // 시트 드래그가 통해야 한다. 새 래퍼가 오면 KVO `.initial` 이 실제 오프셋으로 다시 쓴다.
+        .onDisappear { scrollState?.isAtTop = true }
     }
 }
 
@@ -95,11 +109,12 @@ private final class IntrospectorView: UIView {
 
     override func didMoveToWindow() {
         super.didMoveToWindow()
+        // 윈도우 (재)진입마다 재탐색 — SwiftUI 가 내부 UIScrollView 를 교체해도
+        // (iOS 18 의 ScrollView 재구현 같은 내부 변경) 옛 인스턴스를 계속 관찰하지 않게 한다.
+        // 창을 **떠날 때도** 끊는다 — 사라진 래퍼의 관찰이 살아남아 상자에 계속 쓰면 안 된다.
+        observation = nil
         guard window != nil else { return }
 
-        // 윈도우 (재)진입마다 재탐색 — SwiftUI 가 내부 UIScrollView 를 교체해도
-        // (iOS 18 의 ScrollView 재구현 같은 내부 변경) 옛 인스턴스를 계속 관찰하지 않게 한다
-        observation = nil
         var view: UIView? = superview
         while let current = view {
             if let scrollView = current as? UIScrollView {
