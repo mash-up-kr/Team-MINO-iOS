@@ -214,6 +214,15 @@ extension RoomDetailRoom {
         memberAvatarColors: [.red],
         isPersonal: true
     )
+
+    /// 멤버 7명 — PRD 「방 멤버 아바타」의 "아바타 3개 + 카운터 `4`" 예시가 그려지는 방.
+    /// 4명(``sample``)과 나란히 두면 경계(5명)가 눈에 보인다.
+    static let crowdedSample = RoomDetailRoom(
+        title: "사람 많은 방",
+        memo: "멤버 7명",
+        locationCount: 12,
+        memberAvatarColors: [.red, .redOrange, .orange, .green, .cyan, .blue, .purple]
+    )
 }
 
 extension RoomDetailLocation {

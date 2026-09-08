@@ -27,8 +27,6 @@ struct RoomDetailHeader: View {
         HStack(spacing: 0) {
             // `+` 의 식별자·라벨은 `MHAvatarStack` 이 버튼 자신에 붙인다(`MHAvatarStack.add`) —
             // pill 에 걸면 아바타까지 전파돼 자동화가 `+` 를 지목할 수 없다.
-            //
-            // 개인방에는 `+` 를 달지 않는다 — 초대 불가라 누를 것이 없다(``RoomDetailRoom/isPersonal``).
             MHAvatarStack(
                 AvatarPalette.images(of: room.memberAvatarColors),
                 trailing: room.isPersonal ? MHAvatarStackTrailing.none : .add(action: onAddMember)
@@ -51,6 +49,14 @@ struct RoomDetailHeader: View {
         .frame(height: 60)
     }
 
+    /// 멤버 아바타 pill. 개수·순서·카운터는 ``AvatarPalette/overlapped(_:)`` 가 정한다 — 방 카드와
+    /// 같은 규칙이다(PRD 「방 멤버 아바타」가 "방 카드·방 상세 헤더" 를 함께 묶는다).
+    /// 5명 이상이면 아바타 3개 + 카운터 칩이 서고, 그 오른쪽에 `+` 가 붙는다.
+    private var memberPill: some View {
+        let avatars = AvatarPalette.overlapped(room.memberAvatarColors)
+        return MHAvatarStack(avatars.images, overflow: avatars.overflow, onAdd: onAddMember)
+    }
+
     private var roomInfo: some View {
         MHRoomHeader(
             title: room.title,
@@ -59,13 +65,4 @@ struct RoomDetailHeader: View {
         )
         .accessibilityIdentifier("RoomDetail.header")
     }
-}
-
-#Preview("공동방") {
-    RoomDetailHeader(room: .sample, onAddMember: {}, onMore: {}, onClose: {})
-}
-
-// 개인방 — `+`·`⋮` 가 빠지고 닫기만 남는다.
-#Preview("개인방") {
-    RoomDetailHeader(room: .personalSample, onAddMember: {}, onMore: {}, onClose: {})
 }

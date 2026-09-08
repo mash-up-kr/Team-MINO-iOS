@@ -112,9 +112,63 @@ struct AvatarPaletteTests {
         #expect(AvatarPalette.profile(at: 99) == .plain)
     }
 
-    @Test("한 줄에 늘어놓는 얼굴은 displayLimit 개까지")
-    func imagesAreCapped() {
-        let colors: [AvatarColor?] = Array(repeating: .red, count: AvatarPalette.displayLimit + 3)
-        #expect(AvatarPalette.images(of: colors).count == AvatarPalette.displayLimit)
+    // PRD 「방 멤버 아바타」 — "4명 이하: 멤버 아바타를 있는 대로 모두 겹쳐 표시하고, 카운터는
+    // 붙이지 않는다 / 5명 이상: 아바타 3개 + 카운터 칩".
+    @Test("4명 이하는 전부 그리고 카운터를 붙이지 않는다", arguments: [0, 1, 2, 3, 4])
+    func overlapped_upToFour(count: Int) {
+        let colors: [AvatarColor?] = Array(repeating: .red, count: count)
+
+        let result = AvatarPalette.overlapped(colors)
+
+        #expect(result.images.count == count)
+        #expect(result.overflow == nil)
+    }
+
+    // "카운터는 아바타로 보이지 않는 나머지 인원 수다. (멤버 7명 → 아바타 3개 + `4`)"
+    @Test("5명 이상은 아바타 3개 + 나머지 인원 카운터다")
+    func overlapped_fiveOrMore() {
+        let seven: [AvatarColor?] = Array(repeating: .red, count: 7)
+
+        let result = AvatarPalette.overlapped(seven)
+
+        #expect(result.images.count == 3)
+        #expect(result.overflow == 4)
+    }
+
+    // 5명이 경계다 — 4명까지는 전부, 5명부터 접힌다.
+    @Test("경계는 5명이다")
+    func overlapped_boundary() {
+        #expect(AvatarPalette.overlapped(Array(repeating: .red, count: 4)).overflow == nil)
+        #expect(AvatarPalette.overlapped(Array(repeating: .red, count: 5)).overflow == 2)
+    }
+
+    // "가장 최근에 장소를 저장한 사람이 아바타 중 가장 오른쪽에 오도록 우→좌로 정렬한다."
+    // 서버가 최근 저장자를 먼저 주므로 화면 방향으로 뒤집는다 — 배열 앞이 왼쪽이다.
+    @Test("서버 순서를 뒤집어 최근 저장자를 오른쪽 끝에 둔다")
+    func overlapped_reversesForDisplay() {
+        // 서버는 [red(최근), green, blue(가장 오래)] 로 준다 → 화면 왼→오는 blue, green, red.
+        let result = AvatarPalette.overlappedColors([.red, .green, .blue])
+
+        #expect(result.colors == [.blue, .green, .red])
+        #expect(result.overflow == nil)
+    }
+
+    // 5명 이상에서 접히는 것은 **가장 오래된** 쪽이다 — 최근 3명이 남아야 한다.
+    @Test("접히는 것은 오래된 쪽이고 최근 3명이 남는다")
+    func overlapped_keepsMostRecent() {
+        let result = AvatarPalette.overlappedColors([.red, .green, .blue, .orange, .pink, .cyan])
+
+        // 최근 3명(red·green·blue)만 남고, 화면에서는 뒤집혀 red 가 오른쪽 끝이다.
+        #expect(result.colors == [.blue, .green, .red])
+        #expect(result.overflow == 3)   // 6명 − 3
+    }
+
+    // 아바타를 아직 안 고른 멤버(`nil`)도 자리를 차지한다 — 인원 수는 색 유무와 무관하다.
+    @Test("색을 모르는 멤버도 한 자리를 차지한다")
+    func overlapped_countsMembersWithoutColor() {
+        let result = AvatarPalette.overlappedColors([nil, nil, nil, nil, nil])
+
+        #expect(result.colors.count == 3)
+        #expect(result.overflow == 2)
     }
 }

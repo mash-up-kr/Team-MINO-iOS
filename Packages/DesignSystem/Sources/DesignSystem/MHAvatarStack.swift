@@ -1,36 +1,30 @@
 import SwiftUI
 
-/// `MHAvatarStack` 우측 트레일링. Figma `state`: default(`none`) / add(`add`) / more(`overflow`).
-///
-/// 셋은 상호 배타적이다(Figma variant) — 하나만 붙는다.
-public enum MHAvatarStackTrailing {
-    /// 트레일링 없음(아바타만). Figma `state=default`.
-    case none
-    /// 검정 원형 "+" 버튼(멤버 추가). Figma `state=add`.
-    case add(action: () -> Void)
-    /// "+N" 오버플로 카운트 배지(99 초과 시 "99+"). Figma `state=more`.
-    case overflow(Int)
-}
-
 /// 참여자 아바타를 겹쳐 담은 pill. Figma `Avatar`(state = default / add / more, node 15852:88488).
 ///
 /// 32pt 아바타를 6pt 겹쳐(선언 순서상 **오른쪽이 위**) 가로로 늘어놓고, 각 아바타 둘레에 배경색 1.5px
 /// 링을 둘러 겹친 경계를 분리한다. 전체는 `Fill/Normal` pill(완전 라운드, 안쪽 여백 4pt) 안에 담긴다.
-/// 우측 끝에는 `trailing` 으로 "+" 추가 버튼(`.add`)이나 "+N" 오버플로 배지(`.overflow`)를 붙일 수 있다 —
-/// 트레일링도 같은 겹침 체인에 놓여 마지막 아바타와 6pt 겹친다.
+/// 우측 끝에는 "+N" 카운터 칩(`overflow`)과 "+" 추가 버튼(`onAdd`)을 붙일 수 있다 — **둘은 함께
+/// 놓일 수 있다.** 순서는 아바타 → 카운터 → `+` 다: PRD 「방 멤버 아바타」가 "카운터 칩은 그
+/// 아바타의 오른쪽에 붙인다" 로 정했고, 조작 버튼인 `+` 를 맨 끝에 둔다. 트레일링도 같은 겹침
+/// 체인에 놓여 마지막 아바타와 6pt 겹친다.
 ///
 /// 아바타 지름은 32pt 고정(Figma 단일 사이즈). 아바타 종류는 `variant` 로 바꿀 수 있고, 트레일링 배지의
 /// 모양도 같은 variant 를 따라 한 줄이 균일하게 보인다.
 ///
 /// ```swift
-/// MHAvatarStack([img1, img2, img3, img4])                       // 아바타만 (default)
-/// MHAvatarStack([img1]) { addMember() }                          // "+" 추가 버튼 (add)
-/// MHAvatarStack([img1, img2, img3], trailing: .overflow(99))    // "99+" (more)
+/// MHAvatarStack([img1, img2, img3, img4])                        // 아바타만
+/// MHAvatarStack([img1], onAdd: { addMember() })                  // "+" 추가 버튼
+/// MHAvatarStack([img1, img2, img3], overflow: 99)                // "99+" 카운터
+/// MHAvatarStack([img1, img2, img3], overflow: 4, onAdd: { ... }) // 카운터 + "+"
 /// ```
 public struct MHAvatarStack: View {
     private let images: [Image?]
     private let variant: MHAvatarVariant
-    private let trailing: MHAvatarStackTrailing
+    /// 아바타로 보이지 않는 나머지 인원. `nil` 이면 카운터를 붙이지 않는다(4명 이하).
+    private let overflow: Int?
+    /// 멤버 초대. `nil` 이면 `+` 를 붙이지 않는다(개인방은 초대 불가).
+    private let onAdd: (() -> Void)?
 
     private let side: CGFloat = 32
     private let overlap: CGFloat = 6
@@ -40,11 +34,13 @@ public struct MHAvatarStack: View {
     public init(
         _ images: [Image?],
         variant: MHAvatarVariant = .person,
-        trailing: MHAvatarStackTrailing = .none
+        overflow: Int? = nil,
+        onAdd: (() -> Void)? = nil
     ) {
         self.images = images
         self.variant = variant
-        self.trailing = trailing
+        self.overflow = overflow
+        self.onAdd = onAdd
     }
 
     public var body: some View {
@@ -63,14 +59,13 @@ public struct MHAvatarStack: View {
             .background { ring }
     }
 
+    // 카운터와 `+` 는 상호배타가 아니다 — 5명 이상인 공동방은 둘이 함께 선다.
     @ViewBuilder private var trailingCell: some View {
-        switch trailing {
-        case .none:
-            EmptyView()
-        case .add(let action):
-            addButton(action)
-        case .overflow(let count):
-            overflowBadge(count)
+        if let overflow {
+            MHAvatarCountBadge(remaining: overflow, variant: variant, side: side)
+        }
+        if let onAdd {
+            addButton(onAdd)
         }
     }
 
@@ -94,21 +89,6 @@ public struct MHAvatarStack: View {
         .accessibilityIdentifier("MHAvatarStack.add")
     }
 
-    /// 오버플로 배지에 표시할 텍스트. 99 이하는 그대로, 초과 시 "99+" 로 캡.
-    static func overflowText(_ count: Int) -> String { count > 99 ? "99+" : "\(count)" }
-
-    // "+N" 오버플로 배지. Figma: Background/Elevated/Alternative 채움 + 흰 링, SUITE Bold13 Label/Alternative.
-    // 아바타의 1px Line 테두리는 없다(흰 링만). 99 초과 시 "99+" 로 캡.
-    private func overflowBadge(_ count: Int) -> some View {
-        Text(Self.overflowText(count))
-            .mhTypography(.label2Bold)
-            .foregroundStyle(.mhLabelAlternative)
-            .frame(width: side, height: side)
-            .background(shape.fill(.mhBackgroundElevatedAlternative))
-            .clipShape(shape)
-            .background { ring }
-    }
-
     private var ring: some View {
         shape.fill(Color.mhBackgroundNormalNormal)
             .frame(width: side + ringWidth * 2, height: side + ringWidth * 2)
@@ -116,17 +96,6 @@ public struct MHAvatarStack: View {
 
     private var shape: RoundedRectangle {
         RoundedRectangle(cornerRadius: variant.cornerRadius(size: side))
-    }
-}
-
-public extension MHAvatarStack {
-    /// "+" 추가 버튼을 붙인 스택(후행 클로저). Figma `state=add`.
-    init(
-        _ images: [Image?],
-        variant: MHAvatarVariant = .person,
-        onAdd: @escaping () -> Void
-    ) {
-        self.init(images, variant: variant, trailing: .add(action: onAdd))
     }
 }
 
@@ -148,9 +117,11 @@ struct MHAvatarStackAddStyle: ButtonStyle {
 
 #Preview("MHAvatarStack") {
     VStack(alignment: .leading, spacing: 16) {
-        MHAvatarStack(Array(repeating: Image?.none, count: 1)) { }              // add
-        MHAvatarStack(Array(repeating: Image?.none, count: 4))                  // default
-        MHAvatarStack(Array(repeating: Image?.none, count: 3), trailing: .overflow(99))  // more
+        MHAvatarStack(Array(repeating: Image?.none, count: 1), onAdd: { })          // 1명 + 초대
+        MHAvatarStack(Array(repeating: Image?.none, count: 4))                      // 4명 — 카운터 없음
+        MHAvatarStack(Array(repeating: Image?.none, count: 3), overflow: 4)         // 7명 → 3 + "4"
+        MHAvatarStack(Array(repeating: Image?.none, count: 3), overflow: 4, onAdd: { })
+        MHAvatarStack(Array(repeating: Image?.none, count: 3), overflow: 100)       // "99+" 로 캡
     }
     .padding()
 }

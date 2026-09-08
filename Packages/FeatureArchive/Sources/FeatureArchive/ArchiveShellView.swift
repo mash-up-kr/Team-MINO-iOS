@@ -219,8 +219,8 @@ struct ArchiveShellView: View {
                 RoomInviteMember(
                     id: $0.userId,
                     name: $0.nickname,
-                    // 목록 전체를 그리므로 `images(of:)` 를 쓰지 않는다 — 그건 헤더 pill 용이라
-                    // `displayLimit`(5)에서 잘린다.
+                    // 목록 전체를 그리므로 `overlapped(_:)` 를 쓰지 않는다 — 그건 겹친 pill 용이라
+                    // 4명에서 자르고 나머지를 카운터로 접는다.
                     avatar: AvatarPalette.image(of: $0.avatarColor)
                 )
             },
