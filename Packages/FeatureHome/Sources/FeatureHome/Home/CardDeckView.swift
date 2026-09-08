@@ -52,8 +52,8 @@ struct CardDeckView: View {
         // 뷰가 갈아끼워져 사진이 다시 로드된다(``CardDeckLayout/renderedIndices(currentIndex:pinCount:)``).
         ZStack(alignment: .center) {
             ForEach(deckCards) { card in
-                let effectiveDepth = effectiveDepth(of: card)
-                let cardScale = CardDeckLayout.cardScale(containerWidth: containerWidth, effectiveDepth: effectiveDepth)
+                let resolvedDepth = effectiveDepth(of: card)
+                let cardScale = CardDeckLayout.cardScale(containerWidth: containerWidth, effectiveDepth: resolvedDepth)
 
                 cardView(pin: card.pin)
                     // 뒤 카드는 좁힌 게 아니라 **비율 그대로 줄인 사본**이다(시안) — 모든 카드를 같은
@@ -62,8 +62,8 @@ struct CardDeckView: View {
                     // 상단 앵커라 레이아웃 높이(= 앞 카드 높이)는 그대로 두고 위 여백만 20씩 벌어진다.
                     .frame(width: baseCardWidth)
                     .scaleEffect(cardScale, anchor: .top)
-                    .offset(y: effectiveDepth * -CardDeckLayout.depthStep)
-                    .opacity(opacity(of: card, effectiveDepth: effectiveDepth))
+                    .offset(y: resolvedDepth * -CardDeckLayout.depthStep)
+                    .opacity(opacity(of: card, effectiveDepth: resolvedDepth))
                     .zIndex(Double(CardDeckLayout.visibleCount - card.depth))
                     .offset(x: xOffset(of: card), y: yOffset(of: card))
                     .rotationEffect(rotation(of: card))
