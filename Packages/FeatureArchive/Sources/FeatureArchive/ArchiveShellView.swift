@@ -369,7 +369,11 @@ struct ArchiveShellView: View {
             lowPeek: peek.low,
             mediumPeek: peek.medium,
             bottomCoverage: tabBarCoverage,
-            detents: placeStore == nil ? MHBottomSheetDetent.allCases : [.medium, .full]
+            detents: placeStore == nil ? MHBottomSheetDetent.allCases : [.medium, .full],
+            // 탭바가 빠지면(방 상세·장소 상세) 시트가 화면 바닥까지 내려가, 콘텐츠 상자가
+            // safe area 에서 끝나는 만큼 바닥에 흰 띠가 남는다. 그때만 콘텐츠도 홈 인디케이터
+            // 영역까지 내린다 — 방 리스트는 탭바가 그 자리를 덮으므로 그대로 둔다.
+            extendsContentBelowSafeArea: coordinator.isFullBleedContentPresented
         ) {
             if let placeStore {
                 PlaceDetailView(store: placeStore, detent: detent)
