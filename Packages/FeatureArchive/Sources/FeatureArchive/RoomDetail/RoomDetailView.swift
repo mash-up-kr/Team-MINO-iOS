@@ -1,4 +1,5 @@
 import DesignSystem
+import Domain
 import MVI
 import SwiftUI
 
@@ -91,10 +92,10 @@ struct RoomDetailView: View {
     private var categoryRow: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
-                ForEach(RoomDetailCategoryList.items, id: \.self) { item in
+                ForEach(PlaceCategoryFilter.allCases, id: \.self) { item in
                     let isActive = item == store.state.category
                     MHChip(
-                        item,
+                        item.chipTitle,
                         variant: isActive ? .solid : .outlined,
                         size: .large,
                         isActive: isActive

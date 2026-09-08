@@ -12,7 +12,12 @@ private struct StubFetchRooms: FetchRoomsUseCase {
 }
 
 private struct StubFetchRoomPins: FetchRoomPinsUseCase {
-    func execute(room: Room) async throws -> [Pin] { [] }
+    func execute(
+        roomID: String?,
+        sort: PinSort,
+        category: PlaceCategoryFilter,
+        origin: Coordinate?
+    ) async throws -> [Pin] { [] }
 }
 
 
