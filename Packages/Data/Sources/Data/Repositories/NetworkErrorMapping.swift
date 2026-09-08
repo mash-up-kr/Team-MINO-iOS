@@ -17,6 +17,18 @@ extension NetworkError {
         errorCode == NetworkError.userNotRegisteredCode ? .notRegistered : .unauthorized
     }
 
+    /// 기기가 네트워크에 닿지 못한 실패인가.
+    ///
+    /// `.unknown` 은 제외한다 — TLS 실패까지 섞여 있어(`NetworkError.transport` 주석) 연결 문제라고
+    /// 단정할 수 없다. 그런 건 부르는 쪽이 일시적 오류로 흡수한다.
+    ///
+    /// 프로필 조회(스플래시)와 초대 진입이 같은 판단을 하므로 여기 모은다 — 갈리면 한쪽만
+    /// "연결을 확인해주세요" 를 띄우고 다른 쪽은 엉뚱한 안내를 하게 된다.
+    var isNetworkUnavailable: Bool {
+        if case .transport(let reason) = self { return reason != .unknown }
+        return false
+    }
+
     /// 번역하지 못했다는 사실을 남긴다 — 어떤 `DomainError` 를 추가해야 하는지 알 수 있는 유일한
     /// 단서다. 이 로그가 없으면 403·409·타임아웃이 전부 "알 수 없는 오류" 로 수렴하고 아무도
     /// 눈치채지 못한다.

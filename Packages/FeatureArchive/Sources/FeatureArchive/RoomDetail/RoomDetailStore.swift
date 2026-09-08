@@ -6,10 +6,10 @@ struct RoomDetailState: Equatable {
     var room: RoomDetailRoom
     var pins: [Pin] = []
     var locations: [RoomDetailLocation] = []
-    var sort: RoomDetailSort = .all
-    /// 방에 담긴 장소들의 업종에서 만들어진다(004-1 ⑨). 첫 칸은 항상 "전체".
-    var categories: [String] = [RoomDetailCategoryList.all]
-    var category: String = RoomDetailCategoryList.all
+    /// 고른 정렬 기준. **서버가 이 값으로 정렬해 준다** — 화면은 받은 순서를 그대로 그린다.
+    var sort: PinSort = .all
+    /// 고른 카테고리 칩. 목록은 고정 3종이라 state 가 들지 않는다(``PlaceCategoryFilter/allCases``).
+    var category: PlaceCategoryFilter = .all
     var viewMode: RoomDetailViewMode = .list
     /// 장소 삭제 확인 다이얼로그(004-1-3-1). nil 이면 닫혀 있다.
     var deletion: RoomDetailDeletion?
@@ -34,21 +34,27 @@ struct RoomDetailState: Equatable {
     /// **위**(지도 위)로 떠야 하는데 시트는 콘텐츠를 잘라내므로(``MHBottomSheet`` 의 clipShape)
     /// 그림은 시트 밖에서 그린다 — 버튼을 가진 뷰와 그리는 뷰가 갈라져 공통 진실이 필요하다.
     var isMoreMenuPresented = false
+
+    /// 지금 화면이 고른 조회 조건. 요청을 낼 때와 응답을 받아들일지 판단할 때 같은 값을 봐야 해서
+    /// 한자리에서 만든다.
+    var query: PinQuery { PinQuery(sort: sort, category: category) }
 }
 
 enum RoomDetailAction: Equatable {
     case load
-    case loaded([Pin])
+    /// 조회 결과. **어떤 조건으로 낸 요청인지 함께 실어** 늦게 온 응답을 버릴 수 있게 한다.
+    case loaded([Pin], for: PinQuery)
     case loadFailed(DomainError)
     case loadCurrentMember
     case currentMemberLoaded(MemberProfile)
     case currentMemberLoadFailed(DomainError)
+    case tapAddMember
     case tapMore
     case dismissMoreMenu
     case selectMoreMenuItem(RoomDetailMoreMenuItemID)
-    case selectSort(RoomDetailSort)
+    case selectSort(PinSort)
     case locationResolved(CurrentLocationResult)
-    case selectCategory(String)
+    case selectCategory(PlaceCategoryFilter)
     case selectViewMode(RoomDetailViewMode)
     case tapClose
     case tapShare(RoomDetailLocation)
@@ -64,6 +70,11 @@ enum RoomDetailNav: Equatable, Sendable {
     case close
     case shareLocation(RoomDetailLocation)
     case openPlaceDetail(Pin)
+    /// 헤더 아바타 옆 `+`(004-1 ② 2-1) → `004-4-2_친구 초대 클릭` 시트.
+    ///
+    /// 표시 모델(`RoomDetailRoom`)이 아니라 도메인 `Room` 을 싣는다 — 시트가 참여자 닉네임과 방 색을
+    /// 함께 쓰는데 표시 모델은 아바타 색만 남기고 나머지를 버린다(``RoomDetailRoom/init(from:)``).
+    case inviteFriends(Room)
     /// 헤더 케밥 "방 편집" (방장만). 도착 화면은 아직 없다 — `ArchiveCoordinator.handle(_: RoomDetailNav)` 참조.
     case editRoom(Room)
     /// 헤더 케밥 "방 나가기". 도착 화면은 아직 없다 — 위와 같다.
@@ -77,28 +88,18 @@ func roomDetailReducer(
     deletePin: DeletePinUseCase,
     fetchCurrentMember: CurrentMemberUseCase,
     currentLocation: CurrentLocationUseCase,
-    room: Room,
-    now: @escaping () -> Date = Date.init
+    room: Room
 ) -> (inout RoomDetailState, RoomDetailAction) -> Effect<RoomDetailAction, RoomDetailNav> {
     { state, action in
         switch action {
         case .load:
-            return .run { send in
-                do {
-                    // 방 상세는 서버 조회 기준이 없다 — 서버는 이 방의 장소를 전부 주고
-                    // 정렬·필터는 `RoomDetailSorting` 이 클라이언트에서 한다.
-                    let pins = try await useCase.execute(room: room)
-                    send(.loaded(pins))
-                } catch let error as DomainError {
-                    send(.loadFailed(error))
-                } catch {
-                    send(.loadFailed(.unknown))
-                }
-            }
+            return loadPins(state, room: room, useCase: useCase)
 
-        case .loaded(let pins):
+        case .loaded(let pins, let query):
+            // 늦게 온 응답은 버린다 — 그사이 다른 기준을 골랐다면 지금 화면과 다른 목록이다.
+            guard query == state.query else { return .none }
             state.pins = pins
-            applyPins(&state, now: now())
+            state.locations = pins.map(RoomDetailLocation.init(from:))
             return .none
 
         case .loadFailed:
@@ -129,7 +130,16 @@ func roomDetailReducer(
             state.isLoadingCurrentMember = false
             return .none
 
+        case .tapAddMember:
+            // 개인방은 초대 불가(PRD 「개인방」 · [SYS-006] "공동방에 타인을 초대할 때").
+            // 헤더가 `+` 를 그리지 않으므로 평소엔 오지 않는 길이지만, 오더라도 열지 않는다 —
+            // 개인방 초대 링크가 나가면 "혼자만의 공간" 이라는 방 종류의 정의가 깨진다.
+            guard room.type == .shared else { return .none }
+            return .navigate(.inviteFriends(room))
+
         case .tapMore:
+            // 개인방은 더보기 자체가 없다(시안 `004-5` Case 3) — 위와 같은 이유로 방어한다.
+            guard room.type == .shared else { return .none }
             state.isMoreMenuPresented.toggle()
             return .none
 
@@ -150,12 +160,13 @@ func roomDetailReducer(
 
         case .selectSort(let sort):
             // 거리순만 기준점을 필요로 한다. 아직 없으면 **선택을 세우지 않고** 좌표부터 받는다 —
-            // 좌표 없이 `.distance` 를 세우면 라벨은 "거리순" 인데 목록은 3km 와 무관한 원본이다.
-            guard sort == .distance, state.myCoordinate == nil else {
+            // 좌표 없이 `sort=distance` 를 보내면 서버가 400(`VALIDATION_ERROR`)으로 거절한다.
+            guard sort.requiresOrigin, state.myCoordinate == nil else {
                 state.isLocating = false   // 기다리던 거리순 선택이 있었다면 접는다
+                // 같은 기준을 다시 골랐으면 요청을 내지 않는다 — 결과가 같은데 목록만 깜박인다.
+                guard sort != state.sort else { return .none }
                 state.sort = sort
-                applyFilters(&state, now: now())
-                return .none
+                return loadPins(state, room: room, useCase: useCase)
             }
             // 연타로 위치 요청(과 시스템 팝업)을 두 번 내보내지 않는다.
             guard !state.isLocating else { return .none }
@@ -186,13 +197,12 @@ func roomDetailReducer(
             }
             state.myCoordinate = coordinate
             state.sort = .distance
-            applyFilters(&state, now: now())
-            return .none
+            return loadPins(state, room: room, useCase: useCase)
 
         case .selectCategory(let category):
+            guard category != state.category else { return .none }
             state.category = category
-            applyFilters(&state, now: now())
-            return .none
+            return loadPins(state, room: room, useCase: useCase)
 
         case .selectViewMode(let mode):
             state.viewMode = mode
@@ -240,7 +250,8 @@ func roomDetailReducer(
             guard state.pins.contains(where: { $0.id == pinID }) else { return .none }
             state.pins.removeAll { $0.id == pinID }
             state.room = state.room.removingOneLocation()
-            applyPins(&state, now: now())
+            // 재조회하지 않는다 — 남은 핀의 순서는 이미 서버가 정해 준 그 순서다.
+            state.locations = state.pins.map(RoomDetailLocation.init(from:))
             return .none
 
         case .deleteFailed:
@@ -252,25 +263,34 @@ func roomDetailReducer(
     }
 }
 
-/// 원본(`pins`)이 바뀌면 칩 목록과 표시 목록을 함께 다시 맞춘다.
+/// 지금 고른 기준으로 목록을 다시 받는다. 조회는 `.load` 와 기준 변경이 함께 쓰는 길이라
+/// 한자리에 둔다 — 조건을 싣는 것을 한쪽에서 빠뜨리면 화면과 요청이 어긋난다.
 ///
-/// 조회와 삭제가 같은 자리를 쓴다. 삭제만 `locations` 를 직접 손보면 방금 지운 장소가
-/// 업종 칩에는 남고, 그 칩을 누르면 빈 목록이 뜬다 — 원본에서 다시 파생시켜 어긋날 자리를 없앤다.
-private func applyPins(_ state: inout RoomDetailState, now: Date) {
-    state.categories = RoomDetailCategoryList.make(from: state.pins)
-    // 고르고 있던 업종이 사라지면(재조회·마지막 장소 삭제) 빈 목록이 남는다 — "전체" 로 되돌린다.
-    if !state.categories.contains(state.category) {
-        state.category = RoomDetailCategoryList.all
+/// 낸 조건을 응답(`.loaded(_:for:)`)에 함께 실어 늦게 온 응답을 버릴 수 있게 한다.
+private func loadPins(
+    _ state: RoomDetailState,
+    room: Room,
+    useCase: FetchRoomPinsUseCase
+) -> Effect<RoomDetailAction, RoomDetailNav> {
+    let query = state.query
+    let origin = state.myCoordinate
+    return .run { send in
+        do {
+            let pins = try await useCase.execute(
+                roomID: room.id,
+                sort: query.sort,
+                category: query.category,
+                origin: origin
+            )
+            send(.loaded(pins, for: query))
+        } catch is CancellationError {
+            // 화면을 떠났거나 새 기준으로 다시 요청한 것 — 결과가 필요 없어진 것이라 실패가 아니다.
+            // 기준을 바꿀 때마다 요청이 나가므로 이 갈래가 실제로 자주 밟힌다.
+            return
+        } catch let error as DomainError {
+            send(.loadFailed(error))
+        } catch {
+            send(.loadFailed(.unknown))
+        }
     }
-    applyFilters(&state, now: now)
-}
-
-/// 업종 칩으로 거르고 정렬 드롭다운으로 줄을 세운 결과가 화면 목록이다.
-///
-/// 거르기가 먼저다. "꾹 Pick"·"코멘트순" 처럼 **상위 30%만 남기는** 기준은 모수가 바뀌면 결과도
-/// 바뀌는데, 사용자가 카페 칩을 눌렀다면 그 30% 는 카페 안에서의 30% 여야 한다.
-private func applyFilters(_ state: inout RoomDetailState, now: Date) {
-    let filtered = RoomDetailCategoryList.filter(state.pins, by: state.category)
-    state.locations = RoomDetailSorting.apply(state.sort, to: filtered, now: now, from: state.myCoordinate)
-        .map(RoomDetailLocation.init(from:))
 }

@@ -32,9 +32,12 @@ import SwiftUI
 /// 시안의 이 프레임에도 interaction 레이어가 없어 눌림 상태가 정의돼 있지 않다 —
 /// 정해지면 그때 DS 에 테두리 없는 variant 를 추가하고 이 뷰를 걷어낸다.
 public struct MyLocationButton: View {
+    /// 한 변. 화면마다 다르다 — ``PlaceMapButtonMetrics/Preset``.
+    let size: CGFloat
     let action: () -> Void
 
-    public init(action: @escaping () -> Void) {
+    public init(size: CGFloat, action: @escaping () -> Void) {
+        self.size = size
         self.action = action
     }
 
@@ -48,22 +51,23 @@ public struct MyLocationButton: View {
                 )
                 .foregroundStyle(.mhLabelNormal)
                 // 아이콘이 아니라 버튼 전체가 탭 영역이 되도록 프레임을 라벨에 건다.
-                .frame(
-                    width: PlaceMapButtonMetrics.myLocationSize,
-                    height: PlaceMapButtonMetrics.myLocationSize
-                )
+                .frame(width: size, height: size)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)   // 기본 스타일의 강조색 틴트를 끈다 — 아이콘 색은 Label/Normal 이다
-        .mapFloatingSurface(cornerRadius: PlaceMapButtonMetrics.myLocationSize / 2)
+        .mapFloatingSurface(cornerRadius: size / 2)
         .accessibilityLabel("현위치")
         // 방 리스트(003-1 ⑦)와 장소 상세(005-1)가 같은 버튼을 쓴다 — 화면 이름을 붙이지 않는다.
         .accessibilityIdentifier("Archive.myLocation")
     }
 }
 
+// 두 시안의 크기 차이(40 / 36)가 나란히 보이도록 함께 그린다.
 #Preview("현위치 버튼") {
-    MyLocationButton {}
-        .padding(40)
-        .background(.mhBackgroundNormalAlternative)
+    HStack(spacing: 24) {
+        MyLocationButton(size: PlaceMapButtonMetrics.placeDetail.myLocationSize) {}
+        MyLocationButton(size: PlaceMapButtonMetrics.roomMap.myLocationSize) {}
+    }
+    .padding(40)
+    .background(.mhBackgroundNormalAlternative)
 }

@@ -9,6 +9,18 @@ public enum PermissionActivation: Equatable, Sendable {
     case needsSystemSettings
 }
 
+/// 알림이 실제로 켜져 있는가 — OS 알림 권한 허용 AND 앱 자체 발송 설정(spec §2.3).
+///
+/// 스위치 표시값과 **푸시 토큰 업로드 게이트**(``SyncPushTokenUseCase``)가 같은 규칙을 보게 하려고
+/// 밖으로 뺐다. 복제하면 "스위치는 꺼졌는데 토큰은 계속 올라가는" 상태가 조용히 생긴다(반대도 마찬가지).
+/// 두 UseCase 가 서로를 주입받지 않는 이유이기도 하다 — 그러면 순환이 된다.
+func isNotificationDeliveryOn(
+    _ permissions: PermissionRepository,
+    _ settings: AppSettingsRepository
+) async -> Bool {
+    await permissions.notificationStatus() == .granted && settings.isNotificationDeliveryEnabled()
+}
+
 /// 마이페이지 `알림 설정` 스위치의 비즈니스 규칙.
 ///
 /// 표시값은 **OS 알림 권한 허용 AND 앱 자체 발송 설정**의 합성이다(spec §2.3).
@@ -35,7 +47,7 @@ public struct DefaultNotificationSettingUseCase: NotificationSettingUseCase {
     }
 
     public func isOn() async -> Bool {
-        await permissions.notificationStatus() == .granted && settings.isNotificationDeliveryEnabled()
+        await isNotificationDeliveryOn(permissions, settings)
     }
 
     public func turnOn() async -> PermissionActivation {

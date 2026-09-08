@@ -90,12 +90,46 @@ public enum AvatarPalette {
         Image(profile(of: color))
     }
 
-    /// 한 줄에 얼굴을 몇 개까지 늘어놓는가. 넘치는 인원은 그리지 않는다(시안에 "+N" 배지가 없다).
-    public static let displayLimit = 5
+    /// 카운터 없이 전부 겹쳐 그리는 인원의 상한.
+    /// PRD 「방 멤버 아바타」 — "**4명 이하**: 멤버 아바타를 있는 대로 모두 겹쳐 표시하고,
+    /// 카운터는 붙이지 않는다."
+    public static let maxOverlapped = 4
 
-    /// 아바타 그룹·스택에 넘길 이미지 배열. ``displayLimit`` 까지만 자른다.
-    public static func images(of colors: [AvatarColor?]) -> [Image?] {
-        colors.prefix(displayLimit).map(image(of:))
+    /// 5명 이상일 때 그리는 얼굴 수 — 나머지는 카운터 칩이 맡는다.
+    /// PRD — "**5명 이상**: **아바타 3개 + 카운터 칩**으로 표시한다."
+    public static let overlappedWhenCounting = 3
+
+    /// 멤버 아바타 줄에 그릴 얼굴과 카운터에 남길 인원.
+    ///
+    /// PRD 「방 멤버 아바타」의 두 갈래(4명 이하 / 5명 이상)와 정렬 규칙을 **한자리에서** 정한다 —
+    /// 방 카드와 방 상세 헤더가 같은 규칙을 봐야 해서다(그 정의도 "방 카드·방 상세 헤더에 겹쳐
+    /// 노출되는 멤버 프로필" 로 두 화면을 함께 묶는다).
+    ///
+    /// - Parameter colors: **서버 순서**(최근에 장소를 저장한 멤버가 먼저)의 아바타 색.
+    ///   `GET /rooms/{roomId}/members` 와 방 목록 `?showUsers=true` 가 둘 다 이 순서로 준다.
+    /// - Returns: 그릴 이미지와 카운터 값(4명 이하면 `nil`).
+    ///   이미지는 **왼→오 순서**로, 오른쪽 끝이 최근 저장자다 — PRD "가장 최근에 장소를 저장한
+    ///   사람이 아바타 중 가장 오른쪽에 오도록 우→좌로 정렬한다".
+    public static func overlapped(_ colors: [AvatarColor?]) -> (images: [Image?], overflow: Int?) {
+        let picked = overlappedColors(colors)
+        return (picked.colors.map(image(of:)), picked.overflow)
+    }
+
+    /// ``overlapped(_:)`` 의 색 단계. 규칙을 **테스트로 고정할 수 있게** 갈라 뒀다 —
+    /// `Image` 는 값 비교를 지원하지 않아 이미지 배열로는 순서를 단언할 수 없다.
+    ///
+    /// - Returns: 화면 순서(왼→오)의 색과, 접혀서 카운터로 넘어간 인원(4명 이하면 `nil`).
+    ///   접히는 것은 **가장 오래된 쪽**이다 — 최근 저장자 3명이 남는다.
+    public static func overlappedColors(
+        _ colors: [AvatarColor?]
+    ) -> (colors: [AvatarColor?], overflow: Int?) {
+        guard colors.count > maxOverlapped else {
+            return (colors.reversed(), nil)
+        }
+        return (
+            colors.prefix(overlappedWhenCounting).reversed(),
+            colors.count - overlappedWhenCounting
+        )
     }
 
     /// 프로필 하나를 그룹 API(`[Image?]`)에 실을 때. 없으면 빈 배열이라 자리 자체가 사라진다 —

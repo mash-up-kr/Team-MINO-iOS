@@ -13,7 +13,7 @@ import RoomShareUI
 /// 자식은 그 좁은 창만 보고, 조립부(App)는 지금처럼 `ArchiveDeps` 하나만 준수하면 된다.
 public protocol ArchiveDeps: RoomShareCreateRoomDeps, PlaceDetailDeps {
     var fetchRooms: FetchRoomsUseCase { get }
-    /// 방에 저장된 장소 전부 — 정렬·필터는 `RoomDetailSorting` 이 클라이언트에서 한다.
+    /// 저장된 장소 목록 — 방 상세와 방 리스트 탭 지도가 함께 쓴다. **정렬·필터는 서버가 한다.**
     var fetchRoomPins: FetchRoomPinsUseCase { get }
     /// 다른 방에 공유 시트가 그릴 방 목록 — 각 방에 이 장소가 이미 있는지까지 함께.
     var fetchShareTargets: FetchShareTargetsUseCase { get }
@@ -26,4 +26,9 @@ public protocol ArchiveDeps: RoomShareCreateRoomDeps, PlaceDetailDeps {
     /// 공동방 생성 유도 시트를 "나중에 만들래요" 로 미뤄 둔 상태(2주). 서버가 모르는 기기 로컬
     /// 표시 정책이라 UseCase 가 아니라 ``SnoozeSwitch`` 를 그대로 받는다.
     var roomCreationPromptSnooze: SnoozeSwitch { get }
+    /// 방 상세 헤더 `+` → 친구 초대 시트(004-4-2)가 발급받는 초대 코드.
+    var fetchInviteCode: FetchInviteCodeUseCase { get }
+    /// 초대 링크의 스킴·호스트. **서버는 코드만 준다** — 링크 조립은 클라이언트 몫이라 읽기
+    /// (`DeeplinkParser`)와 같은 설정을 써서 "우리가 만든 링크를 우리가 못 읽는" 상태를 막는다.
+    var deeplink: DeeplinkConfiguration { get }
 }

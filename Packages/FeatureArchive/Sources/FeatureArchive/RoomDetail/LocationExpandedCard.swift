@@ -11,7 +11,7 @@ struct LocationExpandedCard: View {
 
     var body: some View {
         MHLocationCard(
-            thumbnails: Array(repeating: nil, count: max(location.photoCount, 1)),
+            imageURLs: location.photos,
             title: location.name,
             address: location.address,
             commentCount: location.commentCount,

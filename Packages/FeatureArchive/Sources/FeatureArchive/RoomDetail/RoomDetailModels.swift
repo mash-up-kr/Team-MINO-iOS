@@ -13,8 +13,7 @@ struct RoomDetailLocation: Identifiable, Equatable {
     let commentCount: Int
     /// 출처 게시물의 사진. 없을 수 있다.
     ///
-    /// 개수만 들고 있다가 URL 이 필요해진 자리(공유 시트 썸네일)가 생겨 배열로 바꿨다 —
-    /// 개수를 따로 두면 사진과 어긋날 수 있어 ``photoCount`` 는 여기서 센다.
+    /// 개수만 들고 있다가 URL 이 필요해진 자리(공유 시트 썸네일·장소 카드)가 생겨 배열로 바꿨다.
     let photos: [URL]
     /// 이 장소를 방에 저장한 사람. 시안 004-1 장소 카드 우하단의 아바타 자리다.
     /// 서버가 저장자를 안 실어 주면 nil 이고, 그때는 자리를 **비운다** — 익명 회색 원을 대신
@@ -40,8 +39,6 @@ struct RoomDetailLocation: Identifiable, Equatable {
         self.saver = saver
     }
 
-    var photoCount: Int { photos.count }
-
     /// 장소를 한 칸으로 줄여 보여 줄 때 쓰는 대표 사진 — 첫 장이다(기획 011-1 ②).
     var thumbnail: URL? { photos.first }
 }
@@ -58,6 +55,16 @@ struct RoomDetailRoom: Equatable {
     /// 방 참여자들의 아바타 프리셋 번호. 헤더 아바타 pill 이 이 순서대로 얼굴을 늘어놓는다.
     /// 수가 아니라 목록으로 드는 건, 그리려면 몇 명인지가 아니라 **누구인지**를 알아야 하기 때문이다.
     let memberAvatarColors: [AvatarColor?]
+    /// 개인방(`내 장소`)인가 — 헤더 액션 줄에서 `+`(초대)와 `⋮`(더보기)를 **뺄지**의 기준이다.
+    ///
+    /// 둘 다 개인방에는 놓을 것이 없다. PRD 「개인방」이 **초대 불가**·**삭제/나가기 금지**로
+    /// 못박았고([SYS-006]도 "공동방에 타인을 초대할 때"로 한정한다), 더보기 메뉴는 편집(방장 전용)
+    /// 과 나가기 둘뿐이라 개인방에서는 항목이 하나도 남지 않는다(시안 `004-5` Case 3 = 더보기
+    /// 버튼 자체가 없음).
+    ///
+    /// 방 종류(`RoomType`)를 그대로 들지 않고 Bool 로 좁힌 건 표시 모델이 필요한 것이 "종류" 가
+    /// 아니라 "이 두 버튼을 그리는가" 하나이기 때문이다.
+    let isPersonal: Bool
 
     var locationCountText: String {
         locationCount > Self.countCap ? "\(Self.countCap)+개" : "\(locationCount)개"
@@ -70,7 +77,8 @@ struct RoomDetailRoom: Equatable {
             title: title,
             memo: memo,
             locationCount: max(0, locationCount - 1),
-            memberAvatarColors: memberAvatarColors
+            memberAvatarColors: memberAvatarColors,
+            isPersonal: isPersonal
         )
     }
 }
@@ -108,28 +116,42 @@ extension RoomDetailRoom {
             title: room.name,
             memo: room.description ?? "",
             locationCount: room.pinCount,
-            memberAvatarColors: room.users.map(\.avatarColor)
+            memberAvatarColors: room.users.map(\.avatarColor),
+            isPersonal: room.type == .personal
         )
     }
 }
 
-/// 지도 위 필터 드롭다운의 정렬 기준.
+/// 정렬 드롭다운의 한글 표기. 기준 자체는 Domain ``PinSort`` 가 들고 **라벨만 화면이 붙인다** —
+/// 홈이 `PinFilter.chipTitle` 로 같은 일을 한다(`HomeContentView.swift:421`).
 ///
-/// **방 상세(004-1 ⑥)와 방 리스트(003-1 ①)가 같은 5가지를 쓴다** — 003-1 ① 이 "필터 drop down :
-/// 5가지로 필터링하여 볼 수 있다 / '전체'로 기본 선택되어있다" 로 못박아 두 화면의 항목이 같다.
-/// 그래서 이름은 `RoomDetail*` 이지만 방 상세 전용 타입이 아니다(두 화면이 한 개념을 공유한다).
+/// **선언 순서가 곧 노출 순서다** — ``RoomDetailSortMenu`` 와 peek 의 `MHFilterBar` 가
+/// `PinSort.allCases` 를 그대로 그린다. 순서는 시안 `2542:125333` 의 열린 드롭다운과 맞췄다.
+/// 첫 항목이 기본 선택은 아니다 — 기본은 `.all` 이다(PRD "5종이며 기본값은 `전체`다").
 ///
-/// **선언 순서가 곧 드롭다운 노출 순서다** — ``RoomDetailSortMenu`` 와 peek 의 `MHFilterBar` 가
-/// `allCases` 를 그대로 그린다. 순서는 시안 `004-1-3_방 상세 full_리스트형` 의 열린 드롭다운과 맞췄다.
-/// 첫 항목이 기본 선택은 아니다 — 기본은 `.all` 이다(003-1 ① · 004-1 ① "'전체'로 기본 선택되어있다").
-public enum RoomDetailSort: String, CaseIterable, Identifiable {
-    case pick = "꾹 Pick"
-    case all = "전체"
-    case latest = "최신순"
-    case distance = "거리순"
-    case comment = "코멘트순"
+/// **방 상세와 방 리스트가 같은 5가지를 쓴다** — 003-1 ① 이 "필터 drop down : 5가지로 필터링하여
+/// 볼 수 있다 / '전체'로 기본 선택되어있다" 로 못박아 두 화면의 항목이 같다.
+extension PinSort {
+    var menuTitle: String {
+        switch self {
+        case .recommended: "꾹 Pick"
+        case .all: "전체"
+        case .latest: "최신순"
+        case .distance: "거리순"
+        case .comment: "코멘트순"
+        }
+    }
+}
 
-    public var id: String { rawValue }
+/// 카테고리 칩의 한글 표기. 값 집합(3종 고정)은 Domain ``PlaceCategoryFilter`` 가 든다.
+extension PlaceCategoryFilter {
+    var chipTitle: String {
+        switch self {
+        case .all: "전체"
+        case .cafe: "카페"
+        case .restaurant: "음식점"
+        }
+    }
 }
 
 /// 툴바 우측 토글의 목록 표시 방식.
@@ -170,33 +192,6 @@ enum RoomDetailMoreMenuItemID: String, CaseIterable {
     }
 }
 
-/// 헤더 아래 카테고리 칩 목록.
-///
-/// 시안 004-1 ⑨ — "인스타에서 가져 온 저장 값에서 추가되는 형식(전시회 관련된 것을 저장 →
-/// 전시회 필터 생성 / 음식점 관련 → 음식점 필터 생성)". 즉 **고정 집합이 아니라 방에 담긴
-/// 장소들의 업종에서 만들어진다.** 목업의 "전체·카페·음식점" 3개는 그 방이 마침 그랬을 뿐이다.
-enum RoomDetailCategoryList {
-    /// 어떤 방에도 항상 있는 첫 칩. 기본 선택값이기도 하다.
-    static let all = "전체"
-
-    /// 방에 담긴 장소들의 업종을 **처음 나온 순서대로** 모은다.
-    /// 알파벳/가나다 정렬을 하지 않는 건, 서버가 주는 순서가 곧 노출 우선순위이기 때문이다.
-    static func make(from pins: [Pin]) -> [String] {
-        var seen: Set<String> = []
-        var result = [all]
-        for category in pins.compactMap(\.place.category) where seen.insert(category).inserted {
-            result.append(category)
-        }
-        return result
-    }
-
-    /// 선택한 칩에 해당하는 장소만 남긴다. "전체"면 그대로 둔다.
-    static func filter(_ pins: [Pin], by category: String) -> [Pin] {
-        guard category != all else { return pins }
-        return pins.filter { $0.place.category == category }
-    }
-}
-
 // MARK: - 더미 데이터
 
 extension RoomDetailRoom {
@@ -204,7 +199,27 @@ extension RoomDetailRoom {
         title: "가나다라마바사아자차카타파하다",
         memo: "memo",
         locationCount: 1_000,   // 상한(999) 을 넘겨 "999+개" 표기를 프리뷰에서 확인한다
-        memberAvatarColors: [.red, .redOrange, .orange, .green]
+        memberAvatarColors: [.red, .redOrange, .orange, .green],
+        isPersonal: false
+    )
+
+    /// 개인방(`내 장소`) — 헤더에 `+`·`⋮` 가 빠진 모양을 프리뷰에서 확인한다.
+    static let personalSample = RoomDetailRoom(
+        title: Room.personalDisplayName,
+        memo: "",
+        locationCount: 3,
+        memberAvatarColors: [.red],
+        isPersonal: true
+    )
+
+    /// 멤버 7명 — PRD 「방 멤버 아바타」의 "아바타 3개 + 카운터 `4`" 예시가 그려지는 방.
+    /// 4명(``sample``)과 나란히 두면 경계(5명)가 눈에 보인다.
+    static let crowdedSample = RoomDetailRoom(
+        title: "사람 많은 방",
+        memo: "멤버 7명",
+        locationCount: 12,
+        memberAvatarColors: [.red, .redOrange, .orange, .green, .cyan, .blue, .purple],
+        isPersonal: false
     )
 }
 

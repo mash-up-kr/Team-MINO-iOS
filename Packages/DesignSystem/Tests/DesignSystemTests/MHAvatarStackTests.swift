@@ -7,7 +7,8 @@ final class MHAvatarStackTests: XCTestCase {
     // 셀 레이아웃 32, 겹침 6(step 26), pill 여백 4/side.
     //   add     = 1 아바타 + "+" 버튼(2셀) → 32 + 26 + 8 = 66 × 40
     //   default = 4 아바타          → 32 + 3×26 + 8 = 118 × 40
-    //   more    = 3 아바타 + overflow(4셀) → 32 + 3×26 + 8 = 118 × 40
+    //   more    = 3 아바타 + 카운터(4셀) → 32 + 3×26 + 8 = 118 × 40
+    //   both    = 3 아바타 + 카운터 + "+"(5셀) → 32 + 4×26 + 8 = 144 × 40
     @MainActor
     func testStackSizeMatchesFigma() throws {
         MHFontRegistrar.registerIfNeeded()
@@ -15,7 +16,7 @@ final class MHAvatarStackTests: XCTestCase {
             let r = ImageRenderer(content: view); r.scale = 1
             return r.uiImage?.size ?? .zero
         }
-        let add = size(MHAvatarStack([Image?.none]) { })
+        let add = size(MHAvatarStack([Image?.none], onAdd: { }))
         XCTAssertEqual(add.width, 66, accuracy: 0.5)
         XCTAssertEqual(add.height, 40, accuracy: 0.5)
 
@@ -23,17 +24,23 @@ final class MHAvatarStackTests: XCTestCase {
         XCTAssertEqual(def.width, 118, accuracy: 0.5)
         XCTAssertEqual(def.height, 40, accuracy: 0.5)
 
-        let more = size(MHAvatarStack(Array(repeating: Image?.none, count: 3), trailing: .overflow(99)))
+        let more = size(MHAvatarStack(Array(repeating: Image?.none, count: 3), overflow: 99))
         XCTAssertEqual(more.width, 118, accuracy: 0.5)
         XCTAssertEqual(more.height, 40, accuracy: 0.5)
+
+        // 카운터와 "+" 는 상호배타가 아니다 — 5명 이상인 공동방은 둘이 함께 선다.
+        // PRD 「방 멤버 아바타」의 "아바타 3개 + 카운터 칩" 에 초대 버튼이 더해진 모양이다.
+        let both = size(MHAvatarStack(Array(repeating: Image?.none, count: 3), overflow: 4, onAdd: { }))
+        XCTAssertEqual(both.width, 144, accuracy: 0.5)
+        XCTAssertEqual(both.height, 40, accuracy: 0.5)
     }
 
-    // overflow 텍스트: 99 이하는 그대로, 초과 시 "99+" 로 캡.
+    // 카운터 텍스트: 99 이하는 그대로, 초과 시 "99+" 로 캡(PRD "나머지 인원이 99명을 넘으면 `99+`").
     func testOverflowLabelCap() {
-        XCTAssertEqual(MHAvatarStack.overflowText(5), "5")
-        XCTAssertEqual(MHAvatarStack.overflowText(99), "99")
-        XCTAssertEqual(MHAvatarStack.overflowText(100), "99+")
-        XCTAssertEqual(MHAvatarStack.overflowText(1234), "99+")
+        XCTAssertEqual(MHAvatarCountBadge.text(5), "5")
+        XCTAssertEqual(MHAvatarCountBadge.text(99), "99")
+        XCTAssertEqual(MHAvatarCountBadge.text(100), "99+")
+        XCTAssertEqual(MHAvatarCountBadge.text(1234), "99+")
     }
 
     @MainActor
@@ -77,9 +84,9 @@ private struct States: View {
     private let three = Array(repeating: Image?.none, count: 3)
     var body: some View {
         VStack(alignment: .leading, spacing: 22) {
-            MHAvatarStack(one) { }                                   // add
+            MHAvatarStack(one, onAdd: { })                                   // add
             MHAvatarStack(four)                                      // default
-            MHAvatarStack(three, trailing: .overflow(99))           // more
+            MHAvatarStack(three, overflow: 99)           // more
         }
         .padding(16)
         .background(Color.white)
@@ -90,15 +97,15 @@ private struct Gallery: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             label("state · add / default / more")
-            MHAvatarStack([Image?.none]) { }
+            MHAvatarStack([Image?.none], onAdd: { })
             MHAvatarStack(Array(repeating: Image?.none, count: 4))
-            MHAvatarStack(Array(repeating: Image?.none, count: 3), trailing: .overflow(99))
+            MHAvatarStack(Array(repeating: Image?.none, count: 3), overflow: 99)
 
             label("overflow · 5 / 12 / 100")
             HStack(spacing: 16) {
-                MHAvatarStack(Array(repeating: Image?.none, count: 2), trailing: .overflow(5))
-                MHAvatarStack(Array(repeating: Image?.none, count: 3), trailing: .overflow(12))
-                MHAvatarStack(Array(repeating: Image?.none, count: 3), trailing: .overflow(100))
+                MHAvatarStack(Array(repeating: Image?.none, count: 2), overflow: 5)
+                MHAvatarStack(Array(repeating: Image?.none, count: 3), overflow: 12)
+                MHAvatarStack(Array(repeating: Image?.none, count: 3), overflow: 100)
             }
         }
         .padding(24)
