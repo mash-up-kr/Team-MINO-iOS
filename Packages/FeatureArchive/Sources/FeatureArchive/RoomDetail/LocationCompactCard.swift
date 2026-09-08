@@ -11,6 +11,8 @@ struct LocationCompactCard: View {
 
     var body: some View {
         MHLocationCard(
+            // 한 칸짜리 썸네일이라 카드가 첫 장만 쓴다(기획 011-1 ② 대표 사진과 같은 규칙).
+            imageURLs: location.photos,
             title: location.name,
             address: location.address,
             commentCount: location.commentCount,

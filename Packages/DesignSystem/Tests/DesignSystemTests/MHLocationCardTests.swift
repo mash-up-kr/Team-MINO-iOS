@@ -40,6 +40,38 @@ final class MHLocationCardTests: XCTestCase {
         XCTAssertNotNil(r.uiImage, "멤버 없는 MHLocationCard 렌더 실패")
     }
 
+    // 원격 사진(imageURLs)도 같은 자리를 차지한다 — 로딩 중·실패는 로컬 nil 과 같은 자리표라
+    // 사진이 도착하기 전후로 행 높이가 달라지지 않는다(도착하면 옆 카드가 밀려 목록이 튄다).
+    @MainActor
+    func testRemoteThumbnailKeepsPlaceholderLayout() throws {
+        MHFontRegistrar.registerIfNeeded()
+        let urls = [URL(string: "https://example.com/a.jpg")!, URL(string: "https://example.com/b.jpg")!]
+        func height(_ card: MHLocationCard) throws -> CGFloat {
+            let r = ImageRenderer(content: card.frame(width: 335))
+            r.scale = 1
+            return try XCTUnwrap(r.uiImage, "MHLocationCard 렌더 실패").size.height
+        }
+        for layout in [MHLocationCardLayout.compact, .expanded] {
+            let remote = try height(MHLocationCard(imageURLs: urls, title: "제목", address: "주소",
+                                                   commentCount: 8, members: [nil], layout: layout))
+            let local = try height(MHLocationCard(thumbnails: [nil, nil], title: "제목", address: "주소",
+                                                  commentCount: 8, members: [nil], layout: layout))
+            XCTAssertEqual(remote, local, accuracy: 1.0, "원격(\(layout)) 썸네일 자리가 로컬 자리표와 다르다")
+        }
+    }
+
+    // 사진이 하나도 없으면 원격 버전도 자리표 한 칸을 세운다(자리가 통째로 비지 않는다).
+    @MainActor
+    func testRemoteEmptyStillRendersPlaceholder() throws {
+        MHFontRegistrar.registerIfNeeded()
+        let r = ImageRenderer(content:
+            MHLocationCard(imageURLs: [], title: "제목", address: "주소", commentCount: 0,
+                           layout: .expanded).frame(width: 335))
+        r.scale = 1
+        let img = try XCTUnwrap(r.uiImage, "사진 없는 원격 MHLocationCard 렌더 실패")
+        XCTAssertGreaterThan(img.size.height, 118, "expanded 썸네일 자리가 서지 않았다")
+    }
+
     // 메뉴 항목을 넘겨도(닫힌 상태) 카드가 정상 렌더된다.
     @MainActor
     func testWithMenuItemsRenders() throws {

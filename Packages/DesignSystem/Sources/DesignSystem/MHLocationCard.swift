@@ -30,13 +30,23 @@ import SwiftUI
 ///                commentCount: 1200, members: [img1, img2])            // compact(기본)
 /// MHLocationCard(thumbnails: [img1, img2], title: "레이어스튜디오 10", address: "서울 성동구 상원4길 10",
 ///                commentCount: 8, members: [img1], layout: .expanded) { openMore() }
+/// MHLocationCard(imageURLs: pin.images, title: "레이어스튜디오 10", address: "서울 성동구 상원4길 10",
+///                commentCount: 8, members: [img1], layout: .expanded)   // 원격 사진
 /// MHLocationCard(title: "레이어스튜디오 10", address: "서울 성동구 상원4길 10", commentCount: 8,
 ///                menuItems: [MHMenuItem("다른 방에 공유") { share() },
 ///                            MHMenuItem("장소 삭제") { remove() },
 ///                            MHMenuItem("장소 이동") { move() }])       // ⋮ → 메뉴
 /// ```
 public struct MHLocationCard: View {
-    private let thumbnails: [Image?]
+    /// 썸네일 한 칸에 그릴 것. 로컬 이미지·원격 사진·자리표를 한 타입으로 모은다 —
+    /// compact/expanded 렌더가 소스를 구분하지 않게 하려는 자리다.
+    private enum Thumb {
+        case image(Image)
+        case url(URL)
+        case placeholder
+    }
+
+    private let thumbnails: [Thumb]
     private let title: String
     private let address: String
     private let commentCount: Int
@@ -64,7 +74,7 @@ public struct MHLocationCard: View {
         moreButtonLabel: String = "더보기",
         onMore: (() -> Void)? = nil
     ) {
-        self.thumbnails = thumbnail.map { [$0] } ?? []
+        self.thumbnails = thumbnail.map { [.image($0)] } ?? []
         self.title = title
         self.address = address
         self.commentCount = commentCount
@@ -90,7 +100,35 @@ public struct MHLocationCard: View {
         moreButtonLabel: String = "더보기",
         onMore: (() -> Void)? = nil
     ) {
-        self.thumbnails = thumbnails
+        self.thumbnails = thumbnails.map { $0.map(Thumb.image) ?? .placeholder }
+        self.title = title
+        self.address = address
+        self.commentCount = commentCount
+        self.members = members
+        self.layout = layout
+        self.menuItems = menuItems
+        self.menuPlacement = menuPlacement
+        self.externalMenuPresented = menuPresented
+        self.moreButtonLabel = moreButtonLabel
+        self.onMore = onMore
+    }
+
+    /// 원격 사진(`Pin.images` 등)을 `AsyncImage` 로 그리는 버전. 로딩 중·실패는 로컬 `nil` 과 같은
+    /// 자리표로 받는다(자리가 비면 옆 썸네일이 밀려 카드 폭이 흔들린다) — `MHHomeCard` 와 같은 짝이다.
+    public init(
+        imageURLs: [URL],
+        title: String,
+        address: String,
+        commentCount: Int,
+        members: [Image?] = [],
+        layout: MHLocationCardLayout = .compact,
+        menuItems: [MHMenuItem] = [],
+        menuPlacement: MHLocationCardMenuPlacement = .below,
+        menuPresented: Binding<Bool>? = nil,
+        moreButtonLabel: String = "더보기",
+        onMore: (() -> Void)? = nil
+    ) {
+        self.thumbnails = imageURLs.map(Thumb.url)
         self.title = title
         self.address = address
         self.commentCount = commentCount
@@ -138,7 +176,7 @@ public struct MHLocationCard: View {
 
     private var compactBody: some View {
         HStack(alignment: .top, spacing: 12) {
-            thumbView(thumbnails.first ?? nil, ratio: .square).frame(width: 94)
+            thumbView(thumbnails.first ?? .placeholder, ratio: .square).frame(width: 94)
             VStack(alignment: .leading, spacing: 24) {
                 titleRow
                 bottomRow
@@ -155,7 +193,7 @@ public struct MHLocationCard: View {
     }
 
     @ViewBuilder private var expandedThumbnails: some View {
-        let items = thumbnails.isEmpty ? [Image?.none] : thumbnails
+        let items = thumbnails.isEmpty ? [Thumb.placeholder] : thumbnails
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 ForEach(items.indices, id: \.self) { i in
@@ -248,23 +286,38 @@ public struct MHLocationCard: View {
         }
     }
 
-    @ViewBuilder private func thumbView(_ image: Image?, ratio: MHThumbnailRatio) -> some View {
-        if let image {
+    @ViewBuilder private func thumbView(_ thumb: Thumb, ratio: MHThumbnailRatio) -> some View {
+        switch thumb {
+        case .image(let image):
             MHThumbnail(image, ratio: ratio, radius: true, border: true)
-        } else {
-            RoundedRectangle(cornerRadius: 12)
-                .fill(.mhFillNormal)
-                .aspectRatio(ratio.value, contentMode: .fit)
-                .overlay {
-                    Image(systemName: "photo")
-                        .font(.system(size: 20))
-                        .foregroundStyle(.mhLabelDisable)
+        case .url(let url):
+            AsyncImage(url: url) { phase in
+                if case .success(let image) = phase {
+                    MHThumbnail(image, ratio: ratio, radius: true, border: true)
+                } else {
+                    // 로딩 중과 실패를 같은 자리표로 받는다 — 어느 쪽이든 자리가 비면 옆 썸네일이
+                    // 밀려 카드 폭·행 높이가 흔들린다(`PlaceDetailPhotoCarousel` 과 같은 규칙).
+                    placeholderThumb(ratio: ratio)
                 }
-                .overlay {
-                    RoundedRectangle(cornerRadius: 12)
-                        .strokeBorder(.mhLineNormalNeutral, lineWidth: 1)
-                }
+            }
+        case .placeholder:
+            placeholderThumb(ratio: ratio)
         }
+    }
+
+    private func placeholderThumb(ratio: MHThumbnailRatio) -> some View {
+        RoundedRectangle(cornerRadius: 12)
+            .fill(.mhFillNormal)
+            .aspectRatio(ratio.value, contentMode: .fit)
+            .overlay {
+                Image(systemName: "photo")
+                    .font(.system(size: 20))
+                    .foregroundStyle(.mhLabelDisable)
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(.mhLineNormalNeutral, lineWidth: 1)
+            }
     }
 
     // 999 초과는 999+ 로 절단(Figma).
