@@ -440,8 +440,47 @@ struct RoomListReducerTests {
         let coordinate = Coordinate(latitude: 37.4966, longitude: 127.0530)
         let store = makeStore(location: StubCurrentLocation(result: .coordinate(coordinate)))
         await store.send(.tapMyLocation) { $0.isLocating = true }
-        await store.receive(.myLocationResolved(.coordinate(coordinate))) { $0.isLocating = false }
+        await store.receive(.myLocationResolved(.coordinate(coordinate))) {
+            $0.isLocating = false
+            // 받아 온 좌표를 화면에 남긴다 — 진입 카메라의 기준점이라, 안 남기면 요청이 끝나는
+            // 순간 카메라가 진입 때 잡아 둔 옛 좌표로 되돌아간다(이슈 #189).
+            $0.myCoordinate = coordinate
+        }
         store.receiveNavigation(.focusMyLocation(coordinate))
+        store.finish()
+    }
+
+    @Test("L2 — 현위치 버튼이 진입 카메라의 기준점을 최신 좌표로 갈아 끼운다")
+    func tapMyLocation_updatesEntryCoordinate() async {
+        let stale = Coordinate(latitude: 37.4979, longitude: 127.0276)
+        let fresh = Coordinate(latitude: 37.5443, longitude: 127.0557)
+        var state = RoomListState()
+        state.myCoordinate = stale
+
+        let store = makeStore(
+            state: state,
+            location: StubCurrentLocation(result: .coordinate(fresh))
+        )
+
+        await store.send(.tapMyLocation) { $0.isLocating = true }
+        await store.receive(.myLocationResolved(.coordinate(fresh))) {
+            $0.isLocating = false
+            $0.myCoordinate = fresh
+        }
+        store.receiveNavigation(.focusMyLocation(fresh))
+        store.finish()
+    }
+
+    @Test("L2 — 좌표를 못 얻으면 기준점을 건드리지 않는다")
+    func myLocationDenied_keepsEntryCoordinate() async {
+        let known = Coordinate(latitude: 37.5443, longitude: 127.0557)
+        var state = RoomListState()
+        state.myCoordinate = known
+
+        let store = makeStore(state: state, location: StubCurrentLocation(result: .permissionDenied))
+
+        await store.send(.tapMyLocation) { $0.isLocating = true }
+        await store.receive(.myLocationResolved(.permissionDenied)) { $0.isLocating = false }
         store.finish()
     }
 

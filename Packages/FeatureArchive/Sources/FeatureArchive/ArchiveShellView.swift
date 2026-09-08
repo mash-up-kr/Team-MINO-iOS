@@ -40,10 +40,11 @@ struct ArchiveShellView: View {
                 bottomInset: mapBottomInset,
                 pins: mapPins,
                 myLocation: coordinator.mapFocus?.coordinate,
+                myLocationRequestID: coordinator.mapFocus?.ordinal ?? 0,
                 roomColors: roomColors,
                 selectedPinID: coordinator.selectedPin?.id.value,
                 onSelectPin: selectPin,
-                cameraMode: zoomRequest.map { .zoomed($0.coordinate, zoom: $0.zoom) } ?? .fitPins,
+                cameraMode: cameraMode,
                 zoom: mapZoom,
                 onCameraIdle: { zoom in
                     mapZoom = zoom
@@ -383,6 +384,22 @@ struct ArchiveShellView: View {
     private var sheetIdentifier: String {
         if placeStore != nil { return "PlaceDetail.sheet" }
         return detailStore == nil ? "RoomList.sheet" : "RoomDetail.sheet"
+    }
+
+    /// 카메라를 무엇에 맞출지.
+    ///
+    /// 클러스터 확대 요청이 있으면 그것이 이긴다 — 사용자가 방금 누른 조작이다. 그다음은 화면이
+    /// 갈린다: **방 리스트는 내 위치**(PRD [SYS-004] Flow A "저장 탭 최초 진입 … 허용: 내 현재
+    /// 위치를 중심점으로"), **방 상세는 그 방의 핀 맞춤**(Flow D "해당 방에 저장된 장소만 표시")이다.
+    ///
+    /// 방 리스트에 핀 맞춤을 쓰면 서울과 부산에 저장한 계정이 진입할 때마다 전국 축척으로 열려
+    /// 내 주변을 볼 수 없다(이슈 #189).
+    private var cameraMode: PlaceMapCameraMode {
+        if let zoomRequest {
+            return .zoomed(zoomRequest.coordinate, zoom: zoomRequest.zoom)
+        }
+        guard detailStore == nil else { return .fitPins }
+        return .entry(myLocation: roomListStore?.state.myCoordinate)
     }
 
     /// 지도에 그릴 핀 — 방을 열었으면 그 방의 것, 방 리스트를 보는 중이면 **내 모든 방의 것**이다

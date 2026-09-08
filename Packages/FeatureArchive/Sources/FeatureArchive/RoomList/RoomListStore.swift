@@ -296,6 +296,11 @@ public func roomListReducer(
         case .myLocationResolved(let result):
             state.isLocating = false
             guard case .coordinate(let coordinate) = result else { return .none }
+            // 버튼이 받아 온 좌표를 **화면에도 남긴다.** 진입 카메라가 이 값을 기준으로 서기
+            // 때문에(``PlaceMapCameraMode/entry(myLocation:)``), 안 남기면 버튼으로 옮겨 간
+            // 카메라가 요청이 끝나는 순간 진입 때 잡아 둔 옛 좌표로 되돌아간다. 거리순 정렬도
+            // 같은 값을 기준점으로 쓰므로 더 최근 좌표를 갖게 된다.
+            state.myCoordinate = coordinate
             return .navigate(.focusMyLocation(coordinate))
         }
     }

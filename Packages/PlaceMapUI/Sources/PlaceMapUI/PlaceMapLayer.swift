@@ -15,6 +15,10 @@ public struct PlaceMapLayer: View {
     /// 현위치 버튼(005-1)이 잡아 둔 내 위치. 서 있으면 핀 맞춤 대신 여기를 비춘다.
     let myLocation: Coordinate?
 
+    /// ``myLocation`` 요청의 일련번호. 같은 자리로 **다시** 눌렀을 때도 카메라가 움직이게 한다
+    /// — 자세한 이유는 ``MapUI/MapCameraPosition/requestID``.
+    let myLocationRequestID: Int
+
     /// 방 id → 대표 색. 마커 색이 **소속 방의 색**을 따른다(005-1 ① · PRD [SYS-004]).
     /// 방 리스트 탭은 여러 방의 핀이 한 지도에 뜨므로 방 하나가 아니라 표를 받는다.
     /// 색을 안 고른 방(`nil`·`gray`)이나 표에 없는 방은 기본색으로 떨어진다.
@@ -47,6 +51,7 @@ public struct PlaceMapLayer: View {
         bottomInset: CGFloat,
         pins: [Pin],
         myLocation: Coordinate?,
+        myLocationRequestID: Int = 0,
         roomColors: [String: RoomColor],
         selectedPinID: String?,
         onSelectPin: @escaping (String) -> Void,
@@ -58,6 +63,7 @@ public struct PlaceMapLayer: View {
         self.bottomInset = bottomInset
         self.pins = pins
         self.myLocation = myLocation
+        self.myLocationRequestID = myLocationRequestID
         self.roomColors = roomColors
         self.selectedPinID = selectedPinID
         self.onSelectPin = onSelectPin
@@ -85,7 +91,12 @@ public struct PlaceMapLayer: View {
             if MapService.isConfigured {
                 let markers = currentMarkers
                 MapView(
-                    camera: PlaceMap.camera(cameraMode, pins: pins, focusing: myLocation),
+                    camera: PlaceMap.camera(
+                        cameraMode,
+                        pins: pins,
+                        focusing: myLocation,
+                        requestID: myLocationRequestID
+                    ),
                     markers: markers,
                     padding: EdgeInsets(top: 0, leading: 0, bottom: bottomInset, trailing: 0),
                     onEvent: { event in
@@ -110,8 +121,22 @@ public struct PlaceMapLayer: View {
 
 /// 지도 카메라를 무엇에 맞출지. 화면마다 규칙이 달라 진입점이 고른다.
 public enum PlaceMapCameraMode: Equatable, Sendable {
-    /// 핀을 전부 담도록 맞춘다(저장 탭). 지금까지의 유일한 규칙이라 기본값이다.
+    /// 핀을 전부 담도록 맞춘다(방 상세). 지금까지의 유일한 규칙이라 기본값이다.
     case fitPins
+
+    /// 저장 탭 진입 카메라 — **내 위치를 중심에 둔다**.
+    ///
+    /// PRD [SYS-004] Flow A: *"지도가 실제로 화면에 그려지는 시점(저장 탭 최초 진입) ➔ OS 위치
+    /// 권한 팝업 ➔ **허용:** 내 현재 위치를 중심점으로 세팅 ➔ **거부:** 기본 디폴트 좌표를
+    /// 중심점으로 세팅"*. 좌표가 `nil` 이면 아직 못 받았거나 거부한 것이다.
+    ///
+    /// 이 값은 **1회성 요청이 아니라 화면이 들고 있는 좌표**다(`RoomListState.myCoordinate`).
+    /// 현위치 버튼 요청(`focusing:`)처럼 카메라가 닿는 순간 사라지면, 방 상세에 들어갔다 나올
+    /// 때마다 카메라가 기본 좌표로 되돌아간다(이슈 #189).
+    ///
+    /// 좌표가 없을 때 곧바로 기본 좌표로 가지 않고 **핀 맞춤을 한 번 거치는** 이유는
+    /// ``PlaceMap/camera(_:pins:focusing:)`` 참조.
+    case entry(myLocation: Coordinate?)
 
     /// 한 장소를 고정 줌으로 가운데 둔다(홈 카드덱에서 연 장소 상세).
     /// 마커가 하나뿐이라 맞출 범위가 없어 `fitPins` 로는 줌이 정해지지 않는다.
@@ -128,9 +153,14 @@ public enum PlaceMapCameraMode: Equatable, Sendable {
 ///
 /// `MapUI` 의 `MarkerDiff` 와 같은 결의 분리다 — SDK 조작과 판단을 갈라 둔다.
 public enum PlaceMap {
-    /// 볼 핀이 없을 때의 카메라(강남 일대). 방을 열지 않았거나 방에 저장된 장소가 없는 상태다.
+    /// 볼 핀도 내 위치도 없을 때의 카메라 — **강남역**이다.
+    ///
+    /// PRD [SYS-004] Flow A: *"거부: 기본 디폴트 좌표를 중심점으로 세팅 **(※ 현재 강남역으로 임시
+    /// 지정, 추후 변경될 수 있음)**"*. 이전 값 `(37.4966, 127.0530)` 은 강남역에서 동쪽으로
+    /// 2.3km 떨어진 한티역 일대라 시안·PRD 어느 쪽과도 맞지 않았다(이슈 #189 의 스크린샷이
+    /// "롯데백화점 강남점·한티역" 을 비추는 것이 이 값 때문이다). Android 도 같은 좌표를 쓴다.
     public static let defaultCamera = MapCameraPosition(
-        coordinate: MapCoordinate(latitude: 37.4966, longitude: 127.0530),
+        coordinate: MapCoordinate(latitude: 37.4979, longitude: 127.0276),
         zoom: 15
     )
 
@@ -197,17 +227,13 @@ public enum PlaceMap {
     /// `myLocation` 이 서 있으면 그쪽이 이긴다 — 현위치 버튼(005-1)을 누른 결과라 방금 사용자가
     /// 낸 요청이 핀 맞춤보다 뒤에 온 판단이다. 방이 바뀌면 그 요청은 사라져(``ArchiveCoordinator``의
     /// `mapFocus`) 다시 핀에 맞춰진다.
-    public static func camera(for pins: [Pin], focusing myLocation: Coordinate? = nil) -> MapCamera {
+    public static func camera(
+        for pins: [Pin],
+        focusing myLocation: Coordinate? = nil,
+        requestID: Int = 0
+    ) -> MapCamera {
         if let myLocation {
-            return .position(
-                MapCameraPosition(
-                    coordinate: MapCoordinate(
-                        latitude: myLocation.latitude,
-                        longitude: myLocation.longitude
-                    ),
-                    zoom: myLocationZoom
-                )
-            )
+            return .position(position(at: myLocation, requestID: requestID))
         }
         guard !pins.isEmpty else { return .position(defaultCamera) }
         return .fit(
@@ -221,27 +247,50 @@ public enum PlaceMap {
         )
     }
 
+    /// 내 위치를 가운데 둔 카메라. 현위치 줌은 화면마다 같아 여기 한 곳에서 만든다.
+    private static func position(at coordinate: Coordinate, requestID: Int) -> MapCameraPosition {
+        MapCameraPosition(
+            coordinate: MapCoordinate(latitude: coordinate.latitude, longitude: coordinate.longitude),
+            zoom: myLocationZoom,
+            requestID: requestID
+        )
+    }
+
     /// 모드에 따라 카메라를 고른다. `fitPins` 는 기존 규칙(``camera(for:focusing:)``)을 그대로 쓴다.
     ///
-    /// 현위치 요청(`myLocation`)은 두 모드 모두에서 이긴다 — 방금 사용자가 낸 요청이라
-    /// 진입 규칙보다 뒤에 온 판단이다.
+    /// 현위치 요청(`myLocation`)은 **모든 모드에서 이긴다** — 방금 사용자가 낸 요청이라 진입
+    /// 규칙보다 뒤에 온 판단이다. `requestID` 는 같은 자리로 다시 눌렀을 때도 카메라가 움직이게
+    /// 하는 번호다(``MapCameraPosition/requestID``).
     public static func camera(
         _ mode: PlaceMapCameraMode,
         pins: [Pin],
-        focusing myLocation: Coordinate?
+        focusing myLocation: Coordinate?,
+        requestID: Int = 0
     ) -> MapCamera {
         switch mode {
         case .fitPins:
-            return camera(for: pins, focusing: myLocation)
+            return camera(for: pins, focusing: myLocation, requestID: requestID)
+
+        // 저장 탭 진입 — 내 위치가 핀 맞춤보다 앞선다(PRD [SYS-004] Flow A).
+        //
+        // 좌표가 없을 때(권한 거부·측위 실패) 곧바로 기본 좌표로 가지 않고 **핀 맞춤을 한 번
+        // 거친다**. PRD 는 그 자리에 "기본 디폴트 좌표" 를 적었지만, 그 문장을 쓸 때 이 화면에는
+        // 핀이 없었다 — 지금은 내 모든 방의 마커가 뜬다(PRD [SYS-004] Flow D). 내 장소를 보여
+        // 주는 쪽이 강남역을 보여 주는 쪽보다 쓸모 있어 그렇게 둔다. 핀도 없으면 그때 기본
+        // 좌표다. (이슈 #189 의 "권한 거부 시 폴백 정의" 는 기획 확인 대기 항목이다.)
+        case .entry(let entryLocation):
+            guard let target = myLocation ?? entryLocation else {
+                return camera(for: pins)
+            }
+            return .position(position(at: target, requestID: requestID))
+
         case .centered(let place):
-            let target = myLocation ?? place
-            return .position(
-                MapCameraPosition(
-                    coordinate: MapCoordinate(latitude: target.latitude, longitude: target.longitude),
-                    // 현위치 줌과 같은 값이라(둘 다 기본 줌) 현위치로 옮겨도 축척이 흔들리지 않는다.
-                    zoom: defaultCamera.zoom
-                )
-            )
+            // 현위치 줌과 장소 줌이 같은 값이라(둘 다 기본 줌) 현위치로 옮겨도 축척이 흔들리지
+            // 않는다. 번호는 현위치 요청일 때만 의미가 있다 — 장소는 화면이 사는 동안 안 바뀐다.
+            guard let myLocation else {
+                return .position(position(at: place, requestID: 0))
+            }
+            return .position(position(at: myLocation, requestID: requestID))
         case .zoomed(let coordinate, let zoom):
             // 현위치 요청보다 뒤에 온 조작이라 이쪽이 이긴다 — 사용자가 방금 누른 클러스터다.
             return .position(MapCameraPosition(coordinate: coordinate, zoom: zoom))
