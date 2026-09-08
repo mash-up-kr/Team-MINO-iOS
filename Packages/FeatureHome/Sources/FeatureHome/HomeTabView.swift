@@ -107,11 +107,14 @@ public struct HomeTabView: View {
                 Spacer(minLength: 0)
                 HStack(spacing: 0) {
                     Spacer(minLength: 0)
-                    MyLocationButton { placeStore.send(.tapMyLocation) }
+                    // 홈에서 여는 것은 **장소 상세**라 그 화면의 시안 값을 쓴다(40×40 / 18).
+                    MyLocationButton(size: PlaceMapButtonMetrics.placeDetail.myLocationSize) {
+                        placeStore.send(.tapMyLocation)
+                    }
                 }
                 .padding(.trailing, PlaceMapButtonMetrics.trailing)
-                // 시트 윗끝에서 18 — 저장 탭의 버튼 줄과 같은 계산이다.
-                .padding(.bottom, visiblePeek + tabBarCoverage + PlaceMapButtonMetrics.bottomGap)
+                // 시트 윗끝에서 18 — 저장 탭의 장소 상세 버튼 줄과 같은 계산이다.
+                .padding(.bottom, visiblePeek + tabBarCoverage + PlaceMapButtonMetrics.placeDetail.bottomGap)
             }
         }
     }
