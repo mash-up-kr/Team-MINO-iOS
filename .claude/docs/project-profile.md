@@ -23,12 +23,13 @@
 
 | 대상 | 명령 |
 |---|---|
-| macOS 선언 패키지 (`MVI`·`FlowCoordination`·`Feature`·`Logging`·`Networking`) | `swift test --package-path Packages/<P>` |
-| iOS 전용 패키지 (`Core`·`Domain`·`Data`·`DesignSystem`·`FeatureOnboarding`·`RoomCreationUI`·`ShareExtensionUI`) | `xcodebuild test -scheme <P> -destination 'platform=iOS Simulator,id=<UDID>'` |
+| macOS 선언 패키지 | `swift test --package-path Packages/<P>` |
+| iOS 전용 패키지 | `xcodebuild test -scheme <P> -destination 'platform=iOS Simulator,id=<UDID>'` |
 | 앱 통합 | `xcodebuild test -project App/App.xcodeproj -scheme App -destination 'platform=iOS Simulator,id=<UDID>'` |
 
+- **어느 쪽인지 확인**: `grep -o 'platforms: \[[^]]*\]' Packages/<P>/Package.swift`. 패키지 이름을 여기 나열하지 않는다 — 패키지가 늘 때마다 낡아 실제와 어긋난다.
 - **시뮬레이터 UDID 조회**: `xcrun simctl list devices available` — 이름 단독 지정은 동명 중복 위험이 있어 UDID 를 쓴다.
-- `MapUI` 는 테스트 타깃이 없다.
+- 모든 패키지가 테스트 타깃을 가진다(`grep -c testTarget Packages/*/Package.swift`).
 
 ### 렌더 테스트는 변별 단언을 동반한다
 

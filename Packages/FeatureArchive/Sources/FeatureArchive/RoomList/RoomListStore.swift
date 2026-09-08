@@ -9,15 +9,26 @@ public struct RoomListState: Equatable {
     /// 선택된 필터 칩 인덱스(전체/최근 저장 순/코멘트 순). 정렬 로직은 미구현(UI 상태만).
     public var filter: Int
     /// 지도 위 필터 드롭다운(003-1 ①). 방 상세(004-1 ⑥)와 **같은 5가지**이고 기본은 `.all` 이다.
-    /// 정렬 로직은 아직 없다 — 지도에 그릴 "내 모든 장소"가 없기 때문(`ArchiveShellView` 참조).
-    public var roomSort: RoomDetailSort
-    public var categoryFilter: Int
+    /// **서버가 이 기준으로 정렬해 준다** — 화면은 받은 순서대로 마커를 그린다.
+    public var roomSort: PinSort
+    /// 지도 위 카테고리 칩(003-1 ①). 3종 고정이며 서버가 이 값으로 거른다.
+    public var category: PlaceCategoryFilter
+    /// 지도에 그릴 **내 모든 방의 장소**(PRD [SYS-004] "내 모든 방의 장소 마커를 한 지도에").
+    /// 방 목록과 달리 정렬·필터가 걸리므로 칩을 바꾸면 이 값만 다시 받는다.
+    public var pins: [Pin] = []
     /// 공동방 생성 유도 시트(001-2-1)가 떠 있는가.
     public var isCreatePromptPresented: Bool
     /// 다음 **로드 응답 1회**는 유도 시트를 띄우지 않는다 — 만들기 화면에 다녀온 직후의 복귀.
     /// 성공·실패 어느 쪽으로 끝나든 소비된다. 실패에서 안 지우면 true 로 남아 다음 정상 진입의
     /// 시트가 조용히 안 뜬다.
     public var skipsNextCreatePrompt = false
+
+    /// 거리순 정렬의 기준점인 내 위치. 한 번 받아 두고 이 화면이 사는 동안 다시 묻지 않는다
+    /// (방 상세 `RoomDetailState.myCoordinate` 와 같은 규칙).
+    public var myCoordinate: Coordinate?
+    /// 거리순 **정렬 선택**이 좌표를 기다리는 중. 현위치 **버튼**의 `isLocating` 과 나눠 둔다 —
+    /// 둘은 좌표를 얻은 뒤 하는 일이 다르다(정렬은 재조회, 버튼은 카메라 이동).
+    public var isLocatingForSort = false
 
     /// 현위치 요청(003-1 ⑦)이 진행 중인가. 연타로 시스템 권한 팝업을 두 번 띄우지 않기 위한 가드.
     public var isLocating = false
@@ -30,16 +41,19 @@ public struct RoomListState: Equatable {
     public init(
         rooms: [Room] = [],
         filter: Int = 0,
-        roomSort: RoomDetailSort = .all,
-        categoryFilter: Int = 0,
+        roomSort: PinSort = .all,
+        category: PlaceCategoryFilter = .all,
         isCreatePromptPresented: Bool = false
     ) {
         self.rooms = rooms
         self.filter = filter
         self.roomSort = roomSort
-        self.categoryFilter = categoryFilter
+        self.category = category
         self.isCreatePromptPresented = isCreatePromptPresented
     }
+
+    /// 지금 지도가 고른 조회 조건. 요청을 낼 때와 응답을 받아들일지 판단할 때 같은 값을 본다.
+    var query: PinQuery { PinQuery(sort: roomSort, category: category) }
 
     /// 공동방을 하나라도 가졌는가. 빈 상태 노출과 유도 시트가 같은 기준을 봐야 해서 여기서 한 번만 정의한다.
     public var hasSharedRoom: Bool {
@@ -63,11 +77,17 @@ public enum RoomListAction: Equatable {
     case load
     /// Response Action (성공). 유도 시트 표출 판정에 필요한 스누즈 상태를 함께 싣는다 —
     /// reduce 는 순수해야 해서 `UserDefaults` 를 직접 읽을 수 없다.
-    case loaded([Room], isPromptSnoozed: Bool)
+    case loaded([Room], pins: [Pin], isPromptSnoozed: Bool)
+    /// 칩을 바꿔 마커만 다시 받은 결과. 어떤 조건으로 낸 요청인지 함께 실어 늦게 온 응답을 버린다.
+    case pinsLoaded([Pin], for: PinQuery)
+    /// 거리순 정렬이 기다린 좌표. 현위치 버튼의 `.myLocationResolved` 와 하는 일이 다르다.
+    case sortLocationResolved(CurrentLocationResult)
+    /// 지도 마커 탭(핀 id).
+    case tapPin(String)
     case loadFailed(DomainError)   // Response Action (실패)
     case selectFilter(Int)
-    case selectRoomSort(RoomDetailSort)
-    case selectCategory(Int)
+    case selectRoomSort(PinSort)
+    case selectCategory(PlaceCategoryFilter)
     /// 지도 우하단 현위치 버튼(003-1 ⑦).
     case tapMyLocation
     /// Response Action — 권한·측위 결과.
@@ -85,6 +105,9 @@ public enum RoomListAction: Equatable {
 
 public enum RoomListNav: Equatable, Sendable {
     case openRoomDetail(Room)
+    /// 지도 마커를 눌렀다 — 그 장소 상세로. PRD [SYS-004]: "마커 클릭: … 하단 시트가 [SCR-006]
+    /// 장소 상세 `Half` 로 전환된다", "중복 장소 마커 클릭 시에도 … 방을 먼저 고르게 하지 않고".
+    case openPlaceDetail(Pin)
     /// 공동방 만들기 화면으로.
     case goToCreateRoom
     /// 지도 카메라를 내 위치로(003-1 ⑦). 화면 전환이 아니라 지도에 내리는 명령이지만,
@@ -103,27 +126,63 @@ func personalFirst(_ rooms: [Room]) -> [Room] {
     rooms.filter { $0.type == .personal } + rooms.filter { $0.type != .personal }
 }
 
+/// 지금 고른 기준으로 지도 마커를 다시 받는다. 방 카드 목록은 건드리지 않는다 — 칩은 지도만 거른다.
+///
+/// 낸 조건을 응답(`.pinsLoaded(_:for:)`)에 함께 실어 늦게 온 응답을 버릴 수 있게 한다.
+private func loadPins(
+    _ state: RoomListState,
+    fetchPins: FetchRoomPinsUseCase
+) -> Effect<RoomListAction, RoomListNav> {
+    let query = state.query
+    let origin = state.myCoordinate
+    return .run { send in
+        // 마커 조회 실패는 알리지 않는다 — 시안에 이 실패를 알리는 UI 가 없고, 지도가 비는 것이
+        // 곧 "못 받았다" 는 표시다(`.loaded` 의 `try?` 와 같은 판단).
+        guard let pins = try? await fetchPins.execute(
+            roomID: nil,
+            sort: query.sort,
+            category: query.category,
+            origin: origin
+        ) else { return }
+        send(.pinsLoaded(pins, for: query))
+    }
+}
+
 /// 순수 reduce. 의존성(UseCase)은 `Effect.run` 안에서만 사용하고 시그니처는 순수하게 유지한다.
 public func roomListReducer(
     useCase: FetchRoomsUseCase,
+    fetchPins: FetchRoomPinsUseCase,
     promptSnooze: SnoozeSwitch,
     currentLocation: CurrentLocationUseCase
 ) -> (inout RoomListState, RoomListAction) -> Effect<RoomListAction, RoomListNav> {
     { state, action in
         switch action {
         case .load:
+            let query = state.query
             return .run { send in
                 do {
-                    let rooms = try await useCase.execute()
-                    send(.loaded(rooms, isPromptSnoozed: promptSnooze.isSnoozed))
+                    // 방 목록과 지도 마커를 **병렬로** 받는다(MVI 절제 규칙: 병렬은 async let → 1 action).
+                    async let rooms = useCase.execute()
+                    // 마커는 실패해도 목록을 막지 않는다 — `try?` 로 받아 지도만 비운다.
+                    // 방 목록이 이 화면의 본문이고 마커는 그 위에 얹는 것이라 운명을 묶지 않는다.
+                    async let pins = try? fetchPins.execute(
+                        roomID: nil,   // 내가 속한 모든 방 — PRD [SYS-004] "내 모든 방의 장소 마커"
+                        sort: query.sort,
+                        category: query.category,
+                        origin: nil
+                    )
+                    send(.loaded(try await rooms, pins: await pins ?? [], isPromptSnoozed: promptSnooze.isSnoozed))
+                } catch is CancellationError {
+                    return   // 탭을 떠난 것 — 결과가 필요 없어진 것이라 실패가 아니다
                 } catch let error as DomainError {
                     send(.loadFailed(error))
                 } catch {
                     send(.loadFailed(.unknown))
                 }
             }
-        case .loaded(let rooms, let isPromptSnoozed):
+        case .loaded(let rooms, let pins, let isPromptSnoozed):
             state.rooms = personalFirst(rooms)
+            state.pins = pins
 
             // FR-007 — 방을 만들고 돌아온 길이면 목록만 갱신하고 그 방 상세로 넘어간다.
             // 유도 시트 판정은 건너뛴다(방을 막 만들었으니 띄울 이유도 없다).
@@ -148,19 +207,55 @@ public func roomListReducer(
             // 성공과 똑같이 플래그를 소비한다 — 실패 때 남겨 두면 다음 정상 진입이 조용히 막힌다.
             _ = state.consumeSkipFlag()
             return .none
-        // FR-005 — 칩 선택에 따라 공동방 구간을 재정렬해야 하지만(개인방 고정은 유지) 아직 못 한다:
-        // 방 목록 응답에 "마지막 저장 시각"도 "코멘트 수"도 없어 클라이언트에서 셀 수 없다
-        // (`GET /api/v1/rooms` 응답 필드: pinCount·memberCount·createdAt·thumbnailList·users).
-        // 서버 정렬 파라미터가 생기면 그때 잇는다 — 그때까지 "전체"(서버 순서)만 실제로 동작한다.
+        // FR-005 — 카드 목록 위 정렬 칩(전체/최근 저장 순/코멘트 순)은 아직 못 한다:
+        // 방 목록 응답에 "마지막 저장 시각"도 "코멘트 수"도 없어 클라이언트에서 셀 수 없고
+        // (`GET /api/v1/rooms` 응답 필드: pinCount·memberCount·createdAt·thumbnailList·users)
+        // 서버에 정렬 파라미터도 없다. 그때까지 "전체"(서버 순서)만 실제로 동작한다.
+        //
+        // 아래 지도 위 드롭다운·칩과는 **다른 조작**이다 — 이쪽은 방 카드 목록, 저쪽은 지도 마커다.
         case .selectFilter(let index):
             state.filter = index
             return .none
+
+        // 지도 위 드롭다운·칩(003-1 ①) — 마커를 다시 받는다. 방 카드 목록은 건드리지 않는다.
         case .selectRoomSort(let sort):
-            state.roomSort = sort
+            // 거리순만 기준점을 필요로 한다. 좌표 없이 `sort=distance` 를 보내면 서버가 400 이다.
+            guard sort.requiresOrigin, state.myCoordinate == nil else {
+                state.isLocatingForSort = false   // 기다리던 거리순 선택이 있었다면 접는다
+                guard sort != state.roomSort else { return .none }
+                state.roomSort = sort
+                return loadPins(state, fetchPins: fetchPins)
+            }
+            guard !state.isLocatingForSort else { return .none }
+            state.isLocatingForSort = true
+            return .run { send in
+                let result = await currentLocation.execute()
+                guard !Task.isCancelled else { return }
+                send(.sortLocationResolved(result))
+            }
+        case .sortLocationResolved(let result):
+            // 기다리는 사이 다른 정렬을 골랐다면 늦게 온 좌표로 그 선택을 뒤집지 않는다.
+            guard state.isLocatingForSort else { return .none }
+            state.isLocatingForSort = false
+            // 좌표를 못 얻으면 정렬은 고르기 전 값 그대로 둔다 — 라벨만 "거리순" 인 거짓 상태를
+            // 만들지 않는다(방 상세와 같은 규칙). 시안에 이 실패를 알리는 UI 가 없다.
+            guard case .coordinate(let coordinate) = result else { return .none }
+            state.myCoordinate = coordinate
+            state.roomSort = .distance
+            return loadPins(state, fetchPins: fetchPins)
+        case .selectCategory(let category):
+            guard category != state.category else { return .none }
+            state.category = category
+            return loadPins(state, fetchPins: fetchPins)
+        case .pinsLoaded(let pins, let query):
+            // 늦게 온 응답은 버린다 — 그사이 다른 기준을 골랐다면 지금 화면과 다른 마커다.
+            guard query == state.query else { return .none }
+            state.pins = pins
             return .none
-        case .selectCategory(let index):
-            state.categoryFilter = index
-            return .none
+        case .tapPin(let pinID):
+            // 목록에 없는 id 는 무시한다 — 마커를 지우는 사이 들어온 탭이다.
+            guard let pin = state.pins.first(where: { $0.id.value == pinID }) else { return .none }
+            return .navigate(.openPlaceDetail(pin))
         case .tapRoom(let room):
             return .navigate(.openRoomDetail(room))
         case .tapCreateRoom:

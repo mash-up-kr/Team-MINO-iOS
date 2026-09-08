@@ -15,8 +15,10 @@ public struct PlaceMapLayer: View {
     /// 현위치 버튼(005-1)이 잡아 둔 내 위치. 서 있으면 핀 맞춤 대신 여기를 비춘다.
     let myLocation: Coordinate?
 
-    /// 방 대표 색 — 마커 색이 방 색을 따른다(005-1 ①). 색을 안 고른 방(`nil`·`gray`)은 기본색.
-    let roomColor: RoomColor?
+    /// 방 id → 대표 색. 마커 색이 **소속 방의 색**을 따른다(005-1 ① · PRD [SYS-004]).
+    /// 방 리스트 탭은 여러 방의 핀이 한 지도에 뜨므로 방 하나가 아니라 표를 받는다.
+    /// 색을 안 고른 방(`nil`·`gray`)이나 표에 없는 방은 기본색으로 떨어진다.
+    let roomColors: [String: RoomColor]
 
     /// 지금 장소 상세로 열려 있는 핀. 그 마커만 선택 상태로 그린다(005-1 ①).
     /// 선택 상태는 지도가 들지 않는다 — 어느 장소를 보고 있는지는 이미 화면이 아는 값이라
@@ -30,22 +32,50 @@ public struct PlaceMapLayer: View {
     /// 카메라를 어떻게 잡을지. 기본은 핀 맞춤이라 지금까지 쓰던 진입점은 넘기지 않아도 된다.
     let cameraMode: PlaceMapCameraMode
 
+    /// 지금 카메라 줌. 라벨을 그릴지 판단한다(``PlaceMap/showsLabels(atZoom:)``).
+    /// `nil` 이면 아직 카메라 idle 을 못 받은 상태다.
+    let zoom: Float?
+
+    /// 카메라 이동이 멈췄다(줌). 라벨·클러스터 판정에 쓰라고 올려 보낸다 — 지도가 스스로
+    /// 들지 않는 것은 선택 상태와 같은 이유다(화면이 아는 값과 어긋날 수 있다).
+    let onCameraIdle: ((Float) -> Void)?
+
+    /// 클러스터를 눌렀다(그 클러스터의 좌표) — 그 자리를 한 단계 확대해 묶음이 풀리게 한다.
+    let onZoomIn: ((MapCoordinate) -> Void)?
+
     public init(
         bottomInset: CGFloat,
         pins: [Pin],
         myLocation: Coordinate?,
-        roomColor: RoomColor?,
+        roomColors: [String: RoomColor],
         selectedPinID: String?,
         onSelectPin: @escaping (String) -> Void,
-        cameraMode: PlaceMapCameraMode = .fitPins
+        cameraMode: PlaceMapCameraMode = .fitPins,
+        zoom: Float? = nil,
+        onCameraIdle: ((Float) -> Void)? = nil,
+        onZoomIn: ((MapCoordinate) -> Void)? = nil
     ) {
         self.bottomInset = bottomInset
         self.pins = pins
         self.myLocation = myLocation
-        self.roomColor = roomColor
+        self.roomColors = roomColors
         self.selectedPinID = selectedPinID
         self.onSelectPin = onSelectPin
         self.cameraMode = cameraMode
+        self.zoom = zoom
+        self.onCameraIdle = onCameraIdle
+        self.onZoomIn = onZoomIn
+    }
+
+    /// 지금 그릴 마커. 탭 조회(어느 클러스터를 눌렀는지)에도 같은 값을 써야 해서 한 번만 만든다.
+    private var currentMarkers: [MapMarker] {
+        PlaceMap.clustered(
+            pins: pins,
+            zoom: zoom,
+            roomColors: roomColors,
+            selectedPinID: selectedPinID,
+            showsLabels: PlaceMap.showsLabels(atZoom: zoom)
+        )
     }
 
     public var body: some View {
@@ -53,12 +83,22 @@ public struct PlaceMapLayer: View {
             Color.mhBackgroundNormalAlternative
             #if canImport(GoogleMaps)
             if MapService.isConfigured {
+                let markers = currentMarkers
                 MapView(
                     camera: PlaceMap.camera(cameraMode, pins: pins, focusing: myLocation),
-                    markers: PlaceMap.markers(pins: pins, roomColor: roomColor, selectedPinID: selectedPinID),
+                    markers: markers,
                     padding: EdgeInsets(top: 0, leading: 0, bottom: bottomInset, trailing: 0),
                     onEvent: { event in
-                        if let id = PlaceMap.tappedPinID(in: event) { onSelectPin(id) }
+                        if let id = PlaceMap.tappedPinID(in: event) {
+                            // 클러스터 탭은 장소를 지목하지 않는다 — 어느 장소인지 정해지지 않아
+                            // 상세를 열 수 없다. **확대로 응한다**(PRD 에 이 동작 지정이 없어 플래그).
+                            if PlaceMap.isClusterID(id) {
+                                markers.first { $0.id == id }.map { onZoomIn?($0.coordinate) }
+                            } else {
+                                onSelectPin(id)
+                            }
+                        }
+                        if let zoom = PlaceMap.idleZoom(in: event) { onCameraIdle?(zoom) }
                     }
                 )
             }
@@ -76,6 +116,10 @@ public enum PlaceMapCameraMode: Equatable, Sendable {
     /// 한 장소를 고정 줌으로 가운데 둔다(홈 카드덱에서 연 장소 상세).
     /// 마커가 하나뿐이라 맞출 범위가 없어 `fitPins` 로는 줌이 정해지지 않는다.
     case centered(Coordinate)
+
+    /// 한 지점을 **지정한 줌**으로 가운데 둔다. 클러스터를 눌러 확대할 때 쓴다 —
+    /// `centered` 는 기본 줌으로 고정이라 "지금보다 더 확대" 를 표현할 수 없다.
+    case zoomed(MapCoordinate, zoom: Float)
 }
 
 /// 지도에 **무엇을** 그릴지 정하는 순수 계산부. 뷰에서 떼어 둔 이유는 두 가지다:
@@ -93,6 +137,20 @@ public enum PlaceMap {
     /// 핀이 화면 가장자리에 붙지 않도록 카메라를 맞출 때 두는 여백(pt).
     public static let fitPadding: Double = 60
 
+    /// 핀 아래 장소명을 그리기 시작하는 줌.
+    ///
+    /// 더 멀리서는 핀이 촘촘해 이름끼리 겹쳐 읽히지 않고, 화면에 뜨는 마커가 많아 이름마다
+    /// 그림을 합성하는 비용도 커진다. 기본 카메라 줌(``defaultCamera``)이 이 값이라 진입
+    /// 상태에서는 라벨이 보인다.
+    ///
+    /// 시안에 임계값 지정이 없어(플래그) 기본 줌을 경계로 삼았다.
+    public static let labelZoomThreshold: Float = 15
+
+    /// 이 줌에서 라벨을 그리는가. 줌을 아직 모르면(카메라 idle 전) 기본 카메라 줌으로 판단한다.
+    public static func showsLabels(atZoom zoom: Float?) -> Bool {
+        (zoom ?? defaultCamera.zoom) >= labelZoomThreshold
+    }
+
     /// 현위치로 옮겨 갈 때의 줌.
     ///
     /// 시안(005-1)에 지정이 없다. 새 숫자를 지어내지 않고 이 화면이 이미 쓰는 기본 줌을 그대로
@@ -100,19 +158,36 @@ public enum PlaceMap {
     /// 그 상태를 들일 이유가 없다.
     public static var myLocationZoom: Float { defaultCamera.zoom }
 
-    /// 방의 핀을 지도 마커로 옮긴다. 마커 `id` 는 핀 id — 탭 이벤트가 이 값으로 되돌아온다.
-    /// 색은 방 하나에 하나라 전부 같고, 지금 열려 있는 핀만 선택 상태가 된다(005-1 ①).
-    public static func markers(pins: [Pin], roomColor: RoomColor?, selectedPinID: String?) -> [MapMarker] {
-        let roomTint = tint(for: roomColor)
-        return pins.map { pin in
+    /// 핀을 지도 마커로 옮긴다. 마커 `id` 는 핀 id — 탭 이벤트가 이 값으로 되돌아온다.
+    /// 지금 열려 있는 핀만 선택 상태가 된다(005-1 ①).
+    ///
+    /// **색은 마커마다 다르다** — PRD [SYS-004] 가 "[SCR-004] 방 리스트 탭: 내 모든 방의 장소
+    /// 마커를 한 지도에 표시하며, **각 마커는 소속 방의 대표 색상을 따른다**" 로 못박았다.
+    /// 방 상세는 방이 하나라 결과적으로 다 같은 색이 된다 — 같은 함수로 두 화면을 덮는다.
+    ///
+    /// - Parameter roomColors: 방 id → 대표 색. 색을 안 고른 방(`nil`)이나 목록에 없는 방 id 는
+    ///   기본 회색으로 떨어진다(``tint(for:)``) — 방 목록보다 핀이 먼저 도착해도 마커가 사라지지
+    ///   않고 회색으로 선다.
+    /// - Parameter showsLabels: 핀 아래 장소명을 그릴지. **꺼지면 `title` 을 비워** 보낸다 —
+    ///   라벨을 그릴지 말지는 여기서 정하고 `MapView` 는 받은 값을 그리기만 한다.
+    public static func markers(
+        pins: [Pin],
+        roomColors: [String: RoomColor],
+        selectedPinID: String?,
+        showsLabels: Bool = true
+    ) -> [MapMarker] {
+        pins.map { pin in
             MapMarker(
                 id: pin.id.value,
                 coordinate: MapCoordinate(
                     latitude: pin.place.coordinate.latitude,
                     longitude: pin.place.coordinate.longitude
                 ),
-                title: pin.place.name,
-                style: MapMarkerStyle(tint: roomTint, isSelected: pin.id.value == selectedPinID)
+                title: showsLabels ? pin.place.name : nil,
+                style: MapMarkerStyle(
+                    tint: tint(for: roomColors[pin.roomID]),
+                    isSelected: pin.id.value == selectedPinID
+                )
             )
         }
     }
@@ -167,6 +242,9 @@ public enum PlaceMap {
                     zoom: defaultCamera.zoom
                 )
             )
+        case .zoomed(let coordinate, let zoom):
+            // 현위치 요청보다 뒤에 온 조작이라 이쪽이 이긴다 — 사용자가 방금 누른 클러스터다.
+            return .position(MapCameraPosition(coordinate: coordinate, zoom: zoom))
         }
     }
 
@@ -176,6 +254,14 @@ public enum PlaceMap {
         switch event {
         case .didTapMarker(let id): id
         case .didTap, .didIdleAt: nil
+        }
+    }
+
+    /// 카메라가 멈춘 시점의 줌. 라벨을 그릴 줌인지 판단하는 데 쓴다.
+    public static func idleZoom(in event: MapEvent) -> Float? {
+        switch event {
+        case .didIdleAt(let position): position.zoom
+        case .didTapMarker, .didTap: nil
         }
     }
 

@@ -20,6 +20,13 @@ struct ArchiveShellView: View {
     @State private var sortMenuOpen = false
 
     @State private var toastMessage: String?
+    /// 지금 지도 줌. 핀 아래 장소명을 그릴지, 핀을 클러스터로 묶을지 가른다
+    /// (``PlaceMap/showsLabels(atZoom:)``·``PlaceMap/clustered(pins:zoom:roomColors:selectedPinID:showsLabels:)``).
+    /// `nil` 이면 아직 카메라 idle 을 못 받은 상태다.
+    @State private var mapZoom: Float?
+    /// 클러스터를 눌러 확대해 달라고 낸 요청. **한 번 적용되면 지운다** — 남겨 두면 사용자가
+    /// 지도를 움직인 뒤 카메라가 이 자리로 다시 튕긴다.
+    @State private var zoomRequest: ArchiveZoomRequest?
     @State private var toastToken = 0
 
     init(coordinator: ArchiveCoordinator) {
@@ -31,11 +38,25 @@ struct ArchiveShellView: View {
         ZStack {
             PlaceMapLayer(
                 bottomInset: mapBottomInset,
-                pins: detailStore?.state.pins ?? [],
+                pins: mapPins,
                 myLocation: coordinator.mapFocus?.coordinate,
-                roomColor: coordinator.selectedRoom?.color,
+                roomColors: roomColors,
                 selectedPinID: coordinator.selectedPin?.id.value,
-                onSelectPin: { detailStore?.send(.tapLocation($0)) }
+                onSelectPin: selectPin,
+                cameraMode: zoomRequest.map { .zoomed($0.coordinate, zoom: $0.zoom) } ?? .fitPins,
+                zoom: mapZoom,
+                onCameraIdle: { zoom in
+                    mapZoom = zoom
+                    // 요청이 반영된 시점이다 — 지우지 않으면 다음 이동에서 카메라가 되돌아간다.
+                    zoomRequest = nil
+                    coordinator.mapCameraSettled()
+                },
+                onZoomIn: { coordinate in
+                    // 한 단계로는 셀이 안 갈리는 경우가 있어 두 단계 확대한다 — 격자 셀 크기가
+                    // 줌 1 단계에 2배로 변해, 바로 옆에 붙은 핀은 두 단계에서 갈린다.
+                    let base = mapZoom ?? PlaceMap.defaultCamera.zoom
+                    zoomRequest = ArchiveZoomRequest(coordinate: coordinate, zoom: base + 2)
+                }
             )
             // 루트·지도버튼·방리스트시트에 이미 `.sheet` 가 하나씩 붙어 있다(같은 뷰에 둘 달면 하나만
             // 뜬다). 지도 레이어는 `if` 밖이라 시트가 떠 있는 동안 사라지지 않는 유일한 빈 자리다 —
@@ -138,28 +159,33 @@ struct ArchiveShellView: View {
     /// 않아도 된다. 시트를 손으로 끌어 올리는 동안 버튼이 따라 움직이지 않는 건 필터바와 같은 한계다.
     ///
     /// 자리 값의 근거는 ``PlaceMapButtonMetrics``.
-    @ViewBuilder
     private func mapButtons(roomList: RoomListStore) -> some View {
-        // 방 상세(장소 상세를 열지 않은 상태)에는 시안에 버튼이 없다 — 줄 자체를 그리지 않는다.
-        if placeStore != nil || detailStore == nil {
-            VStack(spacing: 0) {
+        // 지도를 쓰는 세 화면(방 리스트·방 상세·장소 상세) 모두에 현위치 버튼이 선다 —
+        // PRD 「현재 위치 버튼」이 "[SYS-004]가 제공하며, **지도를 쓰는 화면에서 공통으로
+        // 노출된다**" 로 못박았고, 방 상세 시안(`2542:125383`)에도 지도 우측에 그려져 있다.
+        // `full` 에서는 시트가 화면을 다 덮어 자연히 가려진다(PRD "`Full`로 승격되면 숨긴다").
+        VStack(spacing: 0) {
+            Spacer(minLength: 0)
+            HStack(spacing: PlaceMapButtonMetrics.spacing) {
                 Spacer(minLength: 0)
-                HStack(spacing: PlaceMapButtonMetrics.spacing) {
-                    Spacer(minLength: 0)
-                    if let placeStore {
-                        SavedRoomsButton { placeStore.send(.tapSavedRooms) }
-                            .disabled(!placeStore.state.canOpenSavedRooms)
-                    }
-                    MyLocationButton {
-                        if let placeStore { placeStore.send(.tapMyLocation) } else { roomList.send(.tapMyLocation) }
-                    }
+                // 「저장된 방」은 장소 상세 전용이다 — 여러 방에 담긴 장소에서만 서는 버튼이라
+                // 방 리스트·방 상세에는 판정할 장소가 없다(PRD 「저장된 방 시트」).
+                if let placeStore {
+                    SavedRoomsButton { placeStore.send(.tapSavedRooms) }
+                        .disabled(!placeStore.state.canOpenSavedRooms)
                 }
-                .padding(.trailing, PlaceMapButtonMetrics.trailing)
-                // 시트 윗끝에서 18 — 드러난 높이가 단계마다 다르므로 지금 단계의 것을 쓴다
-                // (peek·half 둘 다 버튼이 보인다). 탭바가 시트를 덮는 만큼은 `mapBottomInset` 과
-                // 같은 이유로 함께 되돌려 준다.
-                .padding(.bottom, visiblePeek + tabBarCoverage + PlaceMapButtonMetrics.bottomGap)
+                // 방 상세에서는 방 리스트 쪽으로 보낸다 — 카메라를 옮기는 일은 화면과 무관하고
+                // (`RoomListNav.focusMyLocation` → `ArchiveCoordinator.focusMap`), 방 상세
+                // Store 의 좌표는 거리순 정렬 기준점이라 쓰임이 다르다.
+                MyLocationButton {
+                    if let placeStore { placeStore.send(.tapMyLocation) } else { roomList.send(.tapMyLocation) }
+                }
             }
+            .padding(.trailing, PlaceMapButtonMetrics.trailing)
+            // 시트 윗끝에서 18 — 드러난 높이가 단계마다 다르므로 지금 단계의 것을 쓴다
+            // (peek·half 둘 다 버튼이 보인다). 탭바가 시트를 덮는 만큼은 `mapBottomInset` 과
+            // 같은 이유로 함께 되돌려 준다.
+            .padding(.bottom, visiblePeek + tabBarCoverage + PlaceMapButtonMetrics.bottomGap)
         }
     }
 
@@ -305,7 +331,7 @@ struct ArchiveShellView: View {
                         get: { detailStore.state.sort },
                         set: { detailStore.send(.selectSort($0)) }
                     ),
-                    categories: detailStore.state.categories,
+                    categories: PlaceCategoryFilter.allCases.map(\.chipTitle),
                     selectedCategory: categoryBinding(detailStore),
                     sortMenuPresented: $sortMenuOpen
                 )
@@ -317,7 +343,7 @@ struct ArchiveShellView: View {
                         get: { roomList.state.roomSort },
                         set: { roomList.send(.selectRoomSort($0)) }
                     ),
-                    categories: Self.roomListCategories,
+                    categories: PlaceCategoryFilter.allCases.map(\.chipTitle),
                     selectedCategory: roomCategoryBinding(roomList),
                     sortMenuPresented: $sortMenuOpen
                 )
@@ -359,6 +385,31 @@ struct ArchiveShellView: View {
         return detailStore == nil ? "RoomList.sheet" : "RoomDetail.sheet"
     }
 
+    /// 지도에 그릴 핀 — 방을 열었으면 그 방의 것, 방 리스트를 보는 중이면 **내 모든 방의 것**이다
+    /// (PRD [SYS-004]: "[SCR-004] 방 리스트 탭: 내 모든 방의 장소 마커를 한 지도에 표시").
+    private var mapPins: [Pin] {
+        detailStore?.state.pins ?? roomListStore?.state.pins ?? []
+    }
+
+    /// 방 id → 대표 색. 마커가 소속 방 색을 따르려면(같은 PRD 항목) 목록 전체의 색이 필요하다.
+    /// 색을 안 고른 방은 담지 않는다 — 표에 없으면 `PlaceMap` 이 기본 회색으로 떨어뜨린다.
+    private var roomColors: [String: RoomColor] {
+        guard let rooms = roomListStore?.state.rooms else { return [:] }
+        return rooms.reduce(into: [:]) { table, room in
+            if let color = room.color { table[room.id] = color }
+        }
+    }
+
+    /// 마커 탭 — 방 상세를 열었으면 그 화면이 받고(목록 스크롤·선택 상태가 그쪽에 있다),
+    /// 방 리스트를 보는 중이면 방 리스트가 받아 곧장 장소 상세를 띄운다.
+    private func selectPin(_ pinID: String) {
+        if let detailStore {
+            detailStore.send(.tapLocation(pinID))
+        } else {
+            roomListStore?.send(.tapPin(pinID))
+        }
+    }
+
     /// 시트가 지도를 가리는 높이. 구글 로고가 시트 위로 올라오도록 지도 padding 으로 넘긴다.
     /// `MapView` 가 safe-area 를 더해 적용하므로(`paddingAdjustmentBehavior = .always`)
     /// safe-area 를 뺀 값을 준다 — `MHBottomSheet` 에 주는 값과 기준이 같아, 탭바 보정도
@@ -392,27 +443,35 @@ struct ArchiveShellView: View {
     ///   헤더·칩을 고치면 여기도 따라가야 한다.
     /// - 장소 상세 335 (005-1 ⑫) — 시안의 369 는 **화면 끝까지** 잰 값이다(375×812 프레임에서 실측
     ///   367pt). 그 화면은 탭바가 없어 하단 safe-area 가 홈 인디케이터 34pt 뿐이므로 369 − 34 다.
-    /// - 방 상세 156·405 — 시안에 숫자가 없어 그대로 둔다. 확정되면 그때 맞춘다.
+    /// - 방 상세 88·410 — PRD 「3단 바텀시트」가 `Peek` 88 · `Half` 444 로 확정했다(2026-09-04 정정,
+    ///   "디자인 정책 보드 확인 결과 256dp는 오기였다"). 두 값의 기준이 다르다:
+    ///   **88 은 콘텐츠 높이**라 방 리스트의 88 처럼 그대로 주고(그래버 30 + 액션 줄 60 = 90 중 아래
+    ///   2 가 잘리는 값이라, peek 에서도 더보기·닫기가 온전히 보인다), **444 는 화면 끝까지** 잰
+    ///   값이라(시안 `2542:125383` 의 시트 아래끝이 812) 장소 상세의 369 처럼 홈 인디케이터 34 를
+    ///   뺀다. 방 상세도 탭바가 없어 하단 safe-area 가 34 뿐이다.
+    ///   410 이면 시안처럼 장소 카드 1장 + 2장째가 걸쳐 보인다(444 를 그대로 주면 2장이 딱 맞아 어긋난다).
     private var peek: (low: CGFloat?, medium: CGFloat) {
         if placeStore != nil { return (nil, 335) }
-        guard detailStore == nil else { return (156, 405) }
+        guard detailStore == nil else { return (88, 410) }
         let roomCount = roomListStore?.state.rooms.count ?? 0
         return (RoomListContentView.Metric.peek, RoomListContentView.Metric.half(roomCount: roomCount))
     }
 
     /// 003-1 ① · 004-1 ⑥ — 두 화면이 같은 5가지를 같은 순서로 그린다.
-    private static let sortOptions = RoomDetailSort.allCases.map(\.rawValue)
-
-    private static let roomListCategories = ["전체", "카페", "음식점"]
+    private static let sortOptions = PinSort.allCases.map(\.menuTitle)
 
     private func roomCategoryBinding(_ store: RoomListStore) -> Binding<Int> {
         Binding(
-            get: { store.state.categoryFilter },
-            set: { store.send(.selectCategory($0)) }
+            get: { PlaceCategoryFilter.allCases.firstIndex(of: store.state.category) ?? 0 },
+            // 칩은 고정이라 정상 경로에서 범위를 벗어날 일이 없지만, 들어오면 무시한다.
+            set: { index in
+                guard PlaceCategoryFilter.allCases.indices.contains(index) else { return }
+                store.send(.selectCategory(PlaceCategoryFilter.allCases[index]))
+            }
         )
     }
 
-    /// 인덱스 ↔ ``RoomDetailSort`` 변환. `MHFilterBar` 가 인덱스로만 말하기 때문에 필요하다.
+    /// 인덱스 ↔ ``PinSort`` 변환. `MHFilterBar` 가 인덱스로만 말하기 때문에 필요하다.
     ///
     /// 방 리스트(003-1 ①)와 방 상세(004-1 ⑥)가 **같은 5가지를 같은 순서로** 그리므로 변환 규칙도
     /// 하나다 — 무엇을 읽고 어느 액션으로 보낼지만 화면마다 다르다.
@@ -420,25 +479,25 @@ struct ArchiveShellView: View {
     /// 범위 밖 인덱스는 무시한다. `MHFilterBar` 가 같은 배열을 그려 정상 경로에서는 오지 않지만,
     /// 옆의 `categoryBinding` 이 같은 이유로 이미 막고 있어 규칙을 맞춘다.
     private func sortIndexBinding(
-        get: @escaping () -> RoomDetailSort,
-        set: @escaping (RoomDetailSort) -> Void
+        get: @escaping () -> PinSort,
+        set: @escaping (PinSort) -> Void
     ) -> Binding<Int> {
         Binding(
-            get: { RoomDetailSort.allCases.firstIndex(of: get()) ?? 0 },
+            get: { PinSort.allCases.firstIndex(of: get()) ?? 0 },
             set: { index in
-                guard RoomDetailSort.allCases.indices.contains(index) else { return }
-                set(RoomDetailSort.allCases[index])
+                guard PinSort.allCases.indices.contains(index) else { return }
+                set(PinSort.allCases[index])
             }
         )
     }
 
     private func categoryBinding(_ store: RoomDetailStore) -> Binding<Int> {
         Binding(
-            get: { store.state.categories.firstIndex(of: store.state.category) ?? 0 },
-            // 목록이 재조회로 줄어드는 사이 옛 인덱스가 들어올 수 있다 — 범위를 벗어나면 무시한다.
+            get: { PlaceCategoryFilter.allCases.firstIndex(of: store.state.category) ?? 0 },
+            // 칩은 고정이라 정상 경로에서 범위를 벗어날 일이 없지만, 들어오면 무시한다.
             set: { index in
-                guard store.state.categories.indices.contains(index) else { return }
-                store.send(.selectCategory(store.state.categories[index]))
+                guard PlaceCategoryFilter.allCases.indices.contains(index) else { return }
+                store.send(.selectCategory(PlaceCategoryFilter.allCases[index]))
             }
         )
     }

@@ -1,16 +1,17 @@
 import DesignSystem
+import Domain
 import SwiftUI
 
 /// 툴바 정렬 트리거 아래에 뜨는 드롭다운. Figma `Menu/Menu`.
 struct RoomDetailSortMenu: View {
     private static let rowHeight: CGFloat = 40
 
-    let selected: RoomDetailSort
-    let onSelect: (RoomDetailSort) -> Void
+    let selected: PinSort
+    let onSelect: (PinSort) -> Void
 
     var body: some View {
         VStack(spacing: 4) {
-            ForEach(RoomDetailSort.allCases) { option in
+            ForEach(PinSort.allCases, id: \.self) { option in
                 row(option)
             }
         }
@@ -26,12 +27,12 @@ struct RoomDetailSortMenu: View {
         .accessibilityIdentifier("RoomDetail.sortMenu")
     }
 
-    private func row(_ option: RoomDetailSort) -> some View {
+    private func row(_ option: PinSort) -> some View {
         let isSelected = option == selected
         return Button {
             onSelect(option)
         } label: {
-            Text(option.rawValue)
+            Text(option.menuTitle)
                 .mhTypography(.body1NormalRegular)
                 .foregroundStyle(.mhLabelNormal)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -52,6 +53,6 @@ struct RoomDetailSortMenu: View {
 }
 
 #Preview {
-    RoomDetailSortMenu(selected: .pick) { _ in }
+    RoomDetailSortMenu(selected: .recommended) { _ in }
         .padding(40)
 }

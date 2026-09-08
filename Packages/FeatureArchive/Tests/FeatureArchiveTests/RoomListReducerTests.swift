@@ -23,6 +23,38 @@ private struct StubCurrentLocation: CurrentLocationUseCase {
     func execute() async -> CurrentLocationResult { result }
 }
 
+/// 지도 마커용 핀. 두 방에 하나씩 둬 **마커마다 소속 방 색이 달라야 한다**는 규칙을 볼 수 있게 한다.
+private let fixturePins: [Pin] = [
+    PinFixture.pin(
+        id: PinID("p1"), roomID: "r1", category: .worthVisiting,
+        title: "개인방 장소", address: "a", createdAt: Date(timeIntervalSince1970: 0)
+    ),
+    PinFixture.pin(
+        id: PinID("p2"), roomID: "r2", category: .worthVisiting,
+        title: "공동방 장소", address: "b", createdAt: Date(timeIntervalSince1970: 0)
+    ),
+]
+
+private struct StubFetchPins: FetchRoomPinsUseCase {
+    var resultsBySort: [PinSort: [Pin]] = [:]
+    var resultsByCategory: [PlaceCategoryFilter: [Pin]] = [:]
+    var result: Result<[Pin], DomainError> = .success(fixturePins)
+
+    func execute(
+        roomID: String?,
+        sort: PinSort,
+        category: PlaceCategoryFilter,
+        origin: Coordinate?
+    ) async throws -> [Pin] {
+        if let pins = resultsByCategory[category] { return pins }
+        if let pins = resultsBySort[sort] { return pins }
+        switch result {
+        case .success(let pins): return pins
+        case .failure(let error): throw error
+        }
+    }
+}
+
 private struct StubFetchRooms: FetchRoomsUseCase {
     var result: Result<[Room], DomainError> = .success(fixtureRooms)
     func execute() async throws -> [Room] {
@@ -47,6 +79,7 @@ struct RoomListReducerTests {
 
     private func makeStore(
         _ useCase: FetchRoomsUseCase = StubFetchRooms(),
+        fetchPins: FetchRoomPinsUseCase = StubFetchPins(),
         state: RoomListState = RoomListState(),
         snooze: SnoozeSwitch? = nil,
         location: CurrentLocationUseCase = StubCurrentLocation()
@@ -55,6 +88,7 @@ struct RoomListReducerTests {
             state,
             reduce: roomListReducer(
                 useCase: useCase,
+                fetchPins: fetchPins,
                 promptSnooze: snooze ?? makeSnooze(),
                 currentLocation: location
             )
@@ -65,7 +99,10 @@ struct RoomListReducerTests {
     func load_success() async {
         let store = makeStore()
         await store.send(.load)
-        await store.receive(.loaded(fixtureRooms, isPromptSnoozed: false)) { $0.rooms = fixtureRooms }
+        await store.receive(.loaded(fixtureRooms, pins: fixturePins, isPromptSnoozed: false)) {
+            $0.rooms = fixtureRooms
+            $0.pins = fixturePins
+        }
         #expect(!store.currentState.isCreatePromptPresented)
         store.finish()
     }
@@ -77,7 +114,8 @@ struct RoomListReducerTests {
         let store = makeStore(StubFetchRooms(result: .success(personalOnly)))
 
         await store.send(.load)
-        await store.receive(.loaded(personalOnly, isPromptSnoozed: false)) {
+        await store.receive(.loaded(personalOnly, pins: fixturePins, isPromptSnoozed: false)) {
+            $0.pins = fixturePins
             $0.rooms = personalOnly
             $0.isCreatePromptPresented = true
         }
@@ -116,7 +154,8 @@ struct RoomListReducerTests {
 
         // 복귀 직후 1회 — 억제하고 플래그를 소비한다
         await store.send(.load)
-        await store.receive(.loaded(personalOnly, isPromptSnoozed: false)) {
+        await store.receive(.loaded(personalOnly, pins: fixturePins, isPromptSnoozed: false)) {
+            $0.pins = fixturePins
             $0.rooms = personalOnly
             $0.skipsNextCreatePrompt = false
         }
@@ -124,7 +163,10 @@ struct RoomListReducerTests {
 
         // 다음 탭 진입 — 다시 뜬다
         await store.send(.load)
-        await store.receive(.loaded(personalOnly, isPromptSnoozed: false)) { $0.isCreatePromptPresented = true }
+        await store.receive(.loaded(personalOnly, pins: fixturePins, isPromptSnoozed: false)) {
+            $0.isCreatePromptPresented = true
+            $0.pins = fixturePins
+        }
 
         store.finish()
     }
@@ -159,7 +201,10 @@ struct RoomListReducerTests {
         let store = makeStore(StubFetchRooms(result: .success(personalOnly)), snooze: makeSnooze(snoozed: true))
 
         await store.send(.load)
-        await store.receive(.loaded(personalOnly, isPromptSnoozed: true)) { $0.rooms = personalOnly }
+        await store.receive(.loaded(personalOnly, pins: fixturePins, isPromptSnoozed: true)) {
+            $0.rooms = personalOnly
+            $0.pins = fixturePins
+        }
 
         #expect(!store.currentState.isCreatePromptPresented)
         store.finish()
@@ -175,7 +220,10 @@ struct RoomListReducerTests {
         )
 
         await store.send(.load)
-        await store.receive(.loaded(personalOnly, isPromptSnoozed: false)) { $0.isCreatePromptPresented = true }
+        await store.receive(.loaded(personalOnly, pins: fixturePins, isPromptSnoozed: false)) {
+            $0.isCreatePromptPresented = true
+            $0.pins = fixturePins
+        }
 
         store.finish()
     }
@@ -208,7 +256,8 @@ struct RoomListReducerTests {
 
         // 다음 정상 진입에서는 정상적으로 뜬다
         await store.send(.load)
-        await store.receive(.loaded(personalOnly, isPromptSnoozed: false)) {
+        await store.receive(.loaded(personalOnly, pins: fixturePins, isPromptSnoozed: false)) {
+            $0.pins = fixturePins
             $0.rooms = personalOnly
             $0.isCreatePromptPresented = true
         }
@@ -223,11 +272,75 @@ struct RoomListReducerTests {
         store.finish()
     }
 
-    @Test("L1 — selectRoomSort 는 roomSort 만 갱신한다")
+    // 지도 위 드롭다운은 **마커를 다시 받는다** — 정렬을 서버가 하므로 화면은 기준만 바꿔 요청한다.
+    // 방 카드 목록(`rooms`)은 건드리지 않는다: 이 칩은 지도 소관이다.
+    @Test("L2 — selectRoomSort 는 그 기준으로 마커를 다시 받고 방 목록은 건드리지 않는다")
     func selectRoomSort() async {
-        let store = makeStore(state: RoomListState(rooms: fixtureRooms, filter: 2))
+        let reordered = fixturePins.reversed().map { $0 }
+        let store = makeStore(
+            fetchPins: StubFetchPins(resultsBySort: [.latest: reordered]),
+            state: RoomListState(rooms: fixtureRooms, filter: 2)
+        )
+
         await store.send(.selectRoomSort(.latest)) { $0.roomSort = .latest }
+        await store.receive(.pinsLoaded(reordered, for: PinQuery(sort: .latest))) { $0.pins = reordered }
+
+        #expect(store.currentState.rooms == fixtureRooms)
         store.finish()
+    }
+
+    @Test("L1 — 같은 기준을 다시 고르면 요청을 내지 않는다")
+    func selectRoomSort_sameValueDoesNotRefetch() async {
+        let store = makeStore(state: RoomListState(rooms: fixtureRooms, roomSort: .latest))
+        await store.send(.selectRoomSort(.latest))
+        store.finish()   // 요청이 나갔다면 미처리 effect 로 여기서 걸린다
+    }
+
+    @Test("L2 — 늦게 온 마커 응답은 버린다")
+    func pinsLoaded_discardsStaleResponse() async {
+        let store = makeStore(state: RoomListState(rooms: fixtureRooms, roomSort: .latest))
+
+        await store.send(.pinsLoaded([], for: PinQuery(sort: .comment)))
+
+        #expect(store.currentState.pins.isEmpty)   // 원래 비어 있었고, 늦은 응답으로도 채우지 않는다
+        store.finish()
+    }
+
+    // 거리순만 좌표를 요구한다 — 좌표 없이 `sort=distance` 를 보내면 서버가 400 이다.
+    @Test("L2 — 거리순은 좌표를 먼저 받고 나서야 마커를 다시 받는다")
+    func selectRoomSort_distance() async {
+        let nearby = [fixturePins[1]]
+        let store = makeStore(
+            fetchPins: StubFetchPins(resultsBySort: [.distance: nearby]),
+            state: RoomListState(rooms: fixtureRooms)
+        )
+
+        await store.send(.selectRoomSort(.distance)) { $0.isLocatingForSort = true }
+        #expect(store.currentState.roomSort == .all)   // 좌표 전에는 세우지 않는다
+
+        let origin = Coordinate(latitude: 37.4966, longitude: 127.0530)
+        await store.receive(.sortLocationResolved(.coordinate(origin))) {
+            $0.isLocatingForSort = false
+            $0.myCoordinate = origin
+            $0.roomSort = .distance
+        }
+        await store.receive(.pinsLoaded(nearby, for: PinQuery(sort: .distance))) { $0.pins = nearby }
+        store.finish()
+    }
+
+    @Test("L2 — 좌표를 못 얻으면 정렬은 고르기 전 값 그대로다")
+    func selectRoomSort_distance_permissionDenied() async {
+        let store = makeStore(
+            state: RoomListState(rooms: fixtureRooms),
+            location: StubCurrentLocation(result: .permissionDenied)
+        )
+
+        await store.send(.selectRoomSort(.distance)) { $0.isLocatingForSort = true }
+        await store.receive(.sortLocationResolved(.permissionDenied)) { $0.isLocatingForSort = false }
+
+        #expect(store.currentState.roomSort == .all)
+        #expect(store.currentState.myCoordinate == nil)
+        store.finish()   // 마커 재조회가 나갔다면 미처리 effect 로 여기서 걸린다
     }
 
     // 003-1 ① — "5가지로 필터링하여 볼 수 있다 / '전체'로 기본 선택되어있다".
@@ -235,14 +348,15 @@ struct RoomListReducerTests {
     @Test("003-1 ① — 드롭다운 기본값은 '전체' 이고 항목은 5가지다")
     func roomSort_defaultIsAll() {
         #expect(RoomListState().roomSort == .all)
-        #expect(RoomDetailSort.allCases.count == 5)
+        #expect(PinSort.allCases.count == 5)
     }
 
     @Test("L1 — loaded 는 방이 줄어도 드롭다운 선택을 건드리지 않는다")
     func loaded_shrink_keepsRoomSort() async {
         let store = makeStore(state: RoomListState(rooms: fixtureRooms, roomSort: .comment))
         // 유도 시트는 이 테스트의 관심사가 아니라 스누즈로 꺼 둔다.
-        await store.send(.loaded([fixtureRooms[0]], isPromptSnoozed: true)) {
+        await store.send(.loaded([fixtureRooms[0]], pins: fixturePins, isPromptSnoozed: true)) {
+            $0.pins = fixturePins
             $0.rooms = [fixtureRooms[0]]
         }
         #expect(store.currentState.roomSort == .comment)
@@ -256,7 +370,8 @@ struct RoomListReducerTests {
         let sharedFirst = [fixtureRooms[1], fixtureRooms[0]]   // 서버가 공동방을 먼저 준 경우
         let store = makeStore()
 
-        await store.send(.loaded(sharedFirst, isPromptSnoozed: true)) {
+        await store.send(.loaded(sharedFirst, pins: fixturePins, isPromptSnoozed: true)) {
+            $0.pins = fixturePins
             $0.rooms = [fixtureRooms[0], fixtureRooms[1]]
         }
         store.finish()
@@ -282,7 +397,8 @@ struct RoomListReducerTests {
         let store = makeStore()
 
         await store.send(.openCreatedRoom("r2")) { $0.pendingOpenRoomID = "r2" }
-        await store.send(.loaded(fixtureRooms, isPromptSnoozed: true)) {
+        await store.send(.loaded(fixtureRooms, pins: fixturePins, isPromptSnoozed: true)) {
+            $0.pins = fixturePins
             $0.rooms = fixtureRooms
             $0.pendingOpenRoomID = nil
         }
@@ -308,7 +424,8 @@ struct RoomListReducerTests {
         let store = makeStore(state: state)
 
         // 개인방만 있는 응답 = 평소라면 유도 시트가 뜨는 조건이다.
-        await store.send(.loaded([fixtureRooms[0]], isPromptSnoozed: false)) {
+        await store.send(.loaded([fixtureRooms[0]], pins: fixturePins, isPromptSnoozed: false)) {
+            $0.pins = fixturePins
             $0.rooms = [fixtureRooms[0]]
             $0.pendingOpenRoomID = nil
         }
@@ -346,11 +463,45 @@ struct RoomListReducerTests {
         store.finish()
     }
 
-    @Test("L1 — selectCategory 는 categoryFilter 만 갱신한다")
+    @Test("L2 — selectCategory 는 그 칩으로 마커를 다시 받는다")
     func selectCategory() async {
-        let store = makeStore(state: RoomListState(rooms: fixtureRooms, filter: 2))
-        await store.send(.selectCategory(2)) { $0.categoryFilter = 2 }
+        let onlyOne = [fixturePins[1]]
+        let store = makeStore(
+            fetchPins: StubFetchPins(resultsByCategory: [.restaurant: onlyOne]),
+            state: RoomListState(rooms: fixtureRooms, filter: 2)
+        )
+
+        await store.send(.selectCategory(.restaurant)) { $0.category = .restaurant }
+        await store.receive(.pinsLoaded(onlyOne, for: PinQuery(category: .restaurant))) { $0.pins = onlyOne }
+
+        #expect(store.currentState.rooms == fixtureRooms)
         store.finish()
+    }
+
+    @Test("L1 — 같은 칩을 다시 고르면 요청을 내지 않는다")
+    func selectCategory_sameValueDoesNotRefetch() async {
+        let store = makeStore(state: RoomListState(rooms: fixtureRooms, category: .cafe))
+        await store.send(.selectCategory(.cafe))
+        store.finish()
+    }
+
+    // PRD [SYS-004] — "마커 클릭: … 하단 시트가 [SCR-006] 장소 상세 `Half` 로 전환된다".
+    // 방을 먼저 고르게 하지 않는다(중복 장소 마커도 같다).
+    @Test("L1 — 지도 마커를 누르면 그 장소 상세로 navigate 한다")
+    func tapPin() async {
+        let store = makeStore(state: RoomListState(rooms: fixtureRooms))
+        await store.send(.pinsLoaded(fixturePins, for: PinQuery())) { $0.pins = fixturePins }
+
+        await store.send(.tapPin("p2"))
+        store.receiveNavigation(.openPlaceDetail(fixturePins[1]))
+        store.finish()
+    }
+
+    @Test("L1 — 목록에 없는 마커 id 는 무시한다")
+    func tapPin_unknownID() async {
+        let store = makeStore(state: RoomListState(rooms: fixtureRooms))
+        await store.send(.tapPin("없는-핀"))
+        store.finish()   // navigate 가 나갔다면 미처리 nav 로 여기서 걸린다
     }
 
     @Test("L1 — tapRoom 은 고른 방을 실어 방 상세로 navigate 한다")

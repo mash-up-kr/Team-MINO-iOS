@@ -8,10 +8,10 @@ import PlaceMapUI
 struct PlaceMapLayerTests {
     private let now = Date(timeIntervalSince1970: 1_700_000_000)
 
-    private func pin(_ id: String, lat: Double, lng: Double) -> Pin {
+    private func pin(_ id: String, lat: Double, lng: Double, room: String = "r1") -> Pin {
         PinFixture.pin(
             id: PinID(id),
-            roomID: "r1",
+            roomID: room,
             category: .worthVisiting,
             title: "장소 \(id)",
             address: "주소 \(id)",
@@ -25,7 +25,7 @@ struct PlaceMapLayerTests {
     @Test("핀마다 마커 하나 — id·좌표·이름을 그대로 옮긴다")
     func markersFromPins() {
         let pins = [pin("a", lat: 37.5, lng: 127.0), pin("b", lat: 37.6, lng: 127.1)]
-        let markers = PlaceMap.markers(pins: pins, roomColor: .red, selectedPinID: nil)
+        let markers = PlaceMap.markers(pins: pins, roomColors: ["r1": .red], selectedPinID: nil)
 
         #expect(markers.map(\.id) == ["a", "b"])
         #expect(markers.map(\.coordinate) == [
@@ -37,34 +37,108 @@ struct PlaceMapLayerTests {
 
     @Test("핀이 없으면 마커도 없다")
     func noPinsNoMarkers() {
-        #expect(PlaceMap.markers(pins: [], roomColor: .red, selectedPinID: nil).isEmpty)
+        #expect(PlaceMap.markers(pins: [], roomColors: ["r1": .red], selectedPinID: nil).isEmpty)
     }
 
     @Test("마커 색은 방 색을 따른다")
     func tintFollowsRoomColor() {
-        let markers = PlaceMap.markers(pins: [pin("a", lat: 37.5, lng: 127.0)], roomColor: .blue, selectedPinID: nil)
+        let markers = PlaceMap.markers(pins: [pin("a", lat: 37.5, lng: 127.0)], roomColors: ["r1": .blue], selectedPinID: nil)
         #expect(markers.first?.style.tint == PlaceMap.tint(for: .blue))
+    }
+
+    // PRD [SYS-004] — "[SCR-004] 방 리스트 탭: 내 모든 방의 장소 마커를 한 지도에 표시하며,
+    // **각 마커는 소속 방의 대표 색상을 따른다**". 방 하나짜리 화면(방 상세)만 있던 시절엔
+    // 색이 전부 같았다.
+    @Test("여러 방의 핀이 섞이면 마커마다 소속 방 색을 쓴다")
+    func tintIsPerRoom() {
+        let pins = [
+            pin("a", lat: 37.5, lng: 127.0, room: "r1"),
+            pin("b", lat: 37.6, lng: 127.1, room: "r2"),
+        ]
+
+        let markers = PlaceMap.markers(pins: pins, roomColors: ["r1": .red, "r2": .blue], selectedPinID: nil)
+
+        #expect(markers.map(\.style.tint) == [PlaceMap.tint(for: .red), PlaceMap.tint(for: .blue)])
+    }
+
+    // 방 목록보다 핀이 먼저 도착할 수 있다(둘을 병렬로 받는다) — 그때 마커가 사라지면 안 된다.
+    @Test("표에 없는 방의 핀은 사라지지 않고 기본색으로 선다")
+    func unknownRoomFallsBackToDefault() {
+        let markers = PlaceMap.markers(
+            pins: [pin("a", lat: 37.5, lng: 127.0, room: "모르는-방")],
+            roomColors: ["r1": .red],
+            selectedPinID: nil
+        )
+
+        #expect(markers.count == 1)
+        #expect(markers.first?.style.tint == MapMarkerStyle.defaultTint)
     }
 
     @Test("열려 있는 핀의 마커만 선택 상태다")
     func onlyOpenPinIsSelected() {
         let pins = [pin("a", lat: 37.5, lng: 127.0), pin("b", lat: 37.6, lng: 127.1)]
-        let markers = PlaceMap.markers(pins: pins, roomColor: .red, selectedPinID: "b")
+        let markers = PlaceMap.markers(pins: pins, roomColors: ["r1": .red], selectedPinID: "b")
         #expect(markers.map(\.style.isSelected) == [false, true])
     }
 
     @Test("선택된 핀이 목록에 없으면 아무 마커도 선택되지 않는다 — 방을 옮기면 이전 선택이 남는다")
     func staleSelectionSelectsNothing() {
         let pins = [pin("a", lat: 37.5, lng: 127.0)]
-        let markers = PlaceMap.markers(pins: pins, roomColor: .red, selectedPinID: "다른-방-핀")
+        let markers = PlaceMap.markers(pins: pins, roomColors: ["r1": .red], selectedPinID: "다른-방-핀")
         #expect(markers.allSatisfy { !$0.style.isSelected })
     }
 
     @Test("선택해도 마커 색 값은 그대로다 — 바뀌는 것은 아이콘 형식뿐이다")
     func selectionDoesNotChangeTint() {
         let pins = [pin("a", lat: 37.5, lng: 127.0)]
-        let markers = PlaceMap.markers(pins: pins, roomColor: .blue, selectedPinID: "a")
+        let markers = PlaceMap.markers(pins: pins, roomColors: ["r1": .blue], selectedPinID: "a")
         #expect(markers.first?.style.tint == PlaceMap.tint(for: .blue))
+    }
+
+    // MARK: - 라벨 줌 게이트
+
+    // 멀리서는 핀이 촘촘해 이름끼리 겹쳐 읽히지 않고, 화면에 뜨는 마커마다 그림을 합성하는
+    // 비용도 커진다. 그래서 라벨은 확대 상태에서만 그린다.
+    @Test("기본 줌 이상이면 라벨을 그린다")
+    func showsLabelsWhenZoomedIn() {
+        #expect(PlaceMap.showsLabels(atZoom: PlaceMap.labelZoomThreshold))
+        #expect(PlaceMap.showsLabels(atZoom: PlaceMap.labelZoomThreshold + 3))
+    }
+
+    @Test("임계값보다 멀면 라벨을 그리지 않는다")
+    func hidesLabelsWhenZoomedOut() {
+        #expect(!PlaceMap.showsLabels(atZoom: PlaceMap.labelZoomThreshold - 0.1))
+        #expect(!PlaceMap.showsLabels(atZoom: 5))
+    }
+
+    // 카메라 idle 을 받기 전(진입 직후)에는 기본 카메라 줌으로 판단한다 — 그 줌이 임계값이라
+    // 진입 상태에서 라벨이 보인다.
+    @Test("줌을 아직 모르면 기본 카메라 줌으로 판단한다")
+    func unknownZoomUsesDefault() {
+        #expect(PlaceMap.showsLabels(atZoom: nil) == (PlaceMap.defaultCamera.zoom >= PlaceMap.labelZoomThreshold))
+        #expect(PlaceMap.showsLabels(atZoom: nil))
+    }
+
+    // 라벨을 끄면 `title` 을 비워 보낸다 — `MapView` 는 받은 값을 그리기만 하므로 판단이
+    // 순수 계산부에 남는다.
+    @Test("라벨을 끄면 마커 제목을 비운다")
+    func labelsOffClearsTitle() {
+        let pins = [pin("a", lat: 37.5, lng: 127.0)]
+
+        let on = PlaceMap.markers(pins: pins, roomColors: ["r1": .red], selectedPinID: nil, showsLabels: true)
+        let off = PlaceMap.markers(pins: pins, roomColors: ["r1": .red], selectedPinID: nil, showsLabels: false)
+
+        #expect(on.first?.title == "장소 a")
+        #expect(off.first?.title == nil)
+    }
+
+    @Test("카메라 idle 이벤트에서 줌을 꺼낸다")
+    func idleZoomFromEvent() {
+        let position = MapCameraPosition(coordinate: MapCoordinate(latitude: 37.5, longitude: 127.0), zoom: 17)
+
+        #expect(PlaceMap.idleZoom(in: .didIdleAt(position)) == 17)
+        #expect(PlaceMap.idleZoom(in: .didTapMarker(id: "a")) == nil)
+        #expect(PlaceMap.idleZoom(in: .didTap(MapCoordinate(latitude: 0, longitude: 0))) == nil)
     }
 
     @Test("색 없는 방은 마커 기본색을 쓴다 — 시안의 색 없는 핀과 같은 회색")
@@ -181,10 +255,10 @@ struct PlaceMapButtonMetricsTests {
 struct PlaceMapCameraModeTests {
     private let now = Date(timeIntervalSince1970: 1_700_000_000)
 
-    private func pin(_ id: String, lat: Double, lng: Double) -> Pin {
+    private func pin(_ id: String, lat: Double, lng: Double, room: String = "r1") -> Pin {
         PinFixture.pin(
             id: PinID(id),
-            roomID: "r1",
+            roomID: room,
             category: .worthVisiting,
             title: "장소 \(id)",
             address: "주소 \(id)",
