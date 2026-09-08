@@ -95,6 +95,52 @@ struct PlaceMapLayerTests {
         #expect(markers.first?.style.tint == PlaceMap.tint(for: .blue))
     }
 
+    // MARK: - 라벨 줌 게이트
+
+    // 멀리서는 핀이 촘촘해 이름끼리 겹쳐 읽히지 않고, 화면에 뜨는 마커마다 그림을 합성하는
+    // 비용도 커진다. 그래서 라벨은 확대 상태에서만 그린다.
+    @Test("기본 줌 이상이면 라벨을 그린다")
+    func showsLabelsWhenZoomedIn() {
+        #expect(PlaceMap.showsLabels(atZoom: PlaceMap.labelZoomThreshold))
+        #expect(PlaceMap.showsLabels(atZoom: PlaceMap.labelZoomThreshold + 3))
+    }
+
+    @Test("임계값보다 멀면 라벨을 그리지 않는다")
+    func hidesLabelsWhenZoomedOut() {
+        #expect(!PlaceMap.showsLabels(atZoom: PlaceMap.labelZoomThreshold - 0.1))
+        #expect(!PlaceMap.showsLabels(atZoom: 5))
+    }
+
+    // 카메라 idle 을 받기 전(진입 직후)에는 기본 카메라 줌으로 판단한다 — 그 줌이 임계값이라
+    // 진입 상태에서 라벨이 보인다.
+    @Test("줌을 아직 모르면 기본 카메라 줌으로 판단한다")
+    func unknownZoomUsesDefault() {
+        #expect(PlaceMap.showsLabels(atZoom: nil) == (PlaceMap.defaultCamera.zoom >= PlaceMap.labelZoomThreshold))
+        #expect(PlaceMap.showsLabels(atZoom: nil))
+    }
+
+    // 라벨을 끄면 `title` 을 비워 보낸다 — `MapView` 는 받은 값을 그리기만 하므로 판단이
+    // 순수 계산부에 남는다.
+    @Test("라벨을 끄면 마커 제목을 비운다")
+    func labelsOffClearsTitle() {
+        let pins = [pin("a", lat: 37.5, lng: 127.0)]
+
+        let on = PlaceMap.markers(pins: pins, roomColors: ["r1": .red], selectedPinID: nil, showsLabels: true)
+        let off = PlaceMap.markers(pins: pins, roomColors: ["r1": .red], selectedPinID: nil, showsLabels: false)
+
+        #expect(on.first?.title == "장소 a")
+        #expect(off.first?.title == nil)
+    }
+
+    @Test("카메라 idle 이벤트에서 줌을 꺼낸다")
+    func idleZoomFromEvent() {
+        let position = MapCameraPosition(coordinate: MapCoordinate(latitude: 37.5, longitude: 127.0), zoom: 17)
+
+        #expect(PlaceMap.idleZoom(in: .didIdleAt(position)) == 17)
+        #expect(PlaceMap.idleZoom(in: .didTapMarker(id: "a")) == nil)
+        #expect(PlaceMap.idleZoom(in: .didTap(MapCoordinate(latitude: 0, longitude: 0))) == nil)
+    }
+
     @Test("색 없는 방은 마커 기본색을 쓴다 — 시안의 색 없는 핀과 같은 회색")
     func noColorUsesMarkerDefault() {
         #expect(PlaceMap.tint(for: nil) == MapMarkerStyle.defaultTint)

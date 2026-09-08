@@ -32,6 +32,14 @@ public struct PlaceMapLayer: View {
     /// 카메라를 어떻게 잡을지. 기본은 핀 맞춤이라 지금까지 쓰던 진입점은 넘기지 않아도 된다.
     let cameraMode: PlaceMapCameraMode
 
+    /// 지금 카메라 줌. 라벨을 그릴지 판단한다(``PlaceMap/showsLabels(atZoom:)``).
+    /// `nil` 이면 아직 카메라 idle 을 못 받은 상태다.
+    let zoom: Float?
+
+    /// 카메라 이동이 멈췄다(줌). 라벨·클러스터 판정에 쓰라고 올려 보낸다 — 지도가 스스로
+    /// 들지 않는 것은 선택 상태와 같은 이유다(화면이 아는 값과 어긋날 수 있다).
+    let onCameraIdle: ((Float) -> Void)?
+
     public init(
         bottomInset: CGFloat,
         pins: [Pin],
@@ -39,7 +47,9 @@ public struct PlaceMapLayer: View {
         roomColors: [String: RoomColor],
         selectedPinID: String?,
         onSelectPin: @escaping (String) -> Void,
-        cameraMode: PlaceMapCameraMode = .fitPins
+        cameraMode: PlaceMapCameraMode = .fitPins,
+        zoom: Float? = nil,
+        onCameraIdle: ((Float) -> Void)? = nil
     ) {
         self.bottomInset = bottomInset
         self.pins = pins
@@ -48,6 +58,8 @@ public struct PlaceMapLayer: View {
         self.selectedPinID = selectedPinID
         self.onSelectPin = onSelectPin
         self.cameraMode = cameraMode
+        self.zoom = zoom
+        self.onCameraIdle = onCameraIdle
     }
 
     public var body: some View {
@@ -60,11 +72,13 @@ public struct PlaceMapLayer: View {
                     markers: PlaceMap.markers(
                         pins: pins,
                         roomColors: roomColors,
-                        selectedPinID: selectedPinID
+                        selectedPinID: selectedPinID,
+                        showsLabels: PlaceMap.showsLabels(atZoom: zoom)
                     ),
                     padding: EdgeInsets(top: 0, leading: 0, bottom: bottomInset, trailing: 0),
                     onEvent: { event in
                         if let id = PlaceMap.tappedPinID(in: event) { onSelectPin(id) }
+                        if let zoom = PlaceMap.idleZoom(in: event) { onCameraIdle?(zoom) }
                     }
                 )
             }
@@ -99,6 +113,20 @@ public enum PlaceMap {
     /// 핀이 화면 가장자리에 붙지 않도록 카메라를 맞출 때 두는 여백(pt).
     public static let fitPadding: Double = 60
 
+    /// 핀 아래 장소명을 그리기 시작하는 줌.
+    ///
+    /// 더 멀리서는 핀이 촘촘해 이름끼리 겹쳐 읽히지 않고, 화면에 뜨는 마커가 많아 이름마다
+    /// 그림을 합성하는 비용도 커진다. 기본 카메라 줌(``defaultCamera``)이 이 값이라 진입
+    /// 상태에서는 라벨이 보인다.
+    ///
+    /// 시안에 임계값 지정이 없어(플래그) 기본 줌을 경계로 삼았다.
+    public static let labelZoomThreshold: Float = 15
+
+    /// 이 줌에서 라벨을 그리는가. 줌을 아직 모르면(카메라 idle 전) 기본 카메라 줌으로 판단한다.
+    public static func showsLabels(atZoom zoom: Float?) -> Bool {
+        (zoom ?? defaultCamera.zoom) >= labelZoomThreshold
+    }
+
     /// 현위치로 옮겨 갈 때의 줌.
     ///
     /// 시안(005-1)에 지정이 없다. 새 숫자를 지어내지 않고 이 화면이 이미 쓰는 기본 줌을 그대로
@@ -116,10 +144,13 @@ public enum PlaceMap {
     /// - Parameter roomColors: 방 id → 대표 색. 색을 안 고른 방(`nil`)이나 목록에 없는 방 id 는
     ///   기본 회색으로 떨어진다(``tint(for:)``) — 방 목록보다 핀이 먼저 도착해도 마커가 사라지지
     ///   않고 회색으로 선다.
+    /// - Parameter showsLabels: 핀 아래 장소명을 그릴지. **꺼지면 `title` 을 비워** 보낸다 —
+    ///   라벨을 그릴지 말지는 여기서 정하고 `MapView` 는 받은 값을 그리기만 한다.
     public static func markers(
         pins: [Pin],
         roomColors: [String: RoomColor],
-        selectedPinID: String?
+        selectedPinID: String?,
+        showsLabels: Bool = true
     ) -> [MapMarker] {
         pins.map { pin in
             MapMarker(
@@ -128,7 +159,7 @@ public enum PlaceMap {
                     latitude: pin.place.coordinate.latitude,
                     longitude: pin.place.coordinate.longitude
                 ),
-                title: pin.place.name,
+                title: showsLabels ? pin.place.name : nil,
                 style: MapMarkerStyle(
                     tint: tint(for: roomColors[pin.roomID]),
                     isSelected: pin.id.value == selectedPinID
@@ -196,6 +227,14 @@ public enum PlaceMap {
         switch event {
         case .didTapMarker(let id): id
         case .didTap, .didIdleAt: nil
+        }
+    }
+
+    /// 카메라가 멈춘 시점의 줌. 라벨을 그릴 줌인지 판단하는 데 쓴다.
+    public static func idleZoom(in event: MapEvent) -> Float? {
+        switch event {
+        case .didIdleAt(let position): position.zoom
+        case .didTapMarker, .didTap: nil
         }
     }
 
