@@ -90,6 +90,11 @@ public enum RoomListAction: Equatable {
     case selectCategory(PlaceCategoryFilter)
     /// 지도 우하단 현위치 버튼(003-1 ⑦).
     case tapMyLocation
+    /// 저장 탭 진입 — 지도가 실제로 그려지는 시점의 위치 권한 요청(PRD [SYS-004] Flow A).
+    case requestLocationOnEntry
+    /// 진입 요청의 결과. 버튼(`.myLocationResolved`)과 달리 **카메라를 직접 옮기지 않는다** —
+    /// 좌표만 세우고, 그 좌표를 진입 카메라가 기준점으로 읽는다.
+    case entryLocationResolved(CurrentLocationResult)
     /// Response Action — 권한·측위 결과.
     case myLocationResolved(CurrentLocationResult)
     case tapRoom(Room)
@@ -293,9 +298,40 @@ public func roomListReducer(
                 guard !Task.isCancelled else { return }
                 send(.myLocationResolved(result))
             }
+
+        // PRD [SYS-004] Flow A — *"지도가 실제로 화면에 그려지는 시점(저장 탭 최초 진입) ➔ OS
+        // 위치 권한 팝업 표출 ➔ 허용: 내 현재 위치를 중심점으로 세팅"*. 이 좌표가 진입 카메라의
+        // 기준점이 된다(``PlaceMapCameraMode/entry(myLocation:)``).
+        //
+        // **좌표를 이미 들고 있으면 넘어간다.** 버튼으로 받아 둔 값이 있다는 뜻이라 다시 물을
+        // 이유가 없다. 거부한 사용자는 좌표가 계속 없어 탭에 들어올 때마다 이 길을 다시 타지만,
+        // `CurrentLocationUseCase` 가 `.notDetermined` 일 때만 요청하므로(구현체도 같은 가드를
+        // 한 번 더 건다) **팝업이 다시 뜨지는 않는다** — 상태 조회 한 번으로 끝난다.
+        case .requestLocationOnEntry:
+            guard state.myCoordinate == nil, !state.isLocating, !state.isLocatingForSort else {
+                return .none
+            }
+            return .run { send in
+                let result = await currentLocation.execute()
+                guard !Task.isCancelled else { return }
+                send(.entryLocationResolved(result))
+            }
+
+        case .entryLocationResolved(let result):
+            // 거부·측위 실패는 조용히 지나간다 — 그때 카메라가 기본 좌표(강남역)로 떨어지는 것이
+            // 곧 PRD 의 "거부: 기본 디폴트 좌표를 중심점으로 세팅" 이다. 시안에 이 실패를 알리는
+            // UI 가 없다(버튼 쪽 `.myLocationResolved` 와 같은 규칙).
+            guard case .coordinate(let coordinate) = result else { return .none }
+            state.myCoordinate = coordinate
+            return .none
         case .myLocationResolved(let result):
             state.isLocating = false
             guard case .coordinate(let coordinate) = result else { return .none }
+            // 버튼이 받아 온 좌표를 **화면에도 남긴다.** 진입 카메라가 이 값을 기준으로 서기
+            // 때문에(``PlaceMapCameraMode/entry(myLocation:)``), 안 남기면 버튼으로 옮겨 간
+            // 카메라가 요청이 끝나는 순간 진입 때 잡아 둔 옛 좌표로 되돌아간다. 거리순 정렬도
+            // 같은 값을 기준점으로 쓰므로 더 최근 좌표를 갖게 된다.
+            state.myCoordinate = coordinate
             return .navigate(.focusMyLocation(coordinate))
         }
     }

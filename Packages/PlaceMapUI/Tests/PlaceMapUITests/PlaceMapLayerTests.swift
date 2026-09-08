@@ -218,6 +218,98 @@ struct PlaceMapLayerTests {
         let pins = [pin("a", lat: 37.5, lng: 127.0)]
         #expect(PlaceMap.camera(for: pins, focusing: nil) == PlaceMap.camera(for: pins))
     }
+
+    // MARK: - 저장 탭 진입 카메라 (이슈 #189)
+
+    @Test("기본 좌표는 강남역이다 — PRD [SYS-004] Flow A 의 '기본 디폴트 좌표'")
+    func defaultCameraIsGangnamStation() {
+        // 이전 값 (37.4966, 127.0530) 은 강남역에서 동쪽 2.3km 인 한티역 일대였다.
+        #expect(PlaceMap.defaultCamera.coordinate.latitude == 37.4979)
+        #expect(PlaceMap.defaultCamera.coordinate.longitude == 127.0276)
+    }
+
+    @Test("진입 좌표가 있으면 핀이 있어도 내 위치를 비춘다 — 전국 축척으로 열리지 않는다")
+    func entryPrefersMyLocationOverPinFit() {
+        // 서울과 부산에 저장한 계정. 핀 맞춤이면 전국이 잡혀 내 주변을 볼 수 없다.
+        let pins = [pin("seoul", lat: 37.5, lng: 127.0), pin("busan", lat: 35.1, lng: 129.0)]
+        let me = Coordinate(latitude: 37.5443, longitude: 127.0557)
+
+        #expect(
+            PlaceMap.camera(.entry(myLocation: me), pins: pins, focusing: nil)
+                == .position(
+                    MapCameraPosition(
+                        coordinate: MapCoordinate(latitude: 37.5443, longitude: 127.0557),
+                        zoom: PlaceMap.myLocationZoom
+                    )
+                )
+        )
+    }
+
+    @Test("진입 좌표가 없으면 핀에 맞추고, 핀도 없을 때만 기본 좌표다")
+    func entryFallsBackThroughPinsToDefault() {
+        let pins = [pin("a", lat: 37.5, lng: 127.0)]
+
+        #expect(
+            PlaceMap.camera(.entry(myLocation: nil), pins: pins, focusing: nil)
+                == PlaceMap.camera(for: pins)
+        )
+        #expect(
+            PlaceMap.camera(.entry(myLocation: nil), pins: [], focusing: nil)
+                == .position(PlaceMap.defaultCamera)
+        )
+    }
+
+    @Test("현위치 버튼은 진입 좌표를 이긴다 — 방금 사용자가 낸 요청이다")
+    func buttonBeatsEntryLocation() {
+        let entry = Coordinate(latitude: 37.4979, longitude: 127.0276)
+        let tapped = Coordinate(latitude: 37.5443, longitude: 127.0557)
+
+        let camera = PlaceMap.camera(.entry(myLocation: entry), pins: [], focusing: tapped)
+
+        #expect(
+            camera == .position(
+                MapCameraPosition(
+                    coordinate: MapCoordinate(latitude: 37.5443, longitude: 127.0557),
+                    zoom: PlaceMap.myLocationZoom
+                )
+            )
+        )
+    }
+
+    @Test("같은 자리로 다시 눌러도 카메라 값이 달라진다 — 안 그러면 재탭이 조용히 무시된다")
+    func repeatedRequestProducesDistinctCamera() {
+        // 지도를 손으로 옮긴 것은 카메라 **값**을 바꾸지 않는다. 그래서 두 요청의 좌표·줌이 같으면
+        // `MapView` 의 `appliedCamera` 비교에 걸려 두 번째 탭이 아무 일도 하지 않는다.
+        let me = Coordinate(latitude: 37.5443, longitude: 127.0557)
+
+        let first = PlaceMap.camera(.entry(myLocation: nil), pins: [], focusing: me, requestID: 1)
+        let second = PlaceMap.camera(.entry(myLocation: nil), pins: [], focusing: me, requestID: 2)
+
+        #expect(first != second)
+    }
+
+    @Test("번호만 다를 뿐 목적지는 같다 — 재탭이 엉뚱한 자리로 가지 않는다")
+    func repeatedRequestKeepsSameDestination() {
+        let me = Coordinate(latitude: 37.5443, longitude: 127.0557)
+
+        let first = PlaceMap.camera(.entry(myLocation: nil), pins: [], focusing: me, requestID: 1)
+        let second = PlaceMap.camera(.entry(myLocation: nil), pins: [], focusing: me, requestID: 2)
+
+        guard case .position(let a) = first, case .position(let b) = second else {
+            Issue.record("두 요청 모두 위치 카메라여야 한다")
+            return
+        }
+        #expect(a.coordinate == b.coordinate)
+        #expect(a.zoom == b.zoom)
+    }
+
+    @Test("방 상세는 진입 모드를 쓰지 않는다 — 그 방 핀에 맞춘다(PRD Flow D)")
+    func roomDetailStillFitsPins() {
+        let pins = [pin("a", lat: 37.5, lng: 127.0), pin("b", lat: 37.6, lng: 127.1)]
+        #expect(
+            PlaceMap.camera(.fitPins, pins: pins, focusing: nil) == PlaceMap.camera(for: pins)
+        )
+    }
 }
 
 @Suite("PlaceMapButtonMetrics — 지도 위 부유 버튼 줄의 자리(005-1 `2792:142415`)")
