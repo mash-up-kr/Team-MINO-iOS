@@ -13,8 +13,7 @@ struct RoomDetailLocation: Identifiable, Equatable {
     let commentCount: Int
     /// 출처 게시물의 사진. 없을 수 있다.
     ///
-    /// 개수만 들고 있다가 URL 이 필요해진 자리(공유 시트 썸네일)가 생겨 배열로 바꿨다 —
-    /// 개수를 따로 두면 사진과 어긋날 수 있어 ``photoCount`` 는 여기서 센다.
+    /// 개수만 들고 있다가 URL 이 필요해진 자리(공유 시트 썸네일·장소 카드)가 생겨 배열로 바꿨다.
     let photos: [URL]
     /// 이 장소를 방에 저장한 사람. 시안 004-1 장소 카드 우하단의 아바타 자리다.
     /// 서버가 저장자를 안 실어 주면 nil 이고, 그때는 자리를 **비운다** — 익명 회색 원을 대신
@@ -39,8 +38,6 @@ struct RoomDetailLocation: Identifiable, Equatable {
         self.photos = photos
         self.saver = saver
     }
-
-    var photoCount: Int { photos.count }
 
     /// 장소를 한 칸으로 줄여 보여 줄 때 쓰는 대표 사진 — 첫 장이다(기획 011-1 ②).
     var thumbnail: URL? { photos.first }
