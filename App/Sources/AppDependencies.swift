@@ -126,16 +126,16 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
         // 응답으로 오므로 저장된 방만 따로 물을 API 가 필요 없다.
         self.fetchSavedRooms = DefaultFetchSavedRoomsUseCase(repository: shareTargets)
 
-        // 지금 앱을 쓰는 사람: 프로필 API 미연결 → Mock. MockRoomRepository 의 user-0001 과 같은 사람이다.
-        let currentMemberRepository = MockCurrentMemberRepository()
+        // 지금 앱을 쓰는 사람. 코멘트 소유 판정(내 코멘트에만 삭제 케밥)과 방장 판별이 이 값을 쓴다 —
+        // 코멘트가 실 API 로 오는데 신원만 Mock(user-0001)이면 작성자 id 가 서로 달라 **내가 쓴
+        // 코멘트인데 삭제가 안 뜬다**. 둘은 같이 실 API 여야 한다.
+        let currentMemberRepository = CurrentMemberRepositoryImpl(client: httpClient)
         self.currentMember = DefaultCurrentMemberUseCase(repository: currentMemberRepository)
 
-        // 코멘트: 실 API 미연결 → Mock. 등록·삭제가 메모리에 남아야 시트를 닫았다 다시 열어도
-        // 쓴 코멘트가 그대로다(#165). 핀 저장소를 함께 넘기는 건 카드가 보여 준 "코멘트 N" 만큼
-        // 친구 코멘트를 깔아 두기 위해서고, 신원 저장소는 등록한 코멘트의 작성자를 구하는 자리다
-        // (실 서버는 토큰에서 뽑으므로 인터페이스가 작성자를 받지 않는다).
-        // 추후 PinCommentRepositoryImpl 로 교체.
-        let comments = MockPinCommentRepository(pins: pins, currentMember: currentMemberRepository)
+        // 코멘트: 실 API. Mock(메모리) 이던 시절에는 남긴 코멘트가 **앱을 껐다 켜면 사라지고**,
+        // 서버 집계를 건드리지 않아 방 상세 목록의 "코멘트 N" 도 그대로였다. Data 구현은 #201 에서
+        // 들어왔는데 조립부만 Mock 에 남아 있었다.
+        let comments = PinCommentRepositoryImpl(client: httpClient)
         self.fetchComments = DefaultFetchPinCommentsUseCase(repository: comments)
         self.postComment = DefaultPostPinCommentUseCase(repository: comments)
         self.deleteComment = DefaultDeletePinCommentUseCase(repository: comments)
