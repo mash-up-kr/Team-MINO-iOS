@@ -125,4 +125,25 @@ final class MHBottomSheetLayoutTests: XCTestCase {
             MHBottomSheetLayout.contentBottomExtension(extendsBelowSafeArea: true, safeAreaBottom: -1), 0
         )
     }
+
+    // MARK: - isSheetDrag (축 판정)
+
+    /// 회귀 방지 — 축을 가리지 않던 시절, 시트 안 가로 캐러셀을 넘기면 그 세로 성분까지
+    /// 시트가 먹어 시트가 따라 움직였다(장소 상세 사진 캐러셀에서 재현).
+    func testHorizontalDragIsNotSheetDrag() {
+        // 실제 재현 값: dx -230 / dy +32
+        XCTAssertFalse(MHBottomSheetLayout.isSheetDrag(dx: -230, dy: 32))
+        XCTAssertFalse(MHBottomSheetLayout.isSheetDrag(dx: 120, dy: -10))
+    }
+
+    func testVerticalDragIsSheetDrag() {
+        XCTAssertTrue(MHBottomSheetLayout.isSheetDrag(dx: 0, dy: 12))
+        XCTAssertTrue(MHBottomSheetLayout.isSheetDrag(dx: -8, dy: -40))
+    }
+
+    /// 대각선(동률)은 콘텐츠에 양보한다 — 애매할 때 시트가 움직이는 쪽이 더 거슬린다.
+    func testDiagonalTieGoesToContent() {
+        XCTAssertFalse(MHBottomSheetLayout.isSheetDrag(dx: 20, dy: 20))
+        XCTAssertFalse(MHBottomSheetLayout.isSheetDrag(dx: -20, dy: 20))
+    }
 }

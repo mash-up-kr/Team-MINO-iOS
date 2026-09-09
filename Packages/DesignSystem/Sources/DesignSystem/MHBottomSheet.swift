@@ -45,6 +45,17 @@ struct MHBottomSheetLayout: Equatable {
         extendsBelowSafeArea ? max(0, safeAreaBottom) : 0
     }
 
+    /// 이 드래그를 **시트 이동**으로 받을지 — 세로가 우세할 때만.
+    ///
+    /// 시트 제스처는 `simultaneousGesture` 라 안쪽 스크롤 뷰와 **동시에** 받는다. 축을 가리지 않으면
+    /// 시트 안 가로 캐러셀을 넘길 때 그 세로 성분까지 시트가 먹어 시트가 따라 움직인다
+    /// (장소 상세 사진 캐러셀에서 재현 — dx −230 / dy +32 인 스와이프가 시트 드래그를 시작했다).
+    ///
+    /// 같으면(대각선) 콘텐츠에 양보한다 — 애매한 제스처는 시트가 움직이는 쪽이 더 거슬린다.
+    static func isSheetDrag(dx: CGFloat, dy: CGFloat) -> Bool {
+        abs(dy) > abs(dx)
+    }
+
     /// peek(노출 pt) → 컨테이너 높이 대비 비율.
     ///
     /// 시트의 레이아웃 상자는 **safe area 안에서 끝난다** — 402×874 기기에서 시트가 받는
@@ -119,6 +130,10 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
 
     /// full 에서 제스처가 맨 위에서 시작했는가 — 시작 시점에만 판정 (중간 시작 드래그는 끝까지 스크롤 전용)
     @State private var dragBeganAtTop: Bool?
+
+    /// 이 제스처가 시트 몫인가(세로 우세). **시작에 한 번만 정하고** 끝까지 유지한다 —
+    /// 도중에 방향이 바뀌었다고 주인이 넘어가면 캐러셀을 넘기다 시트가 끌려온다.
+    @State private var dragIsSheetDrag: Bool?
 
     /// onEnded 정상 종료 표시 — 취소-정리 경로의 이중 스냅 방지 (onChange(isDragging) 참조)
     @State private var dragEndedNormally = false
@@ -234,6 +249,7 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
                             return
                         }
                         dragBeganAtTop = nil
+                        dragIsSheetDrag = nil
                         guard dragTranslation != 0 else { return }
                         withAnimation(.spring(duration: 0.3)) {
                             detent = layout.nearestDetent(to: layout.height(of: detent) - dragTranslation)
@@ -334,6 +350,11 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
             .updating($isDragging) { _, state, _ in state = true }
             .onChanged { value in
                 let dy = value.translation.height
+                // 축 판정이 먼저다 — 가로 우세면 이 제스처는 통째로 콘텐츠(캐러셀) 몫이다.
+                if dragIsSheetDrag == nil {
+                    dragIsSheetDrag = MHBottomSheetLayout.isSheetDrag(dx: value.translation.width, dy: dy)
+                }
+                guard dragIsSheetDrag == true else { return }
                 guard detent == .full else {
                     dragTranslation = dy   // low/medium: 스크롤이 잠겨 있어 모든 드래그가 시트 이동
                     return
@@ -345,6 +366,12 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
             }
             .onEnded { value in
                 dragEndedNormally = true
+                let wasSheetDrag = dragIsSheetDrag == true
+                dragIsSheetDrag = nil
+                guard wasSheetDrag else {   // 가로 제스처 — 시트는 손대지 않는다
+                    dragBeganAtTop = nil
+                    return
+                }
                 let projected: CGFloat
                 if detent == .full {
                     let engaged = dragBeganAtTop == true && dragTranslation > 0
