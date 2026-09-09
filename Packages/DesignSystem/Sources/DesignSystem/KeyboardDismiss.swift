@@ -25,7 +25,10 @@ public extension View {
 }
 
 /// 현재 first responder 에서 포커스를 뗀다. 어떤 필드가 포커스인지 몰라도 되도록 responder chain 에 던진다.
+///
+/// 화면이 **직접 부를 일**이 있어 공개한다 — 등록·저장처럼 입력이 끝나는 동작에서 키보드를 내릴 때다.
+/// `MHTextArea` 는 포커스를 내부 `@FocusState` 로 들고 있어 바깥에서 끌 방법이 이것뿐이다.
 @MainActor
-func mhResignFirstResponder() {
+public func mhResignFirstResponder() {
     UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
 }

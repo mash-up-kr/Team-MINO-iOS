@@ -115,6 +115,10 @@ public struct PlaceDetailView: View {
     }
 
     private func submitComment() {
+        // 등록으로 입력이 끝났으니 키보드를 내린다. **draft 를 비우기 전에** 뗀다 — 비우면
+        // textDidChange 가 돌아 입력칸을 다시 끌어올리는데(MHBottomSheetScrollView), 그 전에
+        // 포커스가 없어야 헛스크롤이 없다.
+        mhResignFirstResponder()
         store.send(.submitComment(draft))
         // 응답을 기다리지 않고 비운다 — 등록 중에도 다음 글을 칠 수 있어야 하고, 목은 실패하지
         // 않는다. 실 API 가 붙어 실패가 실제로 일어나면 친 글을 되돌려 줘야 한다(리듀서의

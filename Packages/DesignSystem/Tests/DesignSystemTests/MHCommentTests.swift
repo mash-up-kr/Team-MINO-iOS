@@ -4,8 +4,9 @@ import SwiftUI
 
 final class MHCommentTests: XCTestCase {
     // Figma 심볼 높이(폭 335): 헤더(아바타 32) + gap10 + 본문.
-    //   normal(1줄)  = 32 + 10 + 20  = 62
-    //   full(140 캡) = 32 + 10 + 140 = 182
+    //   normal(1줄) = 32 + 10 + 20 = 62
+    // 긴 본문은 **자르지 않는다** — 시안의 max-h 140 을 적용하면 6줄 뒤가 말줄임도 「더보기」도 없이
+    // 사라져 글이 누락돼 보인다(2026-09-09 확정). 그래서 줄 수에 비례해 계속 커지는지만 본다.
     @MainActor
     func testHeightMatchesFigma() throws {
         MHFontRegistrar.registerIfNeeded()
@@ -18,12 +19,14 @@ final class MHCommentTests: XCTestCase {
         XCTAssertEqual(height("친구가 남긴 코멘트입니다."), 62, accuracy: 1.0)
 
         let long = String(repeating: "친구가 남긴 코멘트입니다.", count: 20)
-        XCTAssertEqual(height(long), 182, accuracy: 1.0)   // 본문 140 에서 잘림
+        let longer = String(repeating: "친구가 남긴 코멘트입니다.", count: 40)
+        XCTAssertGreaterThan(height(long), 182)            // 옛 140 캡을 넘어 다 보인다
+        XCTAssertGreaterThan(height(longer), height(long))  // 길수록 계속 커진다(상한 없음)
     }
 
     // dateText 는 본문 컨테이너 안에 gap 4 로 붙는다(Figma comment 4942:209197, Caption 2 = 11 × 1.273 ≈ 14pt).
     //   normal(1줄) + 날짜 = 32 + 10 + 20 + 4 + 14 = 80
-    //   full(클립)  + 날짜 = 182 그대로 — 컨테이너 max-h 140 을 본문(122)과 날짜가 나눠 쓴다
+    // 긴 본문은 자르지 않으므로 날짜 행(4 + 14)만큼 더해진 높이가 나온다.
     // (렌더된 이미지에서 문자열 내용·정렬 자체를 검증할 수는 없다 — 높이로만 본다.)
     @MainActor
     func testHeightWithDateText() throws {
@@ -37,7 +40,7 @@ final class MHCommentTests: XCTestCase {
         XCTAssertEqual(height("친구가 남긴 코멘트입니다."), 80, accuracy: 1.0)
 
         let long = String(repeating: "친구가 남긴 코멘트입니다.", count: 20)
-        XCTAssertEqual(height(long), 182, accuracy: 1.0)   // 본문 122 에서 잘리고 날짜는 보인다
+        XCTAssertGreaterThan(height(long), 182)   // 잘리지 않고 날짜 행까지 함께 늘어난다
     }
 
     @MainActor
