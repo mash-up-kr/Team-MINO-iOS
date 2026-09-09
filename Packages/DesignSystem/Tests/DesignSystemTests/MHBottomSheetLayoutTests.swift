@@ -104,4 +104,61 @@ final class MHBottomSheetLayoutTests: XCTestCase {
         )
         XCTAssertEqual(fraction, 0.05, accuracy: 0.0001)
     }
+
+    // MARK: - 콘텐츠 상자 하단 확장
+
+    func testContentBottomExtensionCoversHomeIndicatorAtEveryDetent() {
+        // full 의 높이도 safe area 안 컨테이너 높이라 full 에서만 빼면 리스트 바닥에 흰 띠가 남는다.
+        XCTAssertEqual(
+            MHBottomSheetLayout.contentBottomExtension(extendsBelowSafeArea: true, safeAreaBottom: 34, isKeyboardVisible: false), 34
+        )
+    }
+
+    func testContentBottomExtensionIsZeroWhenDisabled() {
+        XCTAssertEqual(
+            MHBottomSheetLayout.contentBottomExtension(extendsBelowSafeArea: false, safeAreaBottom: 34, isKeyboardVisible: false), 0
+        )
+    }
+
+    func testContentBottomExtensionIgnoresNegativeInset() {
+        XCTAssertEqual(
+            MHBottomSheetLayout.contentBottomExtension(extendsBelowSafeArea: true, safeAreaBottom: -1, isKeyboardVisible: false), 0
+        )
+    }
+
+    // MARK: - isSheetDrag (축 판정)
+
+    /// 회귀 방지 — 축을 가리지 않던 시절, 시트 안 가로 캐러셀을 넘기면 그 세로 성분까지
+    /// 시트가 먹어 시트가 따라 움직였다(장소 상세 사진 캐러셀에서 재현).
+    func testHorizontalDragIsNotSheetDrag() {
+        // 실제 재현 값: dx -230 / dy +32
+        XCTAssertFalse(MHBottomSheetLayout.isSheetDrag(dx: -230, dy: 32))
+        XCTAssertFalse(MHBottomSheetLayout.isSheetDrag(dx: 120, dy: -10))
+    }
+
+    func testVerticalDragIsSheetDrag() {
+        XCTAssertTrue(MHBottomSheetLayout.isSheetDrag(dx: 0, dy: 12))
+        XCTAssertTrue(MHBottomSheetLayout.isSheetDrag(dx: -8, dy: -40))
+    }
+
+    /// 대각선(동률)은 콘텐츠에 양보한다 — 애매할 때 시트가 움직이는 쪽이 더 거슬린다.
+    func testDiagonalTieGoesToContent() {
+        XCTAssertFalse(MHBottomSheetLayout.isSheetDrag(dx: 20, dy: 20))
+        XCTAssertFalse(MHBottomSheetLayout.isSheetDrag(dx: -20, dy: 20))
+    }
+
+    /// 회귀 방지 — safeAreaInsets.bottom 은 키보드가 올라오면 그 높이까지 포함한다(실측 34 → 380).
+    /// 그대로 확장량으로 쓰면 콘텐츠 상자가 키보드 밑으로 내려가 입력칸이 통째로 가려졌다
+    /// (장소 상세 코멘트 입력에서 재현).
+    func testNoExtensionWhileKeyboardVisible() {
+        XCTAssertEqual(
+            MHBottomSheetLayout.contentBottomExtension(
+                extendsBelowSafeArea: true, safeAreaBottom: 380, isKeyboardVisible: true
+            ), 0)
+        // 키보드가 내려가면 다시 인디케이터 몫을 채운다
+        XCTAssertEqual(
+            MHBottomSheetLayout.contentBottomExtension(
+                extendsBelowSafeArea: true, safeAreaBottom: 34, isKeyboardVisible: false
+            ), 34)
+    }
 }

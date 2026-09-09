@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// 바텀시트 높이 단계. `low`(최저) → `medium`(중간) → `full`(전체 화면).
 public enum MHBottomSheetDetent: CaseIterable, Equatable, Sendable {
@@ -34,6 +35,36 @@ struct MHBottomSheetLayout: Equatable {
         detents.min {
             abs(self.height(of: $0) - height) < abs(self.height(of: $1) - height)
         } ?? .medium
+    }
+
+    /// 콘텐츠 상자를 하단 safe area 로 늘릴 양(`extendsContentBelowSafeArea`).
+    ///
+    /// **full 도 늘린다.** full 의 높이(``height(of:)``)는 safe area 안의 컨테이너 높이라 상자
+    /// 바닥이 홈 인디케이터 위에서 끝난다 — 늘리지 않으면 리스트가 거기서 잘리고, 그 아래
+    /// 인디케이터 몫은 흰 표면만 남는다(방 상세 full 에서 실기기·시뮬레이터 재현).
+    ///
+    /// **키보드가 올라오면 0 이다.** `safeAreaInsets.bottom` 은 키보드 높이까지 포함해서(실측 34 → 380)
+    /// 그대로 쓰면 콘텐츠 상자가 키보드 밑으로 그만큼 내려가 입력칸이 가려진다(장소 상세 코멘트에서
+    /// 재현). 키보드가 올라오면 시트 자체가 그 위로 줄어들어(컨테이너 759 → 413) 채울 인디케이터
+    /// 자리도 없다 — 확장은 시트가 화면 바닥에 닿아 있을 때만 의미가 있다.
+    static func contentBottomExtension(
+        extendsBelowSafeArea: Bool,
+        safeAreaBottom: CGFloat,
+        isKeyboardVisible: Bool
+    ) -> CGFloat {
+        guard extendsBelowSafeArea, !isKeyboardVisible else { return 0 }
+        return max(0, safeAreaBottom)
+    }
+
+    /// 이 드래그를 **시트 이동**으로 받을지 — 세로가 우세할 때만.
+    ///
+    /// 시트 제스처는 `simultaneousGesture` 라 안쪽 스크롤 뷰와 **동시에** 받는다. 축을 가리지 않으면
+    /// 시트 안 가로 캐러셀을 넘길 때 그 세로 성분까지 시트가 먹어 시트가 따라 움직인다
+    /// (장소 상세 사진 캐러셀에서 재현 — dx −230 / dy +32 인 스와이프가 시트 드래그를 시작했다).
+    ///
+    /// 같으면(대각선) 콘텐츠에 양보한다 — 애매한 제스처는 시트가 움직이는 쪽이 더 거슬린다.
+    static func isSheetDrag(dx: CGFloat, dy: CGFloat) -> Bool {
+        abs(dy) > abs(dx)
     }
 
     /// peek(노출 pt) → 컨테이너 높이 대비 비율.
@@ -102,13 +133,22 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
     /// 취소 감지용 — 시스템이 제스처를 취소하면 onEnded 없이 이 값만 리셋된다
     @GestureState private var isDragging = false
 
-    /// 스크롤 콘텐츠가 맨 위인가. 드래그 제스처 판정에만 쓰이고 렌더링엔 관여하지 않으므로
-    /// `@State` 가 아닌 참조 타입에 저장해 preference 갱신이 body 재평가를 유발하지 않게 한다
-    /// — detent 전환 스프링 중 KVO 가 재평가를 반복 유발하면 콘텐츠(버튼 등)가 깜박인다.
-    @State private var scrollRef = ScrollRef()
+    /// 스크롤 콘텐츠가 맨 위인가. `MHBottomSheetScrollView` 가 환경으로 받아 직접 쓴다
+    /// (`MHSheetScrollState` 주석 참조). 드래그 제스처 판정에만 쓰이고 렌더링엔 관여하지 않으므로
+    /// `@State` Bool 이 아닌 참조 상자다 — 갱신이 body 재평가를 유발하지 않는다
+    /// (detent 전환 스프링 중 KVO 가 재평가를 반복 유발하면 콘텐츠(버튼 등)가 깜박인다).
+    @State private var scrollState = MHSheetScrollState()
 
     /// full 에서 제스처가 맨 위에서 시작했는가 — 시작 시점에만 판정 (중간 시작 드래그는 끝까지 스크롤 전용)
     @State private var dragBeganAtTop: Bool?
+
+    /// 이 제스처가 시트 몫인가(세로 우세). **시작에 한 번만 정하고** 끝까지 유지한다 —
+    /// 도중에 방향이 바뀌었다고 주인이 넘어가면 캐러셀을 넘기다 시트가 끌려온다.
+    @State private var dragIsSheetDrag: Bool?
+
+    /// 키보드가 떠 있는가. `safeAreaInsets` 로는 홈 인디케이터와 키보드를 가릴 수 없어
+    /// (둘 다 bottom 으로 합산돼 들어온다) UIKit 알림으로 직접 받는다.
+    @State private var isKeyboardVisible = false
 
     /// onEnded 정상 종료 표시 — 취소-정리 경로의 이중 스냅 방지 (onChange(isDragging) 참조)
     @State private var dragEndedNormally = false
@@ -203,8 +243,11 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
             let height = layout.clampedHeight(layout.height(of: detent) - dragTranslation)
             let isFull = height >= layout.height(of: .full)
 
-            // full 은 이미 화면을 다 덮어 늘릴 것이 없다.
-            let bottomExtension = extendsContentBelowSafeArea && !isFull ? geometry.safeAreaInsets.bottom : 0
+            let bottomExtension = MHBottomSheetLayout.contentBottomExtension(
+                extendsBelowSafeArea: extendsContentBelowSafeArea,
+                safeAreaBottom: geometry.safeAreaInsets.bottom,
+                isKeyboardVisible: isKeyboardVisible
+            )
 
             sheet(height: height, isFull: isFull, bottomExtension: bottomExtension)
                 .offset(y: isTransitioningDown ? height + geometry.safeAreaInsets.bottom : 0)
@@ -212,6 +255,12 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
                 // simultaneous 여야 스크롤 콘텐츠 위에서도 드래그를 받는다 —
                 // full 에서 리스트 스크롤과의 구분은 onChanged 의 핸드오프 게이팅이 담당
                 .simultaneousGesture(dragGesture(layout: layout))
+                .onReceive(NotificationCenter.default.publisher(
+                    for: UIResponder.keyboardWillShowNotification
+                )) { _ in isKeyboardVisible = true }
+                .onReceive(NotificationCenter.default.publisher(
+                    for: UIResponder.keyboardWillHideNotification
+                )) { _ in isKeyboardVisible = false }
                 .onChange(of: isDragging) { _, dragging in
                     // 시스템이 제스처를 취소하면(전화 수신 등) onEnded 없이 isDragging 만 리셋된다 —
                     // 잔류 오프셋을 스냅으로 정리. 한 틱 미뤄 onEnded 와의 실행 순서 의존을 없앤다.
@@ -222,6 +271,7 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
                             return
                         }
                         dragBeganAtTop = nil
+                        dragIsSheetDrag = nil
                         guard dragTranslation != 0 else { return }
                         withAnimation(.spring(duration: 0.3)) {
                             detent = layout.nearestDetent(to: layout.height(of: detent) - dragTranslation)
@@ -229,9 +279,6 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
                         }
                     }
                 }
-        }
-        .onPreferenceChange(MHSheetScrollAtTopKey.self) { value in
-            scrollRef.isAtTop = value
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("MHBottomSheet.sheet")   // QA 자동화(AXe)용 — 시트 존재·상태 검증
@@ -277,6 +324,7 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
             content(appliedContentID)   // 전환 중엔 이전 ID 로 그려 이전 콘텐츠 유지
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 .environment(\.mhSheetScrollEnabled, detent == .full)   // 스크롤은 full 에서만 (애플 지도 규칙)
+                .environment(\.mhSheetScrollState, scrollState)         // 래퍼가 "맨 위" 를 여기 써 준다
         }
         // 상단(그래버) 고정. 기본 center 정렬이면 낮은 높이에서 콘텐츠가 넘칠 때 상하로 클립돼
         // 그래버가 흰 시트 밖(위)으로 밀린다 — 항상 위를 기준으로 클립한다.
@@ -324,17 +372,28 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
             .updating($isDragging) { _, state, _ in state = true }
             .onChanged { value in
                 let dy = value.translation.height
+                // 축 판정이 먼저다 — 가로 우세면 이 제스처는 통째로 콘텐츠(캐러셀) 몫이다.
+                if dragIsSheetDrag == nil {
+                    dragIsSheetDrag = MHBottomSheetLayout.isSheetDrag(dx: value.translation.width, dy: dy)
+                }
+                guard dragIsSheetDrag == true else { return }
                 guard detent == .full else {
                     dragTranslation = dy   // low/medium: 스크롤이 잠겨 있어 모든 드래그가 시트 이동
                     return
                 }
                 // full: 맨 위에서 "시작한" 제스처만 시트 드래그 (그 외는 리스트 스크롤)
-                if dragBeganAtTop == nil { dragBeganAtTop = scrollRef.isAtTop }
-                guard dragBeganAtTop == true, scrollRef.isAtTop else { return }
+                if dragBeganAtTop == nil { dragBeganAtTop = scrollState.isAtTop }
+                guard dragBeganAtTop == true, scrollState.isAtTop else { return }
                 dragTranslation = max(0, dy)   // 위 방향(음수)은 full 에 붙임 — 방향이 되돌아와도 연속 추적
             }
             .onEnded { value in
                 dragEndedNormally = true
+                let wasSheetDrag = dragIsSheetDrag == true
+                dragIsSheetDrag = nil
+                guard wasSheetDrag else {   // 가로 제스처 — 시트는 손대지 않는다
+                    dragBeganAtTop = nil
+                    return
+                }
                 let projected: CGFloat
                 if detent == .full {
                     let engaged = dragBeganAtTop == true && dragTranslation > 0
@@ -351,15 +410,6 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
                 }
             }
     }
-}
-
-// MARK: - ScrollRef (뷰 무효화 없는 스크롤 상태)
-
-/// `scrollIsAtTop` 을 `@State` Bool 로 갖고 있으면, preference 갱신마다 body 가 재평가된다.
-/// detent 전환 스프링 중 KVO 가 연속 발화하면 이 재평가가 콘텐츠 깜박임을 유발한다.
-/// 드래그 제스처 판정에만 쓰이므로 참조 타입에 저장해 뷰 무효화를 일으키지 않는다.
-private final class ScrollRef {
-    var isAtTop = true
 }
 
 // MARK: - 전환 연출이 필요 없는 화면용

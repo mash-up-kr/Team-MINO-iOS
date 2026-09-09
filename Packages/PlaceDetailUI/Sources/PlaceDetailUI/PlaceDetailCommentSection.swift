@@ -104,6 +104,9 @@ struct PlaceDetailCommentSection: View {
         MHTextArea(
             "코멘트를 입력해 보세요.",
             text: $draft,
+            // 시안 높이 고정 — 넘치면 칸 안에서 스크롤된다. 무한 성장하면 시트 스크롤과 서로
+            // 밀고 당겨 입력 중 화면이 흔들린다(그 회귀를 여기서 원천 차단한다).
+            resize: .limitHeight(maxHeight: 138),
             identifier: "PlaceDetail.commentInput",
             bottomLeading: {
                 MHCharacterCounter(count: draft.count, limit: PinComment.bodyLimit)

@@ -13,7 +13,7 @@ final class MHTextAreaTests: XCTestCase {
         XCTAssertEqual(MHTextAreaMetric.inputFontSize, 16)
     }
 
-    // resize 별 최소/최대 높이(줄 × 26).
+    // resize 별 최소/최대 높이(줄 × 26 — limitHeight 상한만 pt 그대로).
     func testResizeHeights() {
         XCTAssertEqual(MHTextAreaResize.normal(minLines: 3).minHeight, 78)
         XCTAssertNil(MHTextAreaResize.normal(minLines: 3).maxHeight)              // 무한 성장
@@ -21,6 +21,8 @@ final class MHTextAreaTests: XCTestCase {
         XCTAssertEqual(MHTextAreaResize.limit(minLines: 2, maxLines: 5).maxHeight, 130)
         XCTAssertEqual(MHTextAreaResize.fixed(lines: 4).minHeight, 104)
         XCTAssertEqual(MHTextAreaResize.fixed(lines: 4).maxHeight, 104)           // 고정
+        XCTAssertEqual(MHTextAreaResize.limitHeight(maxHeight: 138).minHeight, 26)
+        XCTAssertEqual(MHTextAreaResize.limitHeight(maxHeight: 138).maxHeight, 138)   // 26 배수 아닌 값 그대로
     }
 
     // 테두리(TextField 와 동일 규칙, positive 없음): 비활성 > 에러 > 포커스 > 기본.

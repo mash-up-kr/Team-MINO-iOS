@@ -7,16 +7,20 @@ public enum MHTextAreaStatus: Sendable { case normal, negative }
 /// - `normal`: `minLines` 부터 내용에 맞춰 무한 성장
 /// - `limit`: `minLines`~`maxLines` 성장 후 고정(초과분 clip)
 /// - `fixed`: `lines` 고정
+/// - `limitHeight`: `minLines` 부터 성장하되 **최대 높이를 pt 로** 못박음
 public enum MHTextAreaResize: Equatable, Sendable {
     case normal(minLines: Int = 1)
     case limit(minLines: Int = 1, maxLines: Int)
     case fixed(lines: Int)
+    /// 시안이 줄 수가 아니라 **높이(pt)** 로 못박은 경우. 26 의 배수가 아니어도 그 값을 그대로 쓴다.
+    case limitHeight(minLines: Int = 1, maxHeight: CGFloat)
 
     var minHeight: CGFloat {
         switch self {
         case .normal(let m):        return CGFloat(m) * MHTextAreaMetric.lineHeight
         case .limit(let m, _):      return CGFloat(m) * MHTextAreaMetric.lineHeight
         case .fixed(let l):         return CGFloat(l) * MHTextAreaMetric.lineHeight
+        case .limitHeight(let m, _): return CGFloat(m) * MHTextAreaMetric.lineHeight
         }
     }
     var maxHeight: CGFloat? {
@@ -24,6 +28,7 @@ public enum MHTextAreaResize: Equatable, Sendable {
         case .normal:               return nil                                   // 무한 성장
         case .limit(_, let mx):     return CGFloat(mx) * MHTextAreaMetric.lineHeight
         case .fixed(let l):         return CGFloat(l) * MHTextAreaMetric.lineHeight
+        case .limitHeight(_, let h): return h
         }
     }
 }
@@ -57,7 +62,6 @@ public struct MHTextArea<Leading: View, Trailing: View>: View {
 
     @Environment(\.isEnabled) private var isEnabled
     @FocusState private var isFocused: Bool
-    @State private var measuredTextHeight: CGFloat = MHTextAreaMetric.lineHeight
 
     public init(
         _ placeholder: String = "",
@@ -136,50 +140,51 @@ public struct MHTextArea<Leading: View, Trailing: View>: View {
         .mhShadow(.xsmall, cornerRadius: MHTextAreaMetric.cornerRadius)
     }
 
-    // 텍스트 영역 높이: 내용 높이를 min~max(resize)로 클램프. 내용이 max 를 넘으면 스크롤(넘기 전엔 성장).
-    private var clampedTextHeight: CGFloat {
-        min(max(measuredTextHeight, resize.minHeight), resize.maxHeight ?? .greatestFiniteMagnitude)
-    }
-
     // 여러 줄 입력: 시스템 폰트(SUITE 미적용). placeholder 는 빈 값일 때 겹쳐 그린다.
-    // ScrollView + 내용 높이 측정으로 normal(무한 성장)·limit(최대 후 스크롤)·fixed(고정+스크롤)를 한 코드로.
+    //
+    // **ScrollView 로 감싸지 않는다.** 백엔드가 `UITextView`(SwiftUI `VerticalTextView`)이고
+    // `isScrollEnabled` 이 이미 켜져 있어, 높이만 묶으면 **자기가 스크롤하며 커서를 따라간다** —
+    // 줄바꿈·중간 편집·삭제·선택까지 UIKit 이 원래 하는 일이다. 감싸면 텍스트 뷰의 프레임이 늘 내용
+    // 전체 높이가 돼 스스로 스크롤할 일이 없어지고, 그 몫을 바깥에서 흉내 내야 한다(커서 위치를
+    // 직접 계산해 오프셋을 밀어넣는 식). 그 길로 갔다가 글자마다 화면이 튀고, 줄바꿈에서 커서를
+    // 놓치고, 커서 높이가 케이스마다 달라지는 문제를 차례로 만났다.
+    //
+    // 높이는 `frame(minHeight:maxHeight:)` 하나로 세 모드를 다 표현한다 — TextField 는 내용 크기로
+    // 자라고 프레임이 그것을 min~max 로 자른다. 내용 높이를 따로 재서 클램프할 이유가 없다.
     @ViewBuilder private func textInput(_ spec: MHTextAreaSpec) -> some View {
-        ScrollView(.vertical) {
-            ZStack(alignment: .topLeading) {
-                if text.isEmpty {
-                    Text(placeholder)
-                        .foregroundStyle(spec.placeholderColor)
-                        .padding(.horizontal, MHTextAreaMetric.textHPadding)
-                }
-                TextField("", text: $text, axis: .vertical)
-                    .focused($isFocused)
-                    // 멀티라인이라 리턴키가 개행으로 소비돼 리턴키로는 키보드를 못 닫는다(단일행 MHTextField 와
-                    // 갈리는 지점). 툴바가 이 컴포넌트의 탈출로다 — 포커스일 때만 기여해 같은 화면에
-                    // TextArea 가 여럿이어도 '완료' 가 중복되지 않는다.
-                    .toolbar {
-                        if isFocused {
-                            ToolbarItemGroup(placement: .keyboard) {
-                                Spacer()
-                                Button("완료") { isFocused = false }
-                                    .accessibilityIdentifier("MHTextArea.doneButton")
-                            }
+        ZStack(alignment: .topLeading) {
+            if text.isEmpty {
+                Text(placeholder)
+                    .foregroundStyle(spec.placeholderColor)
+                    .padding(.horizontal, MHTextAreaMetric.textHPadding)
+            }
+            TextField("", text: $text, axis: .vertical)
+                .focused($isFocused)
+                // 멀티라인이라 리턴키가 개행으로 소비돼 리턴키로는 키보드를 못 닫는다(단일행 MHTextField 와
+                // 갈리는 지점). 툴바가 이 컴포넌트의 탈출로다 — 포커스일 때만 기여해 같은 화면에
+                // TextArea 가 여럿이어도 '완료' 가 중복되지 않는다.
+                .toolbar {
+                    if isFocused {
+                        ToolbarItemGroup(placement: .keyboard) {
+                            Spacer()
+                            Button("완료") { isFocused = false }
+                                .accessibilityIdentifier("MHTextArea.doneButton")
                         }
                     }
-                    // 입력 요소에만 붙인다 — 바깥 modifier 는 heading·카운터까지 물들여 선택자가 다중 매치된다.
-                    .accessibilityIdentifier(identifier ?? "MHTextArea.input")
-                    .foregroundStyle(spec.valueTextColor)
-                    .padding(.horizontal, MHTextAreaMetric.textHPadding)
-                    .background(GeometryReader { g in
-                        Color.clear.preference(key: MHTextAreaHeightKey.self, value: g.size.height)
-                    })
-            }
-            .font(.system(size: MHTextAreaMetric.inputFontSize))
-            .lineSpacing(MHTextAreaMetric.lineSpacing)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
+                }
+                // 입력 요소에만 붙인다 — 바깥 modifier 는 heading·카운터까지 물들여 선택자가 다중 매치된다.
+                .accessibilityIdentifier(identifier ?? "MHTextArea.input")
+                .foregroundStyle(spec.valueTextColor)
+                .padding(.horizontal, MHTextAreaMetric.textHPadding)
         }
-        .frame(height: clampedTextHeight)
-        .scrollDisabled(measuredTextHeight <= clampedTextHeight)   // 내용이 안 넘치면 스크롤 잠금(바운스 방지)
-        .onPreferenceChange(MHTextAreaHeightKey.self) { measuredTextHeight = $0 }
+        .font(.system(size: MHTextAreaMetric.inputFontSize))
+        .lineSpacing(MHTextAreaMetric.lineSpacing)
+        .frame(
+            maxWidth: .infinity,
+            minHeight: resize.minHeight,
+            maxHeight: resize.maxHeight ?? .infinity,
+            alignment: .topLeading
+        )
     }
 
     // MARK: 하단 바 (leading 은 좌측 확장, trailing 은 우측 hug)
@@ -217,10 +222,6 @@ struct MHTextAreaSpec {
 }
 
 // 텍스트 영역 내용 높이 측정용 PreferenceKey (성장 후 스크롤 전환).
-private struct MHTextAreaHeightKey: PreferenceKey {
-    static let defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
-}
 
 // MARK: - Metric (Figma 실측)
 

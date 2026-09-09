@@ -2,8 +2,12 @@ import SwiftUI
 
 /// 작성자(아바타 + 이름)와 코멘트 본문을 보여주는 표시형 컴포넌트. Figma `comment`(node 15852:88585).
 ///
-/// 상단에 32pt 아바타와 이름, 아래에 본문을 둔다. 본문은 `maxBodyHeight`(기본 140pt)를 넘으면 말줄임 없이
-/// 그대로 **잘린다**(Figma overflow-clip). Figma 의 normal/half/full 상태는 본문 길이 차이일 뿐 한 컴포넌트다.
+/// 상단에 32pt 아바타와 이름, 아래에 본문을 둔다. 본문은 **길이대로 다 보인다** — 잘리지 않는다.
+/// Figma 의 normal/half/full 상태는 본문 길이 차이일 뿐 한 컴포넌트다.
+///
+/// > 시안(`comment` 4942:209197 `Component 21`)은 본문+날짜를 `max-h 140` 으로 묶어 놓았지만, 그 상한을
+/// > 그대로 구현하면 6줄 뒤가 **말줄임도 「더보기」도 없이 사라져** 사용자에게는 글이 누락된 것으로 보인다.
+/// > 입력은 200자까지 받으므로 길게 쓴 코멘트가 상당 부분 안 보인다. 상한을 걷어내기로 확정(2026-09-09).
 ///
 /// > 본문 색은 Figma 가 raw `#000000` 을 쓰지만, 라이트에서 사실상 동일하고 다크 대응을 위해 `Label/Normal`
 /// > 토큰으로 매핑했다.
@@ -21,10 +25,10 @@ import SwiftUI
 /// > 육안 확인**된다.
 ///
 /// > **`dateText`**: 코멘트 작성 시각 표기(예: "3일 전" · "2027.01.01"). Figma `comment`(4942:209197):
-/// > 본문과 **한 컨테이너(gap 4, max-h 140)** 에 담겨 본문 아래 **우측 정렬**, `Caption 2/Regular`(11pt) ·
-/// > `Label/Alternative`. 컨테이너 상한을 본문과 나눠 쓰므로 날짜가 있으면 본문 클립이 그만큼 줄고 전체
-/// > 높이는 같다. `nil` 이면 그 행 자체를 그리지 않는다. 문자열 계산(상대/절대 표기 규칙)은 DS 몫이 아니라
-/// > 호출부가 만들어 넘긴다(``CommentDateText``, PlaceDetailUI).
+/// > 본문과 **한 컨테이너(gap 4)** 에 담겨 본문 아래 **우측 정렬**, `Caption 2/Regular`(11pt) ·
+/// > `Label/Alternative`. 시안의 컨테이너 상한(`max-h 140`)은 위와 같은 이유로 쓰지 않으므로, 날짜가
+/// > 있으면 그 행만큼 전체 높이가 늘어난다. `nil` 이면 그 행 자체를 그리지 않는다. 문자열 계산(상대/절대
+/// > 표기 규칙)은 DS 몫이 아니라 호출부가 만들어 넘긴다(``CommentDateText``, PlaceDetailUI).
 ///
 /// ```swift
 /// MHComment(avatar: Image("me"), name: "이름", comment: "친구가 남긴 코멘트입니다.")
@@ -39,7 +43,6 @@ public struct MHComment: View {
     private let name: String
     private let comment: String
     private let dateText: String?
-    private let maxBodyHeight: CGFloat
     private let menuItems: [MHMenuItem]
     private let externalMenuPresented: Binding<Bool>?
     private let moreButtonLabel: String
@@ -52,7 +55,6 @@ public struct MHComment: View {
         name: String,
         comment: String,
         dateText: String? = nil,
-        maxBodyHeight: CGFloat = 140,
         menuItems: [MHMenuItem] = [],
         menuPresented: Binding<Bool>? = nil,
         moreButtonLabel: String = "더보기",
@@ -62,7 +64,6 @@ public struct MHComment: View {
         self.name = name
         self.comment = comment
         self.dateText = dateText
-        self.maxBodyHeight = maxBodyHeight
         self.menuItems = menuItems
         self.externalMenuPresented = menuPresented
         self.moreButtonLabel = moreButtonLabel
@@ -70,13 +71,6 @@ public struct MHComment: View {
     }
 
     private var hasMenu: Bool { !menuItems.isEmpty }
-
-    /// 본문 클립 상한. 날짜가 있으면 `maxBodyHeight` 를 날짜 행(gap 4 + 캡션 한 줄 ≈ 14)과 나눠 쓴다 —
-    /// Figma 가 본문·날짜를 한 컨테이너(max-h 140)에 넣기 때문이다. 없으면 본문이 전부 쓴다.
-    private var bodyMaxHeight: CGFloat {
-        guard dateText != nil else { return maxBodyHeight }
-        return maxBodyHeight - Metric.dateGap - MHTypography.caption2Regular.lineHeight
-    }
 
     // 외부 바인딩이 있으면 그걸, 없으면 내부 상태를 여닫음 소스로 쓴다.
     private var menuPresented: Binding<Bool> {
@@ -96,16 +90,14 @@ public struct MHComment: View {
                 }
             }
             // 본문 + 작성 시각 — Figma `comment`(4942:209197)의 `Component 21`: 둘이 한 컨테이너에
-            // gap 4 로 묶이고 그 컨테이너가 max-h 140 이다. 그래서 날짜가 있으면 본문 클립 상한이
-            // 그만큼(4 + 캡션 한 줄) 줄어들고, 전체 높이는 날짜 유무와 무관하게 같다(full = 182).
+            // gap 4 로 묶인다. 시안의 max-h 140 은 적용하지 않는다(위 주석 참조).
             VStack(spacing: Metric.dateGap) {
                 Text(comment)
                     .lineLimit(nil)                        // Text→View + 줄 수 무제한(뒤 .mhTypography 가 행간 박스를 얻게)
                     .mhTypography(.label1NormalRegular)
                     .foregroundStyle(.mhLabelNormal)
-                    .fixedSize(horizontal: false, vertical: true)   // 전체 높이로 레이아웃 → 말줄임(…) 대신 하드 클립
-                    .frame(maxWidth: .infinity, maxHeight: bodyMaxHeight, alignment: .topLeading)
-                    .clipped()
+                    .fixedSize(horizontal: false, vertical: true)   // 줄 수만큼 높이를 다 쓴다
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
                 if let dateText {
                     // 시안: Caption 2/Regular(11pt) · Label/Alternative · 우측 정렬
                     Text(dateText)
@@ -199,7 +191,7 @@ public struct MHComment: View {
     let long = String(repeating: "친구가 남긴 코멘트입니다.", count: 20)
     return VStack(alignment: .leading, spacing: 24) {
         MHComment(avatar: nil, name: "이름", comment: short)
-        MHComment(avatar: nil, name: "이름", comment: long)   // 140pt 에서 잘림
+        MHComment(avatar: nil, name: "이름", comment: long)   // 잘리지 않고 끝까지 보인다
     }
     .frame(width: 335)
     .padding()
