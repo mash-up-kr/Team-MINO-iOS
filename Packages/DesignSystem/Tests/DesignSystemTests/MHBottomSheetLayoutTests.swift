@@ -110,19 +110,19 @@ final class MHBottomSheetLayoutTests: XCTestCase {
     func testContentBottomExtensionCoversHomeIndicatorAtEveryDetent() {
         // full 의 높이도 safe area 안 컨테이너 높이라 full 에서만 빼면 리스트 바닥에 흰 띠가 남는다.
         XCTAssertEqual(
-            MHBottomSheetLayout.contentBottomExtension(extendsBelowSafeArea: true, safeAreaBottom: 34), 34
+            MHBottomSheetLayout.contentBottomExtension(extendsBelowSafeArea: true, safeAreaBottom: 34, isKeyboardVisible: false), 34
         )
     }
 
     func testContentBottomExtensionIsZeroWhenDisabled() {
         XCTAssertEqual(
-            MHBottomSheetLayout.contentBottomExtension(extendsBelowSafeArea: false, safeAreaBottom: 34), 0
+            MHBottomSheetLayout.contentBottomExtension(extendsBelowSafeArea: false, safeAreaBottom: 34, isKeyboardVisible: false), 0
         )
     }
 
     func testContentBottomExtensionIgnoresNegativeInset() {
         XCTAssertEqual(
-            MHBottomSheetLayout.contentBottomExtension(extendsBelowSafeArea: true, safeAreaBottom: -1), 0
+            MHBottomSheetLayout.contentBottomExtension(extendsBelowSafeArea: true, safeAreaBottom: -1, isKeyboardVisible: false), 0
         )
     }
 
@@ -145,5 +145,20 @@ final class MHBottomSheetLayoutTests: XCTestCase {
     func testDiagonalTieGoesToContent() {
         XCTAssertFalse(MHBottomSheetLayout.isSheetDrag(dx: 20, dy: 20))
         XCTAssertFalse(MHBottomSheetLayout.isSheetDrag(dx: -20, dy: 20))
+    }
+
+    /// 회귀 방지 — safeAreaInsets.bottom 은 키보드가 올라오면 그 높이까지 포함한다(실측 34 → 380).
+    /// 그대로 확장량으로 쓰면 콘텐츠 상자가 키보드 밑으로 내려가 입력칸이 통째로 가려졌다
+    /// (장소 상세 코멘트 입력에서 재현).
+    func testNoExtensionWhileKeyboardVisible() {
+        XCTAssertEqual(
+            MHBottomSheetLayout.contentBottomExtension(
+                extendsBelowSafeArea: true, safeAreaBottom: 380, isKeyboardVisible: true
+            ), 0)
+        // 키보드가 내려가면 다시 인디케이터 몫을 채운다
+        XCTAssertEqual(
+            MHBottomSheetLayout.contentBottomExtension(
+                extendsBelowSafeArea: true, safeAreaBottom: 34, isKeyboardVisible: false
+            ), 34)
     }
 }

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// 바텀시트 높이 단계. `low`(최저) → `medium`(중간) → `full`(전체 화면).
 public enum MHBottomSheetDetent: CaseIterable, Equatable, Sendable {
@@ -41,8 +42,18 @@ struct MHBottomSheetLayout: Equatable {
     /// **full 도 늘린다.** full 의 높이(``height(of:)``)는 safe area 안의 컨테이너 높이라 상자
     /// 바닥이 홈 인디케이터 위에서 끝난다 — 늘리지 않으면 리스트가 거기서 잘리고, 그 아래
     /// 인디케이터 몫은 흰 표면만 남는다(방 상세 full 에서 실기기·시뮬레이터 재현).
-    static func contentBottomExtension(extendsBelowSafeArea: Bool, safeAreaBottom: CGFloat) -> CGFloat {
-        extendsBelowSafeArea ? max(0, safeAreaBottom) : 0
+    ///
+    /// **키보드가 올라오면 0 이다.** `safeAreaInsets.bottom` 은 키보드 높이까지 포함해서(실측 34 → 380)
+    /// 그대로 쓰면 콘텐츠 상자가 키보드 밑으로 그만큼 내려가 입력칸이 가려진다(장소 상세 코멘트에서
+    /// 재현). 키보드가 올라오면 시트 자체가 그 위로 줄어들어(컨테이너 759 → 413) 채울 인디케이터
+    /// 자리도 없다 — 확장은 시트가 화면 바닥에 닿아 있을 때만 의미가 있다.
+    static func contentBottomExtension(
+        extendsBelowSafeArea: Bool,
+        safeAreaBottom: CGFloat,
+        isKeyboardVisible: Bool
+    ) -> CGFloat {
+        guard extendsBelowSafeArea, !isKeyboardVisible else { return 0 }
+        return max(0, safeAreaBottom)
     }
 
     /// 이 드래그를 **시트 이동**으로 받을지 — 세로가 우세할 때만.
@@ -134,6 +145,10 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
     /// 이 제스처가 시트 몫인가(세로 우세). **시작에 한 번만 정하고** 끝까지 유지한다 —
     /// 도중에 방향이 바뀌었다고 주인이 넘어가면 캐러셀을 넘기다 시트가 끌려온다.
     @State private var dragIsSheetDrag: Bool?
+
+    /// 키보드가 떠 있는가. `safeAreaInsets` 로는 홈 인디케이터와 키보드를 가릴 수 없어
+    /// (둘 다 bottom 으로 합산돼 들어온다) UIKit 알림으로 직접 받는다.
+    @State private var isKeyboardVisible = false
 
     /// onEnded 정상 종료 표시 — 취소-정리 경로의 이중 스냅 방지 (onChange(isDragging) 참조)
     @State private var dragEndedNormally = false
@@ -230,7 +245,8 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
 
             let bottomExtension = MHBottomSheetLayout.contentBottomExtension(
                 extendsBelowSafeArea: extendsContentBelowSafeArea,
-                safeAreaBottom: geometry.safeAreaInsets.bottom
+                safeAreaBottom: geometry.safeAreaInsets.bottom,
+                isKeyboardVisible: isKeyboardVisible
             )
 
             sheet(height: height, isFull: isFull, bottomExtension: bottomExtension)
@@ -239,6 +255,12 @@ public struct MHBottomSheet<ID: Hashable, Content: View>: View {
                 // simultaneous 여야 스크롤 콘텐츠 위에서도 드래그를 받는다 —
                 // full 에서 리스트 스크롤과의 구분은 onChanged 의 핸드오프 게이팅이 담당
                 .simultaneousGesture(dragGesture(layout: layout))
+                .onReceive(NotificationCenter.default.publisher(
+                    for: UIResponder.keyboardWillShowNotification
+                )) { _ in isKeyboardVisible = true }
+                .onReceive(NotificationCenter.default.publisher(
+                    for: UIResponder.keyboardWillHideNotification
+                )) { _ in isKeyboardVisible = false }
                 .onChange(of: isDragging) { _, dragging in
                     // 시스템이 제스처를 취소하면(전화 수신 등) onEnded 없이 isDragging 만 리셋된다 —
                     // 잔류 오프셋을 스냅으로 정리. 한 틱 미뤄 onEnded 와의 실행 순서 의존을 없앤다.
