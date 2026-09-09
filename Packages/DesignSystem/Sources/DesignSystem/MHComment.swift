@@ -25,10 +25,10 @@ import SwiftUI
 /// > 육안 확인**된다.
 ///
 /// > **`dateText`**: 코멘트 작성 시각 표기(예: "3일 전" · "2027.01.01"). Figma `comment`(4942:209197):
-/// > 본문과 **한 컨테이너(gap 4, max-h 140)** 에 담겨 본문 아래 **우측 정렬**, `Caption 2/Regular`(11pt) ·
-/// > `Label/Alternative`. 컨테이너 상한을 본문과 나눠 쓰므로 날짜가 있으면 본문 클립이 그만큼 줄고 전체
-/// > 높이는 같다. `nil` 이면 그 행 자체를 그리지 않는다. 문자열 계산(상대/절대 표기 규칙)은 DS 몫이 아니라
-/// > 호출부가 만들어 넘긴다(``CommentDateText``, PlaceDetailUI).
+/// > 본문과 **한 컨테이너(gap 4)** 에 담겨 본문 아래 **우측 정렬**, `Caption 2/Regular`(11pt) ·
+/// > `Label/Alternative`. 시안의 컨테이너 상한(`max-h 140`)은 위와 같은 이유로 쓰지 않으므로, 날짜가
+/// > 있으면 그 행만큼 전체 높이가 늘어난다. `nil` 이면 그 행 자체를 그리지 않는다. 문자열 계산(상대/절대
+/// > 표기 규칙)은 DS 몫이 아니라 호출부가 만들어 넘긴다(``CommentDateText``, PlaceDetailUI).
 ///
 /// ```swift
 /// MHComment(avatar: Image("me"), name: "이름", comment: "친구가 남긴 코멘트입니다.")
@@ -191,7 +191,7 @@ public struct MHComment: View {
     let long = String(repeating: "친구가 남긴 코멘트입니다.", count: 20)
     return VStack(alignment: .leading, spacing: 24) {
         MHComment(avatar: nil, name: "이름", comment: short)
-        MHComment(avatar: nil, name: "이름", comment: long)   // 140pt 에서 잘림
+        MHComment(avatar: nil, name: "이름", comment: long)   // 잘리지 않고 끝까지 보인다
     }
     .frame(width: 335)
     .padding()
