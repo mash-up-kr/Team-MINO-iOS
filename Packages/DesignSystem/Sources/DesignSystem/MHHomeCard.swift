@@ -197,10 +197,18 @@ public struct MHHomeCard: View {
             images[index].resizable().scaledToFill()
         case .remote(let urls) where index < urls.count:
             AsyncImage(url: urls[index]) { phase in
-                // 로딩 중·실패는 그리지 않는다 — 자리표는 타일 자신의 배경이라
-                // 어느 단계에서도 자리가 비지 않는다.
-                if case .success(let image) = phase {
+                switch phase {
+                case .success(let image):
                     image.resizable().scaledToFill()
+                case .empty:
+                    // 받는 중 — 회색 자리표 위에 스피너를 얹어 "사진이 오고 있다" 를 알린다.
+                    // 안 그러면 사진이 없는 핀과 구분되지 않는다(실기기 피드백).
+                    MHSpinner()
+                case .failure:
+                    // 실패는 회색 자리표만 남긴다 — 자리표는 타일 자신의 배경이라 자리가 비지 않는다.
+                    EmptyView()
+                @unknown default:
+                    EmptyView()
                 }
             }
         default:
