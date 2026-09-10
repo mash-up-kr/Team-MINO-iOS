@@ -47,6 +47,17 @@ private struct StubCreateRoom: CreateRoomUseCase {
     }
 }
 
+/// 편집 요청을 받은 대로 되돌려 준다 — 서버가 반영한 값이 그대로 온 셈이다.
+private struct StubUpdateRoom: UpdateRoomUseCase {
+    func execute(roomId: String, name: String, description: String?, color: RoomColor) async throws -> Room {
+        Room(
+            id: roomId, type: .shared, name: name, description: description, color: color,
+            ownerId: "u1", createdAt: Date(timeIntervalSince1970: 0),
+            pinCount: 3, memberCount: 2, users: []
+        )
+    }
+}
+
 private struct StubShareTargets: FetchShareTargetsUseCase {
     func execute(placeID: PlaceID) async throws -> [ShareTarget] { [] }
 }
@@ -82,6 +93,7 @@ private struct StubFetchInviteCode: FetchInviteCodeUseCase {
 
 private struct StubArchiveDeps: ArchiveDeps {
     var fetchRooms: FetchRoomsUseCase = StubFetchRooms()
+    var updateRoom: UpdateRoomUseCase = StubUpdateRoom()
     var fetchRoomPins: FetchRoomPinsUseCase = StubFetchRoomPins()
     var fetchPinDetail: FetchPinDetailUseCase = StubFetchPinDetail()
     var createRoom: CreateRoomUseCase = StubCreateRoom()
@@ -451,6 +463,74 @@ struct ArchiveCoordinatorTests {
 
         await waitUntil { coordinator.path.isEmpty }
         #expect(coordinator.path.isEmpty)
+    }
+
+    // MARK: - 방 편집 (004-5, 방장만)
+
+    @Test("케밥의 방 편집은 고칠 방을 쥐고 편집 화면을 push 한다")
+    func editRoom_pushesFormWithRoom() {
+        let coordinator = makeCoordinator()
+        coordinator.handle(.openRoomDetail(fixtureRoom))
+
+        coordinator.handle(RoomDetailNav.editRoom(fixtureRoom))
+
+        #expect(coordinator.path == [.editRoom])
+        #expect(coordinator.editingRoom == fixtureRoom)
+        #expect(coordinator.isFullBleedContentPresented)
+    }
+
+    // 편집 폼은 기존 값에서 시작한다 — 빈 폼이 뜨면 저장이 이름을 통째로 날린다.
+    @Test("편집 Store 는 그 방의 현재 값으로 열린다")
+    func editRoomStore_isPrefilled() {
+        let coordinator = makeCoordinator()
+
+        let store = coordinator.makeEditRoomStore(room: fixtureRoom)
+
+        #expect(store.state.mode == .edit)
+        #expect(store.state.roomName == fixtureRoom.name)
+        #expect(store.state.roomDescription == fixtureRoom.description)
+    }
+
+    // 목록에는 고치기 **전** 값이 들어 있다. 그걸로 열면 방금 고친 이름이 옛것으로 보인다 —
+    // 그래서 생성(`createdRoomID`)과 달리 재조회를 기다리는 경로로 보낸다.
+    @Test("편집 저장은 pop 하고 재조회 뒤 다시 열 방을 예약한다")
+    func editSubmit_popsAndSchedulesReopen() {
+        let coordinator = makeCoordinator()
+        coordinator.handle(.openRoomDetail(fixtureRoom))
+        coordinator.handle(RoomDetailNav.editRoom(fixtureRoom))
+
+        coordinator.handle(RoomFormNav.didSubmit(roomId: fixtureRoom.id))
+
+        #expect(coordinator.path.isEmpty)
+        #expect(coordinator.editingRoom == nil)
+        #expect(coordinator.consumeCreatedRoomID() == nil)   // 만든 게 아니라 고친 것이다
+        #expect(coordinator.consumeEditedRoomID() == fixtureRoom.id)
+        #expect(coordinator.consumeEditedRoomID() == nil)    // 한 번의 편집으로 두 번 열지 않는다
+    }
+
+    @Test("편집을 취소하면 쥐고 있던 방을 놓는다")
+    func editCancel_releasesRoom() {
+        let coordinator = makeCoordinator()
+        coordinator.handle(RoomDetailNav.editRoom(fixtureRoom))
+
+        coordinator.handle(RoomFormNav.didCancel)
+
+        #expect(coordinator.path.isEmpty)
+        #expect(coordinator.editingRoom == nil)
+        #expect(coordinator.consumeEditedRoomID() == nil)
+    }
+
+    @Test("배선 — 편집 Store 의 저장이 pop 과 재조회 예약까지 잇는다")
+    func editRoomStore_isWiredToReopen() async {
+        let coordinator = makeCoordinator()
+        coordinator.handle(RoomDetailNav.editRoom(fixtureRoom))
+
+        let store = coordinator.makeEditRoomStore(room: fixtureRoom)
+        store.send(.roomNameChanged("이름 바꾼 방"))
+        store.send(.tapSubmit)   // 편집은 확인 다이얼로그 없이 곧장 저장한다
+
+        await waitUntil { coordinator.path.isEmpty }
+        #expect(coordinator.consumeEditedRoomID() == fixtureRoom.id)
     }
 
     // MARK: - 저장된 방 (005-1 ⑮ → 014)

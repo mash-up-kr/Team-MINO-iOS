@@ -11,6 +11,12 @@ import SwiftUI
 public enum ArchiveRoute: Hashable {
     /// 공동방 만들기 (RoomCreationUI.RoomFormView) — 유도 시트·빈 상태 CTA·헤더 "+" 진입.
     case createRoom
+    /// 방 편집 (같은 `RoomFormView` 의 편집 모드) — 방 상세 케밥 진입, 방장만.
+    ///
+    /// 고칠 방은 연관값이 아니라 ``ArchiveCoordinator/editingRoom`` 으로 든다. `Route` 는
+    /// `Hashable` 을 요구하는데 `Room` 은 아니고, `invitingRoom`·`sharingLocation` 도 같은
+    /// 관례다 — Route 는 목적지만 가리키고 페이로드는 Coordinator 가 쥔다.
+    case editRoom
 }
 
 /// 지도 카메라를 내 위치로 옮겨 달라는 요청(005-1 현위치 버튼).
@@ -86,6 +92,9 @@ public final class ArchiveCoordinator: Coordinator {
     /// 연달아 고르면 앞 조회를 취소한다 — 늦게 도착한 응답이 나중에 고른 방을 덮어쓰지 않도록.
     /// 표시에 쓰이지 않아 관찰 대상이 아니다.
     @ObservationIgnored private var savedRoomPinTask: Task<Void, Never>?
+
+    /// 편집하러 들어간 방(``ArchiveRoute/editRoom``). push 하기 직전에 세우고, 돌아오면 비운다.
+    var editingRoom: Room?
 
     /// 친구 초대 시트(004-4-2)를 띄울 방. 방 자체가 표시 항목이다(`Room` 이 `Identifiable`).
     ///
@@ -178,6 +187,19 @@ public final class ArchiveCoordinator: Coordinator {
         )
     }
 
+    /// 방 편집 Store 팩토리 — 만들기와 **같은 화면**의 편집 모드다(제목·CTA 문구와 확인 절차만 갈린다).
+    ///
+    /// 고칠 방을 프로퍼티에서 읽지 않고 **인자로 받는다**: 화면이 뜨는 시점과 `editingRoom` 이
+    /// 비는 시점이 어긋나면 `.edit` 이 아니라 `.create` 로 떨어질 자리가 생기는데, 그러면 "방 편집"
+    /// 제목 아래 빈 폼이 떠서 저장이 **새 방을 만들어** 버린다. 없으면 아예 만들지 않는 편이 낫다
+    /// (그 판단은 ``ArchiveTabView`` 가 한다).
+    func makeEditRoomStore(room: Room) -> RoomFormStore {
+        RoomCreationUI.makeRoomFormStore(
+            .edit(room: room, update: deps.updateRoom),
+            handle: { [weak self] in self?.handle($0) }
+        )
+    }
+
     /// 친구 초대 시트(004-4-2) Store 팩토리.
     ///
     /// 온보딩(009-1)과 **같은 Store 를 쓴다** — 초대 코드 발급·링크 조립·복사는 진입점과 무관하고,
@@ -211,10 +233,16 @@ public final class ArchiveCoordinator: Coordinator {
         // spec FR-007 — 만들었으면 방 리스트를 스쳐 그 방 상세로 간다. 여기서는 id 만 세워 두고,
         // 실제 전환은 방 리스트가 재조회로 그 방을 받은 뒤에 낸다(``RoomListAction/openCreatedRoom``).
         case .didSubmit(let roomId):
-            createdRoomID = roomId
+            if editingRoom != nil {
+                editingRoom = nil
+                editedRoomID = roomId
+            } else {
+                createdRoomID = roomId
+            }
             pop()
         case .didCancel, .didSkip:
             // 저장은 폼이 이미 끝냈다 — 여기 오면 서버에 반영된 뒤다. 취소도 같은 자리로 돌아간다.
+            editingRoom = nil
             pop()
         }
     }
@@ -236,11 +264,12 @@ public final class ArchiveCoordinator: Coordinator {
             selectedPin = pin
         case .inviteFriends(let room):
             invitingRoom = room
-        case .editRoom, .leaveRoom:
+        case .editRoom(let room):
+            editingRoom = room
+            push(.editRoom)
+        case .leaveRoom:
             // 아직 갈 곳이 없다 — 비워 둔 것이 아니라 도착 화면이 이 PR 범위 밖이다.
-            // 방 편집(시안 004-5 방편집_방장)·방 나가기(004-5 나가기_방장 / 나가기_방멤버)는
-            // 다른 담당자(유빈·윤지) 스펙이라 그 화면이 생기는 PR 에서 여기에 전환을 붙인다.
-            // 그때까지 헤더 케밥은 항목만 닫고 아무 데도 가지 않는다.
+            // 방 나가기(004-5 나가기_방장 / 나가기_방멤버)는 후속 PR 에서 붙인다.
             break
         }
     }
@@ -313,6 +342,7 @@ public final class ArchiveCoordinator: Coordinator {
         savedRooms = nil
         shareCreateRoomChild = nil
         invitingRoom = nil
+        editingRoom = nil
     }
 
     /// 014 ② "클릭 시, 해당 방의 장소상세로 이동한다" — 시트를 닫고 방과 장소를 **함께** 갈아끼운다.
@@ -374,6 +404,20 @@ public final class ArchiveCoordinator: Coordinator {
     /// 방 전체가 아니라 id 만 드는 이유는 만들기 화면이 id 만 돌려주기 때문이다
     /// (``RoomFormNav/didSubmit(roomId:)``). 상세는 멤버·장소 수까지 필요해 재조회 응답에서 찾는다.
     private(set) var createdRoomID: String?
+
+    /// 방금 **고친** 방 id — 껍데기가 방 리스트에 넘겨, 목록을 다시 받은 뒤 그 방 상세를 새 값으로
+    /// 다시 연다.
+    ///
+    /// 생성(``createdRoomID``)과 나눠 두는 이유는 지금 손에 있는 목록을 대하는 태도가 다르기
+    /// 때문이다. 만든 방은 그 목록에 아예 없어 곧장 "다음 응답에 열기" 예약으로 넘어가지만,
+    /// **고친 방은 목록에 있는데 값이 낡았다** — 그대로 열면 방금 고친 이름이 옛것으로 보인다.
+    private(set) var editedRoomID: String?
+
+    /// 방금 고친 방 id 를 읽고 지운다. 두 번째 호출은 `nil` — 한 번의 편집으로 재조회가 두 번 나가지 않는다.
+    func consumeEditedRoomID() -> String? {
+        defer { editedRoomID = nil }
+        return editedRoomID
+    }
 
     /// 공유 완료 신호를 읽고 지운다. 두 번째 호출은 `false` — 같은 저장으로 토스트가 두 번 뜨지 않는다.
     func consumeSavedShare() -> Bool {

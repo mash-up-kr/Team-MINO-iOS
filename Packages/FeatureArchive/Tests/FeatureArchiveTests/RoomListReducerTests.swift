@@ -416,6 +416,29 @@ struct RoomListReducerTests {
         store.finish()
     }
 
+    // 편집은 생성과 다르다: 고친 방은 **이미 목록에 있는데 값이 낡았다.** 곧바로 열면 방금
+    // 고친 이름이 그대로 옛것으로 보이므로, 목록에 있어도 재조회를 기다린다.
+    @Test("004-5 — 고친 방은 목록에 있어도 재조회를 기다렸다 연다")
+    func reopenEditedRoom_waitsEvenWhenLoaded() async {
+        let store = makeStore(state: RoomListState(rooms: fixtureRooms))
+
+        await store.send(.reopenEditedRoom("r2")) { $0.pendingOpenRoomID = "r2" }
+
+        // 지금 손에 있는 목록으로는 열지 않는다 — 이 시점에 nav 가 나가면 옛 이름이 뜬다.
+        let renamed = Room(
+            id: "r2", type: .shared, name: "이름 바꾼 방", description: nil, color: .blue,
+            ownerId: "u1", createdAt: Date(timeIntervalSince1970: 0),
+            pinCount: 3, memberCount: 2, users: []
+        )
+        await store.send(.loaded([fixtureRooms[0], renamed], pins: fixturePins, isPromptSnoozed: true)) {
+            $0.pins = fixturePins
+            $0.rooms = [fixtureRooms[0], renamed]
+            $0.pendingOpenRoomID = nil
+        }
+        store.receiveNavigation(.openRoomDetail(renamed))
+        store.finish()
+    }
+
     // 방을 만든 직후라 유도 시트가 뜰 이유가 없다 — 상세로 넘어가는 길에 시트가 겹치면 안 된다.
     @Test("FR-007 — 상세로 넘어가는 응답은 유도 시트를 띄우지 않는다")
     func openCreatedRoom_doesNotShowCreatePrompt() async {
