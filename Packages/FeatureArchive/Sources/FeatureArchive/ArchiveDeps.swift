@@ -23,6 +23,9 @@ public protocol ArchiveDeps: RoomShareCreateRoomDeps, PlaceDetailDeps {
     var deletePin: DeletePinUseCase { get }
     /// 방 상세 거리순 정렬(004-1 ⑥) 의 기준점 — "내 기준 3km" 를 재려면 내 위치가 있어야 한다.
     var currentLocation: CurrentLocationUseCase { get }
+    /// 저장 탭 최초 진입의 권한 묶음 — 위치를 묻고, 그 팝업이 실제로 뜬 경우에만 알림도 잇는다.
+    /// 업데이트 사용자(위치가 이미 결정됨)는 여기가 아니라 마이페이지 진입에서 묻는다.
+    var entryPermissions: RequestEntryPermissionsUseCase { get }
     /// 공동방 생성 유도 시트를 "나중에 만들래요" 로 미뤄 둔 상태(2주). 서버가 모르는 기기 로컬
     /// 표시 정책이라 UseCase 가 아니라 ``SnoozeSwitch`` 를 그대로 받는다.
     var roomCreationPromptSnooze: SnoozeSwitch { get }

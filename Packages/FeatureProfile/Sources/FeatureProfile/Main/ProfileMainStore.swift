@@ -65,9 +65,18 @@ public enum ProfileMainAction: Equatable {
     case profileLoaded(Profile)          // Response Action (성공)
     case profileLoadFailed(DomainError)  // Response Action (실패)
 
+    /// 진입 시 알림 권한을 한 번 묻는다 — **아직 묻지 않은 사용자에게만**.
+    ///
+    /// 마이페이지가 이 자리를 맡는 이유는 **업데이트 사용자** 때문이다. 새로 설치한 사용자는 저장 탭
+    /// 최초 진입에서 위치 팝업과 함께 묻지만(``RequestEntryPermissionsUseCase``), 이미 쓰던 사용자는
+    /// 위치를 진작 정해 둬서 그 자리에 팝업이 뜨지 않는다. 그들에게는 설정 화면인 여기가 가장 맥락이
+    /// 분명한 자리다 — 바로 아래에 그 스위치가 있다.
+    case requestNotificationPermissionOnEntry
     /// 진입·복귀 시 두 스위치를 실제 상태와 재동기화(FR-009).
     case syncSwitches
     case switchesSynced(isNotificationOn: Bool, isLocationOn: Bool)
+    /// 진입 요청이 끝났다(허용·거부·애초에 안 물음 모두). Response Action.
+    case notificationPermissionRequested
 
     case setNotification(Bool)
     case notificationActivated(PermissionActivation)   // 켜기 결과
@@ -101,6 +110,7 @@ public typealias ProfileMainStore = Store<ProfileMainState, ProfileMainAction, P
 public func profileMainReducer(
     fetchProfile: FetchProfileUseCase,
     notification: NotificationSettingUseCase,
+    requestNotificationPermission: RequestNotificationPermissionUseCase,
     location: LocationSettingUseCase
 ) -> (inout ProfileMainState, ProfileMainAction) -> Effect<ProfileMainAction, ProfileMainNav> {
     { state, action in
@@ -128,6 +138,20 @@ public func profileMainReducer(
         // 한 번도 못 읽었으면 초기값이 이미 비어 있어 "프로필 영역만 빈" 표시가 그대로 유지된다.
         case .profileLoadFailed:
             return .none
+
+        // 요청이 끝나면 `.syncSwitches` 로 이어 스위치를 실제 상태에 맞춘다 — 허용했으면 여기서 ON 이
+        // 된다. 그동안 `busy` 를 세워, 나란히 도는 진입 재조회가 팝업 이전 값으로 덮어쓰지 않게 한다.
+        case .requestNotificationPermissionOnEntry:
+            guard !state.isNotificationBusy else { return .none }
+            state.isNotificationBusy = true
+            return .run { send in
+                await requestNotificationPermission.execute()
+                send(.notificationPermissionRequested)
+            }
+
+        case .notificationPermissionRequested:
+            state.isNotificationBusy = false
+            return .run { send in send(.syncSwitches) }
 
         case .syncSwitches:
             return .run { send in

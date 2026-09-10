@@ -8,16 +8,55 @@ struct ProfileMainReducerTests {
     private func makeStore(
         fetchProfile: FetchProfileUseCase = StubFetchProfileUseCase(),
         notification: NotificationSettingUseCase = StubNotificationSettingUseCase(),
-        location: LocationSettingUseCase = StubLocationSettingUseCase()
+        requestNotificationPermission: RequestNotificationPermissionUseCase = SpyRequestNotificationPermission(),
+        location: LocationSettingUseCase = StubLocationSettingUseCase(),
+        state: ProfileMainState = ProfileMainState()
     ) -> TestStore<ProfileMainState, ProfileMainAction, ProfileMainNav> {
         TestStore(
-            ProfileMainState(),
+            state,
             reduce: profileMainReducer(
                 fetchProfile: fetchProfile,
                 notification: notification,
+                requestNotificationPermission: requestNotificationPermission,
                 location: location
             )
         )
+    }
+
+    // MARK: - 진입 시 알림 권한 요청 (업데이트 사용자의 진입점)
+
+    @Test("L2 — 진입하면 알림 권한을 한 번 묻고, 끝나면 스위치를 실제 상태에 맞춘다")
+    func requestNotificationPermissionOnEntry_asksThenSyncs() async {
+        let permission = SpyRequestNotificationPermission()
+        // 팝업에서 허용한 상황 — 요청 뒤의 재동기화가 스위치를 ON 으로 올려야 한다.
+        let store = makeStore(
+            notification: StubNotificationSettingUseCase(isOn: true),
+            requestNotificationPermission: permission
+        )
+
+        await store.send(.requestNotificationPermissionOnEntry) { $0.isNotificationBusy = true }
+        await store.receive(.notificationPermissionRequested) { $0.isNotificationBusy = false }
+        await store.receive(.syncSwitches)
+        await store.receive(.switchesSynced(isNotificationOn: true, isLocationOn: false)) {
+            $0.isNotificationOn = true
+        }
+
+        #expect(permission.callCount == 1)
+        store.finish()
+    }
+
+    // 스위치를 켜고 끄는 중에 진입 재조회가 겹치면 방금 확정된 값이 덮인다(기존 busy 규칙과 같은 이유).
+    @Test("L1 — 스위치 요청이 진행 중이면 진입 요청을 내지 않는다")
+    func requestNotificationPermissionOnEntry_whileBusy_ignored() async {
+        let permission = SpyRequestNotificationPermission()
+        var busy = ProfileMainState()
+        busy.isNotificationBusy = true
+        let store = makeStore(requestNotificationPermission: permission, state: busy)
+
+        await store.send(.requestNotificationPermissionOnEntry)
+
+        #expect(permission.callCount == 0)
+        store.finish()
     }
 
     // MARK: - 프로필 조회 (FR-001 / FR-003)

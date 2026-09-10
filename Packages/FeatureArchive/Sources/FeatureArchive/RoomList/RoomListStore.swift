@@ -158,7 +158,8 @@ public func roomListReducer(
     useCase: FetchRoomsUseCase,
     fetchPins: FetchRoomPinsUseCase,
     promptSnooze: SnoozeSwitch,
-    currentLocation: CurrentLocationUseCase
+    currentLocation: CurrentLocationUseCase,
+    entryPermissions: RequestEntryPermissionsUseCase
 ) -> (inout RoomListState, RoomListAction) -> Effect<RoomListAction, RoomListNav> {
     { state, action in
         switch action {
@@ -311,8 +312,10 @@ public func roomListReducer(
             guard state.myCoordinate == nil, !state.isLocating, !state.isLocatingForSort else {
                 return .none
             }
+            // 위치만이 아니라 **진입 권한 묶음**을 부른다 — 위치 팝업이 실제로 뜨는 경우에만
+            // 알림까지 이어 묻는 규칙은 Domain 이 갖는다(``RequestEntryPermissionsUseCase``).
             return .run { send in
-                let result = await currentLocation.execute()
+                let result = await entryPermissions.execute()
                 guard !Task.isCancelled else { return }
                 send(.entryLocationResolved(result))
             }
