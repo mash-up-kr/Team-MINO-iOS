@@ -46,6 +46,7 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
     let recordPinAccess: RecordPinAccessUseCase
     let updateProfile: UpdateProfileUseCase
     let notificationSetting: NotificationSettingUseCase
+    let entryPermissions: RequestEntryPermissionsUseCase
     let locationSetting: LocationSettingUseCase
     /// 방 상세 거리순 정렬(004-1 ⑥)의 기준점 — "내 기준 3km" 를 재려면 내 위치가 있어야 한다.
     let currentLocation: CurrentLocationUseCase
@@ -194,18 +195,31 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
         ))
         self.pushTokenSync = pushTokenSync
 
-        self.notificationSetting = DefaultNotificationSettingUseCase(
+        let notificationSetting = DefaultNotificationSettingUseCase(
             permissions: permissions,
             settings: appSettings,
             push: pushRegistration
         )
+        self.notificationSetting = notificationSetting
         self.locationSetting = DefaultLocationSettingUseCase(permissions: permissions)
 
         // 1회 측위는 권한 저장소와 CLLocationManager 를 나눠 갖는다 — 이유는
         // SystemCurrentLocationRepository 주석(한 delegate 에 두 종류 콜백을 얹지 않는다).
-        self.currentLocation = DefaultCurrentLocationUseCase(
+        let currentLocation = DefaultCurrentLocationUseCase(
             permissions: permissions,
             location: SystemCurrentLocationRepository()
+        )
+        self.currentLocation = currentLocation
+
+        // 저장 탭 최초 진입: 위치 팝업이 실제로 뜨는 경우(= 새 설치)에만 알림까지 이어 묻는다.
+        // 허용 뒤 처리(발송 설정 ON · 푸시 등록)는 스위치와 같아 그대로 물려 쓴다.
+        self.entryPermissions = DefaultRequestEntryPermissionsUseCase(
+            permissions: permissions,
+            currentLocation: currentLocation,
+            requestNotification: DefaultRequestNotificationPermissionUseCase(
+                permissions: permissions,
+                setting: notificationSetting
+            )
         )
 
         // 초대: 발급·미리보기·합류가 한 Repository 를 공유한다.

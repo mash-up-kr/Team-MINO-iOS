@@ -70,6 +70,11 @@ private struct StubFetchInviteCode: FetchInviteCodeUseCase {
     func execute(roomId: String) async throws -> String { "code-\(roomId)" }
 }
 
+/// 배선만 보는 스위트라 위치 결과만 돌려준다.
+private struct StubEntryPermissions: RequestEntryPermissionsUseCase {
+    func execute() async -> CurrentLocationResult { .coordinate(fixtureCoordinate) }
+}
+
 private struct StubArchiveDeps: ArchiveDeps {
     var fetchRooms: FetchRoomsUseCase = StubFetchRooms()
     var fetchRoomPins: FetchRoomPinsUseCase = StubFetchRoomPins()
@@ -84,6 +89,7 @@ private struct StubArchiveDeps: ArchiveDeps {
     var postComment: PostPinCommentUseCase = StubPostPinComment(outcome: .failure(.unknown))
     var deleteComment: DeletePinCommentUseCase = StubDeletePinComment()
     var currentLocation: CurrentLocationUseCase = StubCurrentLocation()
+    var entryPermissions: RequestEntryPermissionsUseCase = StubEntryPermissions()
     var recordPinAccess: RecordPinAccessUseCase = StubRecordPinAccess()
     var roomCreationPromptSnooze = SnoozeSwitch(
         key: "ArchiveCoordinatorTests.prompt",
