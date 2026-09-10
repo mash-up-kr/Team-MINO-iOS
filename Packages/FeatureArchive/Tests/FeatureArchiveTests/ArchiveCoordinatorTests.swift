@@ -261,6 +261,30 @@ struct ArchiveCoordinatorTests {
         #expect(coordinator.consumeSavedShare() == false)
     }
 
+    // 방금 담은 방이 「저장된 방」 목록에 들어와야 하고, 목록이 비어 꺼져 있던 버튼(005-1 ⑮)도
+    // 그 자리에서 켜져야 한다 — 장소 상세를 닫았다 다시 열어야 반영되던 증상.
+    @Test("공유 저장은 저장된 방 재조회 신호를 세운다")
+    func shareDidSave_asksForSavedRoomsRefresh() {
+        let coordinator = makeCoordinator()
+        coordinator.handle(RoomDetailNav.shareLocation(RoomDetailLocation(from: fixturePin)))
+        let before = coordinator.savedRoomsRevision
+
+        coordinator.handle(RoomShareNav.didSave)
+
+        #expect(coordinator.savedRoomsRevision == before + 1)
+    }
+
+    @Test("저장 없이 시트를 닫으면 재조회 신호가 서지 않는다")
+    func shareClose_leavesSavedRoomsAlone() {
+        let coordinator = makeCoordinator()
+        coordinator.handle(RoomDetailNav.shareLocation(RoomDetailLocation(from: fixturePin)))
+        let before = coordinator.savedRoomsRevision
+
+        coordinator.sharingLocation = nil   // 껍데기의 onClose 와 같은 경로
+
+        #expect(coordinator.savedRoomsRevision == before)
+    }
+
     @Test("배선 — 공유 Store 의 저장 완료가 시트를 닫는다")
     func roomShareStore_isWiredToSheet() async {
         let coordinator = makeCoordinator()

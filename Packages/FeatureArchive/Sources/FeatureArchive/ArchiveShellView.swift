@@ -124,6 +124,9 @@ struct ArchiveShellView: View {
             guard id != nil, let roomID = coordinator.consumeCreatedRoomID() else { return }
             roomListStore?.send(.openCreatedRoom(roomID))
         }
+        // 다른 방에 공유하고 돌아왔다 — 그 방이 「저장된 방」 목록에 들어와야 하고, 목록이
+        // 비어 있어 꺼져 있던 버튼(005-1 ⑮)도 그 자리에서 켜져야 한다.
+        .onChange(of: coordinator.savedRoomsRevision) { _, _ in placeStore?.send(.loadSavedRooms) }
         .task(id: coordinator.selectedRoom?.id) { syncDetailStore() }
         .task(id: coordinator.selectedPin?.id.value) { syncPlaceStore() }
         .sheet(item: $coordinator.sharingLocation, onDismiss: showShareToast) { location in
