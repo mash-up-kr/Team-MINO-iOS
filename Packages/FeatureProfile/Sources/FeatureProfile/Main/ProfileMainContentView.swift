@@ -110,6 +110,11 @@ struct ProfileMainContentView: View {
             VStack(spacing: Metric.rowGap) {
                 linkRow("약관 및 동의", identifier: "ProfileMain.terms") { send(.tapTerms) }
                 linkRow("앱 리뷰 남기기", identifier: "ProfileMain.appReview") { send(.tapAppReview) }
+                valueRow(
+                    "현재 버전 정보",
+                    value: ProfileAppVersion.current,
+                    identifier: "ProfileMain.appVersion"
+                )
             }
             .padding(.top, Metric.titleToRowGap)
         }
@@ -157,6 +162,23 @@ struct ProfileMainContentView: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier(identifier)
+    }
+
+    /// 값만 보여 주는 행 — 누를 곳이 없다. 시안에 없는 행이라 링크 행(``linkRow(_:identifier:action:)``)의
+    /// 높이·타이포를 그대로 쓰고, 오른쪽 값만 한 단계 옅은 색으로 두어 라벨과 갈라 보이게 한다.
+    private func valueRow(_ title: String, value: String, identifier: String) -> some View {
+        HStack(spacing: 0) {
+            rowLabel(title)
+            Spacer(minLength: 0)
+            Text(value)
+                .mhTypography(.body1ReadingRegular)
+                .foregroundStyle(Color.mhLabelAlternative)
+        }
+        .frame(height: Metric.linkRowHeight)
+        // 라벨과 값을 한 요소로 묶는다 — 나눠 두면 VoiceOver 가 "현재 버전 정보" 와 "1.0.3" 을
+        // 따로 읽어 무엇의 버전인지가 끊긴다.
+        .accessibilityElement(children: .combine)
         .accessibilityIdentifier(identifier)
     }
 

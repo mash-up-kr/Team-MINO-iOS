@@ -207,10 +207,8 @@ public func profileMainReducer(
         case .tapTerms:
             return .navigate(.openURL(ProfileServiceLinks.terms))
 
-        // 앱 ID 가 정해지기 전에는 열 곳이 없다 — 아무 일도 하지 않는다(ProfileServiceLinks 주석).
         case .tapAppReview:
-            guard let url = ProfileServiceLinks.appReview else { return .none }
-            return .navigate(.openURL(url))
+            return .navigate(.openURL(ProfileServiceLinks.appReview))
         }
     }
 }
