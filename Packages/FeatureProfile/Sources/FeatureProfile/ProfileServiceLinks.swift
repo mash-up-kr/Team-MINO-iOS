@@ -7,11 +7,8 @@ enum ProfileServiceLinks {
 
     /// App Store 리뷰 작성 페이지(FR-012).
     ///
-    /// **앱 ID 가 아직 없다** — 앱이 App Store Connect 에 올라가면 아래 상수만 채우면 된다.
-    /// 값이 없는 동안 `appReview` 는 `nil` 이고, 화면은 그 행을 눌러도 아무 일도 하지 않는다.
-    private static let appStoreID: String? = nil
+    /// `?action=write-review` 를 붙이면 스토어 페이지가 리뷰 작성 시트를 편 채로 열린다.
+    private static let appStoreID = "6806306129"
 
-    static var appReview: URL? {
-        appStoreID.flatMap { URL(string: "https://apps.apple.com/app/id\($0)?action=write-review") }
-    }
+    static let appReview = URL(string: "https://apps.apple.com/app/id\(appStoreID)?action=write-review")!
 }
