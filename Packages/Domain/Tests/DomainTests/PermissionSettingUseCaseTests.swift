@@ -41,11 +41,150 @@ private final class InMemoryAppSettingsRepository: AppSettingsRepository, @unche
     func setNotificationDeliveryEnabled(_ value: Bool) { enabled = value }
 }
 
+/// 측위는 이 스위트의 관심사가 아니다 — 늘 좌표를 준다.
+private struct StubCurrentLocationRepository: CurrentLocationRepository {
+    func currentCoordinate() async -> Coordinate? { Coordinate(latitude: 37.4979, longitude: 127.0276) }
+}
+
 private final class SpyPushRegistration: PushRegistrationRepository, @unchecked Sendable {
     private(set) var didRegister = false
     private(set) var didUnregister = false
     func register() async { didRegister = true }
     func unregister() async { didUnregister = true }
+}
+
+// MARK: - 진입 시 알림 권한 요청
+
+struct RequestNotificationPermissionUseCaseTests {
+    private func make(
+        permissions: FakePermissionRepository,
+        settings: InMemoryAppSettingsRepository = InMemoryAppSettingsRepository(),
+        push: SpyPushRegistration = SpyPushRegistration()
+    ) -> DefaultRequestNotificationPermissionUseCase {
+        DefaultRequestNotificationPermissionUseCase(
+            permissions: permissions,
+            setting: DefaultNotificationSettingUseCase(permissions: permissions, settings: settings, push: push)
+        )
+    }
+
+    @Test("미결정이면 시스템 팝업을 띄운다 — 앱이 권한을 자동으로 묻는 유일한 자리다")
+    func requestsWhenNotDetermined() async {
+        let permissions = FakePermissionRepository(notification: .notDetermined)
+        permissions.notificationAfterRequest = .granted
+
+        await make(permissions: permissions).execute()
+
+        #expect(permissions.didRequestNotification)
+    }
+
+    @Test("허용하면 발송 설정이 켜지고 푸시 등록까지 간다 — 스위치로 켠 것과 같은 결과다")
+    func grantedTurnsOnDeliveryAndRegisters() async {
+        let permissions = FakePermissionRepository(notification: .notDetermined)
+        permissions.notificationAfterRequest = .granted
+        let settings = InMemoryAppSettingsRepository()
+        let push = SpyPushRegistration()
+
+        await make(permissions: permissions, settings: settings, push: push).execute()
+
+        #expect(settings.isNotificationDeliveryEnabled())
+        #expect(push.didRegister)
+    }
+
+    /// 이 테스트가 지키는 것: 마이페이지에서 스위치를 **일부러 끈** 사용자가 저장 탭에 들어갈
+    /// 때마다 발송이 조용히 되살아나면 안 된다. `turnOn()` 을 그냥 부르면 그렇게 된다.
+    @Test("이미 허용된 상태에서는 아무것도 건드리지 않는다 — 꺼 둔 발송 설정이 되살아나지 않는다")
+    func alreadyGrantedDoesNotReviveDelivery() async {
+        let permissions = FakePermissionRepository(notification: .granted)
+        let settings = InMemoryAppSettingsRepository(enabled: false)   // 스위치를 꺼 둔 상태
+        let push = SpyPushRegistration()
+
+        await make(permissions: permissions, settings: settings, push: push).execute()
+
+        #expect(!settings.isNotificationDeliveryEnabled())
+        #expect(!push.didRegister)
+        #expect(!permissions.didRequestNotification)
+    }
+
+    @Test("이미 거부된 상태에서는 묻지 않는다 — 팝업이 뜨지도 않고, 부를 이유도 없다")
+    func alreadyDeniedDoesNothing() async {
+        let permissions = FakePermissionRepository(notification: .denied)
+        let settings = InMemoryAppSettingsRepository()
+
+        await make(permissions: permissions, settings: settings).execute()
+
+        #expect(!permissions.didRequestNotification)
+        #expect(!settings.isNotificationDeliveryEnabled())
+    }
+}
+
+// MARK: - 저장 탭 진입 권한 묶음
+
+struct RequestEntryPermissionsUseCaseTests {
+    /// 알림 요청이 갔는지만 센다.
+    private final class SpyNotificationRequest: RequestNotificationPermissionUseCase, @unchecked Sendable {
+        private(set) var callCount = 0
+        func execute() async { callCount += 1 }
+    }
+
+    private func make(
+        permissions: FakePermissionRepository,
+        notification: SpyNotificationRequest
+    ) -> DefaultRequestEntryPermissionsUseCase {
+        DefaultRequestEntryPermissionsUseCase(
+            permissions: permissions,
+            currentLocation: DefaultCurrentLocationUseCase(
+                permissions: permissions,
+                location: StubCurrentLocationRepository()
+            ),
+            requestNotification: notification
+        )
+    }
+
+    @Test("위치가 미결정이면(= 새로 설치한 사용자) 위치 팝업 뒤에 알림도 잇는다")
+    func locationPrompted_thenAsksNotification() async {
+        let permissions = FakePermissionRepository(location: .notDetermined)
+        permissions.locationAfterRequest = .granted
+        let notification = SpyNotificationRequest()
+
+        _ = await make(permissions: permissions, notification: notification).execute()
+
+        #expect(permissions.didRequestLocation)
+        #expect(notification.callCount == 1)
+    }
+
+    @Test("위치를 거부해도 알림은 잇는다 — 서로 다른 기능이다")
+    func locationDeniedInPrompt_stillAsksNotification() async {
+        let permissions = FakePermissionRepository(location: .notDetermined)
+        permissions.locationAfterRequest = .denied
+        let notification = SpyNotificationRequest()
+
+        _ = await make(permissions: permissions, notification: notification).execute()
+
+        #expect(notification.callCount == 1)
+    }
+
+    /// 이 테스트가 지키는 것: 업데이트 사용자에게 늘 보던 지도 위로 알림 팝업이 맥락 없이 뜨면 안 된다.
+    /// 그들은 마이페이지 진입에서 묻는다.
+    @Test("위치가 이미 허용돼 있으면(= 업데이트 사용자) 알림을 잇지 않는다")
+    func locationAlreadyGranted_doesNotAskNotification() async {
+        let permissions = FakePermissionRepository(location: .granted)
+        let notification = SpyNotificationRequest()
+
+        _ = await make(permissions: permissions, notification: notification).execute()
+
+        #expect(!permissions.didRequestLocation)
+        #expect(notification.callCount == 0)
+    }
+
+    @Test("위치가 이미 거부돼 있어도 알림을 잇지 않는다 — 팝업이 뜨지 않은 건 마찬가지다")
+    func locationAlreadyDenied_doesNotAskNotification() async {
+        let permissions = FakePermissionRepository(location: .denied)
+        let notification = SpyNotificationRequest()
+
+        _ = await make(permissions: permissions, notification: notification).execute()
+
+        #expect(notification.callCount == 0)
+    }
 }
 
 // MARK: - 알림
