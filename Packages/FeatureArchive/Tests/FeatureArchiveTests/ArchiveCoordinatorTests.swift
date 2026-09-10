@@ -507,6 +507,43 @@ struct ArchiveCoordinatorTests {
         #expect(coordinator.mapFocus == nil)
     }
 
+    /// 이슈 #189 — 방이 하나뿐인 사용자는 방 리스트와 방 상세의 핀이 같다. 번호가 오르지 않으면
+    /// 두 요청의 카메라 값이 같아, 리스트에서 이미 맞춘 지도가 방 상세의 요청을 걸러 버린다.
+    @Test("방을 열면 핀 맞춤 요청 번호가 오른다 — 같은 핀이라도 다시 맞춰야 한다")
+    func openRoomDetail_bumpsMapFitOrdinal() {
+        let coordinator = makeCoordinator()
+        let before = coordinator.mapFitOrdinal
+
+        coordinator.handle(.openRoomDetail(fixtureRoom))
+
+        #expect(coordinator.mapFitOrdinal > before)
+    }
+
+    @Test("방을 갈아끼울 때마다 번호가 또 오른다")
+    func selectSavedRoom_bumpsMapFitOrdinal() {
+        let coordinator = makeCoordinator()
+        coordinator.handle(.openRoomDetail(fixtureRoom))
+        coordinator.handle(
+            PlaceDetailNav.openSavedRooms(SavedRoomsPresentation(id: "p1", rooms: [savedRoomB]))
+        )
+        let afterFirstRoom = coordinator.mapFitOrdinal
+
+        coordinator.selectSavedRoom(savedRoomB.id)
+
+        #expect(coordinator.mapFitOrdinal > afterFirstRoom)
+    }
+
+    @Test("현위치 요청은 핀 맞춤 번호를 건드리지 않는다 — 방이 그대로면 다시 맞출 이유가 없다")
+    func focusMyLocation_keepsMapFitOrdinal() {
+        let coordinator = makeCoordinator()
+        coordinator.handle(.openRoomDetail(fixtureRoom))
+        let opened = coordinator.mapFitOrdinal
+
+        coordinator.handle(PlaceDetailNav.focusMyLocation(fixtureCoordinate))
+
+        #expect(coordinator.mapFitOrdinal == opened)
+    }
+
     @Test("저장된 방으로 갈아끼울 때도 카메라 요청이 사라진다")
     func selectSavedRoom_clearsMapFocus() {
         let coordinator = makeCoordinator()

@@ -412,7 +412,7 @@ struct ArchiveShellView: View {
         if let zoomRequest {
             return .zoomed(zoomRequest.coordinate, zoom: zoomRequest.zoom)
         }
-        guard detailStore == nil else { return .fitPins }
+        guard detailStore == nil else { return .fitPins(requestID: coordinator.mapFitOrdinal) }
         return .entry(myLocation: roomListStore?.state.myCoordinate)
     }
 

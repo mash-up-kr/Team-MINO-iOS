@@ -33,7 +33,8 @@ public struct PlaceMapLayer: View {
     /// 부르지 않고 action 만 올려 보낸다 — 받는 쪽이 `RoomDetailAction.tapLocation` 으로 잇는다.
     let onSelectPin: (String) -> Void
 
-    /// 카메라를 어떻게 잡을지. 기본은 핀 맞춤이라 지금까지 쓰던 진입점은 넘기지 않아도 된다.
+    /// 카메라를 어떻게 잡을지. 화면마다 규칙이 달라 진입점이 고른다 — 기본값을 두지 않는 이유는
+    /// ``PlaceMapCameraMode/fitPins(requestID:)`` 의 번호를 조용히 `0` 으로 채우지 않기 위해서다.
     let cameraMode: PlaceMapCameraMode
 
     /// 지금 카메라 줌. 라벨을 그릴지 판단한다(``PlaceMap/showsLabels(atZoom:)``).
@@ -55,7 +56,7 @@ public struct PlaceMapLayer: View {
         roomColors: [String: RoomColor],
         selectedPinID: String?,
         onSelectPin: @escaping (String) -> Void,
-        cameraMode: PlaceMapCameraMode = .fitPins,
+        cameraMode: PlaceMapCameraMode,
         zoom: Float? = nil,
         onCameraIdle: ((Float) -> Void)? = nil,
         onZoomIn: ((MapCoordinate) -> Void)? = nil
@@ -121,8 +122,14 @@ public struct PlaceMapLayer: View {
 
 /// 지도 카메라를 무엇에 맞출지. 화면마다 규칙이 달라 진입점이 고른다.
 public enum PlaceMapCameraMode: Equatable, Sendable {
-    /// 핀을 전부 담도록 맞춘다(방 상세). 지금까지의 유일한 규칙이라 기본값이다.
-    case fitPins
+    /// 핀을 전부 담도록 맞춘다(방 상세, 004-1 ④).
+    ///
+    /// `requestID` 는 **같은 핀으로 다시 맞춰 달라**는 요청을 구별하는 번호다. 지도는 한 번
+    /// 적용한 맞춤을 다시 적용하지 않는데(``MapUI/MapCamera/fit(coordinates:padding:requestID:)``),
+    /// 방이 하나뿐인 사용자는 **방 리스트와 방 상세의 핀이 같아** 방 상세가 낸 맞춤이 리스트에서
+    /// 이미 적용한 값과 똑같아 걸러진다 — 카메라가 방 핀으로 오지 않는다(이슈 #189).
+    /// 방을 열 때마다 번호를 올려 "새로 낸 요청" 임을 알린다.
+    case fitPins(requestID: Int)
 
     /// 저장 탭 진입 카메라 — **내 위치를 중심에 둔다**.
     ///
@@ -222,7 +229,10 @@ public enum PlaceMap {
         }
     }
 
-    /// 핀이 있으면 전부 보이도록 맞추고(004-1 ④), 없으면 기본 카메라를 유지한다.
+    /// **진입 카메라 규칙** — 핀이 있으면 전부 보이도록 맞추고(004-1 ④), 없으면 기본 카메라로
+    /// 떨어진다. 핀이 없는 상태가 "보여 줄 것이 없다"(방을 아직 안 만들었다)로 확정되는 화면,
+    /// 즉 저장 탭 진입에서만 쓴다. 방 상세는 조회 중에도 핀이 비므로 이 규칙을 쓰지 않는다
+    /// (``PlaceMapCameraMode/fitPins(requestID:)``).
     ///
     /// `myLocation` 이 서 있으면 그쪽이 이긴다 — 현위치 버튼(005-1)을 누른 결과라 방금 사용자가
     /// 낸 요청이 핀 맞춤보다 뒤에 온 판단이다. 방이 바뀌면 그 요청은 사라져(``ArchiveCoordinator``의
@@ -236,14 +246,21 @@ public enum PlaceMap {
             return .position(position(at: myLocation, requestID: requestID))
         }
         guard !pins.isEmpty else { return .position(defaultCamera) }
-        return .fit(
+        return fit(pins, requestID: 0)
+    }
+
+    /// 핀 전체를 담는 카메라. 핀이 비면 좌표가 빈 fit 이 되어 **지도가 적용하지 않는다** —
+    /// 그 계약은 ``MapUI/MapCamera/fit(coordinates:padding:requestID:)`` 에 있다.
+    private static func fit(_ pins: [Pin], requestID: Int) -> MapCamera {
+        .fit(
             coordinates: pins.map {
                 MapCoordinate(
                     latitude: $0.place.coordinate.latitude,
                     longitude: $0.place.coordinate.longitude
                 )
             },
-            padding: fitPadding
+            padding: fitPadding,
+            requestID: requestID
         )
     }
 
@@ -256,7 +273,7 @@ public enum PlaceMap {
         )
     }
 
-    /// 모드에 따라 카메라를 고른다. `fitPins` 는 기존 규칙(``camera(for:focusing:)``)을 그대로 쓴다.
+    /// 모드에 따라 카메라를 고른다.
     ///
     /// 현위치 요청(`myLocation`)은 **모든 모드에서 이긴다** — 방금 사용자가 낸 요청이라 진입
     /// 규칙보다 뒤에 온 판단이다. `requestID` 는 같은 자리로 다시 눌렀을 때도 카메라가 움직이게
@@ -268,8 +285,18 @@ public enum PlaceMap {
         requestID: Int = 0
     ) -> MapCamera {
         switch mode {
-        case .fitPins:
-            return camera(for: pins, focusing: myLocation, requestID: requestID)
+        // 방 상세 — 그 방의 핀이 전부 보이게 맞춘다.
+        //
+        // 핀이 없으면 **카메라를 건드리지 않는다**(빈 좌표 fit). 방 상세는 진입 직후 조회가
+        // 끝날 때까지 핀이 비어 있는데, 그 프레임에 기본 좌표(강남역)를 내면 지도가 내 위치에서
+        // 강남으로 갔다가 방 핀으로 돌아온다 — 이슈 #189 의 증상이 방 상세에 그대로 남아 있던
+        // 자리다. "보여 줄 핀이 없다" 와 "아직 못 받았다" 를 가르는 상태가 이 계산엔 없으므로,
+        // 둘 다 "맞출 것이 없으니 그대로 둔다" 로 처리한다(빈 방도 직전 화면을 유지한다).
+        case .fitPins(let fitRequestID):
+            if let myLocation {
+                return .position(position(at: myLocation, requestID: requestID))
+            }
+            return fit(pins, requestID: fitRequestID)
 
         // 저장 탭 진입 — 내 위치가 핀 맞춤보다 앞선다(PRD [SYS-004] Flow A).
         //
