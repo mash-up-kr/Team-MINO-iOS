@@ -1,0 +1,110 @@
+[
+  {
+    "id": "RoomDetail.sheet",
+    "kind": "container",
+    "screen": "RoomDetail",
+    "note": "MHBottomSheet 루트. 방 상세가 떠 있는 동안에만 이 이름이 붙는다(방 리스트는 RoomList.sheet, 장소 상세는 PlaceDetail.sheet) — 지금 어느 화면인지 가르는 데 쓴다. 상호작용 없음."
+  },
+  {
+    "id": "RoomDetail.header",
+    "kind": "text",
+    "screen": "RoomDetail",
+    "note": "방 이름·장소 수. 같은 식별자가 여러 요소(이름/아이콘/개수)에 붙어 있어 --id 로는 지목할 수 없다 — 값 검증은 label 로 한다(예: label='QAtest1'). 방 편집으로 이름이 바뀌면 여기에 즉시 반영돼야 한다."
+  },
+  {
+    "id": "RoomDetail.more",
+    "kind": "button",
+    "screen": "RoomDetail",
+    "note": "헤더 케밥. 개인방에서는 존재하지 않는다(reduce 가 room.type == .shared 를 가드). 누르면 RoomDetail.moreMenu 가 뜬다."
+  },
+  {
+    "id": "RoomDetail.close",
+    "kind": "button",
+    "screen": "RoomDetail",
+    "note": "우상단 X. 방 리스트로 되돌린다."
+  },
+  {
+    "id": "RoomDetail.moreMenu",
+    "kind": "menu",
+    "screen": "RoomDetail",
+    "note": "케밥 드롭다운(방 편집 / 방 나가기). 시트 클립 밖에서 그려져 껍데기에 붙는다. 항목에는 자체 식별자가 없어 AXe 는 기본 label('방 편집'·'방 나가기')로 탭한다. '방 편집' 은 방장에게만 뜬다."
+  },
+  {
+    "id": "RoomDetail.sortTrigger",
+    "kind": "button",
+    "screen": "RoomDetail",
+    "note": "정렬 드롭다운 트리거. full 단계에서만 존재한다(peek·half 에는 툴바가 없다)."
+  },
+  {
+    "id": "RoomDetail.sortMenu",
+    "kind": "menu",
+    "screen": "RoomDetail",
+    "note": "정렬 드롭다운 목록. 항목은 자체 식별자 없이 label(전체·최신순·거리순)로 탭한다."
+  },
+  {
+    "id": "RoomDetail.viewMode.list",
+    "kind": "button",
+    "screen": "RoomDetail",
+    "note": "리스트 보기 토글. 선택 상태는 accessibility trait(isSelected)으로 노출된다."
+  },
+  {
+    "id": "RoomDetail.viewMode.grid",
+    "kind": "button",
+    "screen": "RoomDetail",
+    "note": "카드 보기 토글. 선택 상태는 accessibility trait(isSelected)으로 노출된다."
+  },
+  {
+    "id": "RoomDetail.locationList",
+    "kind": "list",
+    "screen": "RoomDetail",
+    "note": "장소 카드 목록 컨테이너. 빈/개수 검증에 쓴다."
+  },
+  {
+    "id": "RoomDetail.locationCard.<pinID>",
+    "kind": "row",
+    "screen": "RoomDetail",
+    "note": "장소 카드 행. <pinID>는 도메인 Pin.id — 같은 장소도 방마다 핀이 따로라 방 안에서만 유일하다. 탭하면 장소 상세로 간다."
+  },
+  {
+    "id": "RoomOwnerTransfer",
+    "kind": "container",
+    "screen": "RoomDetail",
+    "note": "방장 위임 카드. 방장이 다른 멤버를 남긴 채 나가려 하면 서버가 409(OWNER_TRANSFER_REQUIRED)로 요구해 뜬다 — 멤버 2인 이상인 방이 필요하다. 딤은 탭을 먹기만 하고 닫지 않으므로 취소는 버튼으로만 가능하다. 확정 시안이 없어 문구·배치는 바뀔 수 있다(식별자는 유지)."
+  },
+  {
+    "id": "RoomOwnerTransfer.title",
+    "kind": "text",
+    "screen": "RoomDetail",
+    "note": "'새 방장을 정해주세요'."
+  },
+  {
+    "id": "RoomOwnerTransfer.message",
+    "kind": "text",
+    "screen": "RoomDetail",
+    "note": "안내 한 줄. 위임·나가기가 실패하면 같은 자리에서 사유 문구로 바뀐다 — 카드는 닫히지 않는다."
+  },
+  {
+    "id": "RoomOwnerTransfer.list",
+    "kind": "list",
+    "screen": "RoomDetail",
+    "note": "나를 뺀 참여자 목록(스크롤). 후보가 없으면 이 카드 자체가 뜨지 않는다."
+  },
+  {
+    "id": "RoomOwnerTransfer.candidate.<userID>",
+    "kind": "row",
+    "screen": "RoomDetail",
+    "note": "위임 후보 행. <userID>는 RoomMember.userId. 고른 행에 accessibility trait(isSelected)이 붙는다 — 단일 선택."
+  },
+  {
+    "id": "RoomOwnerTransfer.cancelButton",
+    "kind": "button",
+    "screen": "RoomDetail",
+    "note": "위임을 그만둔다 — 방에 그대로 남는다. 요청 중에는 잠긴다."
+  },
+  {
+    "id": "RoomOwnerTransfer.confirmButton",
+    "kind": "button",
+    "screen": "RoomDetail",
+    "note": "'넘기고 나가기'. 후보를 고르기 전에는 비활성이다. 누르면 위임과 나가기가 한 동작으로 이어진다."
+  }
+]
