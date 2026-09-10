@@ -20,6 +20,7 @@ struct RoomDTOTests {
         memberCount: Int? = 1,
         users: [RoomMemberDTO]? = nil,
         hasPlace: Bool? = nil,
+        matchedPinId: String? = nil,
         thumbnailList: [String]? = nil
     ) -> RoomDTO {
         RoomDTO(
@@ -27,6 +28,7 @@ struct RoomDTOTests {
             ownerId: ownerId, createdAt: createdAt,
             pinCount: pinCount, memberCount: memberCount, users: users,
             hasPlace: hasPlace,
+            matchedPinId: matchedPinId,
             thumbnailList: thumbnailList
         )
     }

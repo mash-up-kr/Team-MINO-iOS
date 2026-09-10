@@ -9,10 +9,16 @@ public struct ShareTarget: Equatable, Sendable {
     public let room: Room
     /// 이미 저장돼 있으면 선택 대상이 아니다 — 화면은 체크된 상태로 비활성 표시한다.
     public let alreadySaved: Bool
+    /// 이미 저장돼 있다면 **그 방 쪽 핀**. 같은 장소라도 방마다 핀이 따로라, 저장된 방으로
+    /// 건너뛰려면(기획 014 ②) 방 id 만으로는 부족하다.
+    ///
+    /// `alreadySaved == false` 면 당연히 `nil` 이고, 참이어도 서버가 매칭 핀을 못 집으면 `nil` 이다.
+    public let matchedPinID: PinID?
 
-    public init(room: Room, alreadySaved: Bool) {
+    public init(room: Room, alreadySaved: Bool, matchedPinID: PinID? = nil) {
         self.room = room
         self.alreadySaved = alreadySaved
+        self.matchedPinID = matchedPinID
     }
 }
 

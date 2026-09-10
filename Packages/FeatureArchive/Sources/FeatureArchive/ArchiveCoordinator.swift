@@ -82,6 +82,11 @@ public final class ArchiveCoordinator: Coordinator {
     /// 않는다 — 두면 플래그와 목록이 어긋날 짝이 생긴다.
     var savedRooms: SavedRoomsPresentation?
 
+    /// 저장된 방으로 건너뛸 때 그 방 쪽 핀을 받아 오는 작업(``selectSavedRoom(_:)``).
+    /// 연달아 고르면 앞 조회를 취소한다 — 늦게 도착한 응답이 나중에 고른 방을 덮어쓰지 않도록.
+    /// 표시에 쓰이지 않아 관찰 대상이 아니다.
+    @ObservationIgnored private var savedRoomPinTask: Task<Void, Never>?
+
     /// 친구 초대 시트(004-4-2)를 띄울 방. 방 자체가 표시 항목이다(`Room` 이 `Identifiable`).
     ///
     /// 래퍼 타입을 두지 않는 건 시트가 방 하나로 완결되기 때문이다 — 방 이름·색·참여자가 모두
@@ -301,15 +306,30 @@ public final class ArchiveCoordinator: Coordinator {
         invitingRoom = nil
     }
 
-    /// 014 ② — 고른 방의 장소 상세로. 시트를 닫고 **방만** 갈아끼운다.
+    /// 014 ② "클릭 시, 해당 방의 장소상세로 이동한다" — 시트를 닫고 방과 장소를 **함께** 갈아끼운다.
     ///
-    /// 보고 있던 장소(`selectedPin`)는 그대로 둔다. 같은 장소라도 방마다 핀이 따로인데 저장 API 가
-    /// 아직 그 짝을 주지 않아 "그 방 쪽 핀"을 집을 수 없기 때문이다 — 핀을 비우면 시트가 닫혀
-    /// "장소상세로 이동한다" 는 기획과 더 멀어진다. API 가 붙으면 그 방의 핀 id 로 함께 갈아끼운다.
+    /// 같은 장소라도 방마다 핀이 따로라 방만 바꾸면 이전 방의 핀이 새 방 헤더 아래 그대로 남는다.
+    /// 목록이 방마다 매칭 핀 id 를 달고 오므로(``SavedRoom/pinID``) 그것으로 핀 상세를 받아 세운다.
+    ///
+    /// 핀 상세를 기다리는 동안은 방 상세가 서 있고, 도착하면 그 위로 장소 상세가 올라온다 —
+    /// "방 상세 → 장소 상세" 는 이 화면의 정상 경로라 중간 상태가 어색하지 않다. 매칭 핀이
+    /// 없거나(구버전 서버·서버가 못 집은 경우) 조회가 실패하면 방 상세에서 멈춘다.
     func selectSavedRoom(_ roomID: String) {
-        guard let room = savedRooms?.rooms.first(where: { $0.id == roomID }) else { return }
+        guard let selected = savedRooms?.rooms.first(where: { $0.id == roomID }) else { return }
         savedRooms = nil
-        showRoom(room)
+        showRoom(selected.room)
+        // 이전 방의 핀을 즉시 내린다 — 새 핀을 기다리는 동안 남겨 두면 헤더는 새 방인데 내용은
+        // 옛 방인 화면이 된다(고치려는 증상 그 자체).
+        selectedPin = nil
+
+        savedRoomPinTask?.cancel()
+        guard let pinID = selected.pinID else { return }
+        savedRoomPinTask = Task { [weak self] in
+            guard let self, let pin = try? await deps.fetchPinDetail.execute(pinID: pinID).pin else { return }
+            // 기다리는 사이에 사용자가 다른 방·다른 장소로 옮겼으면 버린다.
+            guard !Task.isCancelled, selectedRoom?.id == selected.room.id, selectedPin == nil else { return }
+            selectedPin = pin
+        }
     }
 
     func handle(_ nav: RoomShareNav) {

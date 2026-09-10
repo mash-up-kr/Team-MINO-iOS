@@ -6,15 +6,16 @@ import Domain
 /// 요구하고, "어느 장소의 목록인가"가 곧 시트의 정체성이기 때문이다 — 다른 장소로 갈아타면
 /// 같은 방들이 담겨 있어도 다른 시트다.
 ///
-/// 표시 모델(``RoomListItem``)이 아니라 도메인 `Room` 을 담는다 — Nav 로 흐르는 값이라
+/// 표시 모델(``RoomListItem``)이 아니라 도메인 ``SavedRoom`` 을 담는다 — Nav 로 흐르는 값이라
 /// `Sendable` 이어야 하는데 표시 모델은 `Image` 를 물고 있어 그 조건을 못 맞춘다.
 public struct SavedRoomsPresentation: Identifiable, Equatable, Sendable {
     /// 이 목록이 어느 장소의 것인지(핀 id).
     public let id: String
-    /// 장소가 중복 저장된 방들. 비어 있는 채로 만들지 않는다 — 진입 자체가 막힌다(reduce 가 가드).
-    public let rooms: [Room]
+    /// 장소가 중복 저장된 방들 — 방마다 **그 방 쪽 핀 id** 를 달고 있다(014 ② 가 그 핀의
+    /// 장소 상세로 가야 하기 때문). 비어 있는 채로 만들지 않는다 — 진입 자체가 막힌다(reduce 가 가드).
+    public let rooms: [SavedRoom]
 
-    public init(id: String, rooms: [Room]) {
+    public init(id: String, rooms: [SavedRoom]) {
         self.id = id
         self.rooms = rooms
     }

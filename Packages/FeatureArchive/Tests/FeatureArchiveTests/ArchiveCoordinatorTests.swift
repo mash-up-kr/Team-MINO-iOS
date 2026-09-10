@@ -21,9 +21,19 @@ private struct StubFetchRoomPins: FetchRoomPinsUseCase {
 }
 
 
+/// **요청한 id 를 그대로 실어** 돌려준다 — 저장된 방으로 건너뛸 때 "그 방 쪽 핀" 이 서는지를
+/// 재려면 결과가 요청과 이어져 있어야 한다. 이미 아는 핀(`fixturePin`)은 그대로 준다.
 private struct StubFetchPinDetail: FetchPinDetailUseCase {
     func execute(pinID: PinID) async throws -> PinDetail {
-        PinDetail(pin: fixturePin, sourceURL: nil)
+        guard pinID != fixturePin.id else { return PinDetail(pin: fixturePin, sourceURL: nil) }
+        return PinDetail(
+            pin: PinFixture.pin(
+                id: pinID, roomID: savedRoomB.id, category: .worthVisiting,
+                title: "다른 방의 같은 장소", address: "서울 성동구 상원4길 10",
+                createdAt: Date(timeIntervalSince1970: 0)
+            ),
+            sourceURL: nil
+        )
     }
 }
 
@@ -431,8 +441,8 @@ struct ArchiveCoordinatorTests {
         #expect(coordinator.savedRooms == presentation)
     }
 
-    @Test("방 카드를 고르면 시트를 닫고 그 방으로 갈아끼운다 — 보던 장소는 그대로다")
-    func selectSavedRoom_switchesRoomKeepingPlace() {
+    @Test("방 카드를 고르면 시트를 닫고 방과 장소를 함께 그 방 것으로 갈아끼운다 (014 ②)")
+    func selectSavedRoom_switchesRoomAndPin() async {
         let coordinator = makeCoordinator()
         coordinator.handle(.openRoomDetail(fixtureRoom))
         coordinator.handle(RoomDetailNav.openPlaceDetail(fixturePin))
@@ -443,8 +453,30 @@ struct ArchiveCoordinatorTests {
         coordinator.selectSavedRoom(savedRoomB.id)
 
         #expect(coordinator.savedRooms == nil)
-        #expect(coordinator.selectedRoom == savedRoomB)
-        #expect(coordinator.selectedPin == fixturePin)   // 장소 상세는 닫히지 않는다
+        #expect(coordinator.selectedRoom == savedRoomB.room)
+        // 핀 조회 전에는 이전 방의 핀을 세워 두지 않는다 — 헤더는 새 방인데 내용이 옛 방인
+        // 화면이 이 수정이 없애려는 증상 그 자체다.
+        #expect(coordinator.selectedPin == nil)
+
+        await waitUntil { coordinator.selectedPin != nil }
+        #expect(coordinator.selectedPin?.id == savedRoomB.pinID)
+        #expect(coordinator.selectedPin?.roomID == savedRoomB.id)
+    }
+
+    @Test("매칭 핀이 없는 방은 방 상세에서 멈춘다 — 이전 방의 핀을 끌고 가지 않는다")
+    func selectSavedRoom_withoutMatchedPin_landsOnRoomDetail() async {
+        let coordinator = makeCoordinator()
+        let unmatched = SavedRoomFixture.room("room-D", pinID: nil)
+        coordinator.handle(.openRoomDetail(fixtureRoom))
+        coordinator.handle(RoomDetailNav.openPlaceDetail(fixturePin))
+        coordinator.handle(
+            PlaceDetailNav.openSavedRooms(SavedRoomsPresentation(id: "p1", rooms: [unmatched]))
+        )
+
+        coordinator.selectSavedRoom(unmatched.id)
+
+        #expect(coordinator.selectedRoom == unmatched.room)
+        #expect(coordinator.selectedPin == nil)
     }
 
     // MARK: - 지도 현위치 (005-1)
@@ -607,7 +639,7 @@ struct ArchiveCoordinatorTests {
         coordinator.handle(.openRoomDetail(fixtureRoom))
         coordinator.handle(RoomDetailNav.shareLocation(RoomDetailLocation(from: fixturePin)))
         coordinator.handle(PlaceDetailNav.openSavedRooms(
-            SavedRoomsPresentation(id: fixturePin.id.value, rooms: [fixtureRoom])
+            SavedRoomsPresentation(id: fixturePin.id.value, rooms: [savedRoomB])
         ))
         coordinator.handle(RoomDetailNav.inviteFriends(fixtureRoom))
 
