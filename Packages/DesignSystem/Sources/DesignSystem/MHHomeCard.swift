@@ -22,14 +22,12 @@ public struct MHHomeCard: View {
     private enum ImageSource {
         case local([Image])
         case remote([URL])
-
-        var isEmpty: Bool {
-            switch self {
-            case .local(let images): return images.isEmpty
-            case .remote(let urls): return urls.isEmpty
-            }
-        }
     }
+
+    /// 사진 칸 수. Figma 심볼은 **사진이 몇 장이든 두 칸**이다 — 칸 수가 사진 수를 따라가면 1장짜리
+    /// 핀에서 타일 하나가 카드 폭을 다 차지해 카드가 328pt 에서 523pt 로 부풀고 덱이 화면 밖으로
+    /// 나간다(실기기 재현). 3장 이상은 앞 두 장만 보인다.
+    private static let tileCount = 2
 
     private let avatar: Image?
     private let badgeText: String
@@ -167,29 +165,31 @@ public struct MHHomeCard: View {
         }
     }
 
-    @ViewBuilder
+    /// 칸은 언제나 ``tileCount`` 개. 사진이 모자란 칸은 타일 배경만 남는 자리표다.
     private var imageGrid: some View {
         HStack(spacing: 8) {
-            switch imageSource {
-            case .local(let images) where !images.isEmpty:
-                ForEach(Array(images.prefix(2).enumerated()), id: \.offset) { _, image in
-                    imageTile { image.resizable().scaledToFill() }
-                }
-            case .remote(let urls) where !urls.isEmpty:
-                ForEach(Array(urls.prefix(2).enumerated()), id: \.offset) { _, url in
-                    imageTile {
-                        AsyncImage(url: url) { phase in
-                            // 로딩 중·실패는 그리지 않는다 — 자리표는 타일 자신의 배경이라
-                            // 어느 단계에서도 자리가 비지 않는다.
-                            if case .success(let image) = phase {
-                                image.resizable().scaledToFill()
-                            }
-                        }
-                    }
-                }
-            default:
-                ForEach(0..<2, id: \.self) { _ in imageTile { EmptyView() } }
+            ForEach(0..<Self.tileCount, id: \.self) { index in
+                imageTile { tileContent(at: index) }
             }
+        }
+    }
+
+    /// `index` 번째 칸에 얹을 사진. 사진이 없는 칸은 비워 둔다(타일 배경이 자리표).
+    @ViewBuilder
+    private func tileContent(at index: Int) -> some View {
+        switch imageSource {
+        case .local(let images) where index < images.count:
+            images[index].resizable().scaledToFill()
+        case .remote(let urls) where index < urls.count:
+            AsyncImage(url: urls[index]) { phase in
+                // 로딩 중·실패는 그리지 않는다 — 자리표는 타일 자신의 배경이라
+                // 어느 단계에서도 자리가 비지 않는다.
+                if case .success(let image) = phase {
+                    image.resizable().scaledToFill()
+                }
+            }
+        default:
+            EmptyView()
         }
     }
 

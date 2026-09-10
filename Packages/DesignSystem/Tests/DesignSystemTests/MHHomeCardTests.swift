@@ -12,6 +12,35 @@ final class MHHomeCardTests: XCTestCase {
         XCTAssertEqual(r.uiImage?.size.height ?? 0, 328, accuracy: 1.0)
     }
 
+    // 사진 수가 2 미만이어도 칸은 두 개 — 1장짜리 핀에서 타일 하나가 카드 폭을 다 차지해
+    // 카드가 523pt 로 부풀던 문제(실기기 재현). 큰 원본(1080×1350)으로 재서 사진 크기에도 흔들리지 않게 한다.
+    @MainActor
+    func testHeightStaysFixedWithFewerThanTwoImages() throws {
+        MHFontRegistrar.registerIfNeeded()
+        for images in [[bigImage(.systemGray3)], []] {
+            let card = MHHomeCard(
+                avatar: nil, badgeText: "가볼 만한 곳", badgeColor: .mhAccentForegroundLime,
+                title: "레이어스튜디오 10", address: "서울 성동구 상원4길 10", images: images
+            ) { }
+            let r = ImageRenderer(content: card.frame(width: 335))
+            r.scale = 1
+            XCTAssertEqual(r.uiImage?.size.height ?? 0, 328, accuracy: 1.0, "사진 \(images.count)장")
+        }
+    }
+
+    @MainActor
+    func testRemoteURLsKeepTwoTilesBeforeLoad() throws {
+        MHFontRegistrar.registerIfNeeded()
+        let card = MHHomeCard(
+            avatar: nil, badgeText: "가볼 만한 곳", badgeColor: .mhAccentForegroundLime,
+            title: "레이어스튜디오 10", address: "서울 성동구 상원4길 10",
+            imageURLs: [URL(string: "https://cdn.example.com/a.jpg")!]
+        ) { }
+        let r = ImageRenderer(content: card.frame(width: 335))
+        r.scale = 1
+        XCTAssertEqual(r.uiImage?.size.height ?? 0, 328, accuracy: 1.0)
+    }
+
     @MainActor
     func testGalleryRenders() throws {
         MHFontRegistrar.registerIfNeeded()
@@ -37,6 +66,14 @@ private func card(_ color: Color, _ text: String) -> MHHomeCard {
         title: "레이어스튜디오 10", address: "서울 성동구 상원4길 10",
         images: [solidImage(.systemGray3), solidImage(.systemGray4)]
     ) { }
+}
+
+private func bigImage(_ color: UIColor) -> Image {
+    let size = CGSize(width: 1080, height: 1350)
+    let ui = UIGraphicsImageRenderer(size: size).image { ctx in
+        color.setFill(); ctx.fill(CGRect(origin: .zero, size: size))
+    }
+    return Image(uiImage: ui)
 }
 
 private func solidImage(_ color: UIColor) -> Image {
