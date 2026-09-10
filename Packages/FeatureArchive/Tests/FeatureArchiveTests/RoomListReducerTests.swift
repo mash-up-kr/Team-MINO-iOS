@@ -23,6 +23,17 @@ private struct StubCurrentLocation: CurrentLocationUseCase {
     func execute() async -> CurrentLocationResult { result }
 }
 
+/// 진입 권한 묶음을 흉내 낸다. 위치 결과만 돌려주고 호출 횟수를 센다 — 알림까지 이어 물을지의
+/// 판단은 Domain 이 하므로(``RequestEntryPermissionsUseCase``) 화면 테스트는 그걸 보지 않는다.
+private final class SpyEntryPermissions: RequestEntryPermissionsUseCase, @unchecked Sendable {
+    var result: CurrentLocationResult = .coordinate(Coordinate(latitude: 37.4966, longitude: 127.0530))
+    private(set) var callCount = 0
+    func execute() async -> CurrentLocationResult {
+        callCount += 1
+        return result
+    }
+}
+
 /// 지도 마커용 핀. 두 방에 하나씩 둬 **마커마다 소속 방 색이 달라야 한다**는 규칙을 볼 수 있게 한다.
 private let fixturePins: [Pin] = [
     PinFixture.pin(
@@ -82,15 +93,24 @@ struct RoomListReducerTests {
         fetchPins: FetchRoomPinsUseCase = StubFetchPins(),
         state: RoomListState = RoomListState(),
         snooze: SnoozeSwitch? = nil,
-        location: CurrentLocationUseCase = StubCurrentLocation()
+        location: CurrentLocationUseCase = StubCurrentLocation(),
+        entryPermissions: RequestEntryPermissionsUseCase? = nil
     ) -> TestStore<RoomListState, RoomListAction, RoomListNav> {
-        TestStore(
+        // 진입 스텁을 따로 안 주면 위치 스텁과 같은 결과를 돌려주게 맞춘다 — 기존 테스트들이
+        // `location:` 하나만 넘겨도 진입 경로가 같은 값을 보게 하기 위해서다.
+        let entry = entryPermissions ?? {
+            let spy = SpyEntryPermissions()
+            spy.result = (location as? StubCurrentLocation)?.result ?? spy.result
+            return spy
+        }()
+        return TestStore(
             state,
             reduce: roomListReducer(
                 useCase: useCase,
                 fetchPins: fetchPins,
                 promptSnooze: snooze ?? makeSnooze(),
-                currentLocation: location
+                currentLocation: location,
+                entryPermissions: entry
             )
         )
     }
@@ -517,6 +537,22 @@ struct RoomListReducerTests {
         // navigation 이 하나도 없어야 한다 — `focusMyLocation` 은 버튼 전용이다.
         // 잔여 검사(`finish`)가 이걸 대신 단언한다.
         #expect(!store.currentState.isLocating)
+        store.finish()
+    }
+
+    // 진입 경로는 위치만이 아니라 **권한 묶음**을 부른다 — 여기서 안 부르면 새로 설치한 사용자는
+    // 알림을 묻는 자리를 잃는다(``RequestEntryPermissionsUseCase``).
+    @Test("L2 — 진입 요청은 위치가 아니라 진입 권한 묶음을 부른다")
+    func requestLocationOnEntry_callsEntryPermissions() async {
+        let coordinate = Coordinate(latitude: 37.5443, longitude: 127.0557)
+        let entry = SpyEntryPermissions()
+        entry.result = .coordinate(coordinate)
+        let store = makeStore(entryPermissions: entry)
+
+        await store.send(.requestLocationOnEntry)
+        await store.receive(.entryLocationResolved(.coordinate(coordinate))) { $0.myCoordinate = coordinate }
+
+        #expect(entry.callCount == 1)
         store.finish()
     }
 

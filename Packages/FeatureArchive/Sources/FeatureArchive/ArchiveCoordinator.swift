@@ -114,7 +114,8 @@ public final class ArchiveCoordinator: Coordinator {
                 useCase: deps.fetchRooms,
                 fetchPins: deps.fetchRoomPins,
                 promptSnooze: deps.roomCreationPromptSnooze,
-                currentLocation: deps.currentLocation
+                currentLocation: deps.currentLocation,
+                entryPermissions: deps.entryPermissions
             ),
             handle: { [weak self] in self?.handle($0) }
         )
