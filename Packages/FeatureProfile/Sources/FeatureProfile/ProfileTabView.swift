@@ -71,9 +71,7 @@ public struct ProfileTabView: View {
     private func refresh() {
         let store = coordinator.profileMainStore()
         store.send(.loadProfile)
-        // 아직 안 물어본 사용자에게 여기서 한 번 묻는다. 요청이 끝나면 스스로 `.syncSwitches` 로
-        // 이어지므로 여기서 따로 보내지 않는다 — 나란히 보내면 팝업 이전 값이 스위치를 덮는다.
-        store.send(.requestNotificationPermissionOnEntry)
+        store.send(.syncSwitches)
     }
 
     /// `NavigationStack` 은 상위(`MainTabView`)의 `safeAreaInset` 탭바 인셋을 자기 콘텐츠에 전파하지

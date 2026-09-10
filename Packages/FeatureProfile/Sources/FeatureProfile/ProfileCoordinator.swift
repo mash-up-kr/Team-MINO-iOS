@@ -79,7 +79,6 @@ public final class ProfileCoordinator: Coordinator {
             reduce: profileMainReducer(
                 fetchProfile: deps.fetchProfile,
                 notification: deps.notificationSetting,
-                requestNotificationPermission: deps.requestNotificationPermission,
                 location: deps.locationSetting
             ),
             handle: { [weak self] in self?.handle($0) }

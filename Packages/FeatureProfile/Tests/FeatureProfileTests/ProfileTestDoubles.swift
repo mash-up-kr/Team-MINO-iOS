@@ -29,13 +29,6 @@ struct StubUpdateProfileUseCase: UpdateProfileUseCase {
 }
 
 /// 알림 스위치의 결과를 정해 주는 스텁. 끄기 호출 여부까지 확인할 수 있게 기록을 남긴다.
-/// 진입 시 알림 권한 요청. **몇 번 갔는지만** 본다 — 물을지 말지의 판단은 Domain 이 한다
-/// (``RequestNotificationPermissionUseCase``).
-final class SpyRequestNotificationPermission: RequestNotificationPermissionUseCase, @unchecked Sendable {
-    private(set) var callCount = 0
-    func execute() async { callCount += 1 }
-}
-
 final class StubNotificationSettingUseCase: NotificationSettingUseCase, @unchecked Sendable {
     var isOnValue = false
     var activation: PermissionActivation = .activated
@@ -74,6 +67,5 @@ struct StubProfileDeps: ProfileDeps {
     var lastKnownProfile: LastKnownProfileUseCase = StubLastKnownProfileUseCase()
     var updateProfile: UpdateProfileUseCase = StubUpdateProfileUseCase()
     var notificationSetting: NotificationSettingUseCase = StubNotificationSettingUseCase()
-    var requestNotificationPermission: RequestNotificationPermissionUseCase = SpyRequestNotificationPermission()
     var locationSetting: LocationSettingUseCase = StubLocationSettingUseCase()
 }
