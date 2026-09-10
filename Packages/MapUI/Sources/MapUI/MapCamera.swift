@@ -8,8 +8,16 @@ public enum MapCamera: Equatable, Sendable {
     case position(MapCameraPosition)
     /// 주어진 좌표가 모두 보이도록 SDK 가 중심·줌을 계산한다.
     ///
-    /// `coordinates` 가 비면 적용하지 않는다 — 맞출 대상이 없는데 카메라를 건드리면
-    /// 지구 전체가 잡힌다. 호출부가 이 경우 ``position(_:)`` 으로 폴백한다.
+    /// `coordinates` 가 비면 **카메라를 건드리지 않는다** — 맞출 대상이 없는데 움직이면 지구
+    /// 전체가 잡힌다. 그래서 이 값은 "아직 맞출 것을 모른다"(조회 중)를 표현하는 자리로도 쓴다:
+    /// 기본 좌표로 일단 옮겨 두면 핀이 도착할 때까지 엉뚱한 데를 비춘다(이슈 #189).
     /// `padding` 은 좌표들이 화면 가장자리에 붙지 않도록 두는 여백(pt)이다.
-    case fit(coordinates: [MapCoordinate], padding: Double)
+    ///
+    /// `requestID` 는 **같은 좌표로 다시 맞춰 달라**는 요청을 앞선 요청과 구별하는 번호로,
+    /// ``MapCameraPosition/requestID`` 와 같은 이유로 있다. 지도는 한 번 적용한 fit 을 다시
+    /// 적용하지 않는데(``MapView`` 의 `appliedFit`), 그 규칙은 **화면이 바뀌어 같은 핀을 다시
+    /// 맞춰야 할 때** 틀린다 — 방이 하나뿐인 사용자는 방 리스트와 방 상세의 핀이 같아, 방 상세가
+    /// 낸 맞춤이 리스트에서 이미 적용한 값과 똑같아 걸러진다(이슈 #189). 되풀이될 일이 없는
+    /// 호출부는 `0` 을 넘긴다.
+    case fit(coordinates: [MapCoordinate], padding: Double, requestID: Int)
 }

@@ -188,7 +188,8 @@ struct PlaceMapLayerTests {
                 MapCoordinate(latitude: 37.5, longitude: 127.0),
                 MapCoordinate(latitude: 37.6, longitude: 127.1),
             ],
-            padding: PlaceMap.fitPadding
+            padding: PlaceMap.fitPadding,
+            requestID: 0
         ))
     }
 
@@ -307,7 +308,8 @@ struct PlaceMapLayerTests {
     func roomDetailStillFitsPins() {
         let pins = [pin("a", lat: 37.5, lng: 127.0), pin("b", lat: 37.6, lng: 127.1)]
         #expect(
-            PlaceMap.camera(.fitPins, pins: pins, focusing: nil) == PlaceMap.camera(for: pins)
+            PlaceMap.camera(.fitPins(requestID: 0), pins: pins, focusing: nil)
+                == PlaceMap.camera(for: pins)
         )
     }
 }
@@ -410,13 +412,47 @@ struct PlaceMapCameraModeTests {
         #expect(PlaceMap.myLocationZoom == PlaceMap.defaultCamera.zoom)
     }
 
-    @Test("fitPins 는 기존 핀 맞춤과 완전히 같다 — 저장 탭의 규칙이 바뀌면 안 된다")
+    @Test("핀이 있으면 fitPins 는 기존 핀 맞춤과 같다 — 저장 탭의 규칙이 바뀌면 안 된다")
     func fitPinsMatchesLegacyRule() {
         let pins = [pin("a", lat: 37.5, lng: 127.0), pin("b", lat: 37.6, lng: 127.1)]
         let me = Coordinate(latitude: 37.5443, longitude: 127.0557)
 
-        #expect(PlaceMap.camera(.fitPins, pins: pins, focusing: nil) == PlaceMap.camera(for: pins))
-        #expect(PlaceMap.camera(.fitPins, pins: pins, focusing: me) == PlaceMap.camera(for: pins, focusing: me))
-        #expect(PlaceMap.camera(.fitPins, pins: [], focusing: nil) == PlaceMap.camera(for: []))
+        #expect(
+            PlaceMap.camera(.fitPins(requestID: 0), pins: pins, focusing: nil)
+                == PlaceMap.camera(for: pins)
+        )
+        #expect(
+            PlaceMap.camera(.fitPins(requestID: 0), pins: pins, focusing: me)
+                == PlaceMap.camera(for: pins, focusing: me)
+        )
+    }
+
+    /// 이슈 #189 — 방 상세는 조회가 끝날 때까지 핀이 비어 있다. 그 프레임에 기본 좌표를 내면
+    /// 지도가 내 위치에서 강남역으로 갔다가 방 핀으로 돌아온다.
+    @Test("방 상세는 핀이 없으면 카메라를 건드리지 않는다 — 조회 중 강남역으로 튀지 않는다")
+    func fitPinsWithoutPinsLeavesCameraAlone() {
+        let camera = PlaceMap.camera(.fitPins(requestID: 1), pins: [], focusing: nil)
+
+        // 빈 좌표 fit 은 지도가 적용하지 않는다(`MapCamera.fit` 계약).
+        #expect(camera == .fit(coordinates: [], padding: PlaceMap.fitPadding, requestID: 1))
+        #expect(camera != .position(PlaceMap.defaultCamera))
+    }
+
+    /// 이슈 #189 — 방이 하나뿐인 사용자는 방 리스트와 방 상세의 핀이 같다. 번호가 없으면 두 요청이
+    /// 같은 값이라, 리스트에서 이미 맞춘 지도가 방 상세의 요청을 "이미 적용함" 으로 걸러 버린다.
+    @Test("같은 핀이라도 요청 번호가 다르면 다른 카메라다 — 방을 새로 열면 다시 맞춘다")
+    func fitPinsRequestIDDistinguishesRepeatRequests() {
+        let pins = [pin("a", lat: 37.5, lng: 127.0), pin("b", lat: 37.6, lng: 127.1)]
+
+        let first = PlaceMap.camera(.fitPins(requestID: 1), pins: pins, focusing: nil)
+        let second = PlaceMap.camera(.fitPins(requestID: 2), pins: pins, focusing: nil)
+
+        #expect(first != second)
+    }
+
+    @Test("저장 탭 진입은 핀이 없으면 기본 좌표로 떨어진다 — 방 상세와 규칙이 다르다")
+    func entryWithoutPinsStillFallsBackToDefault() {
+        #expect(PlaceMap.camera(.entry(myLocation: nil), pins: [], focusing: nil)
+            == .position(PlaceMap.defaultCamera))
     }
 }

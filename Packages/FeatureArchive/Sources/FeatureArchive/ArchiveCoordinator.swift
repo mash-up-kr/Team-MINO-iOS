@@ -57,6 +57,15 @@ public final class ArchiveCoordinator: Coordinator {
     /// ``ArchiveMapFocus/ordinal`` 에 찍을 다음 번호. 표시에 쓰이지 않아 관찰 대상이 아니다.
     @ObservationIgnored private var mapFocusCount = 0
 
+    /// 핀 맞춤 요청 번호 — **보고 있는 방이 바뀔 때마다** 오른다(``showRoom(_:)``).
+    ///
+    /// 지도는 한 번 맞춘 결과를 다시 적용하지 않는데(``MapUI/MapCamera/fit(coordinates:padding:requestID:)``),
+    /// 방이 하나뿐인 사용자는 방 리스트와 방 상세의 핀이 같아 방 상세의 맞춤이 그 규칙에 걸려
+    /// 버려진다 — 카메라가 방 핀 대신 직전 자리에 남는다(이슈 #189). 번호를 올려 "같은 핀이지만
+    /// 새로 낸 요청" 임을 알린다. 표시에 쓰이지 않지만 뷰가 카메라를 다시 계산해야 해서
+    /// ``mapFocusCount`` 와 달리 관찰 대상이다.
+    private(set) var mapFitOrdinal = 0
+
     public var isRoomDetailPresented: Bool { selectedRoom != nil }
 
     /// 탭바 자체를 레이아웃에서 빼야 하는 전체화면 상태인가 — MainTabView 가 본다.
@@ -315,6 +324,7 @@ public final class ArchiveCoordinator: Coordinator {
     private func showRoom(_ room: Room?) {
         selectedRoom = room
         mapFocus = nil
+        mapFitOrdinal += 1
     }
 
     // MARK: - 탭 밖에서 들어오는 진입점
