@@ -170,7 +170,7 @@ public struct MHHomeCard: View {
     private var imageGrid: some View {
         HStack(spacing: 8) {
             ForEach(0..<Self.tileCount, id: \.self) { index in
-                imageTile(isLoadingSurface: hasImage(at: index)) { tileContent(at: index) }
+                imageTile(hasAssignedImage: hasImage(at: index)) { tileContent(at: index) }
             }
         }
     }
@@ -224,14 +224,14 @@ public struct MHHomeCard: View {
     /// 부풀어 오른 폭이 다시 읽혀 덱 전체가 화면 밖으로 나간다 — 시뮬레이터에서 재현했다.
     /// 그래서 크기는 언제나 이 타일이 정하고, 사진은 `overlay` 로 얹은 뒤 넘치는 부분을 잘라낸다.
     ///
-    /// - Parameter isLoadingSurface: 사진이 올 칸이면 회색 로딩 배경을 깐다(로딩 중·실패에도 자리가
+    /// - Parameter hasAssignedImage: 사진이 배정된 칸이면 회색 로딩 배경을 깐다(로딩 중·실패에도 자리가
     ///   비지 않는다). 사진이 없는 칸은 투명 — 크기만 차지하고 그림은 없다.
     private func imageTile<Content: View>(
-        isLoadingSurface: Bool,
+        hasAssignedImage: Bool,
         @ViewBuilder content: () -> Content
     ) -> some View {
         RoundedRectangle(cornerRadius: 16)
-            .fill(isLoadingSurface ? Color.mhBackgroundNormalAlternative : .clear)
+            .fill(hasAssignedImage ? Color.mhBackgroundNormalAlternative : .clear)
             .aspectRatio(147.5 / 184, contentMode: .fit)
             .overlay { content() }
             .clipShape(RoundedRectangle(cornerRadius: 16))
