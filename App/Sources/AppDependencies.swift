@@ -34,6 +34,8 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
     let postComment: PostPinCommentUseCase
     let deleteComment: DeletePinCommentUseCase
     let createRoom: CreateRoomUseCase
+    /// 방 상세 케밥 → 방 편집(004-5). 서버가 방장만 허용한다.
+    let updateRoom: UpdateRoomUseCase
     let roomCreationPromptSnooze: SnoozeSwitch
     let ensureSession: EnsureSessionUseCase
     let registerProfile: RegisterProfileUseCase
@@ -141,10 +143,10 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
         self.postComment = DefaultPostPinCommentUseCase(repository: comments)
         self.deleteComment = DefaultDeletePinCommentUseCase(repository: comments)
 
-        // 방 생성: 실 API. 편집(UpdateRoomUseCase)은 진입점이 아직 없어 조립하지 않는다.
-        self.createRoom = DefaultCreateRoomUseCase(
-            repository: RoomEditingRepositoryImpl(client: httpClient)
-        )
+        // 방 생성·편집: 실 API. 같은 저장소를 둘이 나눠 쓴다.
+        let roomEditing = RoomEditingRepositoryImpl(client: httpClient)
+        self.createRoom = DefaultCreateRoomUseCase(repository: roomEditing)
+        self.updateRoom = DefaultUpdateRoomUseCase(repository: roomEditing)
 
         // 공동방 생성 유도 시트: "나중에 만들래요" 를 누르면 2주 동안 띄우지 않는다(기획 001-2-1).
         self.roomCreationPromptSnooze = SnoozeSwitch(key: "roomCreationPrompt.snoozedAt", period: .days(14))

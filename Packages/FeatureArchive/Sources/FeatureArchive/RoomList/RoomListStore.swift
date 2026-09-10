@@ -102,6 +102,11 @@ public enum RoomListAction: Equatable {
     case tapCreateRoom
     /// 방을 만들고 돌아왔다 — 그 방 상세로 이어 간다(spec FR-007).
     case openCreatedRoom(String)
+    /// 방을 **고치고** 돌아왔다 — 목록을 다시 받은 뒤 그 방 상세를 새 값으로 다시 연다.
+    ///
+    /// ``openCreatedRoom(_:)`` 과 달리 지금 손에 있는 목록을 쓰지 않는다. 고친 방은 목록에
+    /// 있는데 값이 낡아서, 그걸로 열면 방금 고친 이름이 그대로 옛것으로 보인다.
+    case reopenEditedRoom(String)
     /// "나중에 만들래요" — 닫고 2주 동안 다시 띄우지 않는다.
     case tapLater
     /// 시트가 닫혔다(스와이프 등). 닫기만 하고 미루지는 않는다.
@@ -275,6 +280,11 @@ public func roomListReducer(
             if let room = state.room(id: roomID) {
                 return .navigate(.openRoomDetail(room))
             }
+            state.pendingOpenRoomID = roomID
+            return .none
+        case .reopenEditedRoom(let roomID):
+            // 조회는 여기서 내지 않는다 — 편집 화면에서 pop 하면 껍데기의 `.task` 가 이미
+            // `.load` 를 낸다. 여기서 한 번 더 내면 같은 응답을 두 번 받는다.
             state.pendingOpenRoomID = roomID
             return .none
         // "나중에 만들래요" 만 미룬다. 스와이프로 내린 건 실수일 수 있어 2주를 걸지 않는다.
