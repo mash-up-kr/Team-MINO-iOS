@@ -40,17 +40,18 @@ struct PlaceMapLayerTests {
         #expect(PlaceMap.markers(pins: [], roomColors: ["r1": .red], selectedPinID: nil).isEmpty)
     }
 
-    @Test("마커 색은 방 색을 따른다")
-    func tintFollowsRoomColor() {
+    // 핀은 색을 칠하는 게 아니라 색마다 다른 아트다 — 스타일이 `Color` 가 아닌 아트 색을 든다.
+    @Test("마커 아트 색은 방 색을 따른다")
+    func markerColorFollowsRoomColor() {
         let markers = PlaceMap.markers(pins: [pin("a", lat: 37.5, lng: 127.0)], roomColors: ["r1": .blue], selectedPinID: nil)
-        #expect(markers.first?.style.tint == PlaceMap.tint(for: .blue))
+        #expect(markers.first?.style.kind == .pin(.blue))
     }
 
     // PRD [SYS-004] — "[SCR-004] 방 리스트 탭: 내 모든 방의 장소 마커를 한 지도에 표시하며,
     // **각 마커는 소속 방의 대표 색상을 따른다**". 방 하나짜리 화면(방 상세)만 있던 시절엔
     // 색이 전부 같았다.
     @Test("여러 방의 핀이 섞이면 마커마다 소속 방 색을 쓴다")
-    func tintIsPerRoom() {
+    func markerColorIsPerRoom() {
         let pins = [
             pin("a", lat: 37.5, lng: 127.0, room: "r1"),
             pin("b", lat: 37.6, lng: 127.1, room: "r2"),
@@ -58,12 +59,12 @@ struct PlaceMapLayerTests {
 
         let markers = PlaceMap.markers(pins: pins, roomColors: ["r1": .red, "r2": .blue], selectedPinID: nil)
 
-        #expect(markers.map(\.style.tint) == [PlaceMap.tint(for: .red), PlaceMap.tint(for: .blue)])
+        #expect(markers.map(\.style.kind) == [.pin(.red), .pin(.blue)])
     }
 
     // 방 목록보다 핀이 먼저 도착할 수 있다(둘을 병렬로 받는다) — 그때 마커가 사라지면 안 된다.
-    @Test("표에 없는 방의 핀은 사라지지 않고 기본색으로 선다")
-    func unknownRoomFallsBackToDefault() {
+    @Test("표에 없는 방의 핀은 사라지지 않고 색 없는 핀으로 선다")
+    func unknownRoomFallsBackToPlain() {
         let markers = PlaceMap.markers(
             pins: [pin("a", lat: 37.5, lng: 127.0, room: "모르는-방")],
             roomColors: ["r1": .red],
@@ -71,7 +72,7 @@ struct PlaceMapLayerTests {
         )
 
         #expect(markers.count == 1)
-        #expect(markers.first?.style.tint == MapMarkerStyle.defaultTint)
+        #expect(markers.first?.style.kind == .pin(.plain))
     }
 
     @Test("열려 있는 핀의 마커만 선택 상태다")
@@ -88,11 +89,12 @@ struct PlaceMapLayerTests {
         #expect(markers.allSatisfy { !$0.style.isSelected })
     }
 
-    @Test("선택해도 마커 색 값은 그대로다 — 바뀌는 것은 아이콘 형식뿐이다")
-    func selectionDoesNotChangeTint() {
+    // 선택 핀 아트(`pinActive*`)에도 색 축이 있다 — 선택했다고 색 없는 핀으로 바뀌면 안 된다.
+    @Test("선택해도 마커 아트 색은 그대로다 — 바뀌는 것은 선택 여부뿐이다")
+    func selectionDoesNotChangeMarkerColor() {
         let pins = [pin("a", lat: 37.5, lng: 127.0)]
         let markers = PlaceMap.markers(pins: pins, roomColors: ["r1": .blue], selectedPinID: "a")
-        #expect(markers.first?.style.tint == PlaceMap.tint(for: .blue))
+        #expect(markers.first?.style == MapMarkerStyle(kind: .pin(.blue), isSelected: true))
     }
 
     // MARK: - 라벨 줌 게이트
@@ -141,22 +143,39 @@ struct PlaceMapLayerTests {
         #expect(PlaceMap.idleZoom(in: .didTap(MapCoordinate(latitude: 0, longitude: 0))) == nil)
     }
 
-    @Test("색 없는 방은 마커 기본색을 쓴다 — 시안의 색 없는 핀과 같은 회색")
-    func noColorUsesMarkerDefault() {
-        #expect(PlaceMap.tint(for: nil) == MapMarkerStyle.defaultTint)
+    // MARK: - 방 색 → 핀 아트
+
+    @Test("색을 모르는 방(nil)은 색 없는 핀 아트다 — 시안의 회색 실루엣")
+    func noColorUsesPlainArt() {
+        #expect(PlaceMap.markerColor(for: nil) == .plain)
     }
 
-    @Test("색 미선택(gray)은 색이 없는 방(nil)과 같은 기본색으로 떨어진다")
-    func grayFallsBack() {
-        #expect(PlaceMap.tint(for: .gray) == PlaceMap.tint(for: nil))
+    // gray 는 "색 미선택" 이라 피커에 칸이 없는 13번째 값이다. 아무 색이나 골라 남의 방 색을 씌우면
+    // 그 방에 속한 것처럼 읽힌다 — 개인방(`내 장소`)이 늘 이 자리다.
+    @Test("색 미선택(gray)은 색을 모르는 방(nil)과 같은 색 없는 핀으로 떨어진다")
+    func grayFallsBackToPlain() {
+        #expect(PlaceMap.markerColor(for: .gray) == .plain)
     }
 
-    @Test("12색은 서로 다른 색으로 짝지어진다 — 한 색이 다른 색을 덮어쓰면 방 구분이 사라진다")
-    func paletteIsDistinct() {
-        // gray 는 "색 미선택" 이라 팔레트 밖이다(기본색으로 폴백).
+    @Test("12색은 서로 다른 아트로 짝지어지고 어느 것도 색 없는 핀이 아니다")
+    func markerColorsAreDistinct() {
+        let picked = RoomColor.allCases.filter { $0 != .gray }
+        let colors = Set(picked.map { PlaceMap.markerColor(for: $0) })
+        #expect(colors.count == picked.count)
+        #expect(!colors.contains(.plain))
+    }
+
+    // MARK: - 방 색 → 클러스터 채움색
+
+    // 클러스터는 아트가 없어 코드로 그린다 — 채움색만 방 색을 따르고, 색이 없으면 시안의 색 없는
+    // 핀(`pinDefaultBlack`)이 쓰는 회색으로 떨어진다.
+    @Test("클러스터 채움색 — 12색은 서로 다르고, gray·nil 은 기본 회색이다")
+    func clusterTintPalette() {
         let picked = RoomColor.allCases.filter { $0 != .gray }
         let tints = Set(picked.map { PlaceMap.tint(for: $0) })
         #expect(tints.count == picked.count)
+        #expect(PlaceMap.tint(for: nil) == MapMarkerStyle.defaultTint)
+        #expect(PlaceMap.tint(for: .gray) == MapMarkerStyle.defaultTint)
     }
 
     // MARK: - 탭

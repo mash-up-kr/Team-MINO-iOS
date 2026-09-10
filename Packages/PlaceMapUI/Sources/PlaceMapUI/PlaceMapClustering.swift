@@ -19,8 +19,8 @@ import MapUI
 /// 호스트에서 돌려야 하는 계산이 생기면 `MapUI`(macOS 선언)로 내린다 — 라벨 줄바꿈
 /// (`MarkerLabel`)이 그 자리에 있다.
 public extension PlaceMap {
-    /// 클러스터를 만들기 시작하는 셀 크기(화면 pt). 마커 폭 48 보다 조금 크게 잡아, 셀이 다르면
-    /// 두 마커가 서로 닿지 않도록 한다.
+    /// 클러스터를 만들기 시작하는 셀 크기(화면 pt). 가장 넓은 핀 아트(`pinActiveCyan` 58, 기본 핀은
+    /// 42)보다 조금 크게 잡아, 셀이 다르면 두 마커가 서로 닿지 않도록 한다.
     static var clusterCellSize: Double { 64 }
 
     /// 클러스터 카운트 표기. 규칙은 ``MapUI/MapMarkerKind/clusterCountText(_:)`` 하나뿐이고
@@ -106,7 +106,7 @@ public extension PlaceMap {
             ),
             // 클러스터에는 장소명을 달지 않는다 — 어느 장소의 이름인지 정할 수 없다.
             title: nil,
-            style: MapMarkerStyle(tint: tint(for: color), kind: .cluster(count: members.count))
+            style: MapMarkerStyle(kind: .cluster(count: members.count, tint: tint(for: color)))
         )
     }
 

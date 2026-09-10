@@ -54,7 +54,7 @@ struct PlaceMapClusteringTests {
         let markers = clustered([pin("a", origin)], zoom: 15)
 
         #expect(markers.count == 1)
-        #expect(markers.first?.style.kind == .pin)
+        #expect(markers.first?.style.kind == .pin(.red))
         #expect(markers.first?.id == "a")
     }
 
@@ -67,9 +67,9 @@ struct PlaceMapClusteringTests {
         let near = clustered(pins, zoom: 19)
 
         #expect(far.count == 1)
-        #expect(far.first?.style.kind == .cluster(count: 2))
+        #expect(far.first?.style.kind == .cluster(count: 2, tint: PlaceMap.tint(for: .red)))
         #expect(near.count == 2)
-        #expect(near.allSatisfy { $0.style.kind == .pin })
+        #expect(near.allSatisfy { $0.style.kind == .pin(.red) })
     }
 
     @Test("멀리 떨어진 핀은 축소해도 각자 선다")
@@ -83,7 +83,7 @@ struct PlaceMapClusteringTests {
         let markers = clustered(pins, zoom: 12)
 
         #expect(markers.count == 2)
-        #expect(markers.allSatisfy { $0.style.kind == .pin })
+        #expect(markers.allSatisfy { $0.style.kind == .pin(.red) })
     }
 
     // MARK: - 카운트 표기
@@ -123,7 +123,7 @@ struct PlaceMapClusteringTests {
 
         let markers = clustered(pins, zoom: 10)
 
-        #expect(markers.first?.style.tint == PlaceMap.tint(for: .red))
+        #expect(markers.first?.style.kind == .cluster(count: 2, tint: PlaceMap.tint(for: .red)))
     }
 
     // 여러 방이 섞인 클러스터의 색은 PRD 에 없다 — 한 방 색을 임의로 고르면 그 방에만 속한
@@ -135,7 +135,7 @@ struct PlaceMapClusteringTests {
         let markers = clustered(pins, zoom: 10)
 
         #expect(markers.count == 1)
-        #expect(markers.first?.style.tint == MapMarkerStyle.defaultTint)
+        #expect(markers.first?.style.kind == .cluster(count: 2, tint: MapMarkerStyle.defaultTint))
     }
 
     // MARK: - 안정성

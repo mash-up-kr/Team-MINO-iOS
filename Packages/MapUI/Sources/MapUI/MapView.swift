@@ -77,8 +77,8 @@ public struct MapView: UIViewRepresentable {
         private var appliedPadding: EdgeInsets?
         /// id → 화면에 올라간 GMSMarker. 증분 적용(추가/제거/갱신)용.
         private var gmsMarkersByID: [String: GMSMarker] = [:]
-        /// 스타일 → 마커 그림. 같은 방의 핀은 색이 전부 같아 대부분 한 장으로 끝난다.
-        private var iconCache: [MapMarkerStyle: UIImage] = [:]
+        /// 스타일 → 라벨 없는 마커 그림과 앵커. 같은 방의 핀은 색이 전부 같아 대부분 한 장으로 끝난다.
+        private var iconCache: [MapMarkerStyle: MarkerIcon.MarkerArt] = [:]
 
         init(onEvent: @escaping (MapEvent) -> Void) {
             self.onEvent = onEvent
@@ -118,7 +118,8 @@ public struct MapView: UIViewRepresentable {
         private func apply(_ marker: MapMarker, to gmsMarker: GMSMarker) {
             let art = MarkerIcon.art(for: marker.style, label: labelLines(of: marker), cache: &iconCache)
             gmsMarker.icon = art?.image
-            gmsMarker.groundAnchor = art?.groundAnchor ?? MarkerIcon.pinTipRatio(for: marker.style)
+            // 그림을 못 만들면(에셋 누락) SDK 기본 마커가 뜬다 — 그 기본 마커의 끝점이 (0.5, 1) 이다.
+            gmsMarker.groundAnchor = art?.groundAnchor ?? CGPoint(x: 0.5, y: 1)
             gmsMarker.zIndex = marker.style.isSelected ? 1 : 0
         }
 
@@ -189,34 +190,22 @@ public struct MapView: UIViewRepresentable {
 
 // MARK: - 마커 그림
 
-/// `MapMarkerStyle` → 마커 그림과 앵커. 시안(Figma `004-1-1 방 상세 peek` / `005-1 half`)의
-/// 두 아이콘을 그린다.
+/// `MapMarkerStyle` → 마커 그림과 앵커.
 ///
-/// - **비선택(아이콘 1)**: 흰 몸통 + 방 색 원 + 회색 마스코트. 색이 들어가는 자리가 원 하나뿐이라
-///   몸통·마스코트만 에셋으로 두고 원은 코드에서 칠한다 — 한 장짜리 그림으로는 방마다 색을 못 바꾼다.
-/// - **선택(아이콘 2)**: 검정 마스코트 머리 + 흰 눈. 시안이 방 색과 무관한 고정색이라 통짜 에셋이다.
-///   (`MapMarkerStyle.tint` 는 이 상태에서 쓰이지 않는다 — 자세한 근거는 `MapMarkerStyle.tint` 주석)
-private enum MarkerIcon {
-    /// 비선택 핀 캔버스(시안 48 × 52.5755). 몸통·마스코트 에셋이 같은 캔버스라 그대로 겹친다.
-    private static let defaultSize = CGSize(width: 48, height: 52.5755)
-
-    /// 방 색이 들어가는 원 — 시안 `Ellipse 512`(cx 24, cy 20, r 15.545).
-    private static let colorWell = CGRect(
-        x: 24 - 15.545, y: 20 - 15.545,
-        width: 15.545 * 2, height: 15.545 * 2
-    )
-
-    /// 마스코트 실루엣 색(시안 `#8A8A8A`). 방 색이 바뀌어도 이 회색은 그대로다.
-    private static let mascotColor = UIColor(white: 0x8A / 255, alpha: 1)
-
-    /// 몸통 그림자 — 시안 `filter0_dd` 의 두 겹. `stdDeviation` 은 CoreGraphics blur 로 환산해 2배다.
-    private static let shadows: [(dy: CGFloat, blur: CGFloat)] = [(4, 6), (2, 4)]
-    private static let shadowColor = UIColor(white: 0.0901961, alpha: 0.06).cgColor
-
+/// - **핀**: Figma `character/Pin` 아트(`Resources/MapMarkers.xcassets`, 13색 × 기본/선택 = 26장).
+///   어느 색·상태인지는 ``MapMarkerColor/assetName(selected:)`` 가 정하고, 여기서는 에셋을 읽어
+///   라벨을 붙이고 앵커를 잰다. 예전엔 몸통·마스코트 에셋에 방 색 원을 코드로 칠했는데, 그 조합은
+///   시안의 **색 없음 배리언트**를 하드코딩한 것이라 어떤 방 색을 골라도 마스코트가 회색이었다.
+/// - **클러스터**: 시안 에셋이 없어(플래그) 방 색 원 + 카운트를 코드로 그린다.
+///
+/// `private` 이 아닌 이유: `PlaceMapUITests/MapMarkerArtTests` 가 `@testable import` 로 에셋 26장과
+/// 앵커 실측을 검증한다 — MapUI 자체 테스트는 macOS 호스트라 `UIImage` 를 만들 수 없다.
+enum MarkerIcon {
     /// 그림과 앵커를 **함께** 돌려준다. 라벨이 붙으면 캔버스가 아래로 커져 핀 끝점의 비율이
     /// 달라지므로 둘을 따로 구하면 어긋나 핀이 좌표에서 떠 보인다.
     struct MarkerArt {
         let image: UIImage
+        /// 좌표를 가리키는 점이 그림 안에서 놓인 비율(`GMSMarker.groundAnchor`).
         let groundAnchor: CGPoint
     }
 
@@ -236,44 +225,103 @@ private enum MarkerIcon {
     private static let labelTopGap: CGFloat = 2
     private static let labelLineHeight: CGFloat = 14
 
-    /// 클러스터 지름(시안에 지정이 없어 플래그). 핀 폭 48 과 비슷하게 잡아 두 형태가 같은
-    /// 무게로 보이게 했다.
+    /// 클러스터 지름(시안에 지정이 없어 플래그). 기본 핀 폭 42 와 선택 핀 폭 56 사이에 잡아 두
+    /// 형태가 같은 무게로 보이게 했다.
     private static let clusterSide: CGFloat = 44
     private static let clusterFont = UIFont.systemFont(ofSize: 14, weight: .bold)
     private static let clusterTextColor = UIColor(white: 0.15, alpha: 1)
     private static let clusterBorderColor = UIColor.white
     private static let clusterBorderWidth: CGFloat = 2
 
+    /// 앵커를 잴 때 "진하다" 고 보는 알파 하한. 기본 핀 아트의 그림자(`filter`)는 이보다 훨씬
+    /// 옅어 걸러지고, 본체의 안티에일리어싱 가장자리만 걸린다.
+    private static let opaqueAlpha: UInt8 = 128
+
     static func art(
         for style: MapMarkerStyle,
         label: [String],
-        cache: inout [MapMarkerStyle: UIImage]
+        cache: inout [MapMarkerStyle: MarkerArt]
     ) -> MarkerArt? {
-        // 클러스터는 라벨을 달지 않는다(어느 장소의 이름인지 정할 수 없다) — 원 하나로 끝난다.
-        if case .cluster(let count) = style.kind {
-            guard let image = clusterImage(count: count, tint: UIColor(style.tint), cache: &cache, style: style) else {
-                return nil
-            }
-            // 원의 가운데가 좌표를 가리킨다 — 핀처럼 아래로 뾰족한 끝이 없다.
-            return MarkerArt(image: image, groundAnchor: CGPoint(x: 0.5, y: 0.5))
-        }
-        guard let pin = pinImage(for: style, cache: &cache) else { return nil }
-        guard !label.isEmpty else {
-            return MarkerArt(image: pin, groundAnchor: pinTipRatio(for: style))
-        }
-        return composed(pin: pin, style: style, label: label)
+        guard let base = baseArt(for: style, cache: &cache) else { return nil }
+        // 클러스터는 라벨을 달지 않는다(어느 장소의 이름인지 정할 수 없다) — 호출부도 `title` 을
+        // 비워 보내지만, 여기서도 한 번 더 막아 원 하나로 끝낸다.
+        if case .cluster = style.kind { return base }
+        guard !label.isEmpty else { return base }
+        return composed(pin: base, label: label)
     }
 
-    /// 핀 그림만. **스타일이 같으면 재사용한다** — 핀이 수백 개면 마커마다 래스터라이즈가 반복된다.
-    /// 라벨은 이름마다 달라 캐시 키에 넣지 않는다(넣으면 캐시가 이름 수만큼 늘어난다).
-    private static func pinImage(
+    /// 라벨 없는 그림. **스타일이 같으면 재사용한다** — 핀이 수백 개면 마커마다 에셋 디코딩·앵커
+    /// 측정이 반복된다. 라벨은 이름마다 달라 캐시 키에 넣지 않는다(넣으면 캐시가 이름 수만큼 늘어난다).
+    private static func baseArt(
         for style: MapMarkerStyle,
-        cache: inout [MapMarkerStyle: UIImage]
-    ) -> UIImage? {
+        cache: inout [MapMarkerStyle: MarkerArt]
+    ) -> MarkerArt? {
         if let cached = cache[style] { return cached }
-        let image = style.isSelected ? asset("mapPinSelected") : unselected(tint: UIColor(style.tint))
-        if let image { cache[style] = image }
-        return image
+        let art: MarkerArt?
+        switch style.kind {
+        case .pin(let color):
+            art = asset(color.assetName(selected: style.isSelected)).map {
+                MarkerArt(image: $0, groundAnchor: tip(of: $0))
+            }
+        case .cluster(let count, let tint):
+            // 원의 가운데가 좌표를 가리킨다 — 핀처럼 아래로 뾰족한 끝이 없다.
+            art = MarkerArt(
+                image: clusterImage(count: count, tint: UIColor(tint)),
+                groundAnchor: CGPoint(x: 0.5, y: 0.5)
+            )
+        }
+        if let art { cache[style] = art }
+        return art
+    }
+
+    /// 핀의 뾰족한 끝(좌표를 가리키는 점)이 그림 안에서 놓인 비율.
+    ///
+    /// **상수로 못 둔다** — 아트 26장이 한 캔버스 규격을 쓰지 않는다. 기본 핀은 42×48 에 끝점이
+    /// (21, 42.6)이고 그 아래는 그림자 filter 자리라 비어 있다. 선택 핀은 56×61 에 끝점이 바닥(61)에
+    /// 닿는데, **`cyan` 만 귀마개 때문에 폭 58 이고 끝점이 57.5 로 떠 있다.** 상태별 상수 두 개로는
+    /// cyan 선택 핀이 좌표에서 3.5pt 떠 보인다.
+    ///
+    /// 그래서 그림을 알파 전용 비트맵에 한 번 그려 **아래에서 위로 첫 번째 진한 행**을 찾고, 그 행의
+    /// 가운데를 끝점으로 삼는다. 스타일별로 한 번만 재고 캐시된다(``baseArt(for:cache:)``). 디자이너가
+    /// 캔버스를 바꿔 재수출해도 스스로 맞는다. 실측값은 `PlaceMapUITests/MapMarkerArtTests` 가 고정한다.
+    static func tip(of image: UIImage) -> CGPoint {
+        let fallback = CGPoint(x: 0.5, y: 1)
+        let scale: CGFloat = 2
+        let width = Int((image.size.width * scale).rounded()), height = Int((image.size.height * scale).rounded())
+        guard width > 0, height > 0 else { return fallback }
+
+        var alpha = [UInt8](repeating: 0, count: width * height)
+        let drawn = alpha.withUnsafeMutableBytes { buffer -> Bool in
+            guard let context = CGContext(
+                data: buffer.baseAddress,
+                width: width,
+                height: height,
+                bitsPerComponent: 8,
+                bytesPerRow: width,
+                space: CGColorSpaceCreateDeviceGray(),
+                bitmapInfo: CGImageAlphaInfo.alphaOnly.rawValue
+            ) else { return false }
+            // CoreGraphics 원점은 왼쪽 아래다. 뒤집어 UIKit 좌표로 그리면 버퍼의 0번 행이 그림의 **위**다.
+            context.translateBy(x: 0, y: CGFloat(height))
+            context.scaleBy(x: scale, y: -scale)
+            UIGraphicsPushContext(context)
+            image.draw(in: CGRect(origin: .zero, size: image.size))
+            UIGraphicsPopContext()
+            return true
+        }
+        guard drawn else { return fallback }
+
+        for row in stride(from: height - 1, through: 0, by: -1) {
+            let rowStart = row * width
+            guard let first = (0..<width).first(where: { alpha[rowStart + $0] >= opaqueAlpha }),
+                  let last = (0..<width).last(where: { alpha[rowStart + $0] >= opaqueAlpha })
+            else { continue }
+            return CGPoint(
+                x: CGFloat(first + last + 1) / 2 / CGFloat(width),
+                y: CGFloat(row + 1) / CGFloat(height)
+            )
+        }
+        return fallback
     }
 
     /// 클러스터 그림 — 방 색 원 + 흰 테두리 + 카운트.
@@ -281,14 +329,7 @@ private enum MarkerIcon {
     /// **시안 에셋이 없어 근사했다(플래그).** PRD 는 `클러스터 1~99`·`클러스터 100+` 를 핀의 네
     /// 형태 중 둘로 적었지만 디자인 라이브러리에 그 컴포넌트가 없다. 값이 나오면 이 함수를
     /// 에셋 로드로 갈아끼우면 된다 — 카운트 표기 규칙은 `PlaceMap.clusterCountText` 가 갖는다.
-    private static func clusterImage(
-        count: Int,
-        tint: UIColor,
-        cache: inout [MapMarkerStyle: UIImage],
-        style: MapMarkerStyle
-    ) -> UIImage? {
-        if let cached = cache[style] { return cached }
-
+    private static func clusterImage(count: Int, tint: UIColor) -> UIImage {
         let text = MapMarkerKind.clusterCountText(count) as NSString
         let attributes: [NSAttributedString.Key: Any] = [
             .font: clusterFont,
@@ -299,7 +340,7 @@ private enum MarkerIcon {
         let side = max(clusterSide, textSize.width + clusterFont.pointSize)
         let canvas = CGSize(width: side.rounded(.up), height: clusterSide)
 
-        let image = UIGraphicsImageRenderer(size: canvas).image { context in
+        return UIGraphicsImageRenderer(size: canvas).image { _ in
             let rect = CGRect(origin: .zero, size: canvas)
                 .insetBy(dx: clusterBorderWidth / 2, dy: clusterBorderWidth / 2)
             let path = UIBezierPath(roundedRect: rect, cornerRadius: rect.height / 2)
@@ -316,41 +357,32 @@ private enum MarkerIcon {
                 ),
                 withAttributes: attributes
             )
-            _ = context
         }
-        cache[style] = image
-        return image
-    }
-
-    /// 핀의 뾰족한 끝이 좌표를 가리키게 하는 앵커(그림 안에서 끝점이 놓인 비율).
-    /// 두 그림의 끝점 위치가 달라 선택 전환 때 함께 바꿔 줘야 핀이 제자리에 선다.
-    static func pinTipRatio(for style: MapMarkerStyle) -> CGPoint {
-        // 비선택: (24, 43.58) / 48 × 52.5755, 선택: (27.36, 60.18) / 55.8 × 60.8 (테두리 절반 포함)
-        style.isSelected ? CGPoint(x: 0.490, y: 0.990) : CGPoint(x: 0.5, y: 0.829)
     }
 
     /// 핀 아래에 라벨을 붙인 그림. 핀은 가로 가운데에 두고 라벨은 그 아래 가운데 정렬한다.
-    private static func composed(pin: UIImage, style: MapMarkerStyle, label: [String]) -> MarkerArt? {
+    private static func composed(pin: MarkerArt, label: [String]) -> MarkerArt {
         let attributes: [NSAttributedString.Key: Any] = [.font: labelFont]
         let lineWidths = label.map { ($0 as NSString).size(withAttributes: attributes).width }
         let labelWidth = (lineWidths.max() ?? 0) + labelHaloWidth * 2
         let labelHeight = labelLineHeight * CGFloat(label.count)
+        let pinSize = pin.image.size
 
         let canvas = CGSize(
-            width: max(pin.size.width, labelWidth).rounded(.up),
-            height: (pin.size.height + labelTopGap + labelHeight).rounded(.up)
+            width: max(pinSize.width, labelWidth).rounded(.up),
+            height: (pinSize.height + labelTopGap + labelHeight).rounded(.up)
         )
-        let pinOrigin = CGPoint(x: (canvas.width - pin.size.width) / 2, y: 0)
+        let pinOrigin = CGPoint(x: (canvas.width - pinSize.width) / 2, y: 0)
 
         let composite = UIGraphicsImageRenderer(size: canvas).image { _ in
-            pin.draw(in: CGRect(origin: pinOrigin, size: pin.size))
+            pin.image.draw(in: CGRect(origin: pinOrigin, size: pinSize))
 
             for (index, line) in label.enumerated() {
                 let text = line as NSString
                 let width = text.size(withAttributes: attributes).width
                 let origin = CGPoint(
                     x: (canvas.width - width) / 2,
-                    y: pin.size.height + labelTopGap + labelLineHeight * CGFloat(index)
+                    y: pinSize.height + labelTopGap + labelLineHeight * CGFloat(index)
                 )
                 // 후광을 먼저 깔고 그 위에 글자를 얹는다 — 획을 두껍게 그린 뒤 덮는 방식.
                 var halo = attributes
@@ -372,41 +404,20 @@ private enum MarkerIcon {
         // 이걸 안 하면 두 가지가 깨진다. 라벨이 핀보다 넓어 **투명한 라벨 자리가 옆 핀의 탭을
         // 훔치고**(이름이 긴 장소일수록 심하다), 앵커도 캔버스 전체 기준이 되어 라벨 줄 수마다
         // 다시 계산해야 한다. 정렬 사각형을 핀 그림에 맞추면 탭 영역이 핀만 남고 앵커는 라벨이
-        // 없을 때와 **같은 비율**이 된다 — 그래서 아래가 `pinTipRatio` 그대로다.
+        // 없을 때와 **같은 비율**이 된다 — 그래서 아래가 핀에서 잰 앵커 그대로다.
         let image = composite.withAlignmentRectInsets(
             UIEdgeInsets(
                 top: 0,
                 left: pinOrigin.x,
-                bottom: canvas.height - pin.size.height,
-                right: canvas.width - pin.size.width - pinOrigin.x
+                bottom: canvas.height - pinSize.height,
+                right: canvas.width - pinSize.width - pinOrigin.x
             )
         )
-        return MarkerArt(image: image, groundAnchor: pinTipRatio(for: style))
+        return MarkerArt(image: image, groundAnchor: pin.groundAnchor)
     }
 
-
-    private static func unselected(tint: UIColor) -> UIImage? {
-        guard let body = asset("mapPinBody"), let mascot = asset("mapPinMascot") else { return nil }
-        let rect = CGRect(origin: .zero, size: defaultSize)
-        return UIGraphicsImageRenderer(size: defaultSize).image { context in
-            for shadow in shadows {
-                context.cgContext.saveGState()
-                context.cgContext.setShadow(
-                    offset: CGSize(width: 0, height: shadow.dy),
-                    blur: shadow.blur,
-                    color: shadowColor
-                )
-                body.draw(in: rect)
-                context.cgContext.restoreGState()
-            }
-            body.draw(in: rect)
-            tint.setFill()
-            context.cgContext.fillEllipse(in: colorWell)
-            mascot.withTintColor(mascotColor, renderingMode: .alwaysOriginal).draw(in: rect)
-        }
-    }
-
-    private static func asset(_ name: String) -> UIImage? {
+    /// 에셋 로드. 테스트가 같은 번들에서 같은 이름을 찾도록 한 곳에 둔다.
+    static func asset(_ name: String) -> UIImage? {
         UIImage(named: name, in: .module, compatibleWith: nil)
     }
 }
