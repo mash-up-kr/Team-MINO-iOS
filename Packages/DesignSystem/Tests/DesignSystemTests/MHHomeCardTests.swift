@@ -28,6 +28,17 @@ final class MHHomeCardTests: XCTestCase {
         }
     }
 
+    // 사진이 없는 칸은 회색 자리표가 아니라 투명이어야 한다 — 회색은 "안 뜬 사진" 으로 읽힌다.
+    // 사진이 올 칸(URL 있음)은 로딩 중에도 회색이 깔려야 자리가 비지 않는다.
+    // 에셋 색이 ImageRenderer 에서 투명으로 나와 픽셀로는 못 재고, 칸별 판정 규칙을 직접 검증한다.
+    func testSlotSurfaceFollowsImageCount() {
+        XCTAssertTrue(MHHomeCard.slotHasImage(imageCount: 1, index: 0), "1장: 첫 칸은 사진 자리")
+        XCTAssertFalse(MHHomeCard.slotHasImage(imageCount: 1, index: 1), "1장: 둘째 칸은 투명")
+        XCTAssertFalse(MHHomeCard.slotHasImage(imageCount: 0, index: 0), "0장: 모두 투명")
+        XCTAssertFalse(MHHomeCard.slotHasImage(imageCount: 0, index: 1))
+        XCTAssertTrue(MHHomeCard.slotHasImage(imageCount: 3, index: 1), "3장: 두 칸 모두 사진 자리")
+    }
+
     @MainActor
     func testRemoteURLsKeepTwoTilesBeforeLoad() throws {
         MHFontRegistrar.registerIfNeeded()

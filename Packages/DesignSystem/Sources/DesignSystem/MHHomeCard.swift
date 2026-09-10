@@ -165,16 +165,31 @@ public struct MHHomeCard: View {
         }
     }
 
-    /// 칸은 언제나 ``tileCount`` 개. 사진이 모자란 칸은 타일 배경만 남는 자리표다.
+    /// 칸은 언제나 ``tileCount`` 개. 사진이 모자란 칸은 **투명한 빈 자리**다 — 회색 배경을 깔면
+    /// "사진이 안 떴다" 로 읽힌다(실기기 피드백). 회색은 사진이 오는 중인 칸에만 깐다.
     private var imageGrid: some View {
         HStack(spacing: 8) {
             ForEach(0..<Self.tileCount, id: \.self) { index in
-                imageTile { tileContent(at: index) }
+                imageTile(isLoadingSurface: hasImage(at: index)) { tileContent(at: index) }
             }
         }
     }
 
-    /// `index` 번째 칸에 얹을 사진. 사진이 없는 칸은 비워 둔다(타일 배경이 자리표).
+    /// `index` 번째 칸에 사진(또는 사진 URL)이 있는가.
+    private func hasImage(at index: Int) -> Bool {
+        switch imageSource {
+        case .local(let images): Self.slotHasImage(imageCount: images.count, index: index)
+        case .remote(let urls): Self.slotHasImage(imageCount: urls.count, index: index)
+        }
+    }
+
+    /// 칸 `index` 에 사진이 배정되는가 — 회색 로딩 배경을 깔지(true) 투명하게 둘지(false)의 기준.
+    /// 뷰 밖으로 뺀 이유는 렌더 없이 검증하기 위해서다(에셋 색은 `ImageRenderer` 에서 투명으로 나온다).
+    static func slotHasImage(imageCount: Int, index: Int) -> Bool {
+        index < imageCount
+    }
+
+    /// `index` 번째 칸에 얹을 사진. 사진이 없는 칸은 비워 둔다.
     @ViewBuilder
     private func tileContent(at index: Int) -> some View {
         switch imageSource {
@@ -199,9 +214,15 @@ public struct MHHomeCard: View {
     /// 밀어낸다. 홈 덱은 실측 컨테이너 폭으로 카드 폭을 정하므로(`CardDeckView.widthReader`) 그
     /// 부풀어 오른 폭이 다시 읽혀 덱 전체가 화면 밖으로 나간다 — 시뮬레이터에서 재현했다.
     /// 그래서 크기는 언제나 이 타일이 정하고, 사진은 `overlay` 로 얹은 뒤 넘치는 부분을 잘라낸다.
-    private func imageTile<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+    ///
+    /// - Parameter isLoadingSurface: 사진이 올 칸이면 회색 로딩 배경을 깐다(로딩 중·실패에도 자리가
+    ///   비지 않는다). 사진이 없는 칸은 투명 — 크기만 차지하고 그림은 없다.
+    private func imageTile<Content: View>(
+        isLoadingSurface: Bool,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
         RoundedRectangle(cornerRadius: 16)
-            .fill(Color.mhBackgroundNormalAlternative)
+            .fill(isLoadingSurface ? Color.mhBackgroundNormalAlternative : .clear)
             .aspectRatio(147.5 / 184, contentMode: .fit)
             .overlay { content() }
             .clipShape(RoundedRectangle(cornerRadius: 16))
