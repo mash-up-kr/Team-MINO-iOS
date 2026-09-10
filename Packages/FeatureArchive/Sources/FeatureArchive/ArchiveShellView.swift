@@ -211,7 +211,7 @@ struct ArchiveShellView: View {
 
     private func savedRoomsSheet(_ presentation: SavedRoomsPresentation) -> some View {
         SavedRoomsSheet(
-            rooms: presentation.rooms.map(RoomListItem.init(from:)),
+            rooms: presentation.rooms.map { RoomListItem(from: $0.room) },
             onSelect: coordinator.selectSavedRoom
         )
         .presentationDetents([.height(SavedRoomsSheet.detentHeight)])

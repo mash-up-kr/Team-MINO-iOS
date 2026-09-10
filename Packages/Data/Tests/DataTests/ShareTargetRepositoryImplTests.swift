@@ -15,7 +15,7 @@ struct ShareTargetRepositoryImplTests {
       {
         "id": "room-1", "type": "personal", "name": "내 장소", "description": null,
         "color": "orange", "ownerId": "u1", "createdAt": "2026-08-01T09:00:00Z",
-        "pinCount": 12, "memberCount": 1, "hasPlace": true
+        "pinCount": 12, "memberCount": 1, "hasPlace": true, "matchedPinId": "pin-1"
       },
       {
         "id": "room-2", "type": "shared", "name": "성수 카페", "description": null,
@@ -73,6 +73,36 @@ struct ShareTargetRepositoryImplTests {
         let targets = try await sut.shareTargets(placeID: Self.placeID)
 
         #expect(targets[0].alreadySaved == false)
+    }
+
+    // 014 ② 는 "해당 방의 장소상세로 이동한다" 라 방 id 만으로는 부족하다 — 같은 장소라도
+    // 방마다 핀이 따로다.
+    @Test("matchedPinId 가 '그 방 쪽 핀' 으로 매핑된다")
+    func mapsMatchedPinID() async throws {
+        let client = StubHTTPClient(json: Self.listJSON)
+        let sut = ShareTargetRepositoryImpl(client: client)
+
+        let targets = try await sut.shareTargets(placeID: Self.placeID)
+
+        // 담기지 않은 방(`room-2`)은 서버가 키를 주지 않아 nil 이다.
+        #expect(targets.map(\.matchedPinID) == [PinID("pin-1"), nil])
+    }
+
+    // 구버전 서버·`?showHasPlaceId=` 없는 조회. 담긴 건 알아도 어느 핀인지는 모르는 상태라,
+    // 그 방으로 건너뛰면 장소 상세 대신 방 상세에 선다.
+    @Test("matchedPinId 가 없어도 디코딩이 깨지지 않는다")
+    func missingMatchedPinIDIsNil() async throws {
+        let client = StubHTTPClient(json: """
+        [{ "id": "r", "type": "shared", "name": "방", "description": null,
+           "color": "cyan", "ownerId": "u", "createdAt": "2026-08-01T09:00:00Z",
+           "pinCount": 0, "memberCount": 1, "hasPlace": true }]
+        """)
+        let sut = ShareTargetRepositoryImpl(client: client)
+
+        let targets = try await sut.shareTargets(placeID: Self.placeID)
+
+        #expect(targets[0].alreadySaved)
+        #expect(targets[0].matchedPinID == nil)
     }
 
     @Test("401 은 재인증이 필요한 unauthorized 로 번역된다")

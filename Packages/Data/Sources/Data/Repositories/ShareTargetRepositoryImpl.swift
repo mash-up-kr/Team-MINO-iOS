@@ -24,7 +24,15 @@ public struct ShareTargetRepositoryImpl: ShareTargetRepository {
             // `hasPlace` 는 `?showHasPlaceId=` 를 붙였을 때만 온다. 그래도 nil 이면 "모른다" 가
             // 아니라 **안 담겼다**로 본다 — 담긴 방을 안 담겼다고 보이면 사용자가 한 번 더 고르고
             // 서버가 409 로 거절할 뿐이지만, 반대로 보이면 담을 수 있는 방을 막아 버린다.
-            return rooms.map { ShareTarget(room: $0.toDomain(), alreadySaved: $0.hasPlace ?? false) }
+            return rooms.map {
+                ShareTarget(
+                    room: $0.toDomain(),
+                    alreadySaved: $0.hasPlace ?? false,
+                    // 없으면 `nil` 이 그대로 뜻이 된다 — "담겨 있는 건 알지만 어느 핀인지는
+                    // 모른다". 그 방으로 건너뛰면 장소 상세 대신 방 상세에 선다.
+                    matchedPinID: $0.matchedPinId.map(PinID.init)
+                )
+            }
         } catch let error as NetworkError {
             throw Self.mapToDomain(error)
         }

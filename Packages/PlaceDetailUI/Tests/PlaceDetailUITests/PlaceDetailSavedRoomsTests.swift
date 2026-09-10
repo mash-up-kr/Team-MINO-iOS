@@ -55,7 +55,7 @@ struct PlaceDetailSavedRoomsTests {
         )
     }
 
-    private func loadedState(rooms: [Room]) -> PlaceDetailState {
+    private func loadedState(rooms: [SavedRoom]) -> PlaceDetailState {
         var state = PlaceDetailState(place: PlaceDetailPlace(from: savedPin, label: nil))
         state.savedRooms = rooms
         return state
