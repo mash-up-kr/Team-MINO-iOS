@@ -101,6 +101,15 @@ public final class ArchiveCoordinator: Coordinator {
     /// **시트가 떠 있어 껍데기가 살아 있는 동안 방이 늘어난 경우**(공유 시트 위 커버에서 방 생성)만 센다.
     private(set) var roomsRevision = 0
 
+    /// 이 장소가 담긴 방 구성이 바뀐 횟수. 껍데기가 이 값의 변화를 보고 장소 상세의
+    /// 「저장된 방」 목록을 다시 받는다(``ArchiveShellView``).
+    ///
+    /// 공유는 시트가 하고 목록은 그 아래 장소 상세가 든다 — 서로를 모르는 두 화면이라
+    /// 알려 주지 않으면 방금 담은 방이 목록에 없고, 버튼도 비활성인 채로 남는다(장소 상세를
+    /// 닫았다 다시 열어야 그제야 켜졌다). 세는 값을 쓰는 이유는 ``roomsRevision`` 과 같다 —
+    /// 같은 장소에 두 번 공유해도 매번 값이 달라져 재조회가 걸린다.
+    private(set) var savedRoomsRevision = 0
+
     /// 공유 저장이 **성공했을 때만** 서는 1회성 신호. 시트가 닫힌 뒤 껍데기가 소비해 완료 토스트를
     /// 띄운다. X 로 닫거나 저장에 실패하면 서지 않는다 — 그 자리에 완료 토스트가 뜨면 거짓말이 된다.
     /// 관찰 대상이 아니다(소비 시점이 `onDismiss`, 즉 뷰 갱신 중이라 관찰되면 재갱신을 부른다).
@@ -336,6 +345,9 @@ public final class ArchiveCoordinator: Coordinator {
         switch nav {
         case .didSave:
             savedShare = true
+            // 방금 담은 방이 「저장된 방」 목록에 들어와야 한다. 시트가 닫히기 **전에** 세워도
+            // 되는 이유는 재조회가 시트 아래 장소 상세의 일이라 시트 표시와 무관하기 때문이다.
+            savedRoomsRevision += 1
             sharingLocation = nil   // 토스트는 시트가 닫힌 뒤 `onDismiss` 에서 뜬다
         case .goToCreateRoom:
             // 시트를 닫지 않는다 — 자식이 시트 위를 덮고, 끝나면 시트가 그 자리에 그대로 있다.
