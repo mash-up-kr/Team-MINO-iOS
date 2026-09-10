@@ -302,7 +302,8 @@ struct MHHomeCardMoreStyle: ButtonStyle {
     }
 }
 
-#Preview("MHHomeCard") {
+// 사진 0장 — 두 칸 모두 투명한 빈 자리(회색 자리표 없음). 서버가 images 를 비워 준 핀의 모습.
+#Preview("MHHomeCard - 사진 없음") {
     MHHomeCard(
         avatar: nil,
         badgeText: "친구들이 많이 본 곳",
@@ -310,6 +311,20 @@ struct MHHomeCardMoreStyle: ButtonStyle {
         title: "레이어스튜디오 10",
         address: "서울 성동구 상원4길 10",
         images: []
+    ) { }
+    .frame(width: 335)
+    .padding()
+}
+
+// 사진 1장 — 첫 칸만 사진(로딩 중엔 회색), 둘째 칸은 투명. 카드 높이는 2장일 때와 같아야 한다.
+#Preview("MHHomeCard - Remote 1장") {
+    MHHomeCard(
+        avatar: nil,
+        badgeText: "가볼 만한 곳",
+        badgeColor: .mhAccentForegroundLime,
+        title: "코지인무르무르",
+        address: "서울 동대문구 회기동 60-41",
+        imageURLs: [URL(string: "https://picsum.photos/seed/gguk-1-0/800/600")!]
     ) { }
     .frame(width: 335)
     .padding()
