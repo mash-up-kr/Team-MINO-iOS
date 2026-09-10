@@ -183,7 +183,8 @@ public struct MHHomeCard: View {
         }
     }
 
-    /// 칸 `index` 에 사진이 배정되는가 — 회색 로딩 배경을 깔지(true) 투명하게 둘지(false)의 기준.
+    /// 칸 `index` 에 사진이 배정되는가 — 자리표(회색/투명)와 사진 렌더 여부를 **함께 가르는 단일 기준**.
+    /// 두 곳이 각자 `index < count` 를 세면 한쪽만 고쳤을 때 회색 칸에 사진이 안 뜨는 식으로 어긋난다.
     /// 뷰 밖으로 뺀 이유는 렌더 없이 검증하기 위해서다(에셋 색은 `ImageRenderer` 에서 투명으로 나온다).
     static func slotHasImage(imageCount: Int, index: Int) -> Bool {
         index < imageCount
@@ -193,9 +194,9 @@ public struct MHHomeCard: View {
     @ViewBuilder
     private func tileContent(at index: Int) -> some View {
         switch imageSource {
-        case .local(let images) where index < images.count:
+        case .local(let images) where Self.slotHasImage(imageCount: images.count, index: index):
             images[index].resizable().scaledToFill()
-        case .remote(let urls) where index < urls.count:
+        case .remote(let urls) where Self.slotHasImage(imageCount: urls.count, index: index):
             AsyncImage(url: urls[index]) { phase in
                 switch phase {
                 case .success(let image):
