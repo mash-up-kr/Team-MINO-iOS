@@ -75,5 +75,14 @@ public enum DomainError: Error, Equatable, Sendable {
     case pinShareFailed
     /// 저장한 장소를 방에서 지우지 못했다.
     case pinDeleteFailed
+    /// 방장이 위임 없이 나가려 했다(서버 `OWNER_TRANSFER_REQUIRED`).
+    ///
+    /// 실패가 아니라 **다음 절차의 요구**다. 나가기 실패(`roomLeaveFailed`)와 반드시 갈라 둔다 —
+    /// 화면이 이 값 하나로 "안내" 대신 "새 방장 고르기" 를 띄운다.
+    case ownerTransferRequired
+    /// 방에서 나가지 못했다. 위임 요구(`ownerTransferRequired`)와 달리 재시도가 의미 있다.
+    case roomLeaveFailed
+    /// 방장을 넘기지 못했다.
+    case ownerTransferFailed
     case unknown
 }

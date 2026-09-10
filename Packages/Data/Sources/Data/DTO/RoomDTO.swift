@@ -55,6 +55,11 @@ struct SaveRoomRequestDTO: Encodable, Sendable {
     }
 }
 
+/// 방장 위임(`PUT /rooms/{roomId}/owner`) 요청 본문.
+struct TransferOwnerRequestDTO: Encodable, Sendable {
+    let nextOwnerId: String
+}
+
 extension RoomDTO {
     /// 경계(Data → Domain) 변환. DTO 를 Entity 로 매핑한다.
     /// 알 수 없는 `type` 은 `shared`, 팔레트에 없는 `color` 는 `nil` 로 보수적 처리한다.
