@@ -47,6 +47,15 @@ private struct StubCreateRoom: CreateRoomUseCase {
     }
 }
 
+/// 나가기·위임을 조용히 성공시킨다. 라우팅만 보는 스위트라 실패 재생은 리듀서 테스트가 맡는다.
+private struct StubLeaveRoom: LeaveRoomUseCase {
+    func execute(roomId: String) async throws {}
+}
+
+private struct StubTransferRoomOwner: TransferRoomOwnerUseCase {
+    func execute(roomId: String, nextOwnerId: String) async throws {}
+}
+
 /// 편집 요청을 받은 대로 되돌려 준다 — 서버가 반영한 값이 그대로 온 셈이다.
 private struct StubUpdateRoom: UpdateRoomUseCase {
     func execute(roomId: String, name: String, description: String?, color: RoomColor) async throws -> Room {
@@ -94,6 +103,8 @@ private struct StubFetchInviteCode: FetchInviteCodeUseCase {
 private struct StubArchiveDeps: ArchiveDeps {
     var fetchRooms: FetchRoomsUseCase = StubFetchRooms()
     var updateRoom: UpdateRoomUseCase = StubUpdateRoom()
+    var leaveRoom: LeaveRoomUseCase = StubLeaveRoom()
+    var transferRoomOwner: TransferRoomOwnerUseCase = StubTransferRoomOwner()
     var fetchRoomPins: FetchRoomPinsUseCase = StubFetchRoomPins()
     var fetchPinDetail: FetchPinDetailUseCase = StubFetchPinDetail()
     var createRoom: CreateRoomUseCase = StubCreateRoom()

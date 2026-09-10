@@ -16,6 +16,10 @@ public protocol ArchiveDeps: RoomShareCreateRoomDeps, PlaceDetailDeps {
     /// 방 상세 케밥 → 방 편집(004-5). 생성(`createRoom`)은 자식 flow 의 좁은 창
     /// (``RoomShareCreateRoomDeps``)에 있고, 편집은 이 flow 만 쓴다.
     var updateRoom: UpdateRoomUseCase { get }
+    /// 방 상세 케밥 → 방 나가기(004-5). 방장이 마지막 멤버면 이 요청이 방 삭제를 겸한다.
+    var leaveRoom: LeaveRoomUseCase { get }
+    /// 방장이 나가려면 먼저 방장을 넘겨야 한다 — 서버가 409 로 요구한다.
+    var transferRoomOwner: TransferRoomOwnerUseCase { get }
     /// 저장된 장소 목록 — 방 상세와 방 리스트 탭 지도가 함께 쓴다. **정렬·필터는 서버가 한다.**
     var fetchRoomPins: FetchRoomPinsUseCase { get }
     /// 다른 방에 공유 시트가 그릴 방 목록 — 각 방에 이 장소가 이미 있는지까지 함께.

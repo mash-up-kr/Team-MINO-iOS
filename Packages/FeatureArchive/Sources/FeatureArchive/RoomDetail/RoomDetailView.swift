@@ -62,6 +62,26 @@ struct RoomDetailView: View {
                 confirm: MHAction("삭제", isEnabled: !deletion.isSubmitting) { store.send(.confirmDelete) }
             )
         }
+        // 004-5 방 나가기. 전용 시안이 없어 같은 앱의 확인 모달 공통 꼴을 따른다 —
+        // "이 …할까요?" + 되돌릴 수 없다는 한 줄 + 취소/실행 두 버튼(장소 삭제와 같다).
+        .mhDialog(item: store.state.leave) { leave in
+            MHDialog(
+                title: leave.deletesRoom ? "방을 나가면 삭제돼요" : "이 방에서 나갈까요?",
+                message: Self.leaveMessage(leave),
+                cancel: MHAction("취소", isEnabled: !leave.isSubmitting) { store.send(.cancelLeave) },
+                confirm: MHAction("나가기", isEnabled: !leave.isSubmitting) { store.send(.confirmLeave) }
+            )
+        }
+    }
+
+    /// 나가기 다이얼로그 본문. 실패했으면 그 자리에서 사유로 바꿔 재시도하게 둔다 —
+    /// 닫아 버리면 "눌렀는데 아무 일도 없다" 로 보인다.
+    private static func leaveMessage(_ leave: RoomDetailLeave) -> String {
+        if leave.failed { return "방에서 나가지 못했어요. 잠시 후 다시 시도해 주세요." }
+        return leave.deletesRoom
+            // 서버가 그렇게 동작한다 — 방장이 마지막 멤버면 나가기가 곧 방 삭제다.
+            ? "혼자 있는 방이라 나가면 방과 저장한 장소가 모두 사라지고, 다시 되돌릴 수 없어요."
+            : "이 방에 저장된 장소를 더 이상 볼 수 없어요. 다시 초대받으면 들어올 수 있어요."
     }
 
     private var toolbar: some View {

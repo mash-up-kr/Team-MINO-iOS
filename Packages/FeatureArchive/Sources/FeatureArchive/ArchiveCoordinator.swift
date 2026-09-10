@@ -151,6 +151,8 @@ public final class ArchiveCoordinator: Coordinator {
                 deletePin: deps.deletePin,
                 fetchCurrentMember: deps.currentMember,
                 currentLocation: deps.currentLocation,
+                leaveRoom: deps.leaveRoom,
+                transferRoomOwner: deps.transferRoomOwner,
                 room: room
             ),
             handle: { [weak self] in self?.handle($0) }
@@ -267,10 +269,13 @@ public final class ArchiveCoordinator: Coordinator {
         case .editRoom(let room):
             editingRoom = room
             push(.editRoom)
-        case .leaveRoom:
-            // 아직 갈 곳이 없다 — 비워 둔 것이 아니라 도착 화면이 이 PR 범위 밖이다.
-            // 방 나가기(004-5 나가기_방장 / 나가기_방멤버)는 후속 PR 에서 붙인다.
-            break
+        case .didLeaveRoom:
+            // 이제 못 보는 방이다 — 상세와 그 안에서 보던 장소를 함께 내린다.
+            showRoom(nil)
+            selectedPin = nil
+            // 목록에서도 빠져야 한다. 껍데기의 `.task` 는 시트만 닫힌 지금 돌지 않으므로
+            // (푸시·탭 전환이 없다) 이 신호로만 갱신된다.
+            roomsDidChange()
         }
     }
 

@@ -118,6 +118,8 @@ struct ArchiveShellView: View {
         }
         // 방 상세 헤더 케밥 드롭다운. peek 에서 시트 위(지도 위)로 떠야 해 시트 클립 밖인 여기서 그린다.
         .roomDetailMoreMenu(store: detailStore, detent: detent)
+        // 방장 위임 카드도 같은 이유로 시트 밖에서 그린다 — 딤이 화면 전체를 덮어야 한다.
+        .roomOwnerTransfer(store: detailStore)
         .animation(.easeInOut(duration: 0.2), value: toastMessage)
         .onChange(of: detent) { _, _ in sortMenuOpen = false }
         // **가드는 "생성"에만 걸고 "로드"에는 걸지 않는다.** 이 `.task` 는 껍데기가 다시 보일 때마다
