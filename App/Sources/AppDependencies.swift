@@ -36,6 +36,9 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
     let createRoom: CreateRoomUseCase
     /// 방 상세 케밥 → 방 편집(004-5). 서버가 방장만 허용한다.
     let updateRoom: UpdateRoomUseCase
+    /// 방 상세 케밥 → 방 나가기(004-5)와 그 선행 절차인 방장 위임.
+    let leaveRoom: LeaveRoomUseCase
+    let transferRoomOwner: TransferRoomOwnerUseCase
     let roomCreationPromptSnooze: SnoozeSwitch
     let ensureSession: EnsureSessionUseCase
     let registerProfile: RegisterProfileUseCase
@@ -147,6 +150,11 @@ struct AppDependencies: MemberDeps, HomeDeps, ArchiveDeps, NotificationDeps, Lau
         let roomEditing = RoomEditingRepositoryImpl(client: httpClient)
         self.createRoom = DefaultCreateRoomUseCase(repository: roomEditing)
         self.updateRoom = DefaultUpdateRoomUseCase(repository: roomEditing)
+
+        // 방 나가기·방장 위임. 방을 고치는 것(위)과 방에 속하는 것(아래)은 다른 저장소다.
+        let roomMembership = RoomMembershipRepositoryImpl(client: httpClient)
+        self.leaveRoom = DefaultLeaveRoomUseCase(repository: roomMembership)
+        self.transferRoomOwner = DefaultTransferRoomOwnerUseCase(repository: roomMembership)
 
         // 공동방 생성 유도 시트: "나중에 만들래요" 를 누르면 2주 동안 띄우지 않는다(기획 001-2-1).
         self.roomCreationPromptSnooze = SnoozeSwitch(key: "roomCreationPrompt.snoozedAt", period: .days(14))

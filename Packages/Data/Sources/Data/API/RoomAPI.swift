@@ -39,4 +39,17 @@ enum RoomAPI {
     static func update(_ roomId: String, _ body: SaveRoomRequestDTO) -> Endpoint<RoomDTO> {
         Endpoint(path: "\(base)/\(roomId)", method: .patch, body: .json(body))
     }
+
+    /// 이 방에서 나간다 (`DELETE /api/v1/rooms/{roomId}/members/me`).
+    ///
+    /// 경로가 `members/me` 인 것에 주의 — 방을 지우는 게 아니라 **내 멤버십**을 지운다.
+    /// 서버는 방장이 마지막 멤버일 때만 이 요청으로 방까지 지운다(별도의 방 삭제 API 는 없다).
+    static func leave(_ roomId: String) -> Endpoint<OkResponse> {
+        Endpoint(path: "\(base)/\(roomId)/members/me", method: .delete)
+    }
+
+    /// 방장을 넘긴다 (`PUT /api/v1/rooms/{roomId}/owner`). POST·PATCH 가 아니라 **PUT** 이다.
+    static func transferOwner(_ roomId: String, _ body: TransferOwnerRequestDTO) -> Endpoint<OkResponse> {
+        Endpoint(path: "\(base)/\(roomId)/owner", method: .put, body: .json(body))
+    }
 }

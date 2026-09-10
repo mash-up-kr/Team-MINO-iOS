@@ -12,6 +12,53 @@ private let fixtureRoom = Room(
     pinCount: 3, memberCount: 2, users: []
 )
 
+/// 방장(u1) + 멤버 둘. 위임 후보를 실제로 고를 수 있는 방이다 —
+/// ``fixtureRoom`` 은 `users` 가 비어 있어 409 를 받아도 넘길 사람이 없다.
+private let fixtureCrowdedRoom = Room(
+    id: "r2", type: .shared, name: "우리 동네 맛집", description: "메모", color: .orange,
+    ownerId: "u1", createdAt: Date(timeIntervalSince1970: 0),
+    pinCount: 3, memberCount: 3,
+    users: [
+        RoomMember(userId: "u1", nickname: "방장", avatarColor: .violet, isOwner: true,
+                   joinedAt: Date(timeIntervalSince1970: 0)),
+        RoomMember(userId: "u2", nickname: "유빈", avatarColor: .cyan, isOwner: false,
+                   joinedAt: Date(timeIntervalSince1970: 0)),
+        RoomMember(userId: "u3", nickname: "윤지", avatarColor: nil, isOwner: false,
+                   joinedAt: Date(timeIntervalSince1970: 0)),
+    ]
+)
+
+/// 방장 혼자인 방 — 나가면 서버가 방까지 지운다(스펙). 문구가 갈리는 경우다.
+private let fixtureSoloRoom = Room(
+    id: "r3", type: .shared, name: "혼자 쓰는 방", description: nil, color: .orange,
+    ownerId: "u1", createdAt: Date(timeIntervalSince1970: 0),
+    pinCount: 0, memberCount: 1, users: []
+)
+
+/// 나가기 결과를 골라 재생한다.
+private struct StubLeaveRoom: LeaveRoomUseCase {
+    var error: DomainError?
+
+    func execute(roomId: String) async throws {
+        if let error { throw error }
+    }
+}
+
+/// 위임 결과를 골라 재생하고, **넘긴 대상**을 기록한다.
+private final class SpyTransferRoomOwner: TransferRoomOwnerUseCase, @unchecked Sendable {
+    var error: DomainError?
+    private(set) var nextOwnerIDs: [String] = []
+
+    init(error: DomainError? = nil) {
+        self.error = error
+    }
+
+    func execute(roomId: String, nextOwnerId: String) async throws {
+        nextOwnerIDs.append(nextOwnerId)
+        if let error { throw error }
+    }
+}
+
 /// 개인방(`내 장소`) — `+`(초대)·`⋮`(더보기)가 없어야 하는 방이다. 다른 값은 위와 같게 두고
 /// `type` 만 갈라, 갈리는 원인이 방 종류 하나임을 분명히 한다.
 private let fixturePersonalRoom = Room(
@@ -105,6 +152,8 @@ struct RoomDetailReducerTests {
         deletePin: DeletePinUseCase = StubDeletePin(),
         currentMember: CurrentMemberUseCase = StubCurrentMember(),
         currentLocation: CurrentLocationUseCase = StubCurrentLocation(),
+        leaveRoom: LeaveRoomUseCase = StubLeaveRoom(),
+        transferRoomOwner: TransferRoomOwnerUseCase = SpyTransferRoomOwner(),
         room: Room = fixtureRoom,
         state: RoomDetailState = RoomDetailState(room: RoomDetailRoom(from: fixtureRoom))
     ) -> TestStore<RoomDetailState, RoomDetailAction, RoomDetailNav> {
@@ -115,6 +164,8 @@ struct RoomDetailReducerTests {
                 deletePin: deletePin,
                 fetchCurrentMember: currentMember,
                 currentLocation: currentLocation,
+                leaveRoom: leaveRoom,
+                transferRoomOwner: transferRoomOwner,
                 room: room
             )
         )
@@ -657,15 +708,208 @@ struct RoomDetailReducerTests {
         store.finish()   // navigate 가 나갔다면 미처리 nav 로 여기서 걸린다
     }
 
-    @Test("L1 — '방 나가기' 는 방장이 아니어도 leaveRoom 으로 navigate 한다")
-    func selectMoreMenuItem_leaveRoom() async {
+    // MARK: - 방 나가기 (004-5)
+
+    /// 케밥에서 "방 나가기" 를 누른 직후 — 확인 다이얼로그가 열린 상태.
+    private func leavingState(_ room: Room, isOwner: Bool = true) -> RoomDetailState {
+        var state = RoomDetailState(room: RoomDetailRoom(from: room))
+        state.isOwner = isOwner
+        state.leave = RoomDetailLeave(deletesRoom: isOwner && room.memberCount <= 1)
+        return state
+    }
+
+    @Test("L1 — '방 나가기' 는 곧장 나가지 않고 확인 다이얼로그를 연다")
+    func selectMoreMenuItem_leaveRoom_opensConfirm() async {
         var state = loadedState()
         state.isMoreMenuPresented = true
         let store = makeStore(state: state)
 
-        await store.send(.selectMoreMenuItem(.leaveRoom)) { $0.isMoreMenuPresented = false }
+        await store.send(.selectMoreMenuItem(.leaveRoom)) {
+            $0.isMoreMenuPresented = false
+            $0.leave = RoomDetailLeave(deletesRoom: false)
+        }
 
-        store.receiveNavigation(.leaveRoom(fixtureRoom))
+        store.finish()   // navigate 가 나갔다면 미처리 nav 로 여기서 걸린다
+    }
+
+    // 서버가 그렇게 동작한다 — 방장이 마지막 멤버면 나가기가 곧 방 삭제다. 문구가 갈리므로
+    // 그 사실을 state 가 들고 있어야 한다.
+    @Test("L1 — 방장 혼자인 방은 '나가면 삭제' 로 표시된다")
+    func selectMoreMenuItem_leaveRoom_soloOwner() async {
+        var state = RoomDetailState(room: RoomDetailRoom(from: fixtureSoloRoom))
+        state.isOwner = true
+        state.isMoreMenuPresented = true
+        let store = makeStore(room: fixtureSoloRoom, state: state)
+
+        await store.send(.selectMoreMenuItem(.leaveRoom)) {
+            $0.isMoreMenuPresented = false
+            $0.leave = RoomDetailLeave(deletesRoom: true)
+        }
+
+        store.finish()
+    }
+
+    @Test("L1 — 취소하면 다이얼로그만 닫고 아무것도 보내지 않는다")
+    func cancelLeave_closesDialog() async {
+        let store = makeStore(state: leavingState(fixtureRoom, isOwner: false))
+
+        await store.send(.cancelLeave) { $0.leave = nil }
+
+        store.finish()
+    }
+
+    @Test("L2 — 나가기가 성공하면 다이얼로그를 닫고 밖으로 '나갔다' 를 알린다")
+    func confirmLeave_success() async {
+        let store = makeStore(state: leavingState(fixtureRoom, isOwner: false))
+
+        await store.send(.confirmLeave) { $0.leave?.isSubmitting = true }
+        await store.receive(.leaveSucceeded) { $0.leave = nil }
+
+        store.receiveNavigation(.didLeaveRoom)
+        store.finish()
+    }
+
+    @Test("L1 — 응답을 기다리는 동안 다시 눌러도 두 번 보내지 않는다")
+    func confirmLeave_ignoresWhileSubmitting() async {
+        var state = leavingState(fixtureRoom, isOwner: false)
+        state.leave?.isSubmitting = true
+        let store = makeStore(state: state)
+
+        await store.send(.confirmLeave)   // 상태 변화 없음, effect 도 없음
+
+        store.finish()
+    }
+
+    // 닫아 버리면 "눌렀는데 아무 일도 없다" 로 보인다 — 그 자리에서 다시 시도하게 둔다.
+    @Test("L2 — 나가기 실패는 다이얼로그를 열어 둔 채 사유만 세운다")
+    func confirmLeave_failure() async {
+        let store = makeStore(
+            leaveRoom: StubLeaveRoom(error: .roomLeaveFailed),
+            state: leavingState(fixtureRoom, isOwner: false)
+        )
+
+        await store.send(.confirmLeave) { $0.leave?.isSubmitting = true }
+        await store.receive(.leaveFailed(.roomLeaveFailed)) {
+            $0.leave?.isSubmitting = false
+            $0.leave?.failed = true
+        }
+
+        store.finish()
+    }
+
+    // MARK: 방장 위임 (409)
+
+    @Test("L2 — 409 는 실패가 아니라 위임 요구다: 나를 뺀 참여자 목록을 띄운다")
+    func confirmLeave_ownerTransferRequired() async {
+        let store = makeStore(
+            leaveRoom: StubLeaveRoom(error: .ownerTransferRequired),
+            room: fixtureCrowdedRoom,
+            state: leavingState(fixtureCrowdedRoom)
+        )
+
+        await store.send(.confirmLeave) { $0.leave?.isSubmitting = true }
+        await store.receive(.leaveFailed(.ownerTransferRequired)) {
+            $0.leave = nil
+            $0.ownerTransfer = RoomOwnerTransfer(candidates: [
+                RoomOwnerTransferCandidate(id: "u2", nickname: "유빈", avatarColor: .cyan),
+                RoomOwnerTransferCandidate(id: "u3", nickname: "윤지", avatarColor: nil),
+            ])
+        }
+
+        store.finish()
+    }
+
+    // 손에 든 멤버 목록이 낡았다는 뜻이다(그 사이 누가 들어왔다). 빈 목록을 띄우면 빠져나갈
+    // 길이 없어, 나가기 다이얼로그를 실패 상태로 되돌려 재시도하게 둔다.
+    @Test("L2 — 넘길 사람이 없는데 409 가 오면 위임 카드 대신 재시도로 되돌린다")
+    func confirmLeave_ownerTransferRequired_withoutCandidates() async {
+        let store = makeStore(
+            leaveRoom: StubLeaveRoom(error: .ownerTransferRequired),
+            state: leavingState(fixtureRoom)   // users 가 비어 있는 방
+        )
+
+        await store.send(.confirmLeave) { $0.leave?.isSubmitting = true }
+        await store.receive(.leaveFailed(.ownerTransferRequired)) {
+            $0.leave = RoomDetailLeave(deletesRoom: false, failed: true)
+            $0.ownerTransfer = nil
+        }
+
+        store.finish()
+    }
+
+    /// 위임 카드가 열린 상태 — 409 를 받은 직후.
+    private var transferringState: RoomDetailState {
+        var state = RoomDetailState(room: RoomDetailRoom(from: fixtureCrowdedRoom))
+        state.isOwner = true
+        state.ownerTransfer = RoomOwnerTransfer(candidates: [
+            RoomOwnerTransferCandidate(id: "u2", nickname: "유빈", avatarColor: .cyan),
+            RoomOwnerTransferCandidate(id: "u3", nickname: "윤지", avatarColor: nil),
+        ])
+        return state
+    }
+
+    @Test("L1 — 고르기 전에는 넘길 수 없다")
+    func ownerTransfer_requiresSelection() async {
+        let store = makeStore(room: fixtureCrowdedRoom, state: transferringState)
+
+        #expect(store.currentState.ownerTransfer?.canSubmit == false)
+        await store.send(.confirmOwnerTransfer)   // 아무 일도 없다
+
+        store.finish()
+    }
+
+    @Test("L1 — 한 명을 고르면 넘기기가 열린다")
+    func ownerTransfer_select() async {
+        let store = makeStore(room: fixtureCrowdedRoom, state: transferringState)
+
+        await store.send(.selectNextOwner("u3")) { $0.ownerTransfer?.selectedID = "u3" }
+
+        #expect(store.currentState.ownerTransfer?.canSubmit == true)
+        store.finish()
+    }
+
+    // 사용자가 고른 건 "넘기고 나가기" **하나**다 — 위임만 성공하고 멈추면 방장이 바뀐 채
+    // 그대로 남아 되돌릴 방법이 없다.
+    @Test("L3 — 넘기고 나가기는 위임 뒤 곧바로 나가기까지 이어 간다")
+    func ownerTransfer_confirmLeavesToo() async {
+        let spy = SpyTransferRoomOwner()
+        var state = transferringState
+        state.ownerTransfer?.selectedID = "u2"
+        let store = makeStore(transferRoomOwner: spy, room: fixtureCrowdedRoom, state: state)
+
+        await store.send(.confirmOwnerTransfer) { $0.ownerTransfer?.isSubmitting = true }
+        await store.receive(.leaveSucceeded) { $0.ownerTransfer = nil }
+
+        store.receiveNavigation(.didLeaveRoom)
+        #expect(spy.nextOwnerIDs == ["u2"])
+        store.finish()
+    }
+
+    @Test("L2 — 위임이 실패하면 카드를 열어 둔 채 사유만 세운다")
+    func ownerTransfer_failure() async {
+        var state = transferringState
+        state.ownerTransfer?.selectedID = "u2"
+        let store = makeStore(
+            transferRoomOwner: SpyTransferRoomOwner(error: .ownerTransferFailed),
+            room: fixtureCrowdedRoom,
+            state: state
+        )
+
+        await store.send(.confirmOwnerTransfer) { $0.ownerTransfer?.isSubmitting = true }
+        await store.receive(.leaveFailed(.ownerTransferFailed)) {
+            $0.ownerTransfer?.isSubmitting = false
+            $0.ownerTransfer?.failed = true
+        }
+
+        store.finish()
+    }
+
+    @Test("L1 — 위임을 취소하면 카드만 닫는다 — 방에 그대로 남는다")
+    func ownerTransfer_cancel() async {
+        let store = makeStore(room: fixtureCrowdedRoom, state: transferringState)
+
+        await store.send(.cancelOwnerTransfer) { $0.ownerTransfer = nil }
+
         store.finish()
     }
 }

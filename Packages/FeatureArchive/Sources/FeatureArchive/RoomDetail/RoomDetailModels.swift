@@ -88,6 +88,48 @@ struct RoomDetailRoom: Equatable {
 /// `mhDialog(item:)` 이 `Identifiable` 을 요구해 값 하나를 감쌌다. 진행 중 여부를 밖에 Bool 로
 /// 따로 두지 않고 여기 담는 건, "다이얼로그는 닫혔는데 삭제 중" 같은 있을 수 없는 조합을
 /// 타입으로 막기 위해서다.
+/// 방 나가기 확인 다이얼로그(004-5). nil 이면 닫혀 있다.
+struct RoomDetailLeave: Equatable, Identifiable {
+    /// 내가 나가면 **방이 사라지는가** — 방장이 마지막 멤버인 경우다.
+    ///
+    /// 서버가 그렇게 동작하고(스펙: "방장+마지막 멤버면 방 삭제"), 별도의 방 삭제 API 도 없다.
+    /// 문구로 그 사실을 알려 주지 않으면 사용자는 "나만 빠진다" 고 읽는다.
+    let deletesRoom: Bool
+    /// 요청을 보내고 기다리는 중 — 두 버튼을 모두 잠가 연타로 두 번 보내지 않는다.
+    var isSubmitting = false
+    /// 나가기가 실패했다. 다이얼로그는 열어 두고 문구만 바꿔 재시도할 수 있게 한다 —
+    /// 닫아 버리면 "눌렀는데 아무 일도 없다" 로 보인다.
+    var failed = false
+
+    /// 화면에 하나만 뜬다 — 항목을 가릴 id 가 필요 없다.
+    var id: String { "leave" }
+}
+
+/// 방장 위임 대상 고르기. 서버가 409(`OWNER_TRANSFER_REQUIRED`)로 요구했을 때만 선다.
+///
+/// **확정 시안이 없다**(Figma 3개 페이지 전수 확인 — 004-5 방편집/나가기 프레임도, API 스펙이
+/// 말하는 "방장 위임 대상 선택 모달" 도 파일에 없다). 디자인이 오면 이 상태는 그대로 두고
+/// 그리는 쪽(``RoomOwnerTransferCard``)만 맞추면 된다.
+struct RoomOwnerTransfer: Equatable, Identifiable {
+    let candidates: [RoomOwnerTransferCandidate]
+    var selectedID: String?
+    var isSubmitting = false
+    /// 위임 또는 뒤이은 나가기가 실패했다.
+    var failed = false
+
+    var id: String { "ownerTransfer" }
+
+    /// 고른 사람이 있고 요청이 진행 중이 아닐 때만 넘길 수 있다.
+    var canSubmit: Bool { selectedID != nil && !isSubmitting }
+}
+
+/// 위임 후보 한 명 — 나를 뺀 이 방의 참여자.
+struct RoomOwnerTransferCandidate: Equatable, Identifiable {
+    let id: String
+    let nickname: String
+    let avatarColor: AvatarColor?
+}
+
 struct RoomDetailDeletion: Equatable, Identifiable {
     let locationID: RoomDetailLocation.ID
     /// 확인을 누른 뒤 응답을 기다리는 중 — 두 버튼을 모두 잠가 연타로 두 번 지우는 걸 막는다.
