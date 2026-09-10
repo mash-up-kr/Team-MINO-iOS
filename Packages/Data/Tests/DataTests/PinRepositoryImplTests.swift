@@ -24,14 +24,14 @@ struct PinRepositoryImplTests {
                      "mapUrl": "https://map.kakao.com/p/1" },
           "images": ["https://cdn.example.com/a.jpg", ""],
           "createdBy": { "userId": "u2", "nickname": "지훈", "avatar": { "color": "red_orange" } },
-          "createdAt": "2026-08-01T09:00:00Z", "labelGroup": "manyComments"
+          "createdAt": "2026-08-01T09:00:00Z", "commentCount": 12, "labelGroup": "manyComments"
         },
         {
           "id": "pin-2", "roomId": "room-1",
           "place": { "id": "place-2", "name": "을지다락", "address": "서울 중구 을지로3가",
                      "lat": 37.5662, "lng": 126.9917, "category": null, "mapUrl": null },
           "images": [], "createdBy": null,
-          "createdAt": "2026-08-02T09:00:00Z", "labelGroup": "manyViews"
+          "createdAt": "2026-08-02T09:00:00Z", "commentCount": 0, "labelGroup": "manyViews"
         }
       ]
     }
@@ -235,13 +235,56 @@ struct PinRepositoryImplTests {
           "place": { "id": "p", "name": "n", "address": "a", "lat": 1, "lng": 2,
                      "category": null, "mapUrl": null },
           "images": null, "createdBy": null, "createdAt": "2026-08-01T09:00:00Z",
-          "sourceUrl": "https://www.instagram.com/p/abc/" }
+          "commentCount": 3, "sourceUrl": "https://www.instagram.com/p/abc/" }
         """))
 
         let detail = try await sut.pinDetail(id: PinID("pin-1"))
 
         #expect(detail.sourceURL?.absoluteString == "https://www.instagram.com/p/abc/")
         #expect(detail.pin.images.isEmpty)   // images 키가 null 이어도 목록이 깨지지 않는다
+    }
+
+    // 서버가 `commentCount` 를 싣기 전에는 이 값이 0 으로 하드코딩돼 있어 카드·목록의
+    // "코멘트 N" 이 항상 0 이었다(004-1 ⑥ 코멘트순도 저장 시각순과 같아졌다).
+    @Test("코멘트 수가 홈 카드·목록·상세 모두에 실려 온다")
+    func mapsCommentCount() async throws {
+        let cards = try await PinRepositoryImpl(client: StubHTTPClient(json: Self.cardsJSON))
+            .cards(roomID: "room-1", filter: .recommended, origin: nil)
+        #expect(cards.map(\.commentCount) == [12, 0])
+
+        let pins = try await PinRepositoryImpl(client: StubHTTPClient(json: """
+        [{ "id": "pin-1", "roomId": "room-1",
+           "place": { "id": "p", "name": "n", "address": "a", "lat": 1, "lng": 2,
+                      "category": null, "mapUrl": null },
+           "images": null, "createdBy": null, "createdAt": "2026-08-01T09:00:00Z",
+           "commentCount": 7 }]
+        """)).pins(roomID: "room-1", sort: .all, category: .all, origin: nil)
+        #expect(pins.map(\.commentCount) == [7])
+
+        let detail = try await PinRepositoryImpl(client: StubHTTPClient(json: """
+        { "id": "pin-1", "roomId": "room-1",
+          "place": { "id": "p", "name": "n", "address": "a", "lat": 1, "lng": 2,
+                     "category": null, "mapUrl": null },
+          "images": null, "createdBy": null, "createdAt": "2026-08-01T09:00:00Z",
+          "commentCount": 3, "sourceUrl": null }
+        """)).pinDetail(id: PinID("pin-1"))
+        #expect(detail.pin.commentCount == 3)
+    }
+
+    // 서버 배포가 앱보다 늦을 수 있다 — 키가 없다고 목록이 통째로 비면 안 된다.
+    @Test("commentCount 키가 없으면 0 으로 떨어지고 디코딩은 깨지지 않는다")
+    func missingCommentCountIsZero() async throws {
+        let sut = PinRepositoryImpl(client: StubHTTPClient(json: """
+        [{ "id": "pin-1", "roomId": "room-1",
+           "place": { "id": "p", "name": "n", "address": "a", "lat": 1, "lng": 2,
+                      "category": null, "mapUrl": null },
+           "images": null, "createdBy": null, "createdAt": "2026-08-01T09:00:00Z" }]
+        """))
+
+        let pins = try await sut.pins(roomID: nil, sort: .all, category: .all, origin: nil)
+
+        #expect(pins.count == 1)
+        #expect(pins[0].commentCount == 0)
     }
 
     @Test("401 은 재인증이 필요한 unauthorized 로 번역된다")
