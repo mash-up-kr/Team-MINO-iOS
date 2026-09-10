@@ -21,9 +21,19 @@ private struct StubFetchRoomPins: FetchRoomPinsUseCase {
 }
 
 
+/// **요청한 id 를 그대로 실어** 돌려준다 — 저장된 방으로 건너뛸 때 "그 방 쪽 핀" 이 서는지를
+/// 재려면 결과가 요청과 이어져 있어야 한다. 이미 아는 핀(`fixturePin`)은 그대로 준다.
 private struct StubFetchPinDetail: FetchPinDetailUseCase {
     func execute(pinID: PinID) async throws -> PinDetail {
-        PinDetail(pin: fixturePin, sourceURL: nil)
+        guard pinID != fixturePin.id else { return PinDetail(pin: fixturePin, sourceURL: nil) }
+        return PinDetail(
+            pin: PinFixture.pin(
+                id: pinID, roomID: savedRoomB.id, category: .worthVisiting,
+                title: "다른 방의 같은 장소", address: "서울 성동구 상원4길 10",
+                createdAt: Date(timeIntervalSince1970: 0)
+            ),
+            sourceURL: nil
+        )
     }
 }
 
@@ -33,6 +43,26 @@ private struct StubCreateRoom: CreateRoomUseCase {
             id: "new", type: .shared, name: name, description: description, color: color,
             ownerId: "u1", createdAt: Date(timeIntervalSince1970: 0),
             pinCount: 0, memberCount: 1, users: []
+        )
+    }
+}
+
+/// 나가기·위임을 조용히 성공시킨다. 라우팅만 보는 스위트라 실패 재생은 리듀서 테스트가 맡는다.
+private struct StubLeaveRoom: LeaveRoomUseCase {
+    func execute(roomId: String) async throws {}
+}
+
+private struct StubTransferRoomOwner: TransferRoomOwnerUseCase {
+    func execute(roomId: String, nextOwnerId: String) async throws {}
+}
+
+/// 편집 요청을 받은 대로 되돌려 준다 — 서버가 반영한 값이 그대로 온 셈이다.
+private struct StubUpdateRoom: UpdateRoomUseCase {
+    func execute(roomId: String, name: String, description: String?, color: RoomColor) async throws -> Room {
+        Room(
+            id: roomId, type: .shared, name: name, description: description, color: color,
+            ownerId: "u1", createdAt: Date(timeIntervalSince1970: 0),
+            pinCount: 3, memberCount: 2, users: []
         )
     }
 }
@@ -70,8 +100,16 @@ private struct StubFetchInviteCode: FetchInviteCodeUseCase {
     func execute(roomId: String) async throws -> String { "code-\(roomId)" }
 }
 
+/// 배선만 보는 스위트라 위치 결과만 돌려준다.
+private struct StubEntryPermissions: RequestEntryPermissionsUseCase {
+    func execute() async -> CurrentLocationResult { .coordinate(fixtureCoordinate) }
+}
+
 private struct StubArchiveDeps: ArchiveDeps {
     var fetchRooms: FetchRoomsUseCase = StubFetchRooms()
+    var updateRoom: UpdateRoomUseCase = StubUpdateRoom()
+    var leaveRoom: LeaveRoomUseCase = StubLeaveRoom()
+    var transferRoomOwner: TransferRoomOwnerUseCase = StubTransferRoomOwner()
     var fetchRoomPins: FetchRoomPinsUseCase = StubFetchRoomPins()
     var fetchPinDetail: FetchPinDetailUseCase = StubFetchPinDetail()
     var createRoom: CreateRoomUseCase = StubCreateRoom()
@@ -84,6 +122,7 @@ private struct StubArchiveDeps: ArchiveDeps {
     var postComment: PostPinCommentUseCase = StubPostPinComment(outcome: .failure(.unknown))
     var deleteComment: DeletePinCommentUseCase = StubDeletePinComment()
     var currentLocation: CurrentLocationUseCase = StubCurrentLocation()
+    var entryPermissions: RequestEntryPermissionsUseCase = StubEntryPermissions()
     var recordPinAccess: RecordPinAccessUseCase = StubRecordPinAccess()
     var roomCreationPromptSnooze = SnoozeSwitch(
         key: "ArchiveCoordinatorTests.prompt",
@@ -243,6 +282,30 @@ struct ArchiveCoordinatorTests {
         coordinator.sharingLocation = nil   // 껍데기의 onClose 와 같은 경로
 
         #expect(coordinator.consumeSavedShare() == false)
+    }
+
+    // 방금 담은 방이 「저장된 방」 목록에 들어와야 하고, 목록이 비어 꺼져 있던 버튼(005-1 ⑮)도
+    // 그 자리에서 켜져야 한다 — 장소 상세를 닫았다 다시 열어야 반영되던 증상.
+    @Test("공유 저장은 저장된 방 재조회 신호를 세운다")
+    func shareDidSave_asksForSavedRoomsRefresh() {
+        let coordinator = makeCoordinator()
+        coordinator.handle(RoomDetailNav.shareLocation(RoomDetailLocation(from: fixturePin)))
+        let before = coordinator.savedRoomsRevision
+
+        coordinator.handle(RoomShareNav.didSave)
+
+        #expect(coordinator.savedRoomsRevision == before + 1)
+    }
+
+    @Test("저장 없이 시트를 닫으면 재조회 신호가 서지 않는다")
+    func shareClose_leavesSavedRoomsAlone() {
+        let coordinator = makeCoordinator()
+        coordinator.handle(RoomDetailNav.shareLocation(RoomDetailLocation(from: fixturePin)))
+        let before = coordinator.savedRoomsRevision
+
+        coordinator.sharingLocation = nil   // 껍데기의 onClose 와 같은 경로
+
+        #expect(coordinator.savedRoomsRevision == before)
     }
 
     @Test("배선 — 공유 Store 의 저장 완료가 시트를 닫는다")
@@ -419,6 +482,74 @@ struct ArchiveCoordinatorTests {
         #expect(coordinator.path.isEmpty)
     }
 
+    // MARK: - 방 편집 (004-5, 방장만)
+
+    @Test("케밥의 방 편집은 고칠 방을 쥐고 편집 화면을 push 한다")
+    func editRoom_pushesFormWithRoom() {
+        let coordinator = makeCoordinator()
+        coordinator.handle(.openRoomDetail(fixtureRoom))
+
+        coordinator.handle(RoomDetailNav.editRoom(fixtureRoom))
+
+        #expect(coordinator.path == [.editRoom])
+        #expect(coordinator.editingRoom == fixtureRoom)
+        #expect(coordinator.isFullBleedContentPresented)
+    }
+
+    // 편집 폼은 기존 값에서 시작한다 — 빈 폼이 뜨면 저장이 이름을 통째로 날린다.
+    @Test("편집 Store 는 그 방의 현재 값으로 열린다")
+    func editRoomStore_isPrefilled() {
+        let coordinator = makeCoordinator()
+
+        let store = coordinator.makeEditRoomStore(room: fixtureRoom)
+
+        #expect(store.state.mode == .edit)
+        #expect(store.state.roomName == fixtureRoom.name)
+        #expect(store.state.roomDescription == fixtureRoom.description)
+    }
+
+    // 목록에는 고치기 **전** 값이 들어 있다. 그걸로 열면 방금 고친 이름이 옛것으로 보인다 —
+    // 그래서 생성(`createdRoomID`)과 달리 재조회를 기다리는 경로로 보낸다.
+    @Test("편집 저장은 pop 하고 재조회 뒤 다시 열 방을 예약한다")
+    func editSubmit_popsAndSchedulesReopen() {
+        let coordinator = makeCoordinator()
+        coordinator.handle(.openRoomDetail(fixtureRoom))
+        coordinator.handle(RoomDetailNav.editRoom(fixtureRoom))
+
+        coordinator.handle(RoomFormNav.didSubmit(roomId: fixtureRoom.id))
+
+        #expect(coordinator.path.isEmpty)
+        #expect(coordinator.editingRoom == nil)
+        #expect(coordinator.consumeCreatedRoomID() == nil)   // 만든 게 아니라 고친 것이다
+        #expect(coordinator.consumeEditedRoomID() == fixtureRoom.id)
+        #expect(coordinator.consumeEditedRoomID() == nil)    // 한 번의 편집으로 두 번 열지 않는다
+    }
+
+    @Test("편집을 취소하면 쥐고 있던 방을 놓는다")
+    func editCancel_releasesRoom() {
+        let coordinator = makeCoordinator()
+        coordinator.handle(RoomDetailNav.editRoom(fixtureRoom))
+
+        coordinator.handle(RoomFormNav.didCancel)
+
+        #expect(coordinator.path.isEmpty)
+        #expect(coordinator.editingRoom == nil)
+        #expect(coordinator.consumeEditedRoomID() == nil)
+    }
+
+    @Test("배선 — 편집 Store 의 저장이 pop 과 재조회 예약까지 잇는다")
+    func editRoomStore_isWiredToReopen() async {
+        let coordinator = makeCoordinator()
+        coordinator.handle(RoomDetailNav.editRoom(fixtureRoom))
+
+        let store = coordinator.makeEditRoomStore(room: fixtureRoom)
+        store.send(.roomNameChanged("이름 바꾼 방"))
+        store.send(.tapSubmit)   // 편집은 확인 다이얼로그 없이 곧장 저장한다
+
+        await waitUntil { coordinator.path.isEmpty }
+        #expect(coordinator.consumeEditedRoomID() == fixtureRoom.id)
+    }
+
     // MARK: - 저장된 방 (005-1 ⑮ → 014)
 
     @Test("openSavedRooms 는 받은 목록을 그대로 시트 항목으로 올린다")
@@ -431,8 +562,8 @@ struct ArchiveCoordinatorTests {
         #expect(coordinator.savedRooms == presentation)
     }
 
-    @Test("방 카드를 고르면 시트를 닫고 그 방으로 갈아끼운다 — 보던 장소는 그대로다")
-    func selectSavedRoom_switchesRoomKeepingPlace() {
+    @Test("방 카드를 고르면 시트를 닫고 방과 장소를 함께 그 방 것으로 갈아끼운다 (014 ②)")
+    func selectSavedRoom_switchesRoomAndPin() async {
         let coordinator = makeCoordinator()
         coordinator.handle(.openRoomDetail(fixtureRoom))
         coordinator.handle(RoomDetailNav.openPlaceDetail(fixturePin))
@@ -443,8 +574,30 @@ struct ArchiveCoordinatorTests {
         coordinator.selectSavedRoom(savedRoomB.id)
 
         #expect(coordinator.savedRooms == nil)
-        #expect(coordinator.selectedRoom == savedRoomB)
-        #expect(coordinator.selectedPin == fixturePin)   // 장소 상세는 닫히지 않는다
+        #expect(coordinator.selectedRoom == savedRoomB.room)
+        // 핀 조회 전에는 이전 방의 핀을 세워 두지 않는다 — 헤더는 새 방인데 내용이 옛 방인
+        // 화면이 이 수정이 없애려는 증상 그 자체다.
+        #expect(coordinator.selectedPin == nil)
+
+        await waitUntil { coordinator.selectedPin != nil }
+        #expect(coordinator.selectedPin?.id == savedRoomB.pinID)
+        #expect(coordinator.selectedPin?.roomID == savedRoomB.id)
+    }
+
+    @Test("매칭 핀이 없는 방은 방 상세에서 멈춘다 — 이전 방의 핀을 끌고 가지 않는다")
+    func selectSavedRoom_withoutMatchedPin_landsOnRoomDetail() async {
+        let coordinator = makeCoordinator()
+        let unmatched = SavedRoomFixture.room("room-D", pinID: nil)
+        coordinator.handle(.openRoomDetail(fixtureRoom))
+        coordinator.handle(RoomDetailNav.openPlaceDetail(fixturePin))
+        coordinator.handle(
+            PlaceDetailNav.openSavedRooms(SavedRoomsPresentation(id: "p1", rooms: [unmatched]))
+        )
+
+        coordinator.selectSavedRoom(unmatched.id)
+
+        #expect(coordinator.selectedRoom == unmatched.room)
+        #expect(coordinator.selectedPin == nil)
     }
 
     // MARK: - 지도 현위치 (005-1)
@@ -499,6 +652,43 @@ struct ArchiveCoordinatorTests {
         coordinator.handle(.openRoomDetail(fixtureRoom))
 
         #expect(coordinator.mapFocus == nil)
+    }
+
+    /// 이슈 #189 — 방이 하나뿐인 사용자는 방 리스트와 방 상세의 핀이 같다. 번호가 오르지 않으면
+    /// 두 요청의 카메라 값이 같아, 리스트에서 이미 맞춘 지도가 방 상세의 요청을 걸러 버린다.
+    @Test("방을 열면 핀 맞춤 요청 번호가 오른다 — 같은 핀이라도 다시 맞춰야 한다")
+    func openRoomDetail_bumpsMapFitOrdinal() {
+        let coordinator = makeCoordinator()
+        let before = coordinator.mapFitOrdinal
+
+        coordinator.handle(.openRoomDetail(fixtureRoom))
+
+        #expect(coordinator.mapFitOrdinal > before)
+    }
+
+    @Test("방을 갈아끼울 때마다 번호가 또 오른다")
+    func selectSavedRoom_bumpsMapFitOrdinal() {
+        let coordinator = makeCoordinator()
+        coordinator.handle(.openRoomDetail(fixtureRoom))
+        coordinator.handle(
+            PlaceDetailNav.openSavedRooms(SavedRoomsPresentation(id: "p1", rooms: [savedRoomB]))
+        )
+        let afterFirstRoom = coordinator.mapFitOrdinal
+
+        coordinator.selectSavedRoom(savedRoomB.id)
+
+        #expect(coordinator.mapFitOrdinal > afterFirstRoom)
+    }
+
+    @Test("현위치 요청은 핀 맞춤 번호를 건드리지 않는다 — 방이 그대로면 다시 맞출 이유가 없다")
+    func focusMyLocation_keepsMapFitOrdinal() {
+        let coordinator = makeCoordinator()
+        coordinator.handle(.openRoomDetail(fixtureRoom))
+        let opened = coordinator.mapFitOrdinal
+
+        coordinator.handle(PlaceDetailNav.focusMyLocation(fixtureCoordinate))
+
+        #expect(coordinator.mapFitOrdinal == opened)
     }
 
     @Test("저장된 방으로 갈아끼울 때도 카메라 요청이 사라진다")
@@ -607,7 +797,7 @@ struct ArchiveCoordinatorTests {
         coordinator.handle(.openRoomDetail(fixtureRoom))
         coordinator.handle(RoomDetailNav.shareLocation(RoomDetailLocation(from: fixturePin)))
         coordinator.handle(PlaceDetailNav.openSavedRooms(
-            SavedRoomsPresentation(id: fixturePin.id.value, rooms: [fixtureRoom])
+            SavedRoomsPresentation(id: fixturePin.id.value, rooms: [savedRoomB])
         ))
         coordinator.handle(RoomDetailNav.inviteFriends(fixtureRoom))
 

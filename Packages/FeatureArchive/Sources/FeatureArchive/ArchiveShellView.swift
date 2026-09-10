@@ -7,6 +7,28 @@ import RoomCreationUI
 import RoomShareUI
 import SwiftUI
 
+/// 방 상세 store 를 다시 만들 조건.
+///
+/// 방을 갈아탈 때(`id`)뿐 아니라 **같은 방의 표시 값이 바뀌었을 때도** 다시 만들어야 한다 —
+/// 방 편집(004-5)이 그 경우다. `Room` 을 그대로 쓰지 못하는 건 `.task(id:)` 가 `Hashable` 을
+/// 요구하는데 `Room` 은 `Equatable` 까지만 가기 때문이다.
+///
+/// 장소 수·멤버 수는 넣지 않는다 — 방 상세가 스스로 조회해 그리는 값이라 여기서 재생성의
+/// 방아쇠로 삼으면 목록 재조회마다 상세가 통째로 다시 만들어진다.
+private struct RoomDetailStoreKey: Hashable {
+    let id: String
+    let name: String
+    let description: String?
+    let color: RoomColor?
+
+    init(_ room: Room) {
+        id = room.id
+        name = room.name
+        description = room.description
+        color = room.color
+    }
+}
+
 struct ArchiveShellView: View {
     private let coordinator: ArchiveCoordinator
 
@@ -96,6 +118,8 @@ struct ArchiveShellView: View {
         }
         // 방 상세 헤더 케밥 드롭다운. peek 에서 시트 위(지도 위)로 떠야 해 시트 클립 밖인 여기서 그린다.
         .roomDetailMoreMenu(store: detailStore, detent: detent)
+        // 방장 위임 카드도 같은 이유로 시트 밖에서 그린다 — 딤이 화면 전체를 덮어야 한다.
+        .roomOwnerTransfer(store: detailStore)
         .animation(.easeInOut(duration: 0.2), value: toastMessage)
         .onChange(of: detent) { _, _ in sortMenuOpen = false }
         // **가드는 "생성"에만 걸고 "로드"에는 걸지 않는다.** 이 `.task` 는 껍데기가 다시 보일 때마다
@@ -124,7 +148,17 @@ struct ArchiveShellView: View {
             guard id != nil, let roomID = coordinator.consumeCreatedRoomID() else { return }
             roomListStore?.send(.openCreatedRoom(roomID))
         }
-        .task(id: coordinator.selectedRoom?.id) { syncDetailStore() }
+        // 방을 고치고 돌아왔다 — 위 `.task` 가 낸 재조회가 끝나는 대로 그 방 상세를 새 값으로 다시 연다.
+        .onChange(of: coordinator.editedRoomID) { _, id in
+            guard id != nil, let roomID = coordinator.consumeEditedRoomID() else { return }
+            roomListStore?.send(.reopenEditedRoom(roomID))
+        }
+        // 다른 방에 공유하고 돌아왔다 — 그 방이 「저장된 방」 목록에 들어와야 하고, 목록이
+        // 비어 있어 꺼져 있던 버튼(005-1 ⑮)도 그 자리에서 켜져야 한다.
+        .onChange(of: coordinator.savedRoomsRevision) { _, _ in placeStore?.send(.loadSavedRooms) }
+        // **id 가 아니라 표시 값으로 건다.** 방 편집은 방을 갈아타지 않고 같은 방의 이름·색만
+        // 바꾸는데, id 로 걸어 두면 값이 바뀌어도 store 를 다시 만들지 않아 헤더가 옛 이름을 문다.
+        .task(id: coordinator.selectedRoom.map(RoomDetailStoreKey.init)) { syncDetailStore() }
         .task(id: coordinator.selectedPin?.id.value) { syncPlaceStore() }
         .sheet(item: $coordinator.sharingLocation, onDismiss: showShareToast) { location in
             RoomShareSheet(
@@ -211,7 +245,7 @@ struct ArchiveShellView: View {
 
     private func savedRoomsSheet(_ presentation: SavedRoomsPresentation) -> some View {
         SavedRoomsSheet(
-            rooms: presentation.rooms.map(RoomListItem.init(from:)),
+            rooms: presentation.rooms.map { RoomListItem(from: $0.room) },
             onSelect: coordinator.selectSavedRoom
         )
         .presentationDetents([.height(SavedRoomsSheet.detentHeight)])
@@ -412,7 +446,7 @@ struct ArchiveShellView: View {
         if let zoomRequest {
             return .zoomed(zoomRequest.coordinate, zoom: zoomRequest.zoom)
         }
-        guard detailStore == nil else { return .fitPins }
+        guard detailStore == nil else { return .fitPins(requestID: coordinator.mapFitOrdinal) }
         return .entry(myLocation: roomListStore?.state.myCoordinate)
     }
 

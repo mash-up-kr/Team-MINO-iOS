@@ -26,7 +26,7 @@ public struct PlaceDetailState: Equatable {
     ///
     /// 목록을 화면이 들고 있는 이유는 이게 곧 '저장된 방' 버튼의 활성 조건이기 때문이다 —
     /// 버튼을 켜 놓고 시트에서 다시 받아오면 켠 근거와 그리는 목록이 갈라질 수 있다.
-    var savedRooms: [Room] = []
+    var savedRooms: [SavedRoom] = []
     var isLoadingSavedRooms = false
     /// 삭제 메뉴가 열려 있는 코멘트. 목록 전체에서 하나만 열린다.
     ///
@@ -73,7 +73,7 @@ public enum PlaceDetailAction: Equatable {
     case currentMemberLoaded(MemberProfile)
     case currentMemberLoadFailed(DomainError)
     case loadSavedRooms
-    case savedRoomsLoaded([Room])
+    case savedRoomsLoaded([SavedRoom])
     case savedRoomsLoadFailed(DomainError)
     case tapSavedRooms
     case tapMyLocation

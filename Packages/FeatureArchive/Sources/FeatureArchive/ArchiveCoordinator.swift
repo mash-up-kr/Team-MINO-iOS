@@ -11,6 +11,12 @@ import SwiftUI
 public enum ArchiveRoute: Hashable {
     /// 공동방 만들기 (RoomCreationUI.RoomFormView) — 유도 시트·빈 상태 CTA·헤더 "+" 진입.
     case createRoom
+    /// 방 편집 (같은 `RoomFormView` 의 편집 모드) — 방 상세 케밥 진입, 방장만.
+    ///
+    /// 고칠 방은 연관값이 아니라 ``ArchiveCoordinator/editingRoom`` 으로 든다. `Route` 는
+    /// `Hashable` 을 요구하는데 `Room` 은 아니고, `invitingRoom`·`sharingLocation` 도 같은
+    /// 관례다 — Route 는 목적지만 가리키고 페이로드는 Coordinator 가 쥔다.
+    case editRoom
 }
 
 /// 지도 카메라를 내 위치로 옮겨 달라는 요청(005-1 현위치 버튼).
@@ -51,6 +57,15 @@ public final class ArchiveCoordinator: Coordinator {
     /// ``ArchiveMapFocus/ordinal`` 에 찍을 다음 번호. 표시에 쓰이지 않아 관찰 대상이 아니다.
     @ObservationIgnored private var mapFocusCount = 0
 
+    /// 핀 맞춤 요청 번호 — **보고 있는 방이 바뀔 때마다** 오른다(``showRoom(_:)``).
+    ///
+    /// 지도는 한 번 맞춘 결과를 다시 적용하지 않는데(``MapUI/MapCamera/fit(coordinates:padding:requestID:)``),
+    /// 방이 하나뿐인 사용자는 방 리스트와 방 상세의 핀이 같아 방 상세의 맞춤이 그 규칙에 걸려
+    /// 버려진다 — 카메라가 방 핀 대신 직전 자리에 남는다(이슈 #189). 번호를 올려 "같은 핀이지만
+    /// 새로 낸 요청" 임을 알린다. 표시에 쓰이지 않지만 뷰가 카메라를 다시 계산해야 해서
+    /// ``mapFocusCount`` 와 달리 관찰 대상이다.
+    private(set) var mapFitOrdinal = 0
+
     public var isRoomDetailPresented: Bool { selectedRoom != nil }
 
     /// 탭바 자체를 레이아웃에서 빼야 하는 전체화면 상태인가 — MainTabView 가 본다.
@@ -82,6 +97,14 @@ public final class ArchiveCoordinator: Coordinator {
     /// 않는다 — 두면 플래그와 목록이 어긋날 짝이 생긴다.
     var savedRooms: SavedRoomsPresentation?
 
+    /// 저장된 방으로 건너뛸 때 그 방 쪽 핀을 받아 오는 작업(``selectSavedRoom(_:)``).
+    /// 연달아 고르면 앞 조회를 취소한다 — 늦게 도착한 응답이 나중에 고른 방을 덮어쓰지 않도록.
+    /// 표시에 쓰이지 않아 관찰 대상이 아니다.
+    @ObservationIgnored private var savedRoomPinTask: Task<Void, Never>?
+
+    /// 편집하러 들어간 방(``ArchiveRoute/editRoom``). push 하기 직전에 세우고, 돌아오면 비운다.
+    var editingRoom: Room?
+
     /// 친구 초대 시트(004-4-2)를 띄울 방. 방 자체가 표시 항목이다(`Room` 이 `Identifiable`).
     ///
     /// 래퍼 타입을 두지 않는 건 시트가 방 하나로 완결되기 때문이다 — 방 이름·색·참여자가 모두
@@ -95,6 +118,15 @@ public final class ArchiveCoordinator: Coordinator {
     /// ``RoomListState/skipsNextCreatePrompt`` 를 이미 쓴 뒤라 취소하고 나온 사용자에게 유도 시트가 뜬다.
     /// **시트가 떠 있어 껍데기가 살아 있는 동안 방이 늘어난 경우**(공유 시트 위 커버에서 방 생성)만 센다.
     private(set) var roomsRevision = 0
+
+    /// 이 장소가 담긴 방 구성이 바뀐 횟수. 껍데기가 이 값의 변화를 보고 장소 상세의
+    /// 「저장된 방」 목록을 다시 받는다(``ArchiveShellView``).
+    ///
+    /// 공유는 시트가 하고 목록은 그 아래 장소 상세가 든다 — 서로를 모르는 두 화면이라
+    /// 알려 주지 않으면 방금 담은 방이 목록에 없고, 버튼도 비활성인 채로 남는다(장소 상세를
+    /// 닫았다 다시 열어야 그제야 켜졌다). 세는 값을 쓰는 이유는 ``roomsRevision`` 과 같다 —
+    /// 같은 장소에 두 번 공유해도 매번 값이 달라져 재조회가 걸린다.
+    private(set) var savedRoomsRevision = 0
 
     /// 공유 저장이 **성공했을 때만** 서는 1회성 신호. 시트가 닫힌 뒤 껍데기가 소비해 완료 토스트를
     /// 띄운다. X 로 닫거나 저장에 실패하면 서지 않는다 — 그 자리에 완료 토스트가 뜨면 거짓말이 된다.
@@ -114,7 +146,8 @@ public final class ArchiveCoordinator: Coordinator {
                 useCase: deps.fetchRooms,
                 fetchPins: deps.fetchRoomPins,
                 promptSnooze: deps.roomCreationPromptSnooze,
-                currentLocation: deps.currentLocation
+                currentLocation: deps.currentLocation,
+                entryPermissions: deps.entryPermissions
             ),
             handle: { [weak self] in self?.handle($0) }
         )
@@ -128,6 +161,8 @@ public final class ArchiveCoordinator: Coordinator {
                 deletePin: deps.deletePin,
                 fetchCurrentMember: deps.currentMember,
                 currentLocation: deps.currentLocation,
+                leaveRoom: deps.leaveRoom,
+                transferRoomOwner: deps.transferRoomOwner,
                 room: room
             ),
             handle: { [weak self] in self?.handle($0) }
@@ -160,6 +195,19 @@ public final class ArchiveCoordinator: Coordinator {
     func makeRoomFormStore() -> RoomFormStore {
         RoomCreationUI.makeRoomFormStore(
             .create(create: deps.createRoom),
+            handle: { [weak self] in self?.handle($0) }
+        )
+    }
+
+    /// 방 편집 Store 팩토리 — 만들기와 **같은 화면**의 편집 모드다(제목·CTA 문구와 확인 절차만 갈린다).
+    ///
+    /// 고칠 방을 프로퍼티에서 읽지 않고 **인자로 받는다**: 화면이 뜨는 시점과 `editingRoom` 이
+    /// 비는 시점이 어긋나면 `.edit` 이 아니라 `.create` 로 떨어질 자리가 생기는데, 그러면 "방 편집"
+    /// 제목 아래 빈 폼이 떠서 저장이 **새 방을 만들어** 버린다. 없으면 아예 만들지 않는 편이 낫다
+    /// (그 판단은 ``ArchiveTabView`` 가 한다).
+    func makeEditRoomStore(room: Room) -> RoomFormStore {
+        RoomCreationUI.makeRoomFormStore(
+            .edit(room: room, update: deps.updateRoom),
             handle: { [weak self] in self?.handle($0) }
         )
     }
@@ -197,10 +245,16 @@ public final class ArchiveCoordinator: Coordinator {
         // spec FR-007 — 만들었으면 방 리스트를 스쳐 그 방 상세로 간다. 여기서는 id 만 세워 두고,
         // 실제 전환은 방 리스트가 재조회로 그 방을 받은 뒤에 낸다(``RoomListAction/openCreatedRoom``).
         case .didSubmit(let roomId):
-            createdRoomID = roomId
+            if editingRoom != nil {
+                editingRoom = nil
+                editedRoomID = roomId
+            } else {
+                createdRoomID = roomId
+            }
             pop()
         case .didCancel, .didSkip:
             // 저장은 폼이 이미 끝냈다 — 여기 오면 서버에 반영된 뒤다. 취소도 같은 자리로 돌아간다.
+            editingRoom = nil
             pop()
         }
     }
@@ -222,12 +276,16 @@ public final class ArchiveCoordinator: Coordinator {
             selectedPin = pin
         case .inviteFriends(let room):
             invitingRoom = room
-        case .editRoom, .leaveRoom:
-            // 아직 갈 곳이 없다 — 비워 둔 것이 아니라 도착 화면이 이 PR 범위 밖이다.
-            // 방 편집(시안 004-5 방편집_방장)·방 나가기(004-5 나가기_방장 / 나가기_방멤버)는
-            // 다른 담당자(유빈·윤지) 스펙이라 그 화면이 생기는 PR 에서 여기에 전환을 붙인다.
-            // 그때까지 헤더 케밥은 항목만 닫고 아무 데도 가지 않는다.
-            break
+        case .editRoom(let room):
+            editingRoom = room
+            push(.editRoom)
+        case .didLeaveRoom:
+            // 이제 못 보는 방이다 — 상세와 그 안에서 보던 장소를 함께 내린다.
+            showRoom(nil)
+            selectedPin = nil
+            // 목록에서도 빠져야 한다. 껍데기의 `.task` 는 시트만 닫힌 지금 돌지 않으므로
+            // (푸시·탭 전환이 없다) 이 신호로만 갱신된다.
+            roomsDidChange()
         }
     }
 
@@ -266,6 +324,7 @@ public final class ArchiveCoordinator: Coordinator {
     private func showRoom(_ room: Room?) {
         selectedRoom = room
         mapFocus = nil
+        mapFitOrdinal += 1
     }
 
     // MARK: - 탭 밖에서 들어오는 진입점
@@ -299,23 +358,42 @@ public final class ArchiveCoordinator: Coordinator {
         savedRooms = nil
         shareCreateRoomChild = nil
         invitingRoom = nil
+        editingRoom = nil
     }
 
-    /// 014 ② — 고른 방의 장소 상세로. 시트를 닫고 **방만** 갈아끼운다.
+    /// 014 ② "클릭 시, 해당 방의 장소상세로 이동한다" — 시트를 닫고 방과 장소를 **함께** 갈아끼운다.
     ///
-    /// 보고 있던 장소(`selectedPin`)는 그대로 둔다. 같은 장소라도 방마다 핀이 따로인데 저장 API 가
-    /// 아직 그 짝을 주지 않아 "그 방 쪽 핀"을 집을 수 없기 때문이다 — 핀을 비우면 시트가 닫혀
-    /// "장소상세로 이동한다" 는 기획과 더 멀어진다. API 가 붙으면 그 방의 핀 id 로 함께 갈아끼운다.
+    /// 같은 장소라도 방마다 핀이 따로라 방만 바꾸면 이전 방의 핀이 새 방 헤더 아래 그대로 남는다.
+    /// 목록이 방마다 매칭 핀 id 를 달고 오므로(``SavedRoom/pinID``) 그것으로 핀 상세를 받아 세운다.
+    ///
+    /// 핀 상세를 기다리는 동안은 방 상세가 서 있고, 도착하면 그 위로 장소 상세가 올라온다 —
+    /// "방 상세 → 장소 상세" 는 이 화면의 정상 경로라 중간 상태가 어색하지 않다. 매칭 핀이
+    /// 없거나(구버전 서버·서버가 못 집은 경우) 조회가 실패하면 방 상세에서 멈춘다.
     func selectSavedRoom(_ roomID: String) {
-        guard let room = savedRooms?.rooms.first(where: { $0.id == roomID }) else { return }
+        guard let selected = savedRooms?.rooms.first(where: { $0.id == roomID }) else { return }
         savedRooms = nil
-        showRoom(room)
+        showRoom(selected.room)
+        // 이전 방의 핀을 즉시 내린다 — 새 핀을 기다리는 동안 남겨 두면 헤더는 새 방인데 내용은
+        // 옛 방인 화면이 된다(고치려는 증상 그 자체).
+        selectedPin = nil
+
+        savedRoomPinTask?.cancel()
+        guard let pinID = selected.pinID else { return }
+        savedRoomPinTask = Task { [weak self] in
+            guard let self, let pin = try? await deps.fetchPinDetail.execute(pinID: pinID).pin else { return }
+            // 기다리는 사이에 사용자가 다른 방·다른 장소로 옮겼으면 버린다.
+            guard !Task.isCancelled, selectedRoom?.id == selected.room.id, selectedPin == nil else { return }
+            selectedPin = pin
+        }
     }
 
     func handle(_ nav: RoomShareNav) {
         switch nav {
         case .didSave:
             savedShare = true
+            // 방금 담은 방이 「저장된 방」 목록에 들어와야 한다. 시트가 닫히기 **전에** 세워도
+            // 되는 이유는 재조회가 시트 아래 장소 상세의 일이라 시트 표시와 무관하기 때문이다.
+            savedRoomsRevision += 1
             sharingLocation = nil   // 토스트는 시트가 닫힌 뒤 `onDismiss` 에서 뜬다
         case .goToCreateRoom:
             // 시트를 닫지 않는다 — 자식이 시트 위를 덮고, 끝나면 시트가 그 자리에 그대로 있다.
@@ -342,6 +420,20 @@ public final class ArchiveCoordinator: Coordinator {
     /// 방 전체가 아니라 id 만 드는 이유는 만들기 화면이 id 만 돌려주기 때문이다
     /// (``RoomFormNav/didSubmit(roomId:)``). 상세는 멤버·장소 수까지 필요해 재조회 응답에서 찾는다.
     private(set) var createdRoomID: String?
+
+    /// 방금 **고친** 방 id — 껍데기가 방 리스트에 넘겨, 목록을 다시 받은 뒤 그 방 상세를 새 값으로
+    /// 다시 연다.
+    ///
+    /// 생성(``createdRoomID``)과 나눠 두는 이유는 지금 손에 있는 목록을 대하는 태도가 다르기
+    /// 때문이다. 만든 방은 그 목록에 아예 없어 곧장 "다음 응답에 열기" 예약으로 넘어가지만,
+    /// **고친 방은 목록에 있는데 값이 낡았다** — 그대로 열면 방금 고친 이름이 옛것으로 보인다.
+    private(set) var editedRoomID: String?
+
+    /// 방금 고친 방 id 를 읽고 지운다. 두 번째 호출은 `nil` — 한 번의 편집으로 재조회가 두 번 나가지 않는다.
+    func consumeEditedRoomID() -> String? {
+        defer { editedRoomID = nil }
+        return editedRoomID
+    }
 
     /// 공유 완료 신호를 읽고 지운다. 두 번째 호출은 `false` — 같은 저장으로 토스트가 두 번 뜨지 않는다.
     func consumeSavedShare() -> Bool {

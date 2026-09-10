@@ -17,6 +17,9 @@ struct PinDTO: Decodable {
     let images: [String]?
     let createdBy: PinAuthorDTO?
     let createdAt: Date
+    /// 이 핀에 달린 코멘트 수. `images` 와 같은 이유로 옵셔널이다 — 스펙상 항상 오지만
+    /// 키가 빠져도 목록 전체가 깨지지 않아야 한다(서버 배포 순서가 앱보다 늦을 수 있다).
+    let commentCount: Int?
 }
 
 /// 장소(핀) 상세 (`GET /api/v1/pins/{pinId}`). 목록에 실리지 않는 출처 링크가 함께 온다.
@@ -27,6 +30,7 @@ struct PinDetailDTO: Decodable {
     let images: [String]?
     let createdBy: PinAuthorDTO?
     let createdAt: Date
+    let commentCount: Int?
     /// 이 장소가 어디서 왔는지(인스타그램 게시물 등). 출처 없이 만들어진 핀은 null.
     let sourceUrl: String?
 }
@@ -51,6 +55,7 @@ struct PinCardDTO: Decodable {
     let images: [String]?
     let createdBy: PinAuthorDTO?
     let createdAt: Date
+    let commentCount: Int?
     let labelGroup: String
 }
 
@@ -88,10 +93,9 @@ extension PinDTO {
             place: place.toDomain(),
             images: PinImageMapper.urls(images),
             createdBy: createdBy?.toDomain(),
-            // ⚠️ 서버가 코멘트 수를 목록·카드 어느 응답에도 싣지 않는다. 0 으로 두면 004-1 ⑥
-            // "코멘트순"이 저장 시각순과 같아지고 카드의 "코멘트 N" 도 0 으로 고정된다.
-            // 응답에 필드가 생기면 여기만 갈아끼운다.
-            commentCount: 0,
+            // 키가 빠지면 0 으로 본다 — 카드의 "코멘트 N" 이 잠깐 0 으로 보이는 것이,
+            // 목록이 통째로 디코딩 실패해 화면이 비는 것보다 낫다.
+            commentCount: commentCount ?? 0,
             category: category,
             createdAt: createdAt
         )
@@ -107,7 +111,7 @@ extension PinDetailDTO {
                 place: place.toDomain(),
                 images: PinImageMapper.urls(images),
                 createdBy: createdBy?.toDomain(),
-                commentCount: 0,   // ``PinDTO/toDomain(category:)`` 의 주석과 같은 이유
+                commentCount: commentCount ?? 0,   // ``PinDTO/toDomain(category:)`` 의 주석과 같은 이유
                 category: .worthVisiting,
                 createdAt: createdAt
             ),
@@ -124,7 +128,7 @@ extension PinCardDTO {
             place: place.toDomain(),
             images: PinImageMapper.urls(images),
             createdBy: createdBy?.toDomain(),
-            commentCount: 0,   // ``PinDTO/toDomain(category:)`` 의 주석과 같은 이유
+            commentCount: commentCount ?? 0,   // ``PinDTO/toDomain(category:)`` 의 주석과 같은 이유
             category: Self.category(from: labelGroup),
             createdAt: createdAt
         )

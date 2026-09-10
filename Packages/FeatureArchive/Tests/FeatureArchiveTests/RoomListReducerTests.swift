@@ -23,6 +23,17 @@ private struct StubCurrentLocation: CurrentLocationUseCase {
     func execute() async -> CurrentLocationResult { result }
 }
 
+/// 진입 권한 묶음을 흉내 낸다. 위치 결과만 돌려주고 호출 횟수를 센다 — 알림까지 이어 물을지의
+/// 판단은 Domain 이 하므로(``RequestEntryPermissionsUseCase``) 화면 테스트는 그걸 보지 않는다.
+private final class SpyEntryPermissions: RequestEntryPermissionsUseCase, @unchecked Sendable {
+    var result: CurrentLocationResult = .coordinate(Coordinate(latitude: 37.4966, longitude: 127.0530))
+    private(set) var callCount = 0
+    func execute() async -> CurrentLocationResult {
+        callCount += 1
+        return result
+    }
+}
+
 /// 지도 마커용 핀. 두 방에 하나씩 둬 **마커마다 소속 방 색이 달라야 한다**는 규칙을 볼 수 있게 한다.
 private let fixturePins: [Pin] = [
     PinFixture.pin(
@@ -82,15 +93,24 @@ struct RoomListReducerTests {
         fetchPins: FetchRoomPinsUseCase = StubFetchPins(),
         state: RoomListState = RoomListState(),
         snooze: SnoozeSwitch? = nil,
-        location: CurrentLocationUseCase = StubCurrentLocation()
+        location: CurrentLocationUseCase = StubCurrentLocation(),
+        entryPermissions: RequestEntryPermissionsUseCase? = nil
     ) -> TestStore<RoomListState, RoomListAction, RoomListNav> {
-        TestStore(
+        // 진입 스텁을 따로 안 주면 위치 스텁과 같은 결과를 돌려주게 맞춘다 — 기존 테스트들이
+        // `location:` 하나만 넘겨도 진입 경로가 같은 값을 보게 하기 위해서다.
+        let entry = entryPermissions ?? {
+            let spy = SpyEntryPermissions()
+            spy.result = (location as? StubCurrentLocation)?.result ?? spy.result
+            return spy
+        }()
+        return TestStore(
             state,
             reduce: roomListReducer(
                 useCase: useCase,
                 fetchPins: fetchPins,
                 promptSnooze: snooze ?? makeSnooze(),
-                currentLocation: location
+                currentLocation: location,
+                entryPermissions: entry
             )
         )
     }
@@ -416,6 +436,29 @@ struct RoomListReducerTests {
         store.finish()
     }
 
+    // 편집은 생성과 다르다: 고친 방은 **이미 목록에 있는데 값이 낡았다.** 곧바로 열면 방금
+    // 고친 이름이 그대로 옛것으로 보이므로, 목록에 있어도 재조회를 기다린다.
+    @Test("004-5 — 고친 방은 목록에 있어도 재조회를 기다렸다 연다")
+    func reopenEditedRoom_waitsEvenWhenLoaded() async {
+        let store = makeStore(state: RoomListState(rooms: fixtureRooms))
+
+        await store.send(.reopenEditedRoom("r2")) { $0.pendingOpenRoomID = "r2" }
+
+        // 지금 손에 있는 목록으로는 열지 않는다 — 이 시점에 nav 가 나가면 옛 이름이 뜬다.
+        let renamed = Room(
+            id: "r2", type: .shared, name: "이름 바꾼 방", description: nil, color: .blue,
+            ownerId: "u1", createdAt: Date(timeIntervalSince1970: 0),
+            pinCount: 3, memberCount: 2, users: []
+        )
+        await store.send(.loaded([fixtureRooms[0], renamed], pins: fixturePins, isPromptSnoozed: true)) {
+            $0.pins = fixturePins
+            $0.rooms = [fixtureRooms[0], renamed]
+            $0.pendingOpenRoomID = nil
+        }
+        store.receiveNavigation(.openRoomDetail(renamed))
+        store.finish()
+    }
+
     // 방을 만든 직후라 유도 시트가 뜰 이유가 없다 — 상세로 넘어가는 길에 시트가 겹치면 안 된다.
     @Test("FR-007 — 상세로 넘어가는 응답은 유도 시트를 띄우지 않는다")
     func openCreatedRoom_doesNotShowCreatePrompt() async {
@@ -517,6 +560,22 @@ struct RoomListReducerTests {
         // navigation 이 하나도 없어야 한다 — `focusMyLocation` 은 버튼 전용이다.
         // 잔여 검사(`finish`)가 이걸 대신 단언한다.
         #expect(!store.currentState.isLocating)
+        store.finish()
+    }
+
+    // 진입 경로는 위치만이 아니라 **권한 묶음**을 부른다 — 여기서 안 부르면 새로 설치한 사용자는
+    // 알림을 묻는 자리를 잃는다(``RequestEntryPermissionsUseCase``).
+    @Test("L2 — 진입 요청은 위치가 아니라 진입 권한 묶음을 부른다")
+    func requestLocationOnEntry_callsEntryPermissions() async {
+        let coordinate = Coordinate(latitude: 37.5443, longitude: 127.0557)
+        let entry = SpyEntryPermissions()
+        entry.result = .coordinate(coordinate)
+        let store = makeStore(entryPermissions: entry)
+
+        await store.send(.requestLocationOnEntry)
+        await store.receive(.entryLocationResolved(.coordinate(coordinate))) { $0.myCoordinate = coordinate }
+
+        #expect(entry.callCount == 1)
         store.finish()
     }
 

@@ -19,6 +19,9 @@ struct RoomDTO: Decodable {
     /// 이 방에 그 장소가 이미 있는지. **`?showHasPlaceId=` 를 붙인 요청에만 실린다** —
     /// 안 붙이면 서버가 키 자체를 생략하므로 `nil` 이다(계약: place-api.md §3).
     let hasPlace: Bool?
+    /// 그 장소가 이 방에 담긴 **핀의 id**. `hasPlace` 와 같은 조건으로 실린다
+    /// (스펙: "?showHasPlaceId= 지정 시 활성 매칭 핀 UUID, 없으면 null").
+    let matchedPinId: String?
     /// 스펙: "최근 핀 최대 4개의 장소 대표 이미지 URL(최신순). **저장된 핀이 없으면 방 대표 색상 키 1개**".
     /// 한 배열에 두 의미가 섞여 오므로 `toDomain()` 이 URL 만 남긴다.
     let thumbnailList: [String]?
@@ -50,6 +53,11 @@ struct SaveRoomRequestDTO: Encodable, Sendable {
         self.description = description
         self.color = color.rawValue
     }
+}
+
+/// 방장 위임(`PUT /rooms/{roomId}/owner`) 요청 본문.
+struct TransferOwnerRequestDTO: Encodable, Sendable {
+    let nextOwnerId: String
 }
 
 extension RoomDTO {

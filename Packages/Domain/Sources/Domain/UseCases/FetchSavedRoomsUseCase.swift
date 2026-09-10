@@ -12,7 +12,7 @@ public protocol FetchSavedRoomsUseCase: Sendable {
     /// - Parameter pin: 조회할 장소. id 가 아니라 **핀째** 받는 이유는 빼야 할 방(``Pin/roomID``)이
     ///   핀에 실려 있기 때문이다 — 핀 id 와 제외할 방 id 를 따로 받으면 서로 맞지 않는 짝을
     ///   넘길 수 있고, 그러면 엉뚱한 방이 목록에서 빠진다.
-    func execute(pin: Pin) async throws -> [Room]
+    func execute(pin: Pin) async throws -> [SavedRoom]
 }
 
 public struct DefaultFetchSavedRoomsUseCase: FetchSavedRoomsUseCase {
@@ -25,9 +25,9 @@ public struct DefaultFetchSavedRoomsUseCase: FetchSavedRoomsUseCase {
     /// 공유 후보 조회(``ShareTargetRepository/shareTargets(placeID:)``)를 그대로 재사용한다 —
     /// "방 목록 + 그 방에 이 장소가 있는지" 가 이미 한 조회로 오므로 저장된 방만 따로 물을
     /// API 가 필요 없다. 고르는 규칙(이미 저장됨 ∧ 원래 방 아님)만 여기서 정한다.
-    public func execute(pin: Pin) async throws -> [Room] {
+    public func execute(pin: Pin) async throws -> [SavedRoom] {
         try await repository.shareTargets(placeID: pin.place.id)
             .filter { $0.alreadySaved && $0.room.id != pin.roomID }
-            .map(\.room)
+            .map { SavedRoom(room: $0.room, pinID: $0.matchedPinID) }
     }
 }

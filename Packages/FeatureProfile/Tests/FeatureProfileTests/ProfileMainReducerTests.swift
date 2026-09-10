@@ -284,14 +284,23 @@ struct ProfileMainReducerTests {
         store.finish()
     }
 
-    // 앱 ID 가 정해지기 전까지는 열 곳이 없다 — 눌러도 아무 일이 없어야 한다.
-    @Test("L2 — 앱 ID 가 없으면 앱 리뷰는 아무 데도 보내지 않는다")
-    func tapAppReview_withoutAppStoreID_navigatesNowhere() async throws {
-        try #require(ProfileServiceLinks.appReview == nil, "앱 ID 가 정해졌다면 이 테스트를 실제 이동 검증으로 바꾼다")
+    @Test("L2 — 앱 리뷰는 App Store 리뷰 작성 페이지를 연다")
+    func tapAppReview_opensWriteReviewPage() async {
         let store = makeStore()
 
         await store.send(.tapAppReview)
+        store.receiveNavigation(.openURL(ProfileServiceLinks.appReview))
 
         store.finish()
+    }
+
+    // 리뷰 시트가 열린 채로 뜨려면 `?action=write-review` 가 붙어 있어야 한다 — 빠지면 그냥
+    // 스토어 페이지만 열려 "리뷰 남기기" 가 되지 않는다.
+    @Test("L1 — 앱 리뷰 주소는 실제 앱 id 와 리뷰 작성 질의를 담는다")
+    func appReviewURL_pointsAtWriteReview() {
+        #expect(
+            ProfileServiceLinks.appReview.absoluteString
+                == "https://apps.apple.com/app/id6806306129?action=write-review"
+        )
     }
 }

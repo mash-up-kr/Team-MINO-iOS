@@ -6,7 +6,7 @@ import SwiftUI
 /// 단일 액션이나 3개 이상은 이 컴포넌트가 아니라 시트·메뉴로 표현한다.
 ///
 /// 화면에 직접 얹지 말고 ``SwiftUICore/View/mhDialog(item:content:)`` 로 띄운다 — 딤·중앙 정렬·
-/// 바깥 터치 차단이 거기 들어 있다.
+/// 바깥 터치 차단이 거기 들어 있고, **어디에 붙이든 화면 전체**를 덮는다.
 ///
 /// ```swift
 /// .mhDialog(item: store.state.dialog) { _ in
@@ -123,19 +123,73 @@ public extension View {
         item: Item?,
         @ViewBuilder content: @escaping (Item) -> MHDialog
     ) -> some View {
-        overlay {
-            if let value = item {
+        modifier(MHDialogPresentation(item: item, dialog: content))
+    }
+}
+
+/// 다이얼로그를 **창 단위로** 띄운다.
+///
+/// > `overlay` 로 그리면 붙인 뷰의 프레임을 못 벗어난다 — `ignoresSafeArea` 는 safe area 로만 넓히지
+/// > 부모 경계를 뚫지 못하고, ``MHBottomSheet`` 는 콘텐츠를 `clipShape` 로 자른다. 그래서 시트 안에서
+/// > 쓰면 딤이 시트에만 걸리고 다이얼로그도 시트 한가운데 뜬다(방 상세 장소 삭제·장소 상세 코멘트
+/// > 삭제에서 실제로 발생). 붙이는 자리에 따라 맞고 틀리는 구조라 같은 실수가 두 번 났다 —
+/// > 호출처가 z-order 를 신경 쓰지 않도록 표시 자체를 화면 밖으로 올린다.
+///
+/// 커버 기본 전환(아래에서 밀어올림)은 다이얼로그에 맞지 않아 끄고, 안쪽 `opacity` 로 페이드한다.
+private struct MHDialogPresentation<Item: Identifiable>: ViewModifier {
+    let item: Item?
+    let dialog: (Item) -> MHDialog
+
+    @State private var isPresented = false
+    @State private var isVisible = false
+    /// 페이드아웃 동안 그릴 마지막 값. `item` 이 nil 이 되는 즉시 놓으면 사라지는 모습이 안 보인다.
+    @State private var lingering: Item?
+
+    private var fade: Animation { .easeInOut(duration: 0.2) }
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: item?.id, initial: true) { _, id in sync(hasItem: id != nil) }
+            .fullScreenCover(isPresented: $isPresented) {
                 ZStack {
                     Color.mhMaterialDimmer
                         .ignoresSafeArea()
                         .contentShape(Rectangle())
                         .onTapGesture {}
-                    content(value)
+                    // 살아 있는 `item` 을 먼저 본다 — id 가 같은 채 내용만 바뀌는 변화(제출 중 버튼
+                    // 비활성 등)가 붙잡아 둔 값에 막히지 않아야 한다.
+                    if let value = item ?? lingering { dialog(value) }
                 }
-                .transition(.opacity)
+                .opacity(isVisible ? 1 : 0)
+                .presentationBackground(.clear)
+                .task { withAnimation(fade) { isVisible = true } }
+            }
+    }
+
+    private func sync(hasItem: Bool) {
+        if hasItem {
+            lingering = item
+            if isPresented {
+                // 페이드아웃 중에 다시 떴다 — 커버는 그대로 두고 되돌린다.
+                withAnimation(fade) { isVisible = true }
+            } else {
+                // 페이드인은 커버의 `.task` 몫이다. 여기서 켜면 커버가 이미 불투명한 채로 나타난다.
+                withoutPresentationAnimation { isPresented = true }
+            }
+        } else if isPresented {
+            withAnimation(fade) { isVisible = false } completion: {
+                // 그 사이 다시 떴으면(`isVisible` 이 되살아났으면) 커버를 유지한다.
+                guard !isVisible else { return }
+                withoutPresentationAnimation { isPresented = false }
+                lingering = nil
             }
         }
-        .animation(.easeInOut(duration: 0.2), value: item != nil)
+    }
+
+    private func withoutPresentationAnimation(_ body: () -> Void) {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction, body)
     }
 }
 

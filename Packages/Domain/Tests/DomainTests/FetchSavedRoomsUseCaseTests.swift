@@ -77,6 +77,22 @@ struct FetchSavedRoomsUseCaseTests {
         #expect(try await sut.execute(pin: pin).map(\.id) == ["room-C", "room-B"])
     }
 
+    @Test("방마다 '그 방 쪽 핀' 을 함께 돌려준다 — 014 ② 는 그 핀의 장소 상세로 간다")
+    func carriesMatchedPin() async throws {
+        let sut = DefaultFetchSavedRoomsUseCase(
+            repository: StubShareTargetRepository(targets: [
+                ShareTarget(room: room("room-B"), alreadySaved: true, matchedPinID: PinID("pin-B")),
+                // 서버가 매칭 핀을 못 집은 방 — 목록에는 남되 갈 곳이 방 상세뿐이다.
+                ShareTarget(room: room("room-C"), alreadySaved: true),
+            ])
+        )
+
+        let rooms = try await sut.execute(pin: pin)
+
+        #expect(rooms.map(\.id) == ["room-B", "room-C"])
+        #expect(rooms.map(\.pinID) == [PinID("pin-B"), nil])
+    }
+
     @Test("저장소 오류를 그대로 올려보낸다 — 삼키면 화면이 '저장된 방 없음'으로 오해한다")
     func propagatesRepositoryError() async {
         let sut = DefaultFetchSavedRoomsUseCase(

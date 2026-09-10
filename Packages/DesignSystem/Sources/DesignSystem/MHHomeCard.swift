@@ -22,14 +22,12 @@ public struct MHHomeCard: View {
     private enum ImageSource {
         case local([Image])
         case remote([URL])
-
-        var isEmpty: Bool {
-            switch self {
-            case .local(let images): return images.isEmpty
-            case .remote(let urls): return urls.isEmpty
-            }
-        }
     }
+
+    /// 사진 칸 수. Figma 심볼은 **사진이 몇 장이든 두 칸**이다 — 칸 수가 사진 수를 따라가면 1장짜리
+    /// 핀에서 타일 하나가 카드 폭을 다 차지해 카드가 328pt 에서 523pt 로 부풀고 덱이 화면 밖으로
+    /// 나간다(실기기 재현). 3장 이상은 앞 두 장만 보인다.
+    private static let tileCount = 2
 
     private let avatar: Image?
     private let badgeText: String
@@ -167,29 +165,55 @@ public struct MHHomeCard: View {
         }
     }
 
-    @ViewBuilder
+    /// 칸은 언제나 ``tileCount`` 개. 사진이 모자란 칸은 **투명한 빈 자리**다 — 회색 배경을 깔면
+    /// "사진이 안 떴다" 로 읽힌다(실기기 피드백). 회색은 사진이 오는 중인 칸에만 깐다.
     private var imageGrid: some View {
         HStack(spacing: 8) {
-            switch imageSource {
-            case .local(let images) where !images.isEmpty:
-                ForEach(Array(images.prefix(2).enumerated()), id: \.offset) { _, image in
-                    imageTile { image.resizable().scaledToFill() }
-                }
-            case .remote(let urls) where !urls.isEmpty:
-                ForEach(Array(urls.prefix(2).enumerated()), id: \.offset) { _, url in
-                    imageTile {
-                        AsyncImage(url: url) { phase in
-                            // 로딩 중·실패는 그리지 않는다 — 자리표는 타일 자신의 배경이라
-                            // 어느 단계에서도 자리가 비지 않는다.
-                            if case .success(let image) = phase {
-                                image.resizable().scaledToFill()
-                            }
-                        }
-                    }
-                }
-            default:
-                ForEach(0..<2, id: \.self) { _ in imageTile { EmptyView() } }
+            ForEach(0..<Self.tileCount, id: \.self) { index in
+                imageTile(hasAssignedImage: hasImage(at: index)) { tileContent(at: index) }
             }
+        }
+    }
+
+    /// `index` 번째 칸에 사진(또는 사진 URL)이 있는가.
+    private func hasImage(at index: Int) -> Bool {
+        switch imageSource {
+        case .local(let images): Self.slotHasImage(imageCount: images.count, index: index)
+        case .remote(let urls): Self.slotHasImage(imageCount: urls.count, index: index)
+        }
+    }
+
+    /// 칸 `index` 에 사진이 배정되는가 — 자리표(회색/투명)와 사진 렌더 여부를 **함께 가르는 단일 기준**.
+    /// 두 곳이 각자 `index < count` 를 세면 한쪽만 고쳤을 때 회색 칸에 사진이 안 뜨는 식으로 어긋난다.
+    /// 뷰 밖으로 뺀 이유는 렌더 없이 검증하기 위해서다(에셋 색은 `ImageRenderer` 에서 투명으로 나온다).
+    static func slotHasImage(imageCount: Int, index: Int) -> Bool {
+        index < imageCount
+    }
+
+    /// `index` 번째 칸에 얹을 사진. 사진이 없는 칸은 비워 둔다.
+    @ViewBuilder
+    private func tileContent(at index: Int) -> some View {
+        switch imageSource {
+        case .local(let images) where Self.slotHasImage(imageCount: images.count, index: index):
+            images[index].resizable().scaledToFill()
+        case .remote(let urls) where Self.slotHasImage(imageCount: urls.count, index: index):
+            AsyncImage(url: urls[index]) { phase in
+                switch phase {
+                case .success(let image):
+                    image.resizable().scaledToFill()
+                case .empty:
+                    // 받는 중 — 회색 자리표 위에 스피너를 얹어 "사진이 오고 있다" 를 알린다.
+                    // 안 그러면 사진이 없는 핀과 구분되지 않는다(실기기 피드백).
+                    MHSpinner()
+                case .failure:
+                    // 실패는 회색 자리표만 남긴다 — 자리표는 타일 자신의 배경이라 자리가 비지 않는다.
+                    EmptyView()
+                @unknown default:
+                    EmptyView()
+                }
+            }
+        default:
+            EmptyView()
         }
     }
 
@@ -199,9 +223,15 @@ public struct MHHomeCard: View {
     /// 밀어낸다. 홈 덱은 실측 컨테이너 폭으로 카드 폭을 정하므로(`CardDeckView.widthReader`) 그
     /// 부풀어 오른 폭이 다시 읽혀 덱 전체가 화면 밖으로 나간다 — 시뮬레이터에서 재현했다.
     /// 그래서 크기는 언제나 이 타일이 정하고, 사진은 `overlay` 로 얹은 뒤 넘치는 부분을 잘라낸다.
-    private func imageTile<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+    ///
+    /// - Parameter hasAssignedImage: 사진이 배정된 칸이면 회색 로딩 배경을 깐다(로딩 중·실패에도 자리가
+    ///   비지 않는다). 사진이 없는 칸은 투명 — 크기만 차지하고 그림은 없다.
+    private func imageTile<Content: View>(
+        hasAssignedImage: Bool,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
         RoundedRectangle(cornerRadius: 16)
-            .fill(Color.mhBackgroundNormalAlternative)
+            .fill(hasAssignedImage ? Color.mhBackgroundNormalAlternative : .clear)
             .aspectRatio(147.5 / 184, contentMode: .fit)
             .overlay { content() }
             .clipShape(RoundedRectangle(cornerRadius: 16))
@@ -281,7 +311,8 @@ struct MHHomeCardMoreStyle: ButtonStyle {
     }
 }
 
-#Preview("MHHomeCard") {
+// 사진 0장 — 두 칸 모두 투명한 빈 자리(회색 자리표 없음). 서버가 images 를 비워 준 핀의 모습.
+#Preview("MHHomeCard - 사진 없음") {
     MHHomeCard(
         avatar: nil,
         badgeText: "친구들이 많이 본 곳",
@@ -289,6 +320,20 @@ struct MHHomeCardMoreStyle: ButtonStyle {
         title: "레이어스튜디오 10",
         address: "서울 성동구 상원4길 10",
         images: []
+    ) { }
+    .frame(width: 335)
+    .padding()
+}
+
+// 사진 1장 — 첫 칸만 사진(로딩 중엔 회색), 둘째 칸은 투명. 카드 높이는 2장일 때와 같아야 한다.
+#Preview("MHHomeCard - Remote 1장") {
+    MHHomeCard(
+        avatar: nil,
+        badgeText: "가볼 만한 곳",
+        badgeColor: .mhAccentForegroundLime,
+        title: "코지인무르무르",
+        address: "서울 동대문구 회기동 60-41",
+        imageURLs: [URL(string: "https://picsum.photos/seed/gguk-1-0/800/600")!]
     ) { }
     .frame(width: 335)
     .padding()

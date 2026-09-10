@@ -13,6 +13,11 @@ struct RoomDetailState: Equatable {
     var viewMode: RoomDetailViewMode = .list
     /// 장소 삭제 확인 다이얼로그(004-1-3-1). nil 이면 닫혀 있다.
     var deletion: RoomDetailDeletion?
+    /// 방 나가기 확인 다이얼로그(004-5). nil 이면 닫혀 있다.
+    var leave: RoomDetailLeave?
+    /// 방장 위임 대상 고르기. 나가기가 409 로 거절됐을 때만 선다 — 두 상태는 이어 달리므로
+    /// 동시에 서지 않는다(409 를 받는 순간 ``leave`` 를 내리고 이쪽을 세운다).
+    var ownerTransfer: RoomOwnerTransfer?
     /// 내가 이 방의 방장인가 — 헤더 케밥에 "방 편집" 을 붙일지의 유일한 기준(004-1 ② 2-2).
     ///
     /// 신원을 아직 못 받았거나 조회에 실패하면 `false` 로 남는다. 모르는 쪽을 "방장 아님" 으로
@@ -64,6 +69,14 @@ enum RoomDetailAction: Equatable {
     case confirmDelete
     case deleted(PinID)
     case deleteFailed(DomainError)
+    case cancelLeave
+    case confirmLeave
+    /// 나가기가 끝났다(위임을 거친 경우도 여기로 모인다).
+    case leaveSucceeded
+    case leaveFailed(DomainError)
+    case selectNextOwner(String)
+    case cancelOwnerTransfer
+    case confirmOwnerTransfer
 }
 
 enum RoomDetailNav: Equatable, Sendable {
@@ -75,10 +88,13 @@ enum RoomDetailNav: Equatable, Sendable {
     /// 표시 모델(`RoomDetailRoom`)이 아니라 도메인 `Room` 을 싣는다 — 시트가 참여자 닉네임과 방 색을
     /// 함께 쓰는데 표시 모델은 아바타 색만 남기고 나머지를 버린다(``RoomDetailRoom/init(from:)``).
     case inviteFriends(Room)
-    /// 헤더 케밥 "방 편집" (방장만). 도착 화면은 아직 없다 — `ArchiveCoordinator.handle(_: RoomDetailNav)` 참조.
+    /// 헤더 케밥 "방 편집" (방장만) → `ArchiveRoute.editRoom`.
     case editRoom(Room)
-    /// 헤더 케밥 "방 나가기". 도착 화면은 아직 없다 — 위와 같다.
-    case leaveRoom(Room)
+    /// 이 방에서 나갔다 — 방 상세를 닫고 목록을 다시 받으라는 뜻.
+    ///
+    /// 확인·위임까지가 이 화면 안의 일이라(``RoomDetailLeave``·``RoomOwnerTransfer``) 밖으로는
+    /// **끝난 사실만** 나간다. "나가기를 눌렀다" 를 내보내면 flow 마다 확인 절차를 다시 짜야 한다.
+    case didLeaveRoom
 }
 
 typealias RoomDetailStore = Store<RoomDetailState, RoomDetailAction, RoomDetailNav>
@@ -88,6 +104,8 @@ func roomDetailReducer(
     deletePin: DeletePinUseCase,
     fetchCurrentMember: CurrentMemberUseCase,
     currentLocation: CurrentLocationUseCase,
+    leaveRoom: LeaveRoomUseCase,
+    transferRoomOwner: TransferRoomOwnerUseCase,
     room: Room
 ) -> (inout RoomDetailState, RoomDetailAction) -> Effect<RoomDetailAction, RoomDetailNav> {
     { state, action in
@@ -155,7 +173,10 @@ func roomDetailReducer(
                 guard state.isOwner else { return .none }
                 return .navigate(.editRoom(room))
             case .leaveRoom:
-                return .navigate(.leaveRoom(room))
+                // 나가면 방이 사라지는 경우인지 여기서 가른다 — 문구가 갈린다. 최종 판단은
+                // 서버가 하고(방장+마지막 멤버면 방 삭제), 여기서는 가진 값으로 미리 알린다.
+                state.leave = RoomDetailLeave(deletesRoom: state.isOwner && room.memberCount <= 1)
+                return .none
             }
 
         case .selectSort(let sort):
@@ -259,6 +280,93 @@ func roomDetailReducer(
             // 지우려던 장소가 그 자리에 남아 있는 것이 곧 "안 지워졌다"는 표시다.
             state.deletion = nil
             return .none
+
+        // MARK: 방 나가기 (004-5)
+
+        case .cancelLeave:
+            state.leave = nil
+            return .none
+
+        case .confirmLeave:
+            guard let leave = state.leave, !leave.isSubmitting else { return .none }
+            state.leave?.isSubmitting = true
+            state.leave?.failed = false
+            return .run { send in
+                do {
+                    try await leaveRoom.execute(roomId: room.id)
+                    send(.leaveSucceeded)
+                } catch is CancellationError {
+                    return   // 화면을 떠난 것 — 실패가 아니다
+                } catch {
+                    send(.leaveFailed(error as? DomainError ?? .roomLeaveFailed))
+                }
+            }
+
+        case .leaveSucceeded:
+            state.leave = nil
+            state.ownerTransfer = nil
+            return .navigate(.didLeaveRoom)
+
+        // 409 는 실패가 아니라 **다음 절차의 요구**다 — 안내 대신 새 방장 고르기로 넘어간다.
+        case .leaveFailed(.ownerTransferRequired):
+            state.leave = nil
+            let candidates = room.users
+                .filter { $0.userId != room.ownerId }
+                .map {
+                    RoomOwnerTransferCandidate(
+                        id: $0.userId, nickname: $0.nickname, avatarColor: $0.avatarColor
+                    )
+                }
+            // 넘길 사람이 없는데 서버가 위임을 요구했다 — 손에 든 멤버 목록이 낡았다는 뜻이다
+            // (그 사이 다른 사람이 들어왔다). 빈 목록을 띄우면 빠져나갈 길이 없어, 대신 나가기
+            // 다이얼로그를 실패 상태로 되돌려 다시 시도할 수 있게 둔다.
+            guard !candidates.isEmpty else {
+                state.leave = RoomDetailLeave(deletesRoom: false, failed: true)
+                return .none
+            }
+            state.ownerTransfer = RoomOwnerTransfer(candidates: candidates)
+            return .none
+
+        case .leaveFailed:
+            // 다이얼로그를 닫지 않는다 — 닫으면 "눌렀는데 아무 일도 없다" 로 보인다.
+            // 문구만 바꿔(``RoomDetailLeave/failed``) 그 자리에서 다시 시도하게 한다.
+            if state.ownerTransfer != nil {
+                state.ownerTransfer?.isSubmitting = false
+                state.ownerTransfer?.failed = true
+            } else {
+                state.leave?.isSubmitting = false
+                state.leave?.failed = true
+            }
+            return .none
+
+        case .selectNextOwner(let userID):
+            guard state.ownerTransfer?.isSubmitting == false else { return .none }
+            state.ownerTransfer?.selectedID = userID
+            return .none
+
+        case .cancelOwnerTransfer:
+            state.ownerTransfer = nil
+            return .none
+
+        case .confirmOwnerTransfer:
+            guard let transfer = state.ownerTransfer, transfer.canSubmit,
+                  let nextOwnerID = transfer.selectedID
+            else { return .none }
+            state.ownerTransfer?.isSubmitting = true
+            state.ownerTransfer?.failed = false
+            return .run { send in
+                do {
+                    // 위임과 나가기는 **한 동작**이다 — 사용자가 고른 건 "넘기고 나가기" 하나다.
+                    // 위임만 성공하고 멈추면 방장이 바뀐 채 그대로 남아 되돌릴 방법이 없다.
+                    try await transferRoomOwner.execute(roomId: room.id, nextOwnerId: nextOwnerID)
+                    try await leaveRoom.execute(roomId: room.id)
+                    send(.leaveSucceeded)
+                } catch is CancellationError {
+                    return
+                } catch {
+                    send(.leaveFailed(error as? DomainError ?? .ownerTransferFailed))
+                }
+            }
         }
     }
 }
