@@ -51,7 +51,7 @@ struct MarkerDiffTests {
         let selected = MapMarker(
             id: "a",
             coordinate: MapCoordinate(latitude: 37.5, longitude: 127.0),
-            style: MapMarkerStyle(tint: .red, isSelected: true)
+            style: MapMarkerStyle(kind: .pin(.red), isSelected: true)
         )
         let diff = MarkerDiff.between(applied: [plain], new: [selected])
         #expect(diff == MarkerDiff(removedIDs: [], inserted: [], updated: [selected]))

@@ -202,9 +202,9 @@ public enum PlaceMap {
     /// 마커를 한 지도에 표시하며, **각 마커는 소속 방의 대표 색상을 따른다**" 로 못박았다.
     /// 방 상세는 방이 하나라 결과적으로 다 같은 색이 된다 — 같은 함수로 두 화면을 덮는다.
     ///
-    /// - Parameter roomColors: 방 id → 대표 색. 색을 안 고른 방(`nil`)이나 목록에 없는 방 id 는
-    ///   기본 회색으로 떨어진다(``tint(for:)``) — 방 목록보다 핀이 먼저 도착해도 마커가 사라지지
-    ///   않고 회색으로 선다.
+    /// - Parameter roomColors: 방 id → 대표 색. 색을 안 고른 방(`gray`)이나 목록에 없는 방 id 는
+    ///   색 없는 핀 아트로 떨어진다(``markerColor(for:)``) — 방 목록보다 핀이 먼저 도착해도 마커가
+    ///   사라지지 않고 회색 실루엣으로 선다.
     /// - Parameter showsLabels: 핀 아래 장소명을 그릴지. **꺼지면 `title` 을 비워** 보낸다 —
     ///   라벨을 그릴지 말지는 여기서 정하고 `MapView` 는 받은 값을 그리기만 한다.
     public static func markers(
@@ -222,7 +222,7 @@ public enum PlaceMap {
                 ),
                 title: showsLabels ? pin.place.name : nil,
                 style: MapMarkerStyle(
-                    tint: tint(for: roomColors[pin.roomID]),
+                    kind: .pin(markerColor(for: roomColors[pin.roomID])),
                     isSelected: pin.id.value == selectedPinID
                 )
             )
@@ -341,10 +341,40 @@ public enum PlaceMap {
         }
     }
 
-    /// 방 색 → 마커 색.
+    /// 방 색 → 핀 아트 색 (Figma `character/Pin` 의 `color` 배리언트).
+    ///
+    /// 핀은 색을 칠하는 게 아니라 **색마다 다른 그림**이다 — 아트 이름을 고르는 일이라 `Color` 가
+    /// 아닌 ``MapUI/MapMarkerColor`` 를 돌려준다. MapUI 는 Domain 을 보지 않으므로 `RoomColor` 를
+    /// 잇는 자리는 화면 레이어인 여기다(`FeatureHome.HomeMascotPalette` 가 홈 마스코트에 하는 것과 같다).
+    ///
+    /// 색을 고르지 않은 방(``RoomColor/gray``)과 표에 없는 방(`nil`)은 **색 없는 핀**
+    /// (``MapUI/MapMarkerColor/plain``)이다 — 아무 색이나 골라 남의 방 색을 씌우는 것보다 시안이 그
+    /// 자리에 둔 회색 실루엣이 맞다. 개인방(`내 장소`)이 늘 이 자리다.
+    ///
+    /// 두 enum 의 rawValue 에 기대지 않고 명시적으로 짝짓는다: 이름으로 이으면 한쪽이 바뀌어도
+    /// 컴파일이 통과하고 런타임에 그림만 사라진다.
+    public static func markerColor(for color: RoomColor?) -> MapMarkerColor {
+        switch color {
+        case .red: .red
+        case .redOrange: .redOrange
+        case .orange: .orange
+        case .lime: .lime
+        case .green: .green
+        case .cyan: .cyan
+        case .lightBlue: .lightBlue
+        case .blue: .blue
+        case .violet: .violet
+        case .pink: .pink
+        case .purple: .purple
+        case .brown: .brown
+        case .gray, .none: .plain
+        }
+    }
+
+    /// 방 색 → **클러스터** 원의 채움색. 핀은 이 값을 쓰지 않는다(``markerColor(for:)``).
     ///
     /// `RoomColorPalette.entries` 의 **채움색**과 같은 짝이다 — 사용자가 피커에서 고른 칸의
-    /// 색이 곧 "방 색"이라 마커도 그 색을 쓴다. 그 배열의 `fill` 이 `RoomCreationUI` 안에서
+    /// 색이 곧 "방 색"이라 클러스터도 그 색을 쓴다. 그 배열의 `fill` 이 `RoomCreationUI` 안에서
     /// internal 이라 밖에서 읽을 수 없어 여기서 다시 짝짓는다. **팔레트를 고치면 양쪽을 함께
     /// 고쳐야 한다** — `RoomColorPalette` 에 공개 접근자가 생기면 이 switch 는 지운다.
     ///
@@ -364,8 +394,8 @@ public enum PlaceMap {
         case .pink: .mhPink90
         case .purple: .mhPurple70
         case .brown: .mhBrown70
-        // 색 미선택(`gray`)과 팔레트 밖 값(`nil`)은 그릴 방 색이 없어 마커 기본색으로 떨어진다.
-        // 시안의 색 없는 핀이 쓰는 회색이라 DesignSystem 토큰이 아니라 마커 쪽 값을 받아 쓴다.
+        // 색 미선택(`gray`)과 팔레트 밖 값(`nil`)은 그릴 방 색이 없어 클러스터 기본색으로 떨어진다.
+        // 시안의 색 없는 핀(`pinDefaultBlack`)이 쓰는 회색이라 DesignSystem 토큰이 아니라 마커 쪽 값을 받아 쓴다.
         case .gray, .none: MapMarkerStyle.defaultTint
         }
     }

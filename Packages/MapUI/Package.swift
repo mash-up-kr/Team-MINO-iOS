@@ -20,9 +20,10 @@ let package = Package(
                 // macOS(테스트 호스트) 빌드에는 포함되지 않아 순수 타입만 컴파일된다.
                 .product(name: "GoogleMaps", package: "ios-maps-sdk", condition: .when(platforms: [.iOS])),
             ],
-            // 마커 아트. DesignSystem 이 아니라 여기 두는 이유는 두 가지다 —
-            // 지도 마커는 `GMSMarker.icon`(UIImage)으로만 쓰이는 지도 전용 자산이고,
-            // DesignSystem 은 iOS 전용이라 macOS 테스트 호스트를 지원하는 MapUI 가 의존할 수 없다.
+            // 마커 아트 — Figma `character/Pin` 26장(13색 × 기본/선택). DesignSystem 이 아니라 여기
+            // 두는 이유는 두 가지다 — 지도 마커는 `GMSMarker.icon`(UIImage)으로만 쓰이는 지도 전용
+            // 자산이고, DesignSystem 은 iOS 전용이라 macOS 테스트 호스트를 지원하는 MapUI 가 의존할
+            // 수 없다. 한때 DesignSystem 에도 같은 26장이 있었지만 쓰는 곳이 없어 이쪽으로 합쳤다.
             resources: [.process("Resources")]
         ),
         // 브릿지(MapView)는 UIViewRepresentable 이라 단위 테스트 대상이 아니다.
