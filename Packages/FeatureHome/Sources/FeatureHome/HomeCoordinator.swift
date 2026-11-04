@@ -32,9 +32,10 @@ public final class HomeCoordinator: Coordinator {
     public var cover: Never? = nil
     public let finish = FlowFinish<Never>()
 
-    /// 열려 있는 장소 상세의 핀 (nil = 닫힘). 커버의 표시 항목이라 SwiftUI 가 닫힐 때 nil 을
+    /// 열려 있는 장소 상세의 카드 (nil = 닫힘). 커버의 표시 항목이라 SwiftUI 가 닫힐 때 nil 을
     /// 되쓴다 — "열렸나" 플래그를 따로 두면 그 플래그와 핀이 어긋날 짝이 생긴다.
-    public var selectedPin: Pin? {
+    /// 핀이 아니라 카드인 이유는 상세 상단에 이어 줄 라벨이 카드에만 있기 때문이다(002-1-1 ①).
+    public var selectedPin: PinCard? {
         didSet {
             guard selectedPin?.id != oldValue?.id else { return }
             // 지도는 이 핀이 열려 있는 동안에만 존재한다 — 다른 장소를 열거나 닫으면 이전 현위치
@@ -42,7 +43,7 @@ public final class HomeCoordinator: Coordinator {
             mapFocus = nil
             // Store 를 **핀과 같은 순간에** 만든다. 뷰의 `.task` 에서 만들면 시트가 올라오기
             // 시작한 뒤에야 콘텐츠가 채워져, 컨테이너만 올라오고 내용은 뒤늦게 제자리에 나타난다.
-            placeDetailStore = selectedPin.map { makePlaceDetailStore(pin: $0) }
+            placeDetailStore = selectedPin.map { makePlaceDetailStore(card: $0) }
             if selectedPin != nil { placeDetailEpoch += 1 }
         }
     }
@@ -145,10 +146,10 @@ public final class HomeCoordinator: Coordinator {
     ///
     /// 홈 진입이므로 카드가 달고 있던 라벨을 그대로 넘긴다 — "홈 카드에서 진입한 경우에만 해당
     /// 카드의 라벨을 장소 상세 상단에 동일하게 노출한다"(002-1-1 ①).
-    func makePlaceDetailStore(pin: Pin) -> PlaceDetailStore {
+    func makePlaceDetailStore(card: PinCard) -> PlaceDetailStore {
         PlaceDetailUI.makePlaceDetailStore(
-            pin: pin,
-            label: pin.category,
+            pin: card.pin,
+            label: card.category,
             deps: deps,
             handle: { [weak self] in self?.handle($0) }
         )
@@ -188,8 +189,8 @@ public final class HomeCoordinator: Coordinator {
         switch nav {
         case .goToCreateRoom:
             push(.createRoom)
-        case .openPlaceDetail(let pin):
-            selectedPin = pin
+        case .openPlaceDetail(let card):
+            selectedPin = card
         }
     }
 

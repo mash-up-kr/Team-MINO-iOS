@@ -11,7 +11,7 @@ public struct HomeState: Equatable {
     /// **현재 방**의 기준별 덱(캐시). 칩을 오가도 재조회 없이 이어 본다 — 칩으로 건너뛴 덱도
     /// 방이 바뀌기 전에 마저 볼 수 있어야 하므로(SC-002) 보던 위치를 그대로 들고 있는다.
     /// 방이 바뀌면 비운다.
-    public var decks: [PinFilter: [Pin]]
+    public var decks: [PinFilter: [PinCard]]
     /// 방 우선 순회의 커서 — `rooms` 배열 인덱스. 이 방의 세 정렬을 다 보면 다음 방으로 +1 된다.
     public var currentRoomIndex: Int
     /// 현재 방에서 **끝까지 본** 정렬. 다음에 어느 정렬로 넘어갈지(미확인 정렬) 판단에 쓴다.
@@ -56,7 +56,7 @@ public struct HomeState: Equatable {
         isLoading: Bool = false,
         errorMessage: String? = nil,
         selectedFilter: PinFilter = .recommended,
-        pins: [Pin] = [],
+        pins: [PinCard] = [],
         isDeckLoading: Bool = false,
         currentCardIndex: Int = 0,
         currentRoomIndex: Int = 0,
@@ -92,7 +92,7 @@ public struct HomeState: Equatable {
     }
 
     /// 현재 기준의 카드 덱. 쓰기는 현재 기준의 덱만 갈아끼운다(다른 기준 캐시는 그대로).
-    public var pins: [Pin] {
+    public var pins: [PinCard] {
         get { decks[selectedFilter] ?? [] }
         // 빈 덱은 키를 남기지 않는다 — "받았는데 0장"과 "아직 안 받음"을 같게 둬야 상태가 정규화되고,
         // 다시 그 기준으로 갈 때 재조회한다(빈 캐시로 굳지 않게).
@@ -236,15 +236,15 @@ public enum HomeAction: Equatable {
     case loadFailed(DomainError)
     case selectFilter(PinFilter)
     /// 최초 진입 덱이 도착했다 — 이어 볼 방(마지막으로 본 방)의 꾹 Pick 덱. `roomID` 가 그 방이다.
-    case initialDeckLoaded(pins: [Pin], roomID: String)
+    case initialDeckLoaded(pins: [PinCard], roomID: String)
     /// 한 (방 × 정렬) 덱이 도착했다. `roomID`·`filter` 는 이 응답이 **어느 자리의 것인지** —
     /// 칩·방을 연속으로 옮겨 응답이 엇갈려 도착해도 지나간 자리의 덱이 화면을 끌고 가지 않게 한다.
     /// 덱은 언제나 **첫 카드**부터 시작한다(되돌리기가 덱 경계를 넘지 않으므로 뒤에서 들어올 일이 없다).
-    case deckLoaded(pins: [Pin], roomID: String, filter: PinFilter)
+    case deckLoaded(pins: [PinCard], roomID: String, filter: PinFilter)
     /// 순회 커서가 확인한 자리의 결과. 비면 다음 자리로, 카드가 있으면 그 자리를 화면에 커밋한다.
     /// `deckLoaded` 와 나눠 둔 이유는 **화면에 반영할 시점이 다르기** 때문이다 —
     /// 이쪽은 찾을 때까지 화면을 건드리지 않는다(``DeckProbe``).
-    case probeLoaded(pins: [Pin], roomIndex: Int, filter: PinFilter)
+    case probeLoaded(pins: [PinCard], roomIndex: Int, filter: PinFilter)
     /// 덱 조회 실패 — 가려던 자리를 버리고 조회 직전 자리로 되돌린다.
     case deckLoadFailed(roomID: String, filter: PinFilter, revertTo: DeckPosition)
     case tapCreateRoom
@@ -298,7 +298,7 @@ public enum HomeNav: Equatable, Sendable {
     ///
     /// 식별자가 아니라 핀을 통째로 싣는다. 상세가 그리는 사진·저장자·라벨이 전부 이 값 안에 있어,
     /// id 만 넘기면 받아 둔 덱을 두고 같은 장소를 다시 조회하게 된다.
-    case openPlaceDetail(Pin)
+    case openPlaceDetail(PinCard)
 }
 
 public typealias HomeStore = Store<HomeState, HomeAction, HomeNav>
@@ -323,7 +323,7 @@ public struct DeckPosition: Equatable, Sendable {
     public var roomIndex: Int
     public var filter: PinFilter
     public var cardIndex: Int
-    public var decks: [PinFilter: [Pin]]
+    public var decks: [PinFilter: [PinCard]]
     public var viewedFilters: Set<PinFilter>
     public var filterAnchor: PinFilter
     public var changedRoomToastID: String?
@@ -333,7 +333,7 @@ public struct DeckPosition: Equatable, Sendable {
         roomIndex: Int,
         filter: PinFilter,
         cardIndex: Int,
-        decks: [PinFilter: [Pin]] = [:],
+        decks: [PinFilter: [PinCard]] = [:],
         viewedFilters: Set<PinFilter> = [],
         filterAnchor: PinFilter = .recommended,
         changedRoomToastID: String? = nil,
@@ -689,13 +689,13 @@ public func homeReducer(
         case .tapCard(let pinID):
             // 카드가 넘긴 건 id 뿐이라 지금 덱에서 핀을 되찾는다. 못 찾으면 아무 데도 가지 않는다 —
             // 덱이 갈리는 순간(방·기준 전환)에 들어온 탭이라 열어야 할 장소가 이미 없다.
-            guard let pin = state.pins.first(where: { $0.id == pinID }) else { return .none }
+            guard let card = state.pins.first(where: { $0.id == pinID }) else { return .none }
             // 정책: 카드 탭은 상세로 보내기만 한다. 「경과일 초기화 확인」①은 **장소 상세가 열릴 때**
             // 그 화면이 보낸다(2026-08-29 논의 확정 · Figma 002-1 주석 ③) — 지도 마커·저장된 방
             // 전환·알림으로 들어와도 같은 기록이 남아야 하는데, 진입점마다 호출을 달면 관리 지점이
             // 그만큼 흩어진다.
             // 덱의 진행 상태(잔여 카드·되돌리기 이력)는 그대로다 — 「카드 열람 확인」②은 넘길 때만 생긴다.
-            return .navigate(.openPlaceDetail(pin))
+            return .navigate(.openPlaceDetail(card))
 
         case .checkGuide:
             // 정책: 홈 사용 가이드는 최초 진입 1회. 카드 유무는 보지 않는다 — 가이드가 가리키는 덱은
@@ -761,9 +761,9 @@ public func homeReducer(
 
         case .tapSaveToOtherRoom(let pinID):
             // 정책(FR-005): 메뉴를 닫고 「게시물 저장 시트」를 연다. 덱의 진행 상태는 건드리지 않는다(TS-011).
-            guard let pin = state.pins.first(where: { $0.id == pinID }) else { return .none }
+            guard let card = state.pins.first(where: { $0.id == pinID }) else { return .none }
             state.savePost = SavePostState(pinID: pinID)
-            let placeID = pin.place.id
+            let placeID = card.pin.place.id
             // 방 목록은 이미 들고 있어 시트가 즉시 뜬다 — 이 조회는 그 위에 "이미 담긴 방" 표시만 얹는다.
             // 실패·취소는 삼킨다: 표시가 없을 뿐 저장은 되고, 그 상태로 이미 담긴 방을 고르면
             // 서버가 409 로 거절해 `savePostFailed` 로 돌아온다.

@@ -17,7 +17,6 @@ enum PinFixture {
     static func pin(
         id: PinID,
         roomID: String,
-        category: PinCategory,
         title: String,
         address: String,
         coordinate: Coordinate = Coordinate(latitude: 37.5443, longitude: 127.0557),
@@ -40,7 +39,6 @@ enum PinFixture {
             images: images,
             createdBy: createdBy,
             commentCount: commentCount,
-            category: category,
             createdAt: createdAt
         )
     }

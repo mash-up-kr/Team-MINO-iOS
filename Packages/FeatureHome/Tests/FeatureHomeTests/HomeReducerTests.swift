@@ -17,8 +17,8 @@ private let fixtureRooms = [
     ),
 ]
 
-private let fixturePins: [Pin] = (0..<3).map { i in
-    PinFixture.pin(
+private let fixturePins: [PinCard] = (0..<3).map { i in
+    PinFixture.card(
         id: PinID("pin-\(i)"),
         roomID: "1",
         category: [.popularAmongFriends, .manyStories, .savedByMany][i],
@@ -40,8 +40,8 @@ private struct StubFetchRooms: FetchRoomsUseCase {
 
 /// 방·정렬과 무관하게 같은 덱을 돌려주는 스텁(로드 흐름 테스트용).
 private struct StubFetchPins: FetchHomeCardsUseCase {
-    var all: [Pin] = []
-    func execute(room: Room, filter: PinFilter, origin: Coordinate?) async throws -> [Pin] { all }
+    var all: [PinCard] = []
+    func execute(room: Room, filter: PinFilter, origin: Coordinate?) async throws -> [PinCard] { all }
 }
 
 /// 스텁이 돌려주는 좌표. 가까운순 흐름의 단언이 이 값을 그대로 쓴다.
@@ -56,9 +56,9 @@ private struct StubCurrentLocation: CurrentLocationUseCase {
 /// (방 × 정렬)별 덱을 돌려주는 스텁 — 홈이 방 단위로 조회하므로 그 키로 찾는다.
 /// `failing` 에 담은 키는 조회가 실패한다(복구 경로 검증용).
 private struct StubRoomDecks: FetchHomeCardsUseCase {
-    var decks: [String: [Pin]] = [:]
+    var decks: [String: [PinCard]] = [:]
     var failing: Set<String> = []
-    func execute(room: Room, filter: PinFilter, origin: Coordinate?) async throws -> [Pin] {
+    func execute(room: Room, filter: PinFilter, origin: Coordinate?) async throws -> [PinCard] {
         let key = deckKey(room.id, filter)
         if failing.contains(key) { throw DomainError.unknown }
         return decks[key] ?? []
@@ -69,21 +69,21 @@ private func deckKey(_ roomID: String, _ filter: PinFilter) -> String { "\(roomI
 
 /// 어느 방에 조회가 나갔는지 기록하는 스텁 — "빈 방은 묻지도 않는다" 를 검증한다.
 private actor SpyRoomDecks: FetchHomeCardsUseCase {
-    private let decks: [String: [Pin]]
+    private let decks: [String: [PinCard]]
     private(set) var requestedRooms: [String] = []
 
-    init(decks: [String: [Pin]]) { self.decks = decks }
+    init(decks: [String: [PinCard]]) { self.decks = decks }
 
-    func execute(room: Room, filter: PinFilter, origin: Coordinate?) async throws -> [Pin] {
+    func execute(room: Room, filter: PinFilter, origin: Coordinate?) async throws -> [PinCard] {
         requestedRooms.append(room.id)
         return decks[deckKey(room.id, filter)] ?? []
     }
 }
 
 /// 한 (방 × 정렬) 덱. `tag` 로 어느 덱인지 구분한다.
-private func deckPins(_ tag: String, room: String, count: Int) -> [Pin] {
+private func deckPins(_ tag: String, room: String, count: Int) -> [PinCard] {
     (0..<count).map { i in
-        PinFixture.pin(id: PinID("\(tag)-\(i)"), roomID: room, category: .savedByMany,
+        PinFixture.card(id: PinID("\(tag)-\(i)"), roomID: room, category: .savedByMany,
                        title: "\(tag)\(i)", address: "주소", createdAt: fixtureDate)
     }
 }
@@ -149,7 +149,7 @@ private struct ThrowingShareTargets: FetchShareTargetsUseCase {
 /// 핀 조회가 항상 실패하는 스텁 — 실패 경로(로드 실패 라우팅 / 더 보기 무시)를 검증한다.
 private struct ThrowingFetchPins: FetchHomeCardsUseCase {
     var error: DomainError = .unknown
-    func execute(room: Room, filter: PinFilter, origin: Coordinate?) async throws -> [Pin] { throw error }
+    func execute(room: Room, filter: PinFilter, origin: Coordinate?) async throws -> [PinCard] { throw error }
 }
 
 @MainActor
@@ -975,9 +975,9 @@ struct HomeReducerTests {
     // MARK: - 덱 끝 예고 툴팁 (Figma 002-2-3 ②)
 
     /// 한 방짜리 4장 덱 — index 1 에서 한 번 넘기면 남은 카드가 2장이 되는 크기.
-    private func deckOfFour() -> [Pin] {
+    private func deckOfFour() -> [PinCard] {
         (0..<4).map { i in
-            PinFixture.pin(id: PinID("c-\(i)"), roomID: "1", category: .savedByMany,
+            PinFixture.card(id: PinID("c-\(i)"), roomID: "1", category: .savedByMany,
                 title: "C\(i)", address: "주소", createdAt: fixtureDate)
         }
     }

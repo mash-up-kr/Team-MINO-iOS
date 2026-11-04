@@ -28,7 +28,7 @@ private struct StubFetchPinDetail: FetchPinDetailUseCase {
         guard pinID != fixturePin.id else { return PinDetail(pin: fixturePin, sourceURL: nil) }
         return PinDetail(
             pin: PinFixture.pin(
-                id: pinID, roomID: savedRoomB.id, category: .worthVisiting,
+                id: pinID, roomID: savedRoomB.id,
                 title: "다른 방의 같은 장소", address: "서울 성동구 상원4길 10",
                 createdAt: Date(timeIntervalSince1970: 0)
             ),
@@ -142,7 +142,7 @@ private let fixtureRoom = Room(
 private let savedRoomB = SavedRoomFixture.room("room-B", name: "가고싶은 카페", pinCount: 5)
 
 private let fixturePin = PinFixture.pin(
-    id: PinID("p1"), roomID: fixtureRoom.id, category: .worthVisiting,
+    id: PinID("p1"), roomID: fixtureRoom.id,
     title: "레이어스튜디오 10", address: "서울 성동구 상원4길 10",
     createdAt: Date(timeIntervalSince1970: 0)
 )
