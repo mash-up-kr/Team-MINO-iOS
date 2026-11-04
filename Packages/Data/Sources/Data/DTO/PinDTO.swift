@@ -83,10 +83,8 @@ struct PinAuthorDTO: Decodable {
 // MARK: - 경계(Data → Domain) 변환
 
 extension PinDTO {
-    /// - Parameter category: 목록 응답에는 큐레이션 라벨이 없다. 라벨은 홈 카드에만 붙는 개념이라
-    ///   서버가 목록에 싣지 않으며, 여기서는 기본값(`가볼 만한 곳`)으로 채운다 —
-    ///   방 상세·지도는 라벨을 그리지 않으므로 화면에 드러나지 않는다.
-    func toDomain(category: PinCategory = .worthVisiting) -> Pin {
+    /// 목록 응답에는 큐레이션 라벨이 없다 — 라벨은 홈 카드(``PinCardDTO``)에만 실리므로 `Pin` 은 들지 않는다.
+    func toDomain() -> Pin {
         Pin(
             id: PinID(id),
             roomID: roomId,
@@ -96,7 +94,6 @@ extension PinDTO {
             // 키가 빠지면 0 으로 본다 — 카드의 "코멘트 N" 이 잠깐 0 으로 보이는 것이,
             // 목록이 통째로 디코딩 실패해 화면이 비는 것보다 낫다.
             commentCount: commentCount ?? 0,
-            category: category,
             createdAt: createdAt
         )
     }
@@ -111,8 +108,7 @@ extension PinDetailDTO {
                 place: place.toDomain(),
                 images: PinImageMapper.urls(images),
                 createdBy: createdBy?.toDomain(),
-                commentCount: commentCount ?? 0,   // ``PinDTO/toDomain(category:)`` 의 주석과 같은 이유
-                category: .worthVisiting,
+                commentCount: commentCount ?? 0,   // ``PinDTO/toDomain()`` 의 주석과 같은 이유
                 createdAt: createdAt
             ),
             sourceURL: sourceUrl.flatMap(URL.init(string:))
@@ -121,16 +117,18 @@ extension PinDetailDTO {
 }
 
 extension PinCardDTO {
-    func toDomain() -> Pin {
-        Pin(
-            id: PinID(id),
-            roomID: roomId,
-            place: place.toDomain(),
-            images: PinImageMapper.urls(images),
-            createdBy: createdBy?.toDomain(),
-            commentCount: commentCount ?? 0,   // ``PinDTO/toDomain(category:)`` 의 주석과 같은 이유
-            category: Self.category(from: labelGroup),
-            createdAt: createdAt
+    func toDomain() -> PinCard {
+        PinCard(
+            pin: Pin(
+                id: PinID(id),
+                roomID: roomId,
+                place: place.toDomain(),
+                images: PinImageMapper.urls(images),
+                createdBy: createdBy?.toDomain(),
+                commentCount: commentCount ?? 0,   // ``PinDTO/toDomain()`` 의 주석과 같은 이유
+                createdAt: createdAt
+            ),
+            category: Self.category(from: labelGroup)
         )
     }
 

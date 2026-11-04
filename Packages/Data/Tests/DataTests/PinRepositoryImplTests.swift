@@ -69,18 +69,18 @@ struct PinRepositoryImplTests {
     func cards_mapsResponse() async throws {
         let sut = PinRepositoryImpl(client: StubHTTPClient(json: Self.cardsJSON))
 
-        let pins = try await sut.cards(roomID: "room-1", filter: .recommended, origin: nil)
+        let cards = try await sut.cards(roomID: "room-1", filter: .recommended, origin: nil)
 
-        #expect(pins.count == 2)
-        #expect(pins[0].place.coordinate == Coordinate(latitude: 37.5443, longitude: 127.0557))
-        #expect(pins[0].place.category == "카페")
+        #expect(cards.count == 2)
+        #expect(cards[0].pin.place.coordinate == Coordinate(latitude: 37.5443, longitude: 127.0557))
+        #expect(cards[0].pin.place.category == "카페")
         // 파싱되지 않는 문자열은 그 한 장만 버린다 — 통째로 비우면 사진 있는 장소가 없는 것처럼 보인다.
-        #expect(pins[0].images.count == 1)
-        #expect(pins[0].createdBy?.avatarColor == .redOrange)
-        #expect(pins[0].category == .manyStories)
-        #expect(pins[1].createdBy == nil)
-        #expect(pins[1].place.mapURL == nil)
-        #expect(pins[1].category == .popularAmongFriends)
+        #expect(cards[0].pin.images.count == 1)
+        #expect(cards[0].pin.createdBy?.avatarColor == .redOrange)
+        #expect(cards[0].category == .manyStories)
+        #expect(cards[1].pin.createdBy == nil)
+        #expect(cards[1].pin.place.mapURL == nil)
+        #expect(cards[1].category == .popularAmongFriends)
     }
 
     // #196 회귀. 서버가 홈 헤더용 `room` 을 실으면서 카드가 `data.cards` 한 겹 안으로 들어갔는데
@@ -91,9 +91,9 @@ struct PinRepositoryImplTests {
     func cards_readDeckFromObjectEnvelope() async throws {
         let sut = PinRepositoryImpl(client: StubHTTPClient(json: Self.cardsJSON))
 
-        let pins = try await sut.cards(roomID: "room-1", filter: .recommended, origin: nil)
+        let cards = try await sut.cards(roomID: "room-1", filter: .recommended, origin: nil)
 
-        #expect(pins.map(\.id.value) == ["pin-1", "pin-2"])
+        #expect(cards.map(\.id.value) == ["pin-1", "pin-2"])
     }
 
     // `room` 은 ``PinCardDeckDTO`` 가 선언하지 않는다 — 홈 헤더는 방 목록에서 같은 값을 이미 받는다.
@@ -111,9 +111,9 @@ struct PinRepositoryImplTests {
         ] }
         """))
 
-        let pins = try await sut.cards(roomID: "room-1", filter: .recommended, origin: nil)
+        let cards = try await sut.cards(roomID: "room-1", filter: .recommended, origin: nil)
 
-        #expect(pins.count == 1)
+        #expect(cards.count == 1)
     }
 
     // 서버 라벨과 카드 뱃지는 이름이 다르고 뜻으로만 대응한다 — 어긋나면 카드에 남의 뱃지가 붙는다.
@@ -129,8 +129,8 @@ struct PinRepositoryImplTests {
 
         for (label, category) in expected {
             let sut = PinRepositoryImpl(client: StubHTTPClient(json: Self.card(labelGroup: label)))
-            let pins = try await sut.cards(roomID: "r", filter: .recommended, origin: nil)
-            #expect(pins.first?.category == category, "\(label)")
+            let cards = try await sut.cards(roomID: "r", filter: .recommended, origin: nil)
+            #expect(cards.first?.category == category, "\(label)")
         }
     }
 
@@ -250,7 +250,7 @@ struct PinRepositoryImplTests {
     func mapsCommentCount() async throws {
         let cards = try await PinRepositoryImpl(client: StubHTTPClient(json: Self.cardsJSON))
             .cards(roomID: "room-1", filter: .recommended, origin: nil)
-        #expect(cards.map(\.commentCount) == [12, 0])
+        #expect(cards.map(\.pin.commentCount) == [12, 0])
 
         let pins = try await PinRepositoryImpl(client: StubHTTPClient(json: """
         [{ "id": "pin-1", "roomId": "room-1",

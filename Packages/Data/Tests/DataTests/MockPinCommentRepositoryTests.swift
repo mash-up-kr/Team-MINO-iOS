@@ -31,7 +31,6 @@ struct MockPinCommentRepositoryTests {
                         category: "카페"
                     ),
                     commentCount: commentCount,
-                    category: .worthVisiting,
                     createdAt: Date(timeIntervalSince1970: 0)
                 ),
                 sourceURL: nil
