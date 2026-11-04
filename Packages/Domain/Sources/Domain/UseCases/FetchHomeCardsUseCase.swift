@@ -4,7 +4,7 @@ import Foundation
 public protocol FetchHomeCardsUseCase: Sendable {
     /// - Parameter origin: 내 위치. `filter == .nearby` 에서만 쓰인다 — 없으면 서버가 거절하므로
     ///   호출부가 좌표를 먼저 확보하고 넘긴다.
-    func execute(room: Room, filter: PinFilter, origin: Coordinate?) async throws -> [Pin]
+    func execute(room: Room, filter: PinFilter, origin: Coordinate?) async throws -> [PinCard]
 }
 
 public struct DefaultFetchHomeCardsUseCase: FetchHomeCardsUseCase {
@@ -14,7 +14,7 @@ public struct DefaultFetchHomeCardsUseCase: FetchHomeCardsUseCase {
         self.repository = repository
     }
 
-    public func execute(room: Room, filter: PinFilter, origin: Coordinate?) async throws -> [Pin] {
+    public func execute(room: Room, filter: PinFilter, origin: Coordinate?) async throws -> [PinCard] {
         try await repository.cards(roomID: room.id, filter: filter, origin: origin)
     }
 }

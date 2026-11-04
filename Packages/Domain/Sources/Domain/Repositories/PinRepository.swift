@@ -12,7 +12,7 @@ public protocol PinRepository: Sendable {
     ///
     /// - Parameter origin: 내 위치. `filter == .nearby` 일 때만 쓰이며, 그때는 **필수**다
     ///   (없이 보내면 서버가 거절한다). 다른 기준에서는 무시된다.
-    func cards(roomID: String, filter: PinFilter, origin: Coordinate?) async throws -> [Pin]
+    func cards(roomID: String, filter: PinFilter, origin: Coordinate?) async throws -> [PinCard]
 
     /// 저장된 장소 목록. **정렬·카테고리 필터를 서버가 한다** — 앱은 기준을 지정해 요청하고
     /// 받은 순서를 그대로 그린다(PRD 「목록 정렬 기준」: "재정렬하지도 걸러내지도 않는다").

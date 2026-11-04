@@ -35,7 +35,6 @@ enum PinFixture {
             images: images,
             createdBy: createdBy,
             commentCount: commentCount,
-            category: .worthVisiting,
             createdAt: createdAt
         )
     }
