@@ -54,3 +54,34 @@ public struct Room: Equatable, Identifiable, Sendable {
         self.placeThumbnails = placeThumbnails
     }
 }
+
+/// 방과 현재 사용자 신원만으로 정해지는 판정. 화면 상태를 보지 않으므로 Domain 이 든다 —
+/// `PinComment.isWritten(by:)` 와 같은 모양으로, 신원을 모르면(nil) "아니다" 쪽으로 떨어진다.
+extension Room {
+    /// 이 방의 주인인가 — 닉네임이 아니라 **식별자**로만 판정한다.
+    ///
+    /// `viewer` 가 nil(내 신원을 아직·끝내 못 가져옴)이면 항상 false — 모르는 쪽을 "방장 아님" 으로
+    /// 두어야 남의 방에 편집 항목이 붙는 사고가 나지 않는다.
+    public func isOwned(by viewer: MemberID?) -> Bool {
+        viewer?.value == ownerId
+    }
+
+    /// 공동방인가. 초대와 헤더 더보기(편집·나가기)는 공동방에만 있다 — 개인방은 "혼자만의 공간" 이라
+    /// 초대 링크가 나가는 순간 방 종류의 정의가 깨진다(PRD 「개인방」 · [SYS-006]).
+    public var isShared: Bool {
+        type == .shared
+    }
+
+    /// `viewer` 가 나가면 방이 사라지는가 — 방장이자 마지막 멤버인 경우다.
+    ///
+    /// 최종 판단은 서버가 하고("방장+마지막 멤버면 방 삭제"), 여기서는 가진 값으로 미리 알려
+    /// 나가기 확인 문구를 가른다.
+    public func deletesWhenLeft(by viewer: MemberID?) -> Bool {
+        isOwned(by: viewer) && memberCount <= 1
+    }
+
+    /// 방장 위임 후보 — 멤버 중 방장 본인을 뺀 나머지.
+    public var ownerTransferCandidates: [RoomMember] {
+        users.filter { $0.userId != ownerId }
+    }
+}

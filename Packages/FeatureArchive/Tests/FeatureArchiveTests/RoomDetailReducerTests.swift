@@ -613,6 +613,7 @@ struct RoomDetailReducerTests {
 
         await store.send(.loadCurrentMember) { $0.isLoadingCurrentMember = true }
         await store.receive(.currentMemberLoaded(StubCurrentMember.owner)) {
+            $0.currentMemberID = StubCurrentMember.owner.id
             $0.isOwner = true
             $0.isLoadingCurrentMember = false
         }
@@ -625,6 +626,7 @@ struct RoomDetailReducerTests {
 
         await store.send(.loadCurrentMember) { $0.isLoadingCurrentMember = true }
         await store.receive(.currentMemberLoaded(StubCurrentMember.member)) {
+            $0.currentMemberID = StubCurrentMember.member.id
             $0.isLoadingCurrentMember = false
         }
         #expect(store.currentState.isOwner == false)
@@ -713,8 +715,9 @@ struct RoomDetailReducerTests {
     /// 케밥에서 "방 나가기" 를 누른 직후 — 확인 다이얼로그가 열린 상태.
     private func leavingState(_ room: Room, isOwner: Bool = true) -> RoomDetailState {
         var state = RoomDetailState(room: RoomDetailRoom(from: room))
+        state.currentMemberID = isOwner ? StubCurrentMember.owner.id : StubCurrentMember.member.id
         state.isOwner = isOwner
-        state.leave = RoomDetailLeave(deletesRoom: isOwner && room.memberCount <= 1)
+        state.leave = RoomDetailLeave(deletesRoom: room.deletesWhenLeft(by: state.currentMemberID))
         return state
     }
 
@@ -737,6 +740,7 @@ struct RoomDetailReducerTests {
     @Test("L1 — 방장 혼자인 방은 '나가면 삭제' 로 표시된다")
     func selectMoreMenuItem_leaveRoom_soloOwner() async {
         var state = RoomDetailState(room: RoomDetailRoom(from: fixtureSoloRoom))
+        state.currentMemberID = StubCurrentMember.owner.id
         state.isOwner = true
         state.isMoreMenuPresented = true
         let store = makeStore(room: fixtureSoloRoom, state: state)

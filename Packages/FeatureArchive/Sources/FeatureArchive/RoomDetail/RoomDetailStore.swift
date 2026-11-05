@@ -23,6 +23,8 @@ struct RoomDetailState: Equatable {
     /// 신원을 아직 못 받았거나 조회에 실패하면 `false` 로 남는다. 모르는 쪽을 "방장 아님" 으로
     /// 두어야 남의 방에 편집 항목이 붙는 사고가 나지 않는다.
     var isOwner = false
+    /// 내 신원. 나가기 확인 문구("방이 사라진다")를 `Room` 에 물을 때 넘긴다.
+    var currentMemberID: MemberID?
     var isLoadingCurrentMember = false
     /// 거리순(004-1 ⑥)의 기준점인 내 위치. 한 번 받아 두고 이 화면이 사는 동안 다시 묻지 않는다 —
     /// 3km 를 가르는 값이라, 시트를 열어 둔 사이에 사람이 그만큼 움직이지는 않는다.
@@ -138,8 +140,9 @@ func roomDetailReducer(
             }
 
         case .currentMemberLoaded(let profile):
-            // 방장 판정은 뷰가 아니라 여기서 한다 — 신원과 방 주인을 맞대 보는 건 도메인 규칙이다.
-            state.isOwner = profile.id.value == room.ownerId
+            // 방장 판정은 `Room` 이 한다 — 여기서는 받은 신원을 넣어 묻기만 한다.
+            state.currentMemberID = profile.id
+            state.isOwner = room.isOwned(by: profile.id)
             state.isLoadingCurrentMember = false
             return .none
 
@@ -149,15 +152,14 @@ func roomDetailReducer(
             return .none
 
         case .tapAddMember:
-            // 개인방은 초대 불가(PRD 「개인방」 · [SYS-006] "공동방에 타인을 초대할 때").
-            // 헤더가 `+` 를 그리지 않으므로 평소엔 오지 않는 길이지만, 오더라도 열지 않는다 —
-            // 개인방 초대 링크가 나가면 "혼자만의 공간" 이라는 방 종류의 정의가 깨진다.
-            guard room.type == .shared else { return .none }
+            // 개인방은 초대 불가(`Room.isShared`). 헤더가 `+` 를 그리지 않으므로 평소엔 오지 않는
+            // 길이지만, 오더라도 열지 않는다.
+            guard room.isShared else { return .none }
             return .navigate(.inviteFriends(room))
 
         case .tapMore:
             // 개인방은 더보기 자체가 없다(시안 `004-5` Case 3) — 위와 같은 이유로 방어한다.
-            guard room.type == .shared else { return .none }
+            guard room.isShared else { return .none }
             state.isMoreMenuPresented.toggle()
             return .none
 
@@ -173,9 +175,8 @@ func roomDetailReducer(
                 guard state.isOwner else { return .none }
                 return .navigate(.editRoom(room))
             case .leaveRoom:
-                // 나가면 방이 사라지는 경우인지 여기서 가른다 — 문구가 갈린다. 최종 판단은
-                // 서버가 하고(방장+마지막 멤버면 방 삭제), 여기서는 가진 값으로 미리 알린다.
-                state.leave = RoomDetailLeave(deletesRoom: state.isOwner && room.memberCount <= 1)
+                // 나가면 방이 사라지는 경우인지는 `Room` 이 가른다 — 문구가 갈린다.
+                state.leave = RoomDetailLeave(deletesRoom: room.deletesWhenLeft(by: state.currentMemberID))
                 return .none
             }
 
@@ -310,8 +311,7 @@ func roomDetailReducer(
         // 409 는 실패가 아니라 **다음 절차의 요구**다 — 안내 대신 새 방장 고르기로 넘어간다.
         case .leaveFailed(.ownerTransferRequired):
             state.leave = nil
-            let candidates = room.users
-                .filter { $0.userId != room.ownerId }
+            let candidates = room.ownerTransferCandidates
                 .map {
                     RoomOwnerTransferCandidate(
                         id: $0.userId, nickname: $0.nickname, avatarColor: $0.avatarColor
