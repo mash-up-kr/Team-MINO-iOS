@@ -16,8 +16,8 @@ struct PlaceDetailPlace: Equatable {
 
 extension PlaceDetailPlace {
     /// - Parameter label: 상단에 노출할 큐레이션 라벨. **홈 카드로 진입한 경우에만** 넘긴다 —
-    ///   핀 자신은 항상 라벨을 들고 있으므로(`pin.category`) 여기서 자동으로 채우면 저장 탭에서도
-    ///   라벨이 떠 002-1-1 ① 을 어긴다. 그래서 핀에서 꺼내지 않고 호출부가 정한다.
+    ///   라벨은 핀이 아니라 홈 카드(`PinCard`)가 들고 있으므로, 홈 진입부만 카드의 라벨을 꺼내 넘기고
+    ///   저장 탭·지도·알림 진입부는 nil 을 넘긴다(002-1-1 ①).
     init(from pin: Pin, label: PinCategory?) {
         self.init(
             name: pin.place.name,

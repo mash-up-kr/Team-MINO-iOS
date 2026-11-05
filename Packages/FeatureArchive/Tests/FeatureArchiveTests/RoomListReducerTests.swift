@@ -37,11 +37,11 @@ private final class SpyEntryPermissions: RequestEntryPermissionsUseCase, @unchec
 /// 지도 마커용 핀. 두 방에 하나씩 둬 **마커마다 소속 방 색이 달라야 한다**는 규칙을 볼 수 있게 한다.
 private let fixturePins: [Pin] = [
     PinFixture.pin(
-        id: PinID("p1"), roomID: "r1", category: .worthVisiting,
+        id: PinID("p1"), roomID: "r1",
         title: "개인방 장소", address: "a", createdAt: Date(timeIntervalSince1970: 0)
     ),
     PinFixture.pin(
-        id: PinID("p2"), roomID: "r2", category: .worthVisiting,
+        id: PinID("p2"), roomID: "r2",
         title: "공동방 장소", address: "b", createdAt: Date(timeIntervalSince1970: 0)
     ),
 ]

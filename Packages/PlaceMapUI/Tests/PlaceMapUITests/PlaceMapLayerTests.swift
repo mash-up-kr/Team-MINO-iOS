@@ -12,7 +12,6 @@ struct PlaceMapLayerTests {
         PinFixture.pin(
             id: PinID(id),
             roomID: room,
-            category: .worthVisiting,
             title: "장소 \(id)",
             address: "주소 \(id)",
             coordinate: Coordinate(latitude: lat, longitude: lng),
@@ -374,7 +373,6 @@ struct PlaceMapCameraModeTests {
         PinFixture.pin(
             id: PinID(id),
             roomID: room,
-            category: .worthVisiting,
             title: "장소 \(id)",
             address: "주소 \(id)",
             coordinate: Coordinate(latitude: lat, longitude: lng),

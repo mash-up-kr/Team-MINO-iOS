@@ -18,7 +18,6 @@ enum NotificationFixture {
             id: PlaceID("place-0"), name: "패스트리 순간", address: "서울 성동구",
             coordinate: Coordinate(latitude: 37.5443, longitude: 127.0557)
         ),
-        category: .worthVisiting,
         createdAt: now
     )
 }

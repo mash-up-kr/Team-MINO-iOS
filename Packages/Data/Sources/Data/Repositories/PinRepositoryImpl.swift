@@ -13,7 +13,7 @@ public struct PinRepositoryImpl: PinRepository, PinDetailRepository, PinAccessRe
         self.client = client
     }
 
-    public func cards(roomID: String, filter: PinFilter, origin: Coordinate?) async throws -> [Pin] {
+    public func cards(roomID: String, filter: PinFilter, origin: Coordinate?) async throws -> [PinCard] {
         do {
             return try await client.request(PinAPI.cards(roomID: roomID, filter: filter, origin: origin))
                 .cards.map { $0.toDomain() }

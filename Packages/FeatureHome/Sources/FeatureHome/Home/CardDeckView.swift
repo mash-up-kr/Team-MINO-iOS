@@ -5,7 +5,7 @@ import SwiftUI
 
 /// 홈 카드 스와이프 덱. 최대 5장을 겹쳐 표시하고 좌우 스와이프로 넘긴다.
 struct CardDeckView: View {
-    let pins: [Pin]
+    let pins: [PinCard]
     let currentIndex: Int
     let onSwipeForward: () -> Void
     let onSwipeBackward: () -> Void
@@ -55,7 +55,7 @@ struct CardDeckView: View {
                 let resolvedDepth = effectiveDepth(of: card)
                 let cardScale = CardDeckLayout.cardScale(containerWidth: containerWidth, effectiveDepth: resolvedDepth)
 
-                cardView(pin: card.pin)
+                cardView(card: card.card)
                     // 뒤 카드는 좁힌 게 아니라 **비율 그대로 줄인 사본**이다(시안) — 모든 카드를 같은
                     // 기준 폭으로 레이아웃한 뒤 축소한다. 폭만 좁히면 높이가 비례해 줄지 않아
                     // 겹침 간격이 20 보다 좁아지고, 뒤 카드 안에서 글자가 다시 줄바꿈된다.
@@ -70,7 +70,7 @@ struct CardDeckView: View {
                     .homeGuideDimmed(isGuidePresented && !card.isTop)
                     .allowsHitTesting(card.isTop && !isFlingAnimating)
                     .gesture(card.isTop ? swipeGesture : nil)
-                    .onTapGesture { onTapCard(card.pin.id) }
+                    .onTapGesture { onTapCard(card.id) }
             }
         }
         .frame(maxWidth: .infinity)
@@ -96,11 +96,11 @@ struct CardDeckView: View {
 
     /// ForEach 한 항목. 스택 카드와 되돌리기 카드를 **하나의 목록**으로 합치기 위한 표현이다.
     private struct DeckCard: Identifiable {
-        let pin: Pin
+        let card: PinCard
         /// 맨 앞 카드로부터의 거리(0 = 맨 앞). 되돌리기 카드는 앞 카드보다 한 칸 더 앞이라 -1.
         let depth: Int
 
-        var id: PinID { pin.id }
+        var id: PinID { card.id }
         var isTop: Bool { depth == 0 }
         /// 되돌리기(좌스와이프)로 우상단에서 돌아오는 카드. 첫 카드에는 없다 — 되돌리기는 덱 경계를 넘지 않는다(EC-003).
         var isReturning: Bool { depth < 0 }
@@ -110,7 +110,7 @@ struct CardDeckView: View {
         // 폭이 측정되기 전(첫 레이아웃 패스)엔 그리지 않아 0-폭 카드 깜빡임을 막는다.
         guard containerWidth > 0 else { return [] }
         return CardDeckLayout.renderedIndices(currentIndex: currentIndex, pinCount: pins.count)
-            .map { DeckCard(pin: pins[$0], depth: $0 - currentIndex) }
+            .map { DeckCard(card: pins[$0], depth: $0 - currentIndex) }
     }
 
     // MARK: - 카드별 변형 (되돌리기 카드는 진행도만큼 우상단에서 돌아온다)
@@ -150,8 +150,9 @@ struct CardDeckView: View {
 
     // MARK: - 개별 카드
 
-    private func cardView(pin: Pin) -> some View {
-        let badge = badgeInfo(for: pin.category)
+    private func cardView(card: PinCard) -> some View {
+        let badge = badgeInfo(for: card.category)
+        let pin = card.pin
         return MHHomeCard(
             // 저장자를 모르면 nil 로 둬 익명 자리표가 뜬다 — 아무 얼굴이나 넣으면 남의 얼굴이 된다.
             avatar: pin.createdBy.map { AvatarPalette.image(of: $0.avatarColor) },

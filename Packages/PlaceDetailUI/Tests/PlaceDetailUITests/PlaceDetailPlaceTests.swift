@@ -10,7 +10,6 @@ struct PlaceDetailPlaceTests {
         PinFixture.pin(
             id: PinID("p1"),
             roomID: "r1",
-            category: .popularAmongFriends,
             title: "레이어스튜디오 10",
             address: "서울 성동구 상원4길 10",
             images: images,
@@ -39,10 +38,9 @@ struct PlaceDetailPlaceTests {
         #expect(place.label == .popularAmongFriends)
     }
 
-    @Test("홈 이외 경로(저장 탭·지도·알림)로 들어오면 핀이 라벨을 들고 있어도 노출하지 않는다")
+    @Test("홈 이외 경로(저장 탭·지도·알림)로 들어오면 라벨을 노출하지 않는다")
     func omitsLabelOutsideHome() {
         let source = pin()
-        #expect(source.category == .popularAmongFriends)   // 핀 자신은 라벨을 갖고 있다
         #expect(PlaceDetailPlace(from: source, label: nil).label == nil)
     }
 

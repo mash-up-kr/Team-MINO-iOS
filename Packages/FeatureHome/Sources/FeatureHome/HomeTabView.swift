@@ -79,7 +79,7 @@ public struct HomeTabView: View {
     /// 시트를 닫으면 보던 카드·커서가 그대로 돌아온다 — 조회를 다시 하지 않는다.
     @ViewBuilder
     private var placeDetailMap: some View {
-        if let pin = coordinator.selectedPin {
+        if let pin = coordinator.selectedPin?.pin {
             PlaceMapLayer(
                 bottomInset: mapBottomInset,
                 pins: [pin],

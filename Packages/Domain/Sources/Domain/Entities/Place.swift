@@ -16,7 +16,7 @@ public struct Place: Equatable, Identifiable, Sendable {
     /// 업종(카페·음식점 등). 서버가 provider 별 정규화 규칙을 확정하기 전이라 **값 집합이 미정**이므로
     /// 타입으로 닫지 않고 원문을 통과시킨다. 확정되면 그때 VO 로 올린다.
     ///
-    /// 주의: `PinCategory` 와 다른 개념이다 — 그쪽은 홈 카드 뱃지용 큐레이션 라벨이다.
+    /// 주의: `PinCategory` 와 다른 개념이다 — 그쪽은 홈 카드(`PinCard`)에만 붙는 큐레이션 라벨이다.
     public let category: String?
     /// 외부 지도 서비스의 장소 상세 URL(서버가 준 것). 앱이 조립하는 애플지도 URL 과 별개다.
     public let mapURL: URL?

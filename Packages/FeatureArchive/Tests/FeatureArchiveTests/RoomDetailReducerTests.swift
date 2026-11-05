@@ -82,7 +82,6 @@ private let fixturePins: [Pin] = zip(zip([0, 10, 20], fixtureCategories), fixtur
         return PinFixture.pin(
             id: PinID("p\(daysAgo)"),
             roomID: fixtureRoom.id,
-            category: .worthVisiting,
             title: "장소 \(daysAgo)",
             address: "주소 \(daysAgo)",
             coordinate: PinFixture.coordinate(metersAway, northOf: fixtureOrigin),

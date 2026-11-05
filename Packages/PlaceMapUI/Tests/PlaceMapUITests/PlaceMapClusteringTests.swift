@@ -24,7 +24,6 @@ struct PlaceMapClusteringTests {
         PinFixture.pin(
             id: PinID(id),
             roomID: room,
-            category: .worthVisiting,
             title: "장소 \(id)",
             address: "주소 \(id)",
             coordinate: coordinate,

@@ -51,7 +51,7 @@ private struct StubFetchRooms: FetchRoomsUseCase {
 }
 
 private struct StubFetchHomeCards: FetchHomeCardsUseCase {
-    func execute(room: Room, filter: PinFilter, origin: Coordinate?) async throws -> [Pin] { [] }
+    func execute(room: Room, filter: PinFilter, origin: Coordinate?) async throws -> [PinCard] { [] }
 }
 
 private struct StubLastViewedRoom: LastViewedRoomUseCase {
@@ -103,8 +103,8 @@ struct HomeCoordinatorTests {
 
     // MARK: - 장소 상세 (지도 + 시트)
 
-    private func pin(_ id: String, lat: Double = 37.5, lng: Double = 127.0) -> Pin {
-        PinFixture.pin(
+    private func card(_ id: String, lat: Double = 37.5, lng: Double = 127.0) -> PinCard {
+        PinFixture.card(
             id: PinID(id),
             roomID: "r1",
             category: .worthVisiting,
@@ -118,7 +118,7 @@ struct HomeCoordinatorTests {
     @Test("카드에서 장소를 열면 그 핀이 선다")
     func openPlaceDetail_setsPin() {
         let coordinator = HomeCoordinator(deps: StubDeps())
-        let target = pin("a")
+        let target = card("a")
         coordinator.handle(.openPlaceDetail(target))
         #expect(coordinator.selectedPin == target)
     }
@@ -128,14 +128,14 @@ struct HomeCoordinatorTests {
         let coordinator = HomeCoordinator(deps: StubDeps())
         #expect(!coordinator.isFullBleedContentPresented)
 
-        coordinator.handle(.openPlaceDetail(pin("a")))
+        coordinator.handle(.openPlaceDetail(card("a")))
         #expect(coordinator.isFullBleedContentPresented)
     }
 
     @Test("장소 상세를 닫으면 탭바가 돌아온다")
     func closingPlaceDetailRestoresTabBar() {
         let coordinator = HomeCoordinator(deps: StubDeps())
-        coordinator.handle(.openPlaceDetail(pin("a")))
+        coordinator.handle(.openPlaceDetail(card("a")))
         coordinator.handle(PlaceDetailNav.close)
 
         #expect(coordinator.selectedPin == nil)
@@ -147,12 +147,12 @@ struct HomeCoordinatorTests {
     @Test("L2 — '다른 방에 공유'는 장소 상세를 닫지 않고 그 위에 공유 시트를 얹는다")
     func share_keepsPlaceDetailOpen() {
         let coordinator = HomeCoordinator(deps: StubDeps())
-        let target = pin("a")
+        let target = card("a")
         coordinator.handle(.openPlaceDetail(target))
 
-        coordinator.handle(PlaceDetailNav.share(target))
+        coordinator.handle(PlaceDetailNav.share(target.pin))
 
-        #expect(coordinator.sharingPin == target)
+        #expect(coordinator.sharingPin == target.pin)
         // 상세가 살아 있어야 시트가 지도·상세 위에 얹힌다 — 닫으면 어디서 눌렀는지 사라진다.
         #expect(coordinator.selectedPin == target)
         #expect(coordinator.placeDetailStore != nil)
@@ -161,9 +161,9 @@ struct HomeCoordinatorTests {
     @Test("L1 — 공유 저장이 끝나면 시트만 닫는다 (상세는 그대로)")
     func shareDidSave_closesOnlyTheSheet() {
         let coordinator = HomeCoordinator(deps: StubDeps())
-        let target = pin("a")
+        let target = card("a")
         coordinator.handle(.openPlaceDetail(target))
-        coordinator.handle(PlaceDetailNav.share(target))
+        coordinator.handle(PlaceDetailNav.share(target.pin))
 
         coordinator.handle(RoomShareNav.didSave)
 
@@ -174,21 +174,21 @@ struct HomeCoordinatorTests {
     @Test("L1 — 공유 시트에서 방 만들기로 가면 시트를 닫지 않고 그 위를 덮는다 (011-1 ③)")
     func shareGoToCreateRoom_keepsSheet() {
         let coordinator = HomeCoordinator(deps: StubDeps())
-        let target = pin("a")
+        let target = card("a")
         coordinator.handle(.openPlaceDetail(target))
-        coordinator.handle(PlaceDetailNav.share(target))
+        coordinator.handle(PlaceDetailNav.share(target.pin))
 
         coordinator.handle(RoomShareNav.goToCreateRoom)
 
         #expect(coordinator.shareCreateRoomChild != nil)
         // 닫으면 고르던 방 선택이 사라진다 — 시트는 그대로 남아야 한다.
-        #expect(coordinator.sharingPin == target)
+        #expect(coordinator.sharingPin == target.pin)
     }
 
     @Test("현위치 요청은 그 좌표를 세운다")
     func focusMyLocation_setsCoordinate() {
         let coordinator = HomeCoordinator(deps: StubDeps())
-        coordinator.handle(.openPlaceDetail(pin("a")))
+        coordinator.handle(.openPlaceDetail(card("a")))
 
         let me = Coordinate(latitude: 37.5443, longitude: 127.0557)
         coordinator.handle(PlaceDetailNav.focusMyLocation(me))
@@ -199,7 +199,7 @@ struct HomeCoordinatorTests {
     @Test("같은 자리를 다시 눌러도 새 요청이다 — 지도를 옮긴 뒤 눌러도 카메라가 돌아와야 한다")
     func repeatedFocusIsANewRequest() {
         let coordinator = HomeCoordinator(deps: StubDeps())
-        coordinator.handle(.openPlaceDetail(pin("a")))
+        coordinator.handle(.openPlaceDetail(card("a")))
 
         let me = Coordinate(latitude: 37.5443, longitude: 127.0557)
         coordinator.handle(PlaceDetailNav.focusMyLocation(me))
@@ -213,10 +213,10 @@ struct HomeCoordinatorTests {
     @Test("다른 장소를 열면 이전 현위치 요청은 사라진다 — 남으면 새 장소가 화면 밖에 놓인다")
     func openingAnotherPlaceClearsFocus() {
         let coordinator = HomeCoordinator(deps: StubDeps())
-        coordinator.handle(.openPlaceDetail(pin("a")))
+        coordinator.handle(.openPlaceDetail(card("a")))
         coordinator.handle(PlaceDetailNav.focusMyLocation(Coordinate(latitude: 37.5443, longitude: 127.0557)))
 
-        coordinator.handle(.openPlaceDetail(pin("b")))
+        coordinator.handle(.openPlaceDetail(card("b")))
 
         #expect(coordinator.mapFocus == nil)
     }
@@ -224,7 +224,7 @@ struct HomeCoordinatorTests {
     @Test("상세를 닫아도 현위치 요청은 사라진다 — 지도가 그 장소와 수명을 같이한다")
     func closingClearsFocus() {
         let coordinator = HomeCoordinator(deps: StubDeps())
-        coordinator.handle(.openPlaceDetail(pin("a")))
+        coordinator.handle(.openPlaceDetail(card("a")))
         coordinator.handle(PlaceDetailNav.focusMyLocation(Coordinate(latitude: 37.5443, longitude: 127.0557)))
 
         coordinator.handle(PlaceDetailNav.close)

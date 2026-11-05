@@ -15,7 +15,7 @@ import Foundation
 enum HomeGuideMockDeck {
 
     /// 시안의 카드 다섯 장. 겹쳐 보이는 만큼만 만든다(더 만들어도 화면에 나오지 않는다).
-    static let pins: [Pin] = (0..<CardDeckLayout.visibleCount).map(mockPin(index:))
+    static let pins: [PinCard] = (0..<CardDeckLayout.visibleCount).map(mockCard(index:))
 
     /// 방 뱃지 표기의 폴백. 방을 아직 못 읽었을 때만 쓴다 — 방이 있으면 진짜 방 이름을 그린다.
     /// 안내 문구가 "방 뱃지와 토끼를 클릭하면" 이라 뱃지 자체는 비워 둘 수 없고, 가입 직후 계정이
@@ -26,22 +26,24 @@ enum HomeGuideMockDeck {
     /// (50% 로 깔린 클립아트)라 앱이 들고 있을 에셋이 아니고, 사진 없는 핀에 DS 가 그리는 빈 타일
     /// (`Background/Normal/Alternative` #F7F7F8)이 시안의 타일 색(#F4F4FE)과 사실상 같은 자리를 만든다.
     /// 그 위는 어차피 손 그래픽과 안내 문구가 덮는다.
-    private static func mockPin(index: Int) -> Pin {
-        Pin(
-            id: PinID("home-guide-mock-\(index)"),
-            roomID: "home-guide-mock",
-            place: Place(
-                id: PlaceID("home-guide-mock-place-\(index)"),
-                name: "레이어스튜디오 10",
-                address: "서울 성동구 상원4길 10",
-                // 모형 카드는 좌표를 쓰지 않는다(지도를 열지 않고, 가이드 중엔 탭도 막힌다).
-                coordinate: Coordinate(latitude: 0, longitude: 0)
+    private static func mockCard(index: Int) -> PinCard {
+        PinCard(
+            pin: Pin(
+                id: PinID("home-guide-mock-\(index)"),
+                roomID: "home-guide-mock",
+                place: Place(
+                    id: PlaceID("home-guide-mock-place-\(index)"),
+                    name: "레이어스튜디오 10",
+                    address: "서울 성동구 상원4길 10",
+                    // 모형 카드는 좌표를 쓰지 않는다(지도를 열지 않고, 가이드 중엔 탭도 막힌다).
+                    coordinate: Coordinate(latitude: 0, longitude: 0)
+                ),
+                // 색을 고르지 않은 계정과 같은 아바타(소품 없는 검은 얼굴) — 시안의 카드 아바타가 그것이다.
+                createdBy: MemberProfile(id: MemberID("home-guide-mock"), nickname: "꾹이", avatarColor: nil),
+                // 표시에 쓰이지 않는 값이라 고정한다 — 화면이 실행 시각에 따라 달라지지 않게.
+                createdAt: Date(timeIntervalSince1970: 0)
             ),
-            // 색을 고르지 않은 계정과 같은 아바타(소품 없는 검은 얼굴) — 시안의 카드 아바타가 그것이다.
-            createdBy: MemberProfile(id: MemberID("home-guide-mock"), nickname: "꾹이", avatarColor: nil),
-            category: .worthVisiting,   // 뱃지 "가볼 만한 곳"
-            // 표시에 쓰이지 않는 값이라 고정한다 — 화면이 실행 시각에 따라 달라지지 않게.
-            createdAt: Date(timeIntervalSince1970: 0)
+            category: .worthVisiting   // 뱃지 "가볼 만한 곳"
         )
     }
 }

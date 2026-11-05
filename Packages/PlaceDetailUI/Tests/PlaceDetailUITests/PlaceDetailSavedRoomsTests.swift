@@ -7,7 +7,6 @@ import MVITestSupport
 private let savedPin = PinFixture.pin(
     id: PinID("p1"),
     roomID: "room-A",
-    category: .worthVisiting,
     title: "레이어스튜디오 10",
     address: "서울 성동구 상원4길 10",
     createdAt: Date(timeIntervalSince1970: 0)

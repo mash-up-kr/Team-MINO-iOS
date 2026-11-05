@@ -21,7 +21,7 @@ struct RoomDetailLocationTests {
     @Test("Pin 의 사진이 그대로 실려 온다")
     func mapsPinImages() {
         let pin = PinFixture.pin(
-            id: PinID("p1"), roomID: "r1", category: .worthVisiting,
+            id: PinID("p1"), roomID: "r1",
             title: "레이어스튜디오 10", address: "서울 성동구 상원4길 10",
             images: photos, createdAt: Date(timeIntervalSince1970: 0)
         )
